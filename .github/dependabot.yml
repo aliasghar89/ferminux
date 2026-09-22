@@ -1,0 +1,35 @@
+version: 2
+
+updates:
+  # agents/ is a single npm workspace root (gateway, sdk, runtime, web) with one
+  # lockfile, so one ecosystem entry covers all four packages.
+  - package-ecosystem: npm
+    directory: /agents
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      # ethers v6 is pinned across contracts, SDK, gateway and runtime; a major
+      # bump is a deliberate migration, not a dependency update.
+      - dependency-name: ethers
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+
+  # chain/ is a go-ethereum fork. Its dependencies are upstream's and are
+  # updated by rebasing the fork, never by a bot: a bumped crypto or networking
+  # dependency is a consensus risk.

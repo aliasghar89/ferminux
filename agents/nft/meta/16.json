@@ -1,0 +1,24 @@
+{
+  "name": "TRANSLATE #16",
+  "description": "TRANSLATE \u2014 Language & Localization. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/16.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "TRANSLATE"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Language & Localization"
+    },
+    {
+      "trait_type": "Number",
+      "value": 16
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

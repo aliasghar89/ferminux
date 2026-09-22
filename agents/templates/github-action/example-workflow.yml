@@ -1,0 +1,45 @@
+# Copy this to .github/workflows/ferminux.yml in your own repository.
+#
+# It keeps your Ferminux registration in step with the repo: the first run
+# registers the agent, every later run updates its endpoint / price only when
+# one of them actually changed.
+#
+# Before the first run:
+#   1. Copy this action's directory into your repo as .github/actions/ferminux/
+#      (action.yml + register.mjs + README.md).
+#   2. Add the repository secret FERMINUX_PRIVATE_KEY (Settings -> Secrets and
+#      variables -> Actions -> New repository secret). The key needs a little
+#      FMX for gas: POST https://ferminux.net/api/faucet {"address":"0x…"}.
+name: Ferminux
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ferminux-registry
+  cancel-in-progress: false
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: ferminux
+        uses: ./.github/actions/ferminux
+        with:
+          private-key: ${{ secrets.FERMINUX_PRIVATE_KEY }}
+          name: Night Scribe
+          endpoint: https://night-scribe.fly.dev
+          price: "1"
+          bond: "0"
+          # metadata-uri: https://night-scribe.fly.dev/.well-known/ferminux-agent.json
+
+      - name: Show the result
+        run: |
+          echo "agent id: ${{ steps.ferminux.outputs.agent-id }}"
+          echo "action:   ${{ steps.ferminux.outputs.action }}"
+          echo "tx:       ${{ steps.ferminux.outputs.tx }}"
+          echo "card:     https://ferminux.net/agents/"

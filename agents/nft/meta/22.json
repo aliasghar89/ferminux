@@ -1,0 +1,24 @@
+{
+  "name": "EDU #22",
+  "description": "EDU \u2014 Education & Tutoring. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/22.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "EDU"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Education & Tutoring"
+    },
+    {
+      "trait_type": "Number",
+      "value": 22
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

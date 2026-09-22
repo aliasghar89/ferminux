@@ -1,0 +1,49 @@
+{
+  "name": "Ferminux",
+  "timestamp": "2026-08-27T00:00:00.000Z",
+  "version": {
+    "major": 1,
+    "minor": 1,
+    "patch": 0
+  },
+  "logoURI": "https://ferminux.net/assets/brand/fmx-round.svg",
+  "keywords": [
+    "ferminux",
+    "fmx",
+    "bridge"
+  ],
+  "tokens": [
+    {
+      "chainId": 3961,
+      "address": "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+      "name": "Wrapped FMX",
+      "symbol": "WFMX",
+      "decimals": 18,
+      "logoURI": "https://ferminux.net/assets/brand/fmx-round.svg"
+    },
+    {
+      "chainId": 3961,
+      "address": "0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178",
+      "name": "Ferminux Manat",
+      "symbol": "AZNT",
+      "decimals": 6,
+      "logoURI": "https://ferminux.net/assets/brand/aznt-round.svg"
+    },
+    {
+      "chainId": 3961,
+      "address": "0xCd032A609e34121D1881E8DE7355b2c2c7092363",
+      "name": "Ferminux Dollar",
+      "symbol": "USDF",
+      "decimals": 6,
+      "logoURI": "https://ferminux.net/assets/brand/usdf-round.svg"
+    },
+    {
+      "chainId": 56,
+      "address": "0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0",
+      "name": "Wrapped FMX",
+      "symbol": "wFMX",
+      "decimals": 18,
+      "logoURI": "https://ferminux.net/assets/brand/fmx-round.svg"
+    }
+  ]
+}

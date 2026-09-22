@@ -1,0 +1,92 @@
+{
+  "_README": "LOCAL DEVNET ONLY. Two anvils on 8562/8563 with the deterministic first-deployment addresses. Never point this at a public RPC — it assumes anvil cheat codes and anvil's published dev keys.",
+  "_setup": "node test/e2e.mjs does all of this automatically. To drive it by hand, follow README.md#run-it-yourself-on-two-anvils; the addresses below are what a fresh anvil produces for the first two deployments from account #0.",
+  "network": "ferminux-bridge-devnet",
+
+  "chains": [
+    {
+      "name": "ferminux-local",
+      "chainId": 3961,
+      "_notes": "3 confirmations instead of the mainnet 64 so a manual run finishes in seconds. NEVER copy this number into a real config.",
+      "rpcUrls": ["http://127.0.0.1:8562"],
+      "bridgeAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "confirmations": 3,
+      "finalityTag": null,
+      "pollIntervalMs": 500,
+      "startBlock": 1,
+      "maxBlockRange": 2000,
+      "enabled": true,
+      "gas": {
+        "maxFeePerGasGwei": 500,
+        "priorityFeeGwei": 1,
+        "escalationPct": 25,
+        "maxAttempts": 3,
+        "receiptTimeoutMs": 120000
+      },
+      "limits": {
+        "_note": "20 FMX per transfer, 60 per rolling 24h — deliberately BELOW the 100/500 the contract allows, so the cap-breach path is reachable without touching the chain.",
+        "default": { "maxPerTransfer": "20000000000000000000", "dailyCap": "60000000000000000000" },
+        "tokens": {
+          "0x0000000000000000000000000000000000000000": {
+            "maxPerTransfer": "20000000000000000000",
+            "dailyCap": "60000000000000000000"
+          }
+        }
+      }
+    },
+
+    {
+      "name": "remote-local",
+      "chainId": 56,
+      "rpcUrls": ["http://127.0.0.1:8563"],
+      "bridgeAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "confirmations": 3,
+      "finalityTag": null,
+      "pollIntervalMs": 500,
+      "startBlock": 1,
+      "maxBlockRange": 2000,
+      "enabled": true,
+      "gas": {
+        "maxFeePerGasGwei": 500,
+        "priorityFeeGwei": 1,
+        "escalationPct": 25,
+        "maxAttempts": 3,
+        "receiptTimeoutMs": 120000
+      },
+      "limits": {
+        "default": { "maxPerTransfer": "20000000000000000000", "dailyCap": "60000000000000000000" },
+        "tokens": {
+          "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512": {
+            "_note": "wFMX, the wrapper deployed on chain B",
+            "maxPerTransfer": "20000000000000000000",
+            "dailyCap": "60000000000000000000"
+          }
+        }
+      }
+    }
+  ],
+
+  "http": { "host": "127.0.0.1", "port": 0, "apiToken": "" },
+  "keystore": { "path": "", "passwordFile": "", "expectedAddress": "" },
+  "transport": { "mode": "http", "sharedDir": "", "requestTimeoutMs": 3000 },
+  "submitter": {
+    "_note": "Fill these in with the ports the validators printed on startup, or set FMX_RELAYER_PEERS.",
+    "peers": [],
+    "signatureWaitMs": 20000,
+    "pollIntervalMs": 1000,
+    "skipWhenPaused": true
+  },
+  "validator": { "maxTransferAgeMs": 0, "requireRpcQuorum": true },
+  "state": { "path": "./state/devnet.db", "driver": "auto" },
+  "alerts": { "webhookUrl": "", "minSeverity": "info", "throttleMs": 10000 },
+  "divergenceIntervalMs": 3000,
+  "log": { "level": "info", "format": "text" },
+
+  "_insecure": "THIS IS WHY THIS FILE IS DEVNET-ONLY. Each anvil is a single endpoint, so there is no second source to compare against and no eclipse detection is possible — a real config is refused at startup for this shape. Saying so takes the whole acknowledgement sentence on purpose: it cannot be typed by accident, and it stays in the file for the next person to find. Do NOT copy this block into a mainnet config.",
+  "insecure": {
+    "acknowledgement": "I understand this disables eclipse protection",
+    "allowSingleRpcEndpoint": true,
+    "_allowCountFinalityWithoutGadget": "Both anvils have no finality gadget and no `finality` block, which a real config is refused for: an enabled gadget-less chain must say work-and-time or checkpoint. Devnet only.",
+    "allowCountFinalityWithoutGadget": true
+  }
+}

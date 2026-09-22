@@ -1,0 +1,132 @@
+# =============================================================================
+# SECRETS — NEVER COMMIT. These hold real money.
+# =============================================================================
+.credentials/
+**/secrets/
+*.key
+!**/testdata/**/*.key
+keystore/
+**/keystore/
+UTC--*
+.env
+.env.*
+!.env.example
+*.pem
+!**/certs/README.md
+
+# =============================================================================
+# Build output / dependencies
+# =============================================================================
+node_modules/
+dist/
+build/
+out/
+cache/
+broadcast/
+*.tsbuildinfo
+.vite/
+
+# Foundry
+contracts/lib/
+bridge/contracts/lib/
+**/forge-cache/
+
+# Go
+chain/build/bin/
+proxy/fmx-stratum-proxy
+*.test
+
+# Flutter / Dart
+miner-app/.dart_tool/
+miner-app/build/
+miner-app/ios/Pods/
+miner-app/macos/Pods/
+miner-app/**/Flutter/ephemeral/
+miner-app/bin/*/ferminux-geth
+miner-app/bin/*/ferminux-geth.exe
+
+# Chain data (never commit a chaindata dir)
+**/chaindata/
+**/geth/
+*.ipc
+
+# Release artifacts (published via GitHub Releases, not git)
+site/downloads/*.tar.gz
+site/downloads/*.zip
+
+# =============================================================================
+# OS / editor noise
+# =============================================================================
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.log
+
+# =============================================================================
+# Bridge
+# =============================================================================
+# The bridge source IS tracked: it is on mainnet, it holds other people's money,
+# and it went through three hardening rounds plus a route preflight. Untracked
+# source for the most security-critical code in the project was the wrong trade.
+#
+# What stays out: build output, vendored dependencies, and anything holding a key.
+bridge/**/node_modules/
+bridge/contracts/out/
+bridge/contracts/cache/
+bridge/contracts/lib/
+bridge/relayer/artifacts/
+bridge/relayer/state/
+bridge/ui/dist/
+bridge/watcher/watcher.state.json
+bridge/watcher/watcher.state.json.tmp
+
+# Rehearsal keystores sit next to their own password files. They are devnet-only,
+# but a keystore committed beside its password teaches the habit that loses a
+# mainnet key, so they never enter history.
+bridge/rehearsal/keys/
+
+# The real relayer config carries per-host bearer tokens; only the examples ship.
+bridge/relayer/config/chains.json
+
+# Rendered docs output (built by docs/build-docs.mjs)
+docs/dist/
+
+# Release artifacts: the binaries and archives are reproducible from the tagged
+# source and are far too large for history. SHA256SUMS and the README — how
+# each platform was built and what was NOT verified — are tracked.
+infra/release/*/bin/
+infra/release/*/*.tar.gz
+infra/release/*/*.zip
+
+# Lab rehearsal runtime: generated lab keys, cloned datadirs, per-run state.
+# Lab-only keys, but a keystore committed beside its password teaches the habit
+# that loses a mainnet key. Scripts and evidence are tracked; .run is not.
+infra/lab/.run/
+
+# superseded release artefacts kept for the record, never published
+infra/release/*/.superseded-*/
+
+# Lab evidence is the PROOF behind ticked runbook items, not incidental output.
+# The blanket *.log rule silently excluded it, so citations in RELEASE-posa.md
+# pointed at files that were never committed and three others survived only
+# because someone remembered `git add -f`. Evidence is tracked by default now.
+!infra/lab/evidence/
+!infra/lab/evidence/*.log
+
+# =============================================================================
+# PUBLIC-RELEASE REDACTIONS (2026-09-22)
+# The repo is published at github.com/aliasghar89/ferminux. These files stay on
+# the operator's disk and out of the published tree: they map the authority set
+# to physical hosts, or they are build output that does not belong in git.
+# =============================================================================
+# Validator placement runbook: signer -> host -> provider, plus each host's
+# known weak point and the key-escrow procedure. An attacker's target list for
+# a five-signer PoA chain. Operator-only.
+infra/RELEASE-posa.md
+# Lab devnet P2P node private keys (networkid 39610). Lab-only, no funds, but
+# a keystore in git teaches the habit that loses a mainnet key.
+infra/lab/.run/
+# Compiled stratum proxy binary (8.4 MB). Reproducible from proxy/ source.
+proxy/stratum-proxy

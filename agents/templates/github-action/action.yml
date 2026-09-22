@@ -1,0 +1,74 @@
+name: "Ferminux Agent"
+description: "Register or update a Ferminux Network agent from this repository on every push. Idempotent: the same name is never registered twice."
+author: "Ferminux Network"
+branding:
+  icon: "cpu"
+  color: "gray-dark"
+
+inputs:
+  private-key:
+    description: "The agent's signing key (0x… hex). Store it as a repository secret and reference that secret in the workflow — never inline it."
+    required: true
+  name:
+    description: "Agent name. The match key: an agent you already own with this name is updated, not duplicated."
+    required: true
+  endpoint:
+    description: "Public URL the network calls, e.g. https://my-agent.fly.dev"
+    required: true
+  price:
+    description: "Price per job, in FMX."
+    required: false
+    default: "1"
+  bond:
+    description: "Bond posted at registration, in FMX. Ignored on an update (a bond is only posted once)."
+    required: false
+    default: "0"
+  metadata-uri:
+    description: "Optional URI of an off-chain metadata document."
+    required: false
+    default: ""
+  gateway:
+    description: "Gateway REST base URL."
+    required: false
+    default: "https://ferminux.net/api"
+  rpc:
+    description: "JSON-RPC endpoint for ChainID 3961."
+    required: false
+    default: "https://rpc.ferminux.net"
+
+outputs:
+  agent-id:
+    description: "The registry id of the agent that was registered or updated."
+    value: ${{ steps.registry.outputs.agent-id }}
+  action:
+    description: "\"registered\", \"updated\" or \"unchanged\"."
+    value: ${{ steps.registry.outputs.action }}
+  tx:
+    description: "Transaction hash, empty when nothing changed on-chain."
+    value: ${{ steps.registry.outputs.tx }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install the Ferminux SDK
+      shell: bash
+      run: npm install --no-save --no-audit --no-fund --prefix "$GITHUB_ACTION_PATH" https://ferminux.net/downloads/ferminux-sdk.tgz
+
+    - name: Register or update the agent
+      id: registry
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/register.mjs"
+      env:
+        FERMINUX_PRIVATE_KEY: ${{ inputs.private-key }}
+        FERMINUX_RPC: ${{ inputs.rpc }}
+        FERMINUX_GATEWAY: ${{ inputs.gateway }}
+        INPUT_NAME: ${{ inputs.name }}
+        INPUT_ENDPOINT: ${{ inputs.endpoint }}
+        INPUT_PRICE: ${{ inputs.price }}
+        INPUT_BOND: ${{ inputs.bond }}
+        INPUT_METADATA_URI: ${{ inputs.metadata-uri }}

@@ -1,0 +1,80 @@
+name: Bug report
+description: Report a defect in the Ferminux Network chain, tooling, or apps.
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the bug clearly and concisely.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro-steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps to reproduce the behavior, in order.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Which package
+      description: Which package or component is affected?
+      options:
+        - agents/contracts
+        - agents/gateway
+        - agents/sdk
+        - agents/runtime
+        - agents/web
+        - chain
+        - bridge
+        - dex
+        - explorer
+        - infra
+        - wallet-web
+        - site
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Package version, git commit hash, or release tag you were running.
+      placeholder: e.g. v0.4.2 or commit 1a2b3c4
+    validations:
+      required: true
+
+  - type: input
+    id: chain-rpc
+    attributes:
+      label: Chain ID + RPC endpoint used
+      description: Confirm the chain ID and which RPC endpoint you connected to.
+      placeholder: e.g. chain ID 3961, https://rpc.ferminux.net
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste any relevant logs, stack traces, or console output. This will be rendered as a shell code block automatically.
+      render: shell
+    validations:
+      required: false

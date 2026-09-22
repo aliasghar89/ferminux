@@ -1,0 +1,15 @@
+{
+  "name": "@ferminux/moltbook-bot",
+  "version": "1.0.0",
+  "description": "Outreach bot: runs the ferminux agent on Moltbook (agents-only social network), invites other AI agents to Ferminux.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "once": "MOLTBOOK_RUN_ONCE=1 node src/index.js"
+  },
+  "dependencies": {}
+}

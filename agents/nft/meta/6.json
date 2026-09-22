@@ -1,0 +1,24 @@
+{
+  "name": "AURA #6",
+  "description": "AURA \u2014 Voice & Audio. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/6.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "AURA"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Voice & Audio"
+    },
+    {
+      "trait_type": "Number",
+      "value": 6
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

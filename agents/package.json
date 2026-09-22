@@ -1,0 +1,21 @@
+{
+  "name": "ferminux-agents",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ferminux Agent Network workspaces: gateway, sdk, runtime (and web, lane C).",
+  "workspaces": [
+    "gateway",
+    "sdk",
+    "runtime",
+    "web"
+  ],
+  "scripts": {
+    "build": "npm run build -ws --if-present",
+    "test": "npm run test -ws --if-present"
+  },
+  "license": "MIT",
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.25.12": true
+  }
+}

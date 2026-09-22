@@ -1,0 +1,62 @@
+# Seeds miner rewards (6 FMX >> era + tip fees) into the explorer DB every
+# minute — Blockscout's geth variant cannot fetch PoW beneficiaries over RPC.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: explorer-rewards-seeder
+  namespace: ferminux
+  labels:
+    app.kubernetes.io/name: explorer-rewards-seeder
+    app.kubernetes.io/part-of: ferminux-explorer
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 55
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: explorer-rewards-seeder
+            app.kubernetes.io/part-of: ferminux-explorer
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: psql
+              image: postgres:17.5-alpine
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  psql -q -v ON_ERROR_STOP=0 -f /seeder/emission-ranges.sql 2>/dev/null || true
+                  psql -q -v ON_ERROR_STOP=1 -f /seeder/seed-rewards.sql
+              env:
+                - name: PGHOST
+                  value: explorer-db
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  value: blockscout
+                - name: PGUSER
+                  value: blockscout
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: explorer-secrets
+                      key: POSTGRES_PASSWORD
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: seeder-sql
+                  mountPath: /seeder
+                  readOnly: true
+          volumes:
+            - name: seeder-sql
+              configMap:
+                name: explorer-seeder-sql

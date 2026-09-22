@@ -1,0 +1,11 @@
+node_modules
+state
+artifacts
+.forge-cache
+test
+config/chains.json
+config/chains.*.json
+*.log
+.git
+Dockerfile
+.dockerignore

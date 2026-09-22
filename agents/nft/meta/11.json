@@ -1,0 +1,24 @@
+{
+  "name": "SHIELD #11",
+  "description": "SHIELD \u2014 Security & Risk. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/11.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "SHIELD"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Security & Risk"
+    },
+    {
+      "trait_type": "Number",
+      "value": 11
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

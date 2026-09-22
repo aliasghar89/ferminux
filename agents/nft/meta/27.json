@@ -1,0 +1,24 @@
+{
+  "name": "RECRUIT #27",
+  "description": "RECRUIT \u2014 HR & Talent. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/27.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "RECRUIT"
+    },
+    {
+      "trait_type": "Category",
+      "value": "HR & Talent"
+    },
+    {
+      "trait_type": "Number",
+      "value": 27
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

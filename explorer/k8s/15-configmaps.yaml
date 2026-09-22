@@ -1,0 +1,169 @@
+# Non-secret configuration: backend env, chain spec (premine import),
+# nginx proxy config, and the rewards-seeder SQL.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: explorer-backend-env
+  namespace: ferminux
+  labels:
+    app.kubernetes.io/part-of: ferminux-explorer
+data:
+  # --- chain identity ---
+  CHAIN_ID: "3961"
+  COIN: "FMX"
+  COIN_NAME: "FMX"
+  NETWORK: "Ferminux"
+  SUBNETWORK: "Ferminux Network"
+  CHAIN_TYPE: "default"
+  # --- node (point at the internal RPC service; rpc.ferminux.net works too) ---
+  ETHEREUM_JSONRPC_VARIANT: "geth"
+  ETHEREUM_JSONRPC_TRANSPORT: "http"
+  ETHEREUM_JSONRPC_HTTP_URL: "http://fmx-rpc.ferminux.svc.cluster.local:8545"
+  ETHEREUM_JSONRPC_TRACE_URL: "http://fmx-rpc.ferminux.svc.cluster.local:8545"
+  ETHEREUM_JSONRPC_WS_URL: "ws://fmx-rpc.ferminux.svc.cluster.local:8546"
+  # ferminux-geth public RPC exposes no debug/trace namespace
+  INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER: "true"
+  INDEXER_DISABLE_BLOCK_REWARD_FETCHER: "true"
+  CHAIN_SPEC_PATH: "/app/chainspec/genesis.json"
+  # --- server ---
+  PORT: "4000"
+  ECTO_USE_SSL: "false"
+  POOL_SIZE: "30"
+  POOL_SIZE_API: "10"
+  API_V2_ENABLED: "true"
+  NETWORK_PATH: "/"
+  EIP_1559_ELASTICITY_MULTIPLIER: "2"
+  # --- self-hosted: no external integrations ---
+  DISABLE_EXCHANGE_RATES: "true"
+  MICROSERVICE_SC_VERIFIER_ENABLED: "false"
+  MICROSERVICE_ETH_BYTECODE_DB_ENABLED: "false"
+  MICROSERVICE_VISUALIZE_SOL2UML_ENABLED: "false"
+  MICROSERVICE_SIG_PROVIDER_ENABLED: "false"
+  MICROSERVICE_METADATA_ENABLED: "false"
+  SOURCIFY_INTEGRATION_ENABLED: "false"
+  ACCOUNT_ENABLED: "false"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: explorer-frontend-env
+  namespace: ferminux
+  labels:
+    app.kubernetes.io/part-of: ferminux-explorer
+data:
+  NEXT_PUBLIC_APP_PROTOCOL: "https"
+  NEXT_PUBLIC_APP_HOST: "explorer.ferminux.net"
+  NEXT_PUBLIC_APP_PORT: "443"
+  NEXT_PUBLIC_API_PROTOCOL: "https"
+  NEXT_PUBLIC_API_HOST: "explorer.ferminux.net"
+  NEXT_PUBLIC_API_PORT: "443"
+  NEXT_PUBLIC_API_WEBSOCKET_PROTOCOL: "wss"
+  NEXT_PUBLIC_API_BASE_PATH: "/"
+  NEXT_PUBLIC_NETWORK_NAME: "Ferminux Network"
+  NEXT_PUBLIC_NETWORK_SHORT_NAME: "Ferminux"
+  NEXT_PUBLIC_NETWORK_ID: "3961"
+  NEXT_PUBLIC_NETWORK_CURRENCY_NAME: "Ferminux"
+  NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL: "FMX"
+  NEXT_PUBLIC_NETWORK_CURRENCY_DECIMALS: "18"
+  NEXT_PUBLIC_NETWORK_RPC_URL: "https://rpc.ferminux.net"
+  NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE: "mining"
+  NEXT_PUBLIC_IS_TESTNET: "false"
+  NEXT_PUBLIC_GAS_TRACKER_ENABLED: "true"
+  NEXT_PUBLIC_AD_BANNER_PROVIDER: "none"
+  NEXT_PUBLIC_AD_TEXT_PROVIDER: "none"
+  NEXT_PUBLIC_HOMEPAGE_CHARTS: "[]"
+  # Branding — keep in step with explorer/envs/frontend.env, which is what the
+  # compose deployment actually reads. See the notes there for why the URLs must
+  # be absolute with a file extension, and why FAVICON_MASTER_URL is a PNG.
+  NEXT_PUBLIC_NETWORK_LOGO: "https://ferminux.net/assets/brand/fmx-wordmark.svg"
+  NEXT_PUBLIC_NETWORK_LOGO_DARK: "https://ferminux.net/assets/brand/fmx-wordmark-dark.svg"
+  NEXT_PUBLIC_NETWORK_ICON: "https://ferminux.net/assets/brand/fmx-round.svg"
+  NEXT_PUBLIC_NETWORK_ICON_DARK: "https://ferminux.net/assets/brand/fmx-round.svg"
+  NEXT_PUBLIC_COLOR_THEME_DEFAULT: "light"
+  NEXT_PUBLIC_HOMEPAGE_HERO_BANNER_CONFIG: '{"background":["#a8761c","#8a5f14"],"text_color":["#ffffff","#ffffff"]}'
+  NEXT_PUBLIC_OG_IMAGE_URL: "https://ferminux.net/assets/brand/fmx-og.png"
+  FAVICON_MASTER_URL: "https://ferminux.net/assets/brand/fmx-256.png"
+  NEXT_PUBLIC_PROMOTE_BLOCKSCOUT_IN_TITLE: "false"
+  NEXT_PUBLIC_OG_DESCRIPTION: "Block explorer for Ferminux Network (chain ID 3961). Search transactions, addresses, blocks and verified contracts."
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: explorer-chainspec
+  namespace: ferminux
+  labels:
+    app.kubernetes.io/part-of: ferminux-explorer
+data:
+  genesis.json: |
+    {
+      "config": {
+        "chainId": 3961,
+        "homesteadBlock": 0,
+        "eip150Block": 0,
+        "eip155Block": 0,
+        "eip158Block": 0,
+        "byzantiumBlock": 0,
+        "constantinopleBlock": 0,
+        "petersburgBlock": 0,
+        "istanbulBlock": 0,
+        "muirGlacierBlock": 0,
+        "berlinBlock": 0,
+        "londonBlock": 0,
+        "ethash": {}
+      },
+      "nonce": "0x0",
+      "timestamp": "0x0",
+      "extraData": "0x4d6164652077697468206c6f76652062792057697a7264202d20464d58",
+      "gasLimit": "0x1C9C380",
+      "difficulty": "0x80000",
+      "baseFeePerGas": "0x3B9ACA00",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "coinbase": "0x0000000000000000000000000000000000000000",
+      "alloc": {
+        "0x1000000000000000000000000000000000000001": { "balance": "12000000000000000000000000" },
+        "0x1000000000000000000000000000000000000002": { "balance": "6000000000000000000000000" },
+        "0x1000000000000000000000000000000000000003": { "balance": "5000000000000000000000000" },
+        "0x1000000000000000000000000000000000000004": { "balance": "4000000000000000000000000" },
+        "0x1000000000000000000000000000000000000005": { "balance": "3000000000000000000000000" }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: explorer-seeder-sql
+  namespace: ferminux
+  labels:
+    app.kubernetes.io/part-of: ferminux-explorer
+data:
+  emission-ranges.sql: |
+    -- Ferminux emission schedule -> Blockscout emission_rewards (idempotent).
+    -- subsidy(block) = 6 FMX >> era, era = block / 4,500,000 (chain/consensus/ethash/ferminux.go)
+    INSERT INTO emission_rewards (block_range, reward)
+    SELECT int8range(era * 4500000, (era + 1) * 4500000),
+           div(6000000000000000000::numeric, (2::numeric ^ era))
+    FROM generate_series(0, 62) AS era
+    WHERE NOT EXISTS (SELECT 1 FROM emission_rewards);
+    INSERT INTO emission_rewards (block_range, reward)
+    SELECT int8range(283500000, NULL), 0
+    WHERE NOT EXISTS (SELECT 1 FROM emission_rewards WHERE block_range = int8range(283500000, NULL));
+  seed-rewards.sql: |
+    -- Miner reward per indexed block: subsidy + tip fees. geth variant cannot
+    -- fetch beneficiaries over RPC, so this fills block_rewards for the UI/API.
+    INSERT INTO block_rewards (address_hash, block_hash, address_type, reward, inserted_at, updated_at)
+    SELECT b.miner_hash,
+           b.hash,
+           'validator',
+           div(6000000000000000000::numeric, (2::numeric ^ LEAST((b.number / 4500000)::int, 63)))
+           + GREATEST(
+               COALESCE((SELECT SUM(COALESCE(t.gas_used, 0) * COALESCE(t.gas_price, 0))
+                           FROM transactions t
+                          WHERE t.block_hash = b.hash), 0)
+               - COALESCE(b.base_fee_per_gas, 0) * COALESCE(b.gas_used, 0),
+               0),
+           NOW(),
+           NOW()
+    FROM blocks b
+    WHERE b.consensus
+      AND NOT EXISTS (SELECT 1 FROM block_rewards r WHERE r.block_hash = b.hash)
+    ON CONFLICT DO NOTHING;

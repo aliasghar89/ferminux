@@ -1,0 +1,29 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+# Reuse forge-std from the main contracts project (no network access needed).
+libs = ["../../contracts/lib"]
+
+# Pinned compiler — matches `pragma solidity ^0.8.24` in all contracts.
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+
+# Ferminux-geth is a fork of geth v1.10.26 (pre-Shanghai): PUSH0 is NOT a valid
+# opcode on chain 3961, so bytecode must target Paris.
+evm_version = "paris"
+
+# Deploy script writes agents/deployments.<chainid>.json (one level up).
+fs_permissions = [{ access = "read-write", path = "./" }, { access = "read-write", path = "../" }]
+
+# Test-suite tuning
+fuzz = { runs = 256 }
+
+[fmt]
+line_length = 120
+
+[lint]
+# Time windows are inherently timestamp-based (7 s blocks; PoA signer drift is negligible vs 1-day windows).
+exclude_lints = ["block-timestamp"]

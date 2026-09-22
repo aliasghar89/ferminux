@@ -1,0 +1,85 @@
+# Ferminux-geth release builds: linux amd64/arm64, windows amd64, macos arm64.
+# Every target builds NATIVELY on a matching runner (geth needs cgo for
+# secp256k1, so cross-compiling would require C cross-toolchains).
+#
+# Triggers: version tags (v*) publish a GitHub Release; manual dispatch builds
+# artifacts only.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # NOTE: ubuntu-24.04-arm is a GitHub-hosted runner available on
+          # PUBLIC repositories only — on a private repo this leg waits
+          # forever for a runner. Drop it (or use a paid arm64 larger
+          # runner) if the repo is private.
+          - { os: ubuntu-latest,    target: linux-amd64,   ext: "",     go: "1.18.10" }
+          - { os: ubuntu-24.04-arm, target: linux-arm64,   ext: "",     go: "1.18.10" }
+          - { os: windows-latest,   target: windows-amd64, ext: ".exe", go: "1.18.10" }
+          # macos-latest ships Xcode 15+/ld-prime, which breaks cgo links on
+          # Go < 1.20.7 — the darwin leg therefore uses the newest Go the
+          # v1.10.26 line still builds with.
+          - { os: macos-latest,     target: macos-arm64,   ext: "",     go: "1.20.14" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # go-ethereum v1.10.26 line builds with Go 1.18–1.20; linux/windows
+          # match the Dockerfile's Go 1.18.
+          go-version: ${{ matrix.go }}
+          cache: true
+
+      - name: Build ferminux-geth
+        shell: bash
+        run: |
+          go run build/ci.go install ./cmd/geth
+          mkdir -p dist
+          mv "build/bin/geth${{ matrix.ext }}" "dist/ferminux-geth${{ matrix.ext }}"
+
+      - name: Package
+        shell: bash
+        run: |
+          cd dist
+          if [ "${{ matrix.target }}" = "windows-amd64" ]; then
+            7z a "ferminux-geth-${{ matrix.target }}.zip" "ferminux-geth.exe"
+          else
+            tar czf "ferminux-geth-${{ matrix.target }}.tar.gz" "ferminux-geth"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ferminux-geth-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

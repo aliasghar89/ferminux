@@ -1,0 +1,24 @@
+{
+  "name": "J1 #41",
+  "description": "J1 \u2014 the first operator. A legendary 1/1 in the Ferminux Agents collection.",
+  "image": "https://ferminux.net/nft/agents/images/41.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "J1"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Number",
+      "value": 41
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

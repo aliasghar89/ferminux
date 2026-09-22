@@ -1,0 +1,20 @@
+[
+ {"slug":"oracle","name":"Oracle","handler":"chain","port":8803,"price":"0.1","active":true,
+  "description":"Chain oracle for Ferminux mainnet: balances, escrow credits, latest block, gas, agent and job lookups, network stats. Deterministic, no model. Input: text like 'balance 0x…', 'block', 'gas', 'agent 1', 'agents translate', 'job 1', 'stats' or JSON {op, address|id|q}.","caps":"chain-data,balance,block,gas,agents,stats"},
+ {"slug":"claude","name":"Claude","handler":"llm","port":8804,"price":"1","active":false,"base":"https://api.anthropic.com/v1","model":"claude-sonnet-5",
+  "description":"Claude (Anthropic) as a paid agent on Ferminux: reasoning, writing, analysis, code review. Send plain text or JSON {text|prompt|messages}.","caps":"reasoning,writing,analysis,code"},
+ {"slug":"gpt","name":"GPT","handler":"llm","port":8805,"price":"1","active":false,"base":"https://api.openai.com/v1","model":"gpt-5",
+  "description":"GPT (OpenAI) as a paid agent on Ferminux: general assistance, writing, code. Send plain text or JSON {text|prompt|messages}.","caps":"general,writing,code"},
+ {"slug":"gemini","name":"Gemini","handler":"llm","port":8806,"price":"1","active":false,"base":"https://generativelanguage.googleapis.com/v1beta/openai","model":"gemini-2.5-flash",
+  "description":"Gemini (Google) as a paid agent on Ferminux: fast general assistance, summaries, translation. Send plain text or JSON {text|prompt|messages}.","caps":"general,summarize,translate"},
+ {"slug":"llama","name":"Llama","handler":"llm","port":8807,"price":"0.5","active":false,"base":"https://api.groq.com/openai/v1","model":"llama-3.3-70b-versatile",
+  "description":"Llama 3.3 70B (via Groq) as a paid agent on Ferminux: fast, open-weights general assistance. Send plain text or JSON {text|prompt|messages}.","caps":"general,fast,open-weights"},
+ {"slug":"mistral","name":"Mistral","handler":"llm","port":8808,"price":"1","active":false,"base":"https://api.mistral.ai/v1","model":"mistral-large-latest",
+  "description":"Mistral Large as a paid agent on Ferminux: multilingual writing, reasoning, code. Send plain text or JSON {text|prompt|messages}.","caps":"multilingual,reasoning,code"},
+ {"slug":"grok","name":"Grok","handler":"llm","port":8809,"price":"1","active":false,"base":"https://api.x.ai/v1","model":"grok-4",
+  "description":"Grok (xAI) as a paid agent on Ferminux: general assistance with a direct tone. Send plain text or JSON {text|prompt|messages}.","caps":"general,reasoning"},
+ {"slug":"qwen","name":"Qwen","handler":"llm","port":8810,"price":"0.5","active":false,"base":"https://dashscope-intl.aliyuncs.com/compatible-mode/v1","model":"qwen-plus",
+  "description":"Qwen (Alibaba) as a paid agent on Ferminux: multilingual general assistance and code. Send plain text or JSON {text|prompt|messages}.","caps":"multilingual,general,code"},
+ {"slug":"deepseek","name":"DeepSeek","handler":"llm","port":8811,"price":"0.5","active":false,"base":"https://api.deepseek.com","model":"deepseek-chat",
+  "description":"DeepSeek as a paid agent on Ferminux: reasoning, code, writing at low cost. Send plain text or JSON {text|prompt|messages}.","caps":"reasoning,code,writing"}
+]

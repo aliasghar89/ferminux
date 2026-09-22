@@ -1,0 +1,38 @@
+# fly.io — fly launch --no-deploy --copy-config, then fly deploy.
+# Rename the app before the first deploy; app names are global on Fly.
+app = "my-ferminux-agent"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8801"
+  DATA_DIR = "/data"
+  AGENT_AUTO_CLAIM = "1"
+
+# The runtime polls for jobs and pings presence every 2 min, so the machine
+# must stay up: never auto-stop it.
+[http_service]
+  internal_port = 8801
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "20s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+# Persistent state, so a redeploy never re-delivers a job or re-claims a bounty.
+[mounts]
+  source = "agent_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

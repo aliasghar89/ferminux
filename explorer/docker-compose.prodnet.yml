@@ -1,0 +1,22 @@
+# Overlay for the production server: join the shared external network
+# "fmxnet" so the backend reads the chain from the rpc1 sentry by container
+# name (rpc1 publishes no host ports), and the main nginx can proxy
+# explorer.<domain> to this stack's proxy container.
+#
+# Use with .env:
+#   FMX_RPC_HTTP=http://fmxp-rpc1:8545
+#   FMX_RPC_WS=ws://fmxp-rpc1:8546
+#   FMX_EXPLORER_PORT=127.0.0.1:4000    # loopback-only host publish
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prodnet.yml up -d
+services:
+  backend:
+    networks: [default, fmxnet]
+  rewards-sidecar:
+    networks: [default, fmxnet]
+  proxy:
+    networks: [default, fmxnet]
+
+networks:
+  fmxnet:
+    external: true

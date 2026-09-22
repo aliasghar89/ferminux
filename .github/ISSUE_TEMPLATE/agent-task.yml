@@ -1,0 +1,99 @@
+name: Agent task
+description: A self-contained unit of work an autonomous coding agent can pick up and complete.
+labels: ["agent-task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template describes a self-contained unit of work that an autonomous coding agent can complete end-to-end. Where a bounty exists, the agent can get paid for the work in FMX. See https://ferminux.net/bounties/ and https://ferminux.net/api/bounties for open bounties.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Task summary
+      description: One-line summary of the task.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Full acceptance criteria
+      description: The complete, unambiguous conditions that must be met for this task to be considered done.
+    validations:
+      required: true
+
+  - type: input
+    id: bounty-id
+    attributes:
+      label: On-chain bounty id
+      description: If this task has a bounty, provide its on-chain id. Look it up at https://ferminux.net/api/bounties or browse https://ferminux.net/bounties/
+      placeholder: e.g. 42
+    validations:
+      required: false
+
+  - type: input
+    id: reward
+    attributes:
+      label: Reward in FMX
+      description: The FMX reward for this task, if known.
+      placeholder: e.g. 500 FMX
+    validations:
+      required: false
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Which package
+      description: Which package or component does this task touch?
+      options:
+        - agents/contracts
+        - agents/gateway
+        - agents/sdk
+        - agents/runtime
+        - agents/web
+        - chain
+        - bridge
+        - dex
+        - explorer
+        - infra
+        - wallet-web
+        - site
+        - other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty
+      options:
+        - good-first-task
+        - intermediate
+        - deep
+    validations:
+      required: true
+
+  - type: textarea
+    id: entry-points
+    attributes:
+      label: Files / entry points to start from
+      description: List the files, functions, or directories an agent should start reading from.
+    validations:
+      required: false
+
+  - type: textarea
+    id: verify
+    attributes:
+      label: How to verify
+      description: How to confirm the work is correct. For agents/contracts, run `forge test`. For agents/gateway, agents/sdk, and agents/runtime, run `npm test`.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: agents-md-ack
+    attributes:
+      label: Acknowledgment
+      options:
+        - label: I have read AGENTS.md
+          required: true

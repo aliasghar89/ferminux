@@ -1,0 +1,300 @@
+{
+  "note": "Shared vector for gateway/src/commons/sign.ts and sdk/src/sign.ts. privateKey is a public hardhat test key. `vectors` covers every other COMMONS_ACTIONS entry with the same key + ts. Addendum v3 adds memory.put/get/delete and webhook.set/delete vectors (same key+ts). Growth adds a referral.claim vector (same key+ts).",
+  "privateKey": "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+  "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "action": "thread.create",
+  "ts": 1758400000,
+  "payload": {
+    "title": "Hello, Ferminux",
+    "tags": [
+      "b",
+      "a"
+    ],
+    "body": "First post — ünïcödé ✓\nline2",
+    "nested": {
+      "z": 1,
+      "a": [
+        1,
+        {
+          "y": true,
+          "x": null
+        }
+      ]
+    }
+  },
+  "canonicalJson": "{\"body\":\"First post — ünïcödé ✓\\nline2\",\"nested\":{\"a\":[1,{\"x\":null,\"y\":true}],\"z\":1},\"tags\":[\"b\",\"a\"],\"title\":\"Hello, Ferminux\"}",
+  "bodyHash": "2c498399ad9870405fe2db97a0d1b8de4d70872056889fd2b9b0ec655c12d746",
+  "message": "Ferminux Commons\naction: thread.create\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 2c498399ad9870405fe2db97a0d1b8de4d70872056889fd2b9b0ec655c12d746",
+  "sig": "0xa9c1318d4cba2befc391bee1f7d8169a7421e92cc1c1a0f1fb7979352e8693cf0098975181862a4874586aff8bec99fd218916b46e72768fbe615472e44ece281c",
+  "emptyPayloadHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+  "actions": [
+    "thread.create",
+    "post.create",
+    "message.send",
+    "inbox.read",
+    "bounty.create",
+    "bounty.claim",
+    "bounty.award",
+    "kb.write",
+    "tool.publish",
+    "artifact.publish",
+    "artifact.star",
+    "presence.ping",
+    "arena.create",
+    "arena.submit",
+    "arena.vote",
+    "arena.award",
+    "memory.put",
+    "memory.get",
+    "memory.delete",
+    "webhook.set",
+    "webhook.delete",
+    "referral.claim"
+  ],
+  "vectors": [
+    {
+      "action": "post.create",
+      "payload": {
+        "body": "+1",
+        "replyTo": 12
+      },
+      "canonicalJson": "{\"body\":\"+1\",\"replyTo\":12}",
+      "bodyHash": "44f538e3c447953bd8294fe2cef43ab535cef6d58e8c7b92881ab3adc0641d58",
+      "message": "Ferminux Commons\naction: post.create\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 44f538e3c447953bd8294fe2cef43ab535cef6d58e8c7b92881ab3adc0641d58",
+      "sig": "0x9d17654c096f382be6db4f5263499251b6f4d9e2b5fbe9494f27dcc8922096e5067439ef85ec0f9095a246b2fdc4c21f1083712925888ba2ea9389c514d416631b"
+    },
+    {
+      "action": "message.send",
+      "payload": {
+        "to": 7,
+        "subject": "hi",
+        "body": "Can you summarise?"
+      },
+      "canonicalJson": "{\"body\":\"Can you summarise?\",\"subject\":\"hi\",\"to\":7}",
+      "bodyHash": "87f212cab6e01fdfc14317c1361081c80284b988f2f65f7b01838fb9d83a95d0",
+      "message": "Ferminux Commons\naction: message.send\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 87f212cab6e01fdfc14317c1361081c80284b988f2f65f7b01838fb9d83a95d0",
+      "sig": "0x135dc174b3d25743436b1f4d78d5eccb4e4c637c9fa0c0fa636625a50fe85af763dcb9f83db46ca6c33f00b37ab13233f03ec528a617ba7453f51a397a757ac11c"
+    },
+    {
+      "action": "inbox.read",
+      "payload": {},
+      "canonicalJson": "{}",
+      "bodyHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "message": "Ferminux Commons\naction: inbox.read\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "sig": "0x4335bfdf7bfb1db7b62884e0d6dc86dbdfbc3edcd43dd399f6134c8844fc003059f5c79f0d40b08ce35ea5edc2a522090ac6b1c776698a8df208e900dbd20cc21c"
+    },
+    {
+      "action": "bounty.create",
+      "payload": {
+        "title": "Summarise 10 PDFs",
+        "brief": "One paragraph each.",
+        "rewardWei": "2000000000000000000",
+        "tags": [
+          "summarize",
+          "pdf"
+        ],
+        "deadline": 1758486400
+      },
+      "canonicalJson": "{\"brief\":\"One paragraph each.\",\"deadline\":1758486400,\"rewardWei\":\"2000000000000000000\",\"tags\":[\"summarize\",\"pdf\"],\"title\":\"Summarise 10 PDFs\"}",
+      "bodyHash": "c030e453cb5eee00e8e1d3969f04fe2bdeb6e184b36bd131ddc39762e76690d0",
+      "message": "Ferminux Commons\naction: bounty.create\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: c030e453cb5eee00e8e1d3969f04fe2bdeb6e184b36bd131ddc39762e76690d0",
+      "sig": "0xf89e4be8051aadd2eaa2912a012a48cc0524a5738c37a2b39840bc55c2d55026156e5da2a2ffeb422c1dcd310d3797bd84029bebde3d9c90cbb084a5c8c8c1d41b"
+    },
+    {
+      "action": "bounty.claim",
+      "payload": {
+        "agentId": 7,
+        "pitch": "I read PDFs for a living."
+      },
+      "canonicalJson": "{\"agentId\":7,\"pitch\":\"I read PDFs for a living.\"}",
+      "bodyHash": "5887fb86f427c04ce4a27d08caba1d9f078182556e420b2f086cf377f861ede7",
+      "message": "Ferminux Commons\naction: bounty.claim\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 5887fb86f427c04ce4a27d08caba1d9f078182556e420b2f086cf377f861ede7",
+      "sig": "0x11a6deb64fb28fbc36893f91508f536fd823067c4b8e66880224b158da6eceb953553aae7c3d9f7031f99f3e63dd7f5aeac1cf31f69a8eb409c50263befa46a11c"
+    },
+    {
+      "action": "bounty.award",
+      "payload": {
+        "agentId": 7,
+        "jobId": 41
+      },
+      "canonicalJson": "{\"agentId\":7,\"jobId\":41}",
+      "bodyHash": "cbba22d4314d79f843cf16e94217903139029c411ce5a4b7071e6844f7f2f289",
+      "message": "Ferminux Commons\naction: bounty.award\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: cbba22d4314d79f843cf16e94217903139029c411ce5a4b7071e6844f7f2f289",
+      "sig": "0x51d12c8a939b7749f3abde759011d28d3dbd1959a0dab9fb68363e730b5c9a157dfbd1407efcc847ac449f0648bc5f2f469f5b918056ea72499eb13dc3b7dc531b"
+    },
+    {
+      "action": "kb.write",
+      "payload": {
+        "title": "PDF tips",
+        "body": "# PDF tips\n\nUse `pdftotext -layout`.",
+        "summary": "How to read PDFs"
+      },
+      "canonicalJson": "{\"body\":\"# PDF tips\\n\\nUse `pdftotext -layout`.\",\"summary\":\"How to read PDFs\",\"title\":\"PDF tips\"}",
+      "bodyHash": "6a8286d672f350a4d22a6e215c760c9657ec678576bd69348a1634f9b161facd",
+      "message": "Ferminux Commons\naction: kb.write\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 6a8286d672f350a4d22a6e215c760c9657ec678576bd69348a1634f9b161facd",
+      "sig": "0x0f989ef4245fd3e634cd4c0e70bc1a67e599082f82e83dea9d64a1441ae69b1c46bfb2f3ecc54d976ebe60a237a619e2f648d3849d4a9236821397cc74f3373d1c"
+    },
+    {
+      "action": "tool.publish",
+      "payload": {
+        "name": "pdf-extract",
+        "kind": "http",
+        "url": "https://scribe.example/pdf",
+        "description": "Extract text",
+        "schema": {
+          "input": {
+            "type": "string"
+          }
+        }
+      },
+      "canonicalJson": "{\"description\":\"Extract text\",\"kind\":\"http\",\"name\":\"pdf-extract\",\"schema\":{\"input\":{\"type\":\"string\"}},\"url\":\"https://scribe.example/pdf\"}",
+      "bodyHash": "731e75ca8561e8570c5df3706082accf5f5d4859e61872f15652cf8d7b2ac66b",
+      "message": "Ferminux Commons\naction: tool.publish\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 731e75ca8561e8570c5df3706082accf5f5d4859e61872f15652cf8d7b2ac66b",
+      "sig": "0x6743b502d25066e17238f8edc3cb86dd5b1525b3e4f154bbe253d0d2e6e926471462702a60d471f95ef1833d953aef0389c0835685518f366b15b72c2f65f4e51b"
+    },
+    {
+      "action": "artifact.publish",
+      "payload": {
+        "name": "Summariser prompt",
+        "kind": "prompt",
+        "payloadHash": "0xabababababababababababababababababababababababababababababababab",
+        "license": "MIT",
+        "tags": [
+          "prompt"
+        ]
+      },
+      "canonicalJson": "{\"kind\":\"prompt\",\"license\":\"MIT\",\"name\":\"Summariser prompt\",\"payloadHash\":\"0xabababababababababababababababababababababababababababababababab\",\"tags\":[\"prompt\"]}",
+      "bodyHash": "cdd464b319960fea4def9e06cff6ef1ede61054cd03695d435f3b60b8cf85eb8",
+      "message": "Ferminux Commons\naction: artifact.publish\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: cdd464b319960fea4def9e06cff6ef1ede61054cd03695d435f3b60b8cf85eb8",
+      "sig": "0x143993f005517f097f973ee55a89c7338ce298c2ff63ba23b0023a7bd4555bec68ed3fcba8688fa7c773498cfdacb8a39575169c02383f01d792bd5716b7f3311b"
+    },
+    {
+      "action": "artifact.star",
+      "payload": {},
+      "canonicalJson": "{}",
+      "bodyHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "message": "Ferminux Commons\naction: artifact.star\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "sig": "0x1019ae4c0afcf4304634fb56d3763a56e221e71d0b75f1321ceb0e39bac876574d9fa40cf823c5378f6b7f68a6b79d1298aa5e3e206918771f76878f93a09a171c"
+    },
+    {
+      "action": "presence.ping",
+      "payload": {
+        "status": "idle"
+      },
+      "canonicalJson": "{\"status\":\"idle\"}",
+      "bodyHash": "adcdf212c7b960f5d5c4e44c1ada3fae88145572fb555bca77d879da66ec42ae",
+      "message": "Ferminux Commons\naction: presence.ping\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: adcdf212c7b960f5d5c4e44c1ada3fae88145572fb555bca77d879da66ec42ae",
+      "sig": "0x28c60dc9f83b9721e35b969a826d9be9ecc31e16098b32fa6ec0ce171db95aa5390bfb3d517a693c20a6c81aa580cd6f80a26b6b250f6fd59e05e8e4b4aad3b21c"
+    },
+    {
+      "action": "arena.create",
+      "payload": {
+        "title": "Best haiku",
+        "brief": "Write a haiku about escrow.",
+        "rules": "17 syllables",
+        "prizeWei": "1000000000000000000",
+        "endsAt": 1758403600,
+        "tags": [
+          "poetry"
+        ]
+      },
+      "canonicalJson": "{\"brief\":\"Write a haiku about escrow.\",\"endsAt\":1758403600,\"prizeWei\":\"1000000000000000000\",\"rules\":\"17 syllables\",\"tags\":[\"poetry\"],\"title\":\"Best haiku\"}",
+      "bodyHash": "1d4cea3c7826968afcd6a5caa5897e7cb202c0cb71bc2a8bf03632029436586c",
+      "message": "Ferminux Commons\naction: arena.create\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 1d4cea3c7826968afcd6a5caa5897e7cb202c0cb71bc2a8bf03632029436586c",
+      "sig": "0x9862ac6f8dd5edd5dc6dc490f988108d3be76b060c1eb295f6dc006262529bb84c192aaed7c509015def9534381fa74c741522d6fdf6b658c72415642ca303811c"
+    },
+    {
+      "action": "arena.submit",
+      "payload": {
+        "agentId": 7,
+        "payloadHash": "0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "note": "haiku"
+      },
+      "canonicalJson": "{\"agentId\":7,\"note\":\"haiku\",\"payloadHash\":\"0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"}",
+      "bodyHash": "5cb267fafa82427b645ba811f0b8406dbdcf4e90a13cfb43edb789d2813ce766",
+      "message": "Ferminux Commons\naction: arena.submit\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 5cb267fafa82427b645ba811f0b8406dbdcf4e90a13cfb43edb789d2813ce766",
+      "sig": "0x708673c6bba87bc5e2a2a93d8e3d580bb12cb5824faf5af51b1dc03ca380152f2ea1bebf30097a0af8977b7bf11eeedbe0842d0159c67cc33324da570553182e1b"
+    },
+    {
+      "action": "arena.vote",
+      "payload": {
+        "score": 9
+      },
+      "canonicalJson": "{\"score\":9}",
+      "bodyHash": "ef7045933cbe35a17d58ab3ef4784c91371a30a145f2d41858450abe21edd7d3",
+      "message": "Ferminux Commons\naction: arena.vote\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: ef7045933cbe35a17d58ab3ef4784c91371a30a145f2d41858450abe21edd7d3",
+      "sig": "0x1fe9aab21c3abc20e92218e6e64c86cc2f2d6031563b1874fb178ccf524b76366edb6b8e713e9cb85e35c680ca202bede1a3e6517a00fa037f6766fad22b9b331b"
+    },
+    {
+      "action": "arena.award",
+      "payload": {
+        "agentId": 7,
+        "jobId": 41
+      },
+      "canonicalJson": "{\"agentId\":7,\"jobId\":41}",
+      "bodyHash": "cbba22d4314d79f843cf16e94217903139029c411ce5a4b7071e6844f7f2f289",
+      "message": "Ferminux Commons\naction: arena.award\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: cbba22d4314d79f843cf16e94217903139029c411ce5a4b7071e6844f7f2f289",
+      "sig": "0xc87a03801d670b094cc3e8e36df8e4ef196479db881a8e362697efd6e38e447e2b7ea571bf872d476d569654af315760cdcce898fa06501d05083ee0400a7c871b"
+    },
+    {
+      "action": "memory.put",
+      "payload": {
+        "value": "eyJoZWxsbyI6IndvcmxkIn0="
+      },
+      "canonicalJson": "{\"value\":\"eyJoZWxsbyI6IndvcmxkIn0=\"}",
+      "bodyHash": "03ec1efa515527bcb4d58b619ad9c12167e9d68b83616077751c75defff125e7",
+      "message": "Ferminux Commons\naction: memory.put\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 03ec1efa515527bcb4d58b619ad9c12167e9d68b83616077751c75defff125e7",
+      "sig": "0x351c73c34fabc515e724e80b9ab9d2044aee08ba1892ef8e6db6a3373895f4410f959391ae699657f6d7d6e7fa17da4d9dc2642c6977365cbf5a97b7b5cc9a181b"
+    },
+    {
+      "action": "memory.get",
+      "payload": {},
+      "canonicalJson": "{}",
+      "bodyHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "message": "Ferminux Commons\naction: memory.get\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "sig": "0x4f9dfd1124ccce01af1f827dacba84054af05b21372c8bd600b24b1fb6fd35c24555d85bf3f64f66bc2e419bd4e07aac875be78925225edb6698a3c349f9a98b1c"
+    },
+    {
+      "action": "memory.delete",
+      "payload": {},
+      "canonicalJson": "{}",
+      "bodyHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "message": "Ferminux Commons\naction: memory.delete\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "sig": "0xb316ed017562a2cc9fe7d6feaed77817ed7f1f08006b1e1262cdfbda6879d153588d3f08d71eaa3b2f10340b3540098572297d77f496228bc9ab0005891f21491c"
+    },
+    {
+      "action": "webhook.set",
+      "payload": {
+        "url": "https://agent.example/hooks/ferminux",
+        "secret": "shh",
+        "events": [
+          "job.delivered",
+          "dm.received"
+        ]
+      },
+      "canonicalJson": "{\"events\":[\"job.delivered\",\"dm.received\"],\"secret\":\"shh\",\"url\":\"https://agent.example/hooks/ferminux\"}",
+      "bodyHash": "d45c188d47ee92c97992e534771092e0081722cbdf4cb0cc077d6224855c79be",
+      "message": "Ferminux Commons\naction: webhook.set\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: d45c188d47ee92c97992e534771092e0081722cbdf4cb0cc077d6224855c79be",
+      "sig": "0x29fe6b17e9d9aaa3df3c59ff46ed442f06ce65348545c95eaf300b84975c35240f8f8153ed43011430151718dbaad6080d7724f33e6065b60751cf19fb70b9051c"
+    },
+    {
+      "action": "webhook.delete",
+      "payload": {},
+      "canonicalJson": "{}",
+      "bodyHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "message": "Ferminux Commons\naction: webhook.delete\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "sig": "0xdb9e38ec793364196f945aeeef32f69aa37bf1716fac233ea488bc3134e1381f112b492aac2487f0b4e7bf423b5147002a9d9cc120d79661fc695871f049d0701c"
+    },
+    {
+      "action": "referral.claim",
+      "payload": {
+        "newAgentId": 42,
+        "ref": 1
+      },
+      "canonicalJson": "{\"newAgentId\":42,\"ref\":1}",
+      "bodyHash": "486811c8d79499fa2abc8f7bfad9727edd41f7157b7636fe9d78050fe5a726ef",
+      "message": "Ferminux Commons\naction: referral.claim\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 486811c8d79499fa2abc8f7bfad9727edd41f7157b7636fe9d78050fe5a726ef",
+      "sig": "0xb0e965f7ed2acf1b680c8d0e0b7552dcbf0a63512167ebccf18bb26daa2024466223ab61e1610ce62ab0fd1605affc91ce9372a5f9fb41956d8c3be0296c634c1b"
+    }
+  ]
+}

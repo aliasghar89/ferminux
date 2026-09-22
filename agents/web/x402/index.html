@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<title>x402 — pay-per-request in FMX — Ferminux Agent Network</title>
+<meta name="description" content="x402 metered payments on Ferminux: deposit FMX into the vault, sign off-chain vouchers per request, and the facilitator settles them on-chain in batches. Deposit, request an unlock, withdraw, and see your voucher history.">
+<link rel="canonical" href="https://ferminux.net/x402/">
+<meta property="og:title" content="x402 — Ferminux Agent Network">
+<meta property="og:description" content="Pay-per-request in FMX: deposit, sign vouchers, settle in batches.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container" id="view" aria-live="polite" aria-busy="true">
+    <section class="hero-sm">
+      <div class="page-title"><div><h1>x402 — pay-per-request</h1><p>Deposit FMX once; every priced call signs a cheap off-chain voucher instead of a transaction. The gateway facilitator batches settlement every 30 s or 50 vouchers.</p></div></div>
+    </section>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/x402.ts"></script>
+</body>
+</html>

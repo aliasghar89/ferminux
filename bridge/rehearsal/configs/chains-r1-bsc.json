@@ -1,0 +1,117 @@
+{
+  "_README": "REHEARSAL config - route 1: Ferminux stand-in (3961, anvil :8660) <-> BSC Testnet FORK (97, anvil :8661). Single-endpoint anvils, hence the insecure acknowledgement. A live-testnet config must carry 3 independent endpoints per chain and BSC's real confirmations (20 + finalized).",
+  "network": "ferminux-bridge-rehearsal-bsc",
+  "chains": [
+    {
+      "name": "ferminux-local",
+      "chainId": 3961,
+      "rpcUrls": [
+        "http://127.0.0.1:8660"
+      ],
+      "bridgeAddress": "0x6bf16A5F85c6f89964b71e8238507fbCA4867B69",
+      "domainSeparator": "0xa351b6782c4f977f519f9729082808f980ff61c752888a5ed4352768b60a8036",
+      "confirmations": 3,
+      "finalityTag": null,
+      "pollIntervalMs": 1000,
+      "startBlock": 49,
+      "maxBlockRange": 2000,
+      "enabled": true,
+      "gas": {
+        "maxFeePerGasGwei": 500,
+        "priorityFeeGwei": 1,
+        "escalationPct": 25,
+        "maxAttempts": 3,
+        "receiptTimeoutMs": 120000
+      },
+      "limits": {
+        "default": {
+          "maxPerTransfer": "100000000000000000000",
+          "dailyCap": "500000000000000000000"
+        },
+        "tokens": {
+          "0x0000000000000000000000000000000000000000": {
+            "maxPerTransfer": "100000000000000000000",
+            "dailyCap": "500000000000000000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "bsc-testnet-fork",
+      "chainId": 97,
+      "rpcUrls": [
+        "http://127.0.0.1:8661"
+      ],
+      "bridgeAddress": "0x9E3bdc4Fe5D053f7bacc65A20B88007ed79E43F4",
+      "domainSeparator": "0xb4b0026d3c47f6c62a9b6ad38c10fc70cedc776d1143ab09e2e933477d12b59f",
+      "confirmations": 3,
+      "finalityTag": null,
+      "pollIntervalMs": 1000,
+      "startBlock": 126220737,
+      "maxBlockRange": 2000,
+      "enabled": true,
+      "gas": {
+        "maxFeePerGasGwei": 500,
+        "priorityFeeGwei": 1,
+        "escalationPct": 25,
+        "maxAttempts": 3,
+        "receiptTimeoutMs": 120000
+      },
+      "limits": {
+        "default": {
+          "maxPerTransfer": "100000000000000000000",
+          "dailyCap": "500000000000000000000"
+        },
+        "tokens": {
+          "0x87d3a7866ae7464527733472fC112Cf053dDE3fc": {
+            "maxPerTransfer": "100000000000000000000",
+            "dailyCap": "500000000000000000000"
+          }
+        }
+      }
+    }
+  ],
+  "http": {
+    "host": "127.0.0.1",
+    "port": 0,
+    "apiToken": ""
+  },
+  "keystore": {
+    "path": "",
+    "passwordFile": "",
+    "expectedAddress": ""
+  },
+  "transport": {
+    "mode": "http",
+    "sharedDir": "",
+    "requestTimeoutMs": 3000
+  },
+  "submitter": {
+    "peers": [],
+    "signatureWaitMs": 30000,
+    "pollIntervalMs": 1000,
+    "skipWhenPaused": true
+  },
+  "validator": {
+    "maxTransferAgeMs": 0,
+    "requireRpcQuorum": true
+  },
+  "state": {
+    "path": "./state/rehearsal.db",
+    "driver": "auto"
+  },
+  "alerts": {
+    "webhookUrl": "",
+    "minSeverity": "info",
+    "throttleMs": 10000
+  },
+  "divergenceIntervalMs": 3000,
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "insecure": {
+    "acknowledgement": "I understand this disables eclipse protection",
+    "allowSingleRpcEndpoint": true
+  }
+}

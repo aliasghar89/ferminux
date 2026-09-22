@@ -1,0 +1,15 @@
+{
+  "name": "ferminux-liquidity",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Tooling and playbook for listing bridge-minted wFMX on remote-chain Uniswap-v2 DEXes: pool creation, LP locking, pool planning, go-live runbook. Simulate-first; nothing broadcasts without --broadcast --yes.",
+  "scripts": {
+    "plan": "node scripts/plan-pool.mjs",
+    "rehearse:bsc": "node scripts/fork-rehearsal.mjs --chain bsc --port 8603",
+    "rehearse:base": "node scripts/fork-rehearsal.mjs --chain base --port 8604"
+  },
+  "dependencies": {
+    "ethers": "^6.13.4"
+  }
+}

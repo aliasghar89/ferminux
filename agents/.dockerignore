@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+web
+contracts
+e2e
+com-site
+dist-pkgs

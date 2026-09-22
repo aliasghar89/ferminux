@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferminux Network — sovereign EVM L1, PoW-mineable by anyone</title>
+<meta name="description" content="Ferminux is a sovereign EVM Layer 1: Ethash proof-of-work anyone can mine, ~7-second blocks, EIP-1559 fees at fractions of a cent, and a live on-chain DEX trading FMX/AZNT. ChainID 3961.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23a8761c'/%3E%3Cpath d='M10 24V8h13v3.4h-9v3.4h7.6v3.4H14V24h-4z' fill='%23ffffff'/%3E%3C/svg%3E">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#ffffff">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-rpc="https://rpc.ferminux.net">
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="#top" aria-label="Ferminux Network home">
+      <svg class="brand-mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#a8761c"/><path d="M10 24V8h13v3.4h-9v3.4h7.6v3.4H14V24h-4z" fill="#ffffff"/></svg>
+      <span class="brand-name">Ferminux<span class="brand-dim"> Network</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="https://dex.ferminux.net" rel="noopener">DEX</a>
+      <a href="#mine">Mine</a>
+      <a class="nav-extra" href="#downloads">Downloads</a>
+      <a class="nav-extra" href="#network">Network</a>
+      <a class="nav-extra" href="https://explorer.ferminux.net" rel="noopener">Explorer</a>
+      <a href="https://docs.ferminux.net" rel="noopener">Docs</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ============ Hero ============ -->
+  <section class="hero">
+    <div class="container">
+      <p class="kicker">Sovereign EVM Layer&nbsp;1 · ChainID 3961</p>
+      <h1>Proof-of-work, EVM-complete,<br class="h1-br"> owned by no one.</h1>
+      <p class="hero-sub">A sovereign Layer&nbsp;1 anyone can mine — seven-second blocks, fees under a cent, the full Ethereum toolchain.</p>
+      <div class="hero-actions">
+        <button id="add-network" class="btn btn-primary" type="button">Add to MetaMask</button>
+        <a class="btn btn-secondary" href="#mine">Start mining</a>
+      </div>
+      <p class="hero-trust">Every FMX beyond the genesis premine is mined, not sold — and it trades live on the <a href="https://dex.ferminux.net" rel="noopener">Ferminux&nbsp;DEX</a>.</p>
+      <p class="wallet-status" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- ============ Live telemetry band ============ -->
+  <section class="liveband-wrap" aria-label="Live network telemetry">
+    <div class="container">
+      <div class="liveband">
+        <div class="lb-top">
+          <span class="lb-live"><span class="status-dot" id="rpc-dot" aria-hidden="true"></span><span id="stat-status">connecting…</span><span class="lb-net"> · Ferminux mainnet</span></span>
+          <a class="lb-explore" href="https://explorer.ferminux.net" rel="noopener">explorer.ferminux.net →</a>
+        </div>
+        <div class="lb-main">
+          <div class="lb-height">
+            <span class="lb-label">Block height</span>
+            <span class="lb-num num" id="stat-height">—</span>
+          </div>
+          <figure class="lb-tape">
+            <svg id="block-tape" aria-hidden="true" focusable="false"></svg>
+            <figcaption class="lb-caption" id="tape-caption">waiting for blocks…</figcaption>
+          </figure>
+        </div>
+        <div class="lb-stats">
+          <div class="lb-stat">
+            <span class="lb-label">FMX price · DEX</span>
+            <span class="lb-value num" id="stat-price">—</span>
+            <span class="lb-unit">AZNT per FMX</span>
+          </div>
+          <div class="lb-stat">
+            <span class="lb-label">Base fee</span>
+            <span class="lb-value num" id="stat-basefee">—</span>
+            <span class="lb-unit">EIP-1559</span>
+          </div>
+          <div class="lb-stat">
+            <span class="lb-label">Est. hashrate</span>
+            <span class="lb-value num" id="stat-hashrate">—</span>
+            <span class="lb-unit">difficulty / block time</span>
+          </div>
+          <div class="lb-stat">
+            <span class="lb-label">Avg block time</span>
+            <span class="lb-value num" id="stat-blocktime">—</span>
+            <span class="lb-unit">target ~7 s</span>
+          </div>
+          <div class="lb-stat">
+            <span class="lb-label">Gas limit</span>
+            <span class="lb-value num" id="stat-gaslimit">—</span>
+            <span class="lb-unit">~4,760 transfers / block</span>
+          </div>
+          <div class="lb-stat">
+            <span class="lb-label">Chain ID</span>
+            <span class="lb-value num" id="stat-chainid">—</span>
+            <span class="lb-unit">0xF79</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Markets ============ -->
+  <section class="section" id="markets">
+    <div class="container section-grid">
+      <header class="rail">
+        <h2>Markets</h2>
+        <p>FMX has a live on-chain market. The price on this page is read from the pair contract itself, block by block.</p>
+      </header>
+      <div class="section-content">
+        <div class="market-grid">
+          <article class="card card-dex">
+            <div class="card-toprow">
+              <span class="mono-label">dex.ferminux.net</span>
+              <span class="pair-tag num">FMX / AZNT</span>
+            </div>
+            <p class="dex-price num"><span id="dex-price">—</span><span class="dex-price-unit"> AZNT</span></p>
+            <p class="dex-price-sub">per FMX · <span id="dex-price-block">awaiting first block</span></p>
+            <dl class="kv">
+              <div class="kv-row">
+                <dt>Pair contract</dt>
+                <dd><code class="addr" title="0xbab12e7B817F0686e11949eC06697235DC146845">0xbab1…6845</code><button class="copy-mini" type="button" data-copy-text="0xbab12e7B817F0686e11949eC06697235DC146845">copy</button></dd>
+              </div>
+              <div class="kv-row">
+                <dt>Liquidity</dt>
+                <dd>LP tokens locked 12 months in the LiquidityLocker</dd>
+              </div>
+            </dl>
+            <a class="btn btn-primary" href="https://dex.ferminux.net" rel="noopener">Open the DEX</a>
+          </article>
+          <article class="card card-aznt">
+            <h3>AZNT</h3>
+            <p class="card-sub">Bank-backed stablecoin — the quote side of the FMX market.</p>
+            <dl class="kv">
+              <div class="kv-row">
+                <dt>Supply</dt>
+                <dd class="num">600,000</dd>
+              </div>
+              <div class="kv-row">
+                <dt>Decimals</dt>
+                <dd class="num">6</dd>
+              </div>
+              <div class="kv-row">
+                <dt>Contract</dt>
+                <dd><code class="addr" title="0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178">0xFc81…4178</code><button class="copy-mini" type="button" data-copy-text="0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178">copy</button></dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Mine ============ -->
+  <section class="section" id="mine">
+    <div class="container section-grid">
+      <header class="rail">
+        <h2>Mine FMX</h2>
+        <p>One static binary is the node and the CPU miner. Any Ethash GPU rig points at the pool. The genesis is baked in — an empty datadir joins ChainID 3961.</p>
+      </header>
+      <div class="section-content">
+        <div class="tabs" data-tabs>
+          <div class="tab-list" role="tablist" aria-label="Quickstart guides">
+            <button class="tab" role="tab" id="tab-node" aria-controls="panel-node" aria-selected="true" type="button">Run a node</button>
+            <button class="tab" role="tab" id="tab-cpu" aria-controls="panel-cpu" aria-selected="false" tabindex="-1" type="button">Mine — CPU</button>
+            <button class="tab" role="tab" id="tab-gpu" aria-controls="panel-gpu" aria-selected="false" tabindex="-1" type="button">Mine — GPU</button>
+          </div>
+
+          <div class="tab-panel" role="tabpanel" id="panel-node" aria-labelledby="tab-node">
+            <div class="codeblock">
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+              <pre><code># Install in one line (Linux / macOS — verifies SHA-256)
+curl -fsSL https://ferminux.net/install.sh | bash
+
+# Zero config — an empty datadir syncs the Ferminux Network (ChainID 3961)
+ferminux-geth
+
+# With local JSON-RPC for wallets and tooling
+ferminux-geth --http --http.api eth,net,web3</code></pre>
+            </div>
+            <p class="fine">Chain data lives in <code>~/.ferminux</code> (macOS: <code>~/Library/Ferminux</code>; Windows: <code>%LOCALAPPDATA%\Ferminux</code>). The node discovers peers through the built-in bootnodes at boot1–3.ferminux.net.</p>
+          </div>
+
+          <div class="tab-panel" role="tabpanel" id="panel-cpu" aria-labelledby="tab-cpu" hidden>
+            <div class="codeblock">
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+              <pre><code># Mine with N CPU threads; block rewards go to your address
+ferminux-geth --mine --miner.threads 4 --miner.etherbase 0xYourAddress</code></pre>
+            </div>
+            <p class="fine">First start generates the Ethash DAG (~1 GB, a few minutes); blocks seal immediately after. The reward is 6 FMX per block until block 20,000, then 1 FMX after the emission fork. Any address from any EVM wallet works as the etherbase.</p>
+          </div>
+
+          <div class="tab-panel" role="tabpanel" id="panel-gpu" aria-labelledby="tab-gpu" hidden>
+            <div class="codeblock">
+              <button class="copy-btn" type="button" data-copy>Copy</button>
+              <pre><code># Any stock Ethash miner works. Point lolMiner at the public stratum endpoint:
+lolMiner --algo ETHASH --pool stratum+tcp://pool.ferminux.net:3333 --user 0xYourAddress.rig1</code></pre>
+            </div>
+            <p class="fine">Mining solo? Run the stratum proxy from the <code>/proxy</code> component of this repo next to your own ferminux-geth node and point the same command at it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Downloads ============ -->
+  <section class="section" id="downloads">
+    <div class="container section-grid">
+      <header class="rail">
+        <h2>Downloads</h2>
+        <p>Static binaries, no installer. Verify every file against <a href="/downloads/SHA256SUMS.txt">SHA256SUMS.txt</a>.</p>
+      </header>
+      <div class="section-content">
+        <div class="dl-list">
+          <a class="dl-row" href="/downloads/ferminux-geth-linux-amd64.tar.gz">
+            <span class="dl-os">Linux <span class="dl-arch">amd64</span></span>
+            <span class="dl-file">ferminux-geth-linux-amd64.tar.gz</span>
+            <span class="dl-get" aria-hidden="true">↓</span>
+          </a>
+          <a class="dl-row" href="/downloads/ferminux-geth-linux-arm64.tar.gz">
+            <span class="dl-os">Linux <span class="dl-arch">arm64</span></span>
+            <span class="dl-file">ferminux-geth-linux-arm64.tar.gz</span>
+            <span class="dl-get" aria-hidden="true">↓</span>
+          </a>
+          <a class="dl-row" href="/downloads/ferminux-geth-macos-arm64.tar.gz">
+            <span class="dl-os">macOS <span class="dl-arch">Apple Silicon</span></span>
+            <span class="dl-file">ferminux-geth-macos-arm64.tar.gz</span>
+            <span class="dl-get" aria-hidden="true">↓</span>
+          </a>
+          <a class="dl-row" href="/downloads/ferminux-geth-windows-amd64.zip">
+            <span class="dl-os">Windows <span class="dl-arch">amd64</span></span>
+            <span class="dl-file">ferminux-geth-windows-amd64.zip</span>
+            <span class="dl-get" aria-hidden="true">↓</span>
+          </a>
+          <div class="dl-row dl-row-soon" aria-disabled="true">
+            <span class="dl-os">Ferminux Miner <span class="dl-arch">desktop app</span></span>
+            <span class="dl-file">macOS / Windows / Linux</span>
+            <span class="dl-get">soon</span>
+          </div>
+        </div>
+        <p class="fine">The Windows ZIP adds double-click <code>START-MINING.bat</code> and <code>START-NODE.bat</code> wrappers plus a plain-English README — extract it before running anything. The binary is unsigned, so SmartScreen shows a “Windows protected your PC” warning: More info → Run anyway.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Wallet ============ -->
+  <section class="section" id="wallet">
+    <div class="container section-grid">
+      <header class="rail">
+        <h2>Connect a wallet</h2>
+        <p>One tap in any injected wallet — MetaMask, Rabby, Frame — or enter the parameters by hand.</p>
+      </header>
+      <div class="section-content">
+        <div class="wallet-panel">
+          <div class="wallet-head">
+            <div>
+              <h3>Add the network</h3>
+              <p class="card-sub">Preconfigures the official RPC and explorer. Your wallet asks you to confirm; nothing is signed or spent.</p>
+            </div>
+            <button class="btn btn-secondary" type="button" data-add-network>Add to MetaMask</button>
+          </div>
+          <p class="wallet-status" role="status" aria-live="polite"></p>
+          <table class="params-table">
+            <tbody>
+              <tr><th scope="row">Network name</th><td>Ferminux Network</td></tr>
+              <tr><th scope="row">RPC URL</th><td><code>https://rpc.ferminux.net</code></td></tr>
+              <tr><th scope="row">Chain ID</th><td class="num">3961 <span class="dim">(0xF79)</span></td></tr>
+              <tr><th scope="row">Currency</th><td>FMX <span class="dim">(18 decimals)</span></td></tr>
+              <tr><th scope="row">Explorer</th><td><a href="https://explorer.ferminux.net" rel="noopener">explorer.ferminux.net</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Chain parameters ============ -->
+  <section class="section" id="network">
+    <div class="container section-grid">
+      <header class="rail">
+        <h2>Chain parameters</h2>
+        <p>Everything a node operator or integrator needs. The genesis is compiled into the binary — no config files, no flags.</p>
+      </header>
+      <div class="section-content">
+        <dl class="pgrid">
+          <div class="pcell"><dt>ChainID / NetworkID</dt><dd class="num">3961 <span class="dim">(0xF79)</span></dd></div>
+          <div class="pcell"><dt>Native coin</dt><dd>FMX · 18 decimals</dd></div>
+          <div class="pcell"><dt>Consensus</dt><dd>Ethash proof-of-work — standard DAG and epochs; every Ethash GPU miner works</dd></div>
+          <div class="pcell"><dt>Block target</dt><dd class="num">~7 s</dd></div>
+          <div class="pcell"><dt>Block reward</dt><dd class="num">6 FMX to block 20,000 → 1 FMX at the emission fork, halving every 4,500,000 blocks</dd></div>
+          <div class="pcell"><dt>Fees</dt><dd>EIP-1559 from genesis · 1 gwei initial base fee</dd></div>
+          <div class="pcell"><dt>Gas limit</dt><dd class="num">100,000,000 <span class="dim">(~4,760 transfers per block)</span></dd></div>
+          <div class="pcell"><dt>Supply</dt><dd class="num">30M premine + mining emission · 100M hard cap</dd></div>
+          <div class="pcell"><dt>Public RPC</dt><dd><code>https://rpc.ferminux.net</code></dd></div>
+          <div class="pcell"><dt>Bootnodes</dt><dd><code>boot1</code> / <code>boot2</code> / <code>boot3</code>.ferminux.net</dd></div>
+          <div class="pcell pcell-wide"><dt>Genesis hash</dt><dd><code class="hash">0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</code></dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Ecosystem directory ============ -->
+  <section class="section section-dir" id="ecosystem">
+    <div class="container">
+      <h2>Ecosystem</h2>
+      <p class="dir-sub">Every surface is live and self-hosted on the network’s own infrastructure.</p>
+      <div class="dir">
+        <a class="dir-row" href="https://dex.ferminux.net" rel="noopener">
+          <span class="dir-name">DEX</span>
+          <span class="dir-desc">Swap FMX ↔ AZNT on-chain · LP locked 12 months</span>
+          <span class="dir-domain">dex.ferminux.net</span>
+          <span class="dir-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="dir-row" href="https://explorer.ferminux.net" rel="noopener">
+          <span class="dir-name">Explorer</span>
+          <span class="dir-desc">Blocks, transactions, contracts</span>
+          <span class="dir-domain">explorer.ferminux.net</span>
+          <span class="dir-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="dir-row" href="https://wallet.ferminux.net" rel="noopener">
+          <span class="dir-name">Wallet</span>
+          <span class="dir-desc">Web wallet for FMX and every token on the chain</span>
+          <span class="dir-domain">wallet.ferminux.net</span>
+          <span class="dir-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="dir-row" href="https://launchpad.ferminux.net" rel="noopener">
+          <span class="dir-name">Launchpad</span>
+          <span class="dir-desc">Launch a token for 10 FMX via TokenFactory</span>
+          <span class="dir-domain">launchpad.ferminux.net</span>
+          <span class="dir-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="dir-row" href="https://docs.ferminux.net" rel="noopener">
+          <span class="dir-name">Docs</span>
+          <span class="dir-desc">Node, mining, JSON-RPC, contracts</span>
+          <span class="dir-domain">docs.ferminux.net</span>
+          <span class="dir-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="dir-row" href="https://rpc.ferminux.net" rel="noopener">
+          <span class="dir-name">Public RPC</span>
+          <span class="dir-desc">JSON-RPC over HTTPS — the endpoint this page reads</span>
+          <span class="dir-domain">rpc.ferminux.net</span>
+          <span class="dir-arrow" aria-hidden="true">→</span>
+        </a>
+        <div class="dir-row dir-row-static">
+          <span class="dir-name">Mining pool</span>
+          <span class="dir-desc">Public stratum endpoint for any Ethash miner</span>
+          <span class="dir-domain">pool.ferminux.net:3333</span>
+          <span class="dir-arrow" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ Footer ============ -->
+<footer class="site-footer">
+  <div class="container">
+    <p class="inscription">Genesis inscription: <em>“Made with love by Wizrd&nbsp;-&nbsp;FMX”</em></p>
+    <div class="footer-row">
+      <p class="fine">© Ferminux Network · self-hosted, no analytics, no trackers.</p>
+      <div class="footer-links">
+        <a href="https://dex.ferminux.net" rel="noopener">DEX</a>
+        <a href="https://explorer.ferminux.net" rel="noopener">Explorer</a>
+        <a href="https://wallet.ferminux.net" rel="noopener">Wallet</a>
+        <a href="https://docs.ferminux.net" rel="noopener">Docs</a>
+        <a href="https://launchpad.ferminux.net" rel="noopener">Launchpad</a>
+        <a href="#top">Back to top</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
