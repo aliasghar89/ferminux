@@ -1,7 +1,7 @@
 # Licensing, per directory
 
 Ferminux is a monorepo with two licence regimes. Everything the Ferminux
-authors wrote is **MIT**. `chain/` is a fork of go-ethereum and stays under the
+authors wrote is **MIT**. `chain/` descends from the go-ethereum codebase and stays under the
 GNU licences it arrived with. Nothing we did relicenses upstream code.
 
 ## MIT — everything we wrote
