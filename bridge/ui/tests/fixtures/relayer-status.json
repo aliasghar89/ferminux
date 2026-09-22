@@ -1,0 +1,84 @@
+{
+  "_comment": "A capture of the relayer's GET /status (RelayerService.status(), served same-origin as status.json — see RELAYER_STATUS_URL). The per-chain `finality` block is EXACTLY FinalityMonitor.status() / unmonitoredFinalityStatus() in bridge/relayer/src/finality.ts; relayer/test/finality.test.mjs asserts this file's key sets against the real emitter so the two sides cannot drift. Every *Ms field is milliseconds; attestedAt, measuredAt, checkedAt, lastRefreshAt and generatedAt are unix ms. The UI reads generatedAt, chains[].chainId, chains[].name, chains[].confirmations and chains[].finality.{mode,pace,checkpoint,signing}; everything else is ignored.",
+  "role": "validator",
+  "network": "ferminux-bridge-mainnet",
+  "generatedAt": 1755820800000,
+  "uptimeSec": 86400,
+  "store": { "driver": "sqlite", "counts": { "transfers_seen": 3, "transfers_confirmed": 1, "transfers_signed": 40 } },
+  "chains": [
+    {
+      "name": "ferminux",
+      "chainId": 3961,
+      "bridge": "0xe162eeDa683f067d4Ebf61060Fa322332a779EF4",
+      "confirmations": 64,
+      "finalityTag": null,
+      "minAgreeingEndpoints": 2,
+      "healthyEndpoints": 3,
+      "endpoints": [
+        { "url": "https://rpc.ferminux.net", "host": "rpc.ferminux.net", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 },
+        { "url": "https://rpc.ferminux.net", "host": "<node-host>", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 },
+        { "url": "https://rpc2.ferminux.net", "host": "<node-host>", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 }
+      ],
+      "watcher": { "cursor": 412340, "head": 412345, "lastPollAt": 1755820795000 },
+      "finality": {
+        "mode": "work-and-time",
+        "confirmationsFloor": 64,
+        "work": { "threshold": "78000000000", "timeFloorMs": 450000, "maxWalkBlocks": 4096 },
+        "pace": {
+          "state": "ok",
+          "targetBlockTimeMs": 7000,
+          "degradedFactor": 4,
+          "stallAfterMs": 300000,
+          "medianGapMs": 8500,
+          "maxGapMs": 21000,
+          "samples": 32,
+          "headNumber": 412345,
+          "headHash": "0x9c2e1b0a7f6d5c4b3a2918f7e6d5c4b3a2918f7e6d5c4b3a2918f7e6d5c4b3a2",
+          "headAgeMs": 10000,
+          "measuredAt": 1755820800000,
+          "reason": null
+        },
+        "checkpoint": {
+          "state": "ok",
+          "registryAddress": "0x2222222222222222222222222222222222222222",
+          "registryChainId": 56,
+          "number": 412000,
+          "hash": "0x6f1a5d0c3f8e2b9a7c4d1e0f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b",
+          "attestedAt": 1755819000000,
+          "ageMs": 1800000,
+          "maxAgeMs": 21600000,
+          "lagBlocks": 345,
+          "hashVerified": true,
+          "checkedAt": 1755820800000,
+          "reason": null
+        },
+        "signing": { "paused": false, "reason": null },
+        "lastRefreshAt": 1755820800000
+      }
+    },
+    {
+      "name": "bsc",
+      "chainId": 56,
+      "bridge": "0xe43951a0E421A6B3Cb9C6ae66273dc0D3c8a70ff",
+      "confirmations": 20,
+      "finalityTag": "finalized",
+      "minAgreeingEndpoints": 2,
+      "healthyEndpoints": 3,
+      "endpoints": [
+        { "url": "https://bsc-rpc.publicnode.com", "host": "bsc-rpc.publicnode.com", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 },
+        { "url": "https://bsc-dataseed.bnbchain.org", "host": "bsc-dataseed.bnbchain.org", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 },
+        { "url": "https://1rpc.io/bnb", "host": "1rpc.io", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 }
+      ],
+      "watcher": { "cursor": 60000000, "head": 60000010, "lastPollAt": 1755820798000 },
+      "finality": {
+        "mode": "count",
+        "confirmationsFloor": 20,
+        "work": null,
+        "pace": null,
+        "checkpoint": null,
+        "signing": { "paused": false, "reason": null },
+        "lastRefreshAt": 0
+      }
+    }
+  ]
+}

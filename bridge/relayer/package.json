@@ -1,0 +1,26 @@
+{
+  "name": "ferminux-bridge-relayer",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Ferminux Bridge validator + submitter. One binary, two roles, no shared trust.",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "validator": "node src/index.ts --role validator",
+    "submitter": "node src/index.ts --role submitter",
+    "check": "node src/index.ts --role check",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/*.test.mjs\"",
+    "e2e": "node test/e2e.mjs",
+    "docker-check": "node test/docker-check.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.13.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.3"
+  }
+}

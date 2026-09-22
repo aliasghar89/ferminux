@@ -1,0 +1,399 @@
+{
+  "_README": "Copy to config/chains.json and fill in bridgeAddress per chain. Keys starting with _ are comments and are ignored. Run `node src/index.ts --role check --config config/chains.json` BEFORE starting a validator: it verifies every RPC, every bridge address, every EIP-712 domain separator and — with DNS — that the endpoints of each chain really are operated by different people, without touching a key.",
+  "network": "ferminux-bridge-mainnet",
+
+  "_rpcUrls": "THREE endpoints per enabled chain, from THREE operators who do not share infrastructure. This is not a failover list, it is a quorum: the validator re-reads every log from all of them and requires agreement before it signs. The floor (minAgreeingEndpoints) defaults to a majority of the PROVIDERS, so with three it is 2 — one provider can be down and this node keeps working. With two the floor is also 2, which means one provider outage stops the validator signing at all: that is why two is refused. Config also refuses any set where a single provider holds enough endpoints to meet the floor by itself, so a signature always rests on at least two operators.",
+
+  "_rpcUrlsAreNotAliases": "Endpoints are grouped by provider, not by hostname string: every loopback spelling is one provider, and two names under one registrable domain (rpc.example.com + backup.example.com) are one provider. `--role check` additionally resolves each name and groups endpoints that share an address. That check is why https://ferminux.net/rpc is NOT listed below alongside https://rpc.ferminux.net: both resolve to <node-host>, so they are one machine and would have been one witness counted twice.",
+
+  "_rpcUrlsVerified": "Re-verified 2026-08-20: all 31 real endpoints below were POSTed eth_chainId and all 31 answered HTTP 200 with the expected chain id (rpc.ferminux.net -> 0xf79, ethereum -> 0x1, bsc -> 0x38, polygon -> 0x89, arbitrum -> 0xa4b1, base -> 0x2105, sepolia -> 0xaa36a7, bsc-testnet -> 0x61, amoy -> 0x13882, arbitrum-sepolia -> 0x66eee, base-sepolia -> 0x14a34). Nothing was dropped this round. The two .invalid hosts on the ferminux row are NOT among those 31: they are placeholders that are MEANT to fail, see that chain's _rpcNotes. Public endpoints are rate-limited, change hands and disappear; re-run `--role check` before you rely on them, and prefer your own node as one of the three wherever you can run one.",
+
+  "_confirmations": "Reorg budget per chain. The rule: wait long enough that reversing the source block costs more than the transfer is worth. See README.md#reorg-budgets for the full reasoning; the short version is in each chain's _notes. `confirmations` is a FLOOR under every finality mode below and is never lowered by any of them.",
+
+  "_finality": "Per-chain `finality` block, README.md#finality-modes. A block COUNT is the wrong primitive on a chain without a finality gadget: on PoW the block time swings with hashrate (the 2026-08-21 stall left the bridge on 'Confirming 12/64' for hours), and on an authority chain a reorg costs zero work at any depth. So the mode is explicit: `count` (chains with a real finality tag: BSC, Ethereum, the L2s), `work-and-time` (PoW: accumulated difficulty above the block >= workThreshold AND wall clock >= timeFloorMs), or `checkpoint` (authority chains: the signed CheckpointRegistry on BSC is the SOLE finality source). Under work-and-time and checkpoint a PACE monitor runs: when the median of the last `pace.window` block gaps exceeds `pace.degradedFactor` x `pace.targetBlockTimeMs`, or no block has arrived for `pace.stallAfterMs`, the chain is DEGRADED, the validator REFUSES to sign, and /status says 'producing blocks slowly; transfers are paused until it recovers' with the measurement. A `checkpoint` registry, when configured, is enforced in EVERY mode: the validator will not sign a transfer whose source block is above the latest attested checkpoint, refuses if the attested hash differs from what it sees at that height on Ferminux (that is a detected reorg), and refuses if the checkpoint is older than `maxAgeMs`. It cannot read the registry -> it does not sign. Publish checkpoints with bridge/ops/checkpoint.sh.",
+
+  "chains": [
+    {
+      "name": "ferminux",
+      "chainId": 3961,
+      "_notes": "Ethash PoW, ~7s blocks, no finality gadget. Reorg depth is bounded by hashrate, not by protocol, and Ferminux hashrate is small — so this is the DEEPEST wait in the set, not the shallowest. 64 blocks is ~7.5 minutes. Do not lower it because the chain 'feels' fast: a 51%-capable miner rewriting 10 blocks costs almost nothing here, and rewriting 64 costs 6.4x that.",
+      "_rpcNotes": "There is exactly ONE public Ferminux RPC operator, and it is us — so two of the three witnesses on the home chain have to be nodes you control or nodes a counterparty controls. The two .invalid placeholders below are deliberately unresolvable: `--role check` fails on them, which is the point. Replace them with real hosts before setting enabled=true. Running your own Ferminux node is a small ask (geth fork, ~7s blocks) and it is the only endpoint in this file nobody else can take away from you.",
+      "rpcUrls": [
+        "https://rpc.ferminux.net",
+        "http://fmx-node.self-hosted.invalid:8545",
+        "http://fmx-node.peer-operator.invalid:8545"
+      ],
+      "bridgeAddress": "",
+      "domainSeparator": "",
+      "confirmations": 64,
+      "finalityTag": null,
+      "pollIntervalMs": 7000,
+      "startBlock": 0,
+      "maxBlockRange": 2000,
+      "enabled": false,
+      "_finality": "BEFORE the Clique fork: work-and-time. workThreshold is total difficulty in the chain's own units, summed over the blocks ABOVE the source block. Measured live 2026-08-21 through all three RPCs at head 20744: 81 blocks carried 98,893,866,925 of work, i.e. ~1.22e9 per block, so 64 blocks' worth is ~7.8e10 — that is the value below. It MUST be re-derived when hashrate moves materially (cast block latest --rpc-url https://rpc.ferminux.net, field `difficulty`, times 64): too low and the time floor does all the work, too high and the bridge waits longer than intended. timeFloorMs 450000 = 7.5 min, the wall clock 64 blocks were meant to be. Pace measured the same day: median gap 14s, max 63s, against the 7s target — already 2x nominal, which is why degradedFactor is 4 and not 2; the stall rule (no block for 300s) catches the 2026-08-21 failure mode outright. AFTER the fork: set mode to \"checkpoint\", delete workThreshold/timeFloorMs (they are refused outside work-and-time), keep pace, and set pace.targetBlockTimeMs to the Clique period. The checkpoint block is included in BOTH modes: it is the only defence that prices a zero-cost reorg, so it goes live before the fork, not after. registryChainId 56 means the registry is read through the bsc row's 3-provider quorum, so that row must be enabled.",
+      "finality": {
+        "mode": "work-and-time",
+        "workThreshold": "78000000000",
+        "timeFloorMs": 450000,
+        "maxWalkBlocks": 4096,
+        "pace": {
+          "targetBlockTimeMs": 7000,
+          "window": 32,
+          "degradedFactor": 4,
+          "stallAfterMs": 300000
+        },
+        "checkpoint": {
+          "_note": "CheckpointRegistry on BSC (chain 56), owned by the BSC multisig 0x15D0791d49A089863243BE2C2050e5d26E1bBA9c. Deploy with `forge create src/CheckpointRegistry.sol:CheckpointRegistry --constructor-args 0x15D0791d49A089863243BE2C2050e5d26E1bBA9c`, then fill registryAddress in here and in CKPT_REGISTRY for ops/checkpoint.sh. maxAgeMs 21600000 = 6h: publish at least every shift, or the bridge pauses itself — which is the intended failure.",
+          "registryAddress": "",
+          "registryChainId": 56,
+          "maxAgeMs": 21600000
+        }
+      },
+      "gas": {
+        "maxFeePerGasGwei": 50,
+        "priorityFeeGwei": 1,
+        "baseFeeMultiplier": 2,
+        "gasLimitMultiplier": 1.3,
+        "gasLimitCap": 1500000,
+        "escalationPct": 25,
+        "maxAttempts": 4,
+        "receiptTimeoutMs": 120000,
+        "txType": 2
+      },
+      "limits": {
+        "_note": "Local validator caps, in the token's smallest unit. These are a SECOND fence inside the contract's caps — set them at or below what registerCanonical/registerWrapped used. Tightening here is instant and needs no timelock.",
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {
+          "0x0000000000000000000000000000000000000000": {
+            "_note": "FMX, the native coin. 25,000 per transfer / 100,000 per rolling 24h.",
+            "maxPerTransfer": "25000000000000000000000",
+            "dailyCap": "100000000000000000000000"
+          }
+        }
+      }
+    },
+
+    {
+      "name": "ethereum",
+      "chainId": 1,
+      "_notes": "PoS with real finality. Prefer the tag over a block count: `finalized` is two justified epochs, ~13 minutes, and is economically final (reverting it burns a third of the staked supply). The 32-block count is only the floor applied while a node has not caught up enough to serve the tag.",
+      "_rpcNotes": "Allnodes (publicnode), dRPC and Cloudflare — three unrelated operators on three networks. rpc.ankr.com/eth was here and now answers 'Unauthorized: you must authenticate with an API key'; eth.llamarpc.com answers 521. Both were dead weight in the quorum, which is exactly the failure this list is supposed to survive.",
+      "rpcUrls": ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org", "https://cloudflare-eth.com"],
+      "bridgeAddress": "",
+      "domainSeparator": "",
+      "confirmations": 32,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 12000,
+      "startBlock": 0,
+      "maxBlockRange": 2000,
+      "enabled": false,
+      "gas": {
+        "maxFeePerGasGwei": 120,
+        "priorityFeeGwei": 1,
+        "baseFeeMultiplier": 2,
+        "gasLimitMultiplier": 1.3,
+        "gasLimitCap": 1500000,
+        "escalationPct": 25,
+        "maxAttempts": 5,
+        "receiptTimeoutMs": 180000,
+        "txType": 2
+      },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "bsc",
+      "chainId": 56,
+      "_notes": "3s blocks, 21 validators, BEP-126 fast finality (~2-3 blocks once 2/3 have voted). `finalized` is served and is the real safety line; 20 blocks (~60s) is the fallback floor. BSC has had multi-block reorgs before fast finality, which is why the floor is not 3.",
+      "_rpcNotes": "Allnodes, the Binance-operated dataseed, and 1RPC (Automata). bsc-dataseed1.binance.org still answers but bnbchain.org is the current name for the same fleet — listing both would be one provider twice, so only one is here.",
+      "rpcUrls": ["https://bsc-rpc.publicnode.com", "https://bsc-dataseed.bnbchain.org", "https://1rpc.io/bnb"],
+      "bridgeAddress": "",
+      "domainSeparator": "",
+      "confirmations": 20,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 3000,
+      "startBlock": 0,
+      "maxBlockRange": 2000,
+      "enabled": false,
+      "gas": {
+        "maxFeePerGasGwei": 15,
+        "priorityFeeGwei": 1,
+        "baseFeeMultiplier": 2,
+        "gasLimitMultiplier": 1.3,
+        "gasLimitCap": 1500000,
+        "escalationPct": 25,
+        "maxAttempts": 4,
+        "receiptTimeoutMs": 90000,
+        "txType": 2
+      },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "polygon",
+      "chainId": 137,
+      "_notes": "Bor produces ~2s blocks that are NOT final until Heimdall milestones them. Bor reorgs of well over 100 blocks have happened in production. 128 blocks (~4.5 min) is the floor and `finalized` (milestone-backed, ~16 blocks post-Napoli) is the real line. This is the chain where a small confirmation count has actually cost bridges money.",
+      "_rpcNotes": "polygon-rpc.com — the endpoint every Polygon doc still prints, and the one this file used to ship — now answers 'API key disabled, tenant disabled' with HTTP 403. Replaced by dRPC and 1RPC alongside Allnodes.",
+      "rpcUrls": ["https://polygon-bor-rpc.publicnode.com", "https://polygon.drpc.org", "https://1rpc.io/matic"],
+      "bridgeAddress": "",
+      "domainSeparator": "",
+      "confirmations": 128,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 2000,
+      "startBlock": 0,
+      "maxBlockRange": 2000,
+      "enabled": false,
+      "gas": {
+        "maxFeePerGasGwei": 600,
+        "priorityFeeGwei": 30,
+        "baseFeeMultiplier": 2,
+        "gasLimitMultiplier": 1.3,
+        "gasLimitCap": 1500000,
+        "escalationPct": 30,
+        "maxAttempts": 5,
+        "receiptTimeoutMs": 90000,
+        "txType": 2
+      },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "arbitrum",
+      "chainId": 42161,
+      "_notes": "L2. The sequencer does not reorg in normal operation, so a block count here measures almost nothing — the real risk is an L1 reorg rewriting the batch that contained the block. Use `finalized`, which on Arbitrum tracks L1 finality (~15 min). 300 blocks (~75s at 0.25s) is only a floor. maxBlockRange is larger because blocks are tiny and frequent.",
+      "rpcUrls": ["https://arbitrum-one-rpc.publicnode.com", "https://arb1.arbitrum.io/rpc", "https://arbitrum.drpc.org"],
+      "bridgeAddress": "",
+      "domainSeparator": "",
+      "confirmations": 300,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 2000,
+      "startBlock": 0,
+      "maxBlockRange": 10000,
+      "enabled": false,
+      "gas": {
+        "maxFeePerGasGwei": 5,
+        "priorityFeeGwei": 0,
+        "baseFeeMultiplier": 3,
+        "gasLimitMultiplier": 1.5,
+        "gasLimitCap": 8000000,
+        "escalationPct": 25,
+        "maxAttempts": 4,
+        "receiptTimeoutMs": 60000,
+        "txType": 2
+      },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "base",
+      "chainId": 8453,
+      "_notes": "OP-stack L2, 2s blocks, same L1-derived finality argument as Arbitrum. `finalized` follows L1 (~15 min). 180 blocks (~6 min) is the floor for the window where a block is sequenced but the L1 batch is not yet final.",
+      "rpcUrls": ["https://base-rpc.publicnode.com", "https://mainnet.base.org", "https://base.drpc.org"],
+      "bridgeAddress": "",
+      "domainSeparator": "",
+      "confirmations": 180,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 2000,
+      "startBlock": 0,
+      "maxBlockRange": 5000,
+      "enabled": false,
+      "gas": {
+        "maxFeePerGasGwei": 5,
+        "priorityFeeGwei": 1,
+        "baseFeeMultiplier": 3,
+        "gasLimitMultiplier": 1.3,
+        "gasLimitCap": 3000000,
+        "escalationPct": 25,
+        "maxAttempts": 4,
+        "receiptTimeoutMs": 60000,
+        "txType": 2
+      },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "sepolia",
+      "chainId": 11155111,
+      "_notes": "Ethereum testnet. Same finality mechanics as mainnet, much less economic weight behind them — treat testnet money as free and testnet confirmations as advisory.",
+      "_rpcNotes": "rpc.sepolia.org now serves an Apache 404 and sepolia.drpc.org is paid-plan only, so both were dropped. Allnodes, 1RPC and Tenderly answer.",
+      "rpcUrls": [
+        "https://ethereum-sepolia-rpc.publicnode.com",
+        "https://1rpc.io/sepolia",
+        "https://sepolia.gateway.tenderly.co"
+      ],
+      "bridgeAddress": "",
+      "confirmations": 32,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 12000,
+      "startBlock": 0,
+      "maxBlockRange": 2000,
+      "enabled": false,
+      "gas": { "maxFeePerGasGwei": 60, "priorityFeeGwei": 1, "maxAttempts": 4, "receiptTimeoutMs": 180000 },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "bsc-testnet",
+      "chainId": 97,
+      "rpcUrls": [
+        "https://bsc-testnet-rpc.publicnode.com",
+        "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
+        "https://bsc-testnet.drpc.org"
+      ],
+      "bridgeAddress": "",
+      "confirmations": 20,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 3000,
+      "startBlock": 0,
+      "maxBlockRange": 2000,
+      "enabled": false,
+      "gas": { "maxFeePerGasGwei": 20, "priorityFeeGwei": 1, "maxAttempts": 4, "receiptTimeoutMs": 90000 },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "polygon-amoy",
+      "chainId": 80002,
+      "_rpcNotes": "rpc-amoy.polygon.technology no longer resolves at all (NXDOMAIN) — a dead name in a quorum list is an endpoint that can never disagree with anything. Replaced by dRPC and Tenderly.",
+      "rpcUrls": [
+        "https://polygon-amoy-bor-rpc.publicnode.com",
+        "https://polygon-amoy.drpc.org",
+        "https://polygon-amoy.gateway.tenderly.co"
+      ],
+      "bridgeAddress": "",
+      "confirmations": 128,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 2000,
+      "startBlock": 0,
+      "maxBlockRange": 2000,
+      "enabled": false,
+      "gas": { "maxFeePerGasGwei": 600, "priorityFeeGwei": 30, "maxAttempts": 5, "receiptTimeoutMs": 90000 },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "arbitrum-sepolia",
+      "chainId": 421614,
+      "rpcUrls": [
+        "https://arbitrum-sepolia-rpc.publicnode.com",
+        "https://sepolia-rollup.arbitrum.io/rpc",
+        "https://arbitrum-sepolia.drpc.org"
+      ],
+      "bridgeAddress": "",
+      "confirmations": 300,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 2000,
+      "startBlock": 0,
+      "maxBlockRange": 10000,
+      "enabled": false,
+      "gas": { "maxFeePerGasGwei": 5, "priorityFeeGwei": 0, "gasLimitCap": 8000000, "maxAttempts": 4, "receiptTimeoutMs": 60000 },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    },
+
+    {
+      "name": "base-sepolia",
+      "chainId": 84532,
+      "rpcUrls": ["https://base-sepolia-rpc.publicnode.com", "https://sepolia.base.org", "https://base-sepolia.drpc.org"],
+      "bridgeAddress": "",
+      "confirmations": 180,
+      "finalityTag": "finalized",
+      "pollIntervalMs": 2000,
+      "startBlock": 0,
+      "maxBlockRange": 5000,
+      "enabled": false,
+      "gas": { "maxFeePerGasGwei": 5, "priorityFeeGwei": 1, "gasLimitCap": 3000000, "maxAttempts": 4, "receiptTimeoutMs": 60000 },
+      "limits": {
+        "default": { "maxPerTransfer": "25000000000000000000000", "dailyCap": "100000000000000000000000" },
+        "tokens": {}
+      }
+    }
+  ],
+
+  "http": {
+    "_note": "Bind to a private interface. /health is unauthenticated by design; EVERYTHING else needs the bearer token. An empty apiToken means no authentication at all, so it is only accepted on a loopback bind — any other host is a startup failure, because /status and /transfers describe every in-flight transfer, sender and recipient included. Generate one with: openssl rand -hex 32. Put TLS in front of this (nginx/caddy) — validators talk to each other over the public internet in a multi-party deployment.",
+    "host": "127.0.0.1",
+    "port": 8564,
+    "apiToken": "",
+    "_rateLimit": "Per-client-IP token bucket applied to every route including /health, so an unauthenticated caller cannot spend this process's CPU and sockets keeping a validator from answering the submitter. burst is the back-to-back allowance, refillPerSecond the sustained rate.",
+    "rateLimit": { "burst": 60, "refillPerSecond": 10, "maxClients": 4096 },
+    "maxConnections": 256
+  },
+
+  "keystore": {
+    "_note": "Never put a private key in this file. `--role keygen --out <path>` writes an encrypted V3 keystore at mode 0400; the password lives in its own 0400 file, ideally on a different volume or injected by systemd credentials.",
+    "path": "/etc/ferminux-relayer/validator.keystore.json",
+    "passwordFile": "/etc/ferminux-relayer/validator.password",
+    "expectedAddress": ""
+  },
+
+  "transport": {
+    "_note": "http = multi-party (each validator on its own host, its own custodian). shared-dir = single-operator convenience: it is NOT M-of-N security, because one operator who can write that directory can write every file in it.",
+    "mode": "http",
+    "sharedDir": "",
+    "requestTimeoutMs": 8000
+  },
+
+  "submitter": {
+    "peers": [
+      { "name": "validator-1", "url": "https://validator1.example.internal:8564", "token": "" },
+      { "name": "validator-2", "url": "https://validator2.example.internal:8564", "token": "" },
+      { "name": "validator-3", "url": "https://validator3.example.internal:8564", "token": "" }
+    ],
+    "signatureWaitMs": 900000,
+    "pollIntervalMs": 5000,
+    "skipWhenPaused": true
+  },
+
+  "validator": {
+    "_note": "requireRpcQuorum: EVERY healthy endpoint must show the same log before this node signs. Setting it to false is refused unless insecure.allowPartialEndpointAgreement is set with the acknowledgement sentence.",
+    "_floor": "Independent of this flag, each chain has a minAgreeingEndpoints floor (default: a majority of its PROVIDERS, never below 2, and never satisfiable by one provider on its own). A validator that cannot reach that floor REFUSES — it never falls back to trusting the one endpoint still answering, because 'the one endpoint still answering' is what an eclipse attack arranges.",
+    "maxTransferAgeMs": 0,
+    "requireRpcQuorum": true
+  },
+
+  "state": {
+    "path": "/var/lib/ferminux-relayer/relayer.db",
+    "driver": "auto"
+  },
+
+  "alerts": {
+    "webhookUrl": "",
+    "minSeverity": "warn",
+    "throttleMs": 60000
+  },
+
+  "divergenceIntervalMs": 60000,
+
+  "log": {
+    "level": "info",
+    "format": "json"
+  }
+}

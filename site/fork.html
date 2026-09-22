@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network upgrade at block 160,000 — Ferminux</title>
+<meta name="description" content="Ferminux moves from proof-of-work to authority consensus at block 160,000. What changes, who must act, and how to verify the release.">
+<meta name="robots" content="noindex">
+<!--
+  DRAFT fork notice. Publish (remove noindex, link from the homepage, explorer
+  banner, wallet/DEX/bridge) only when:
+    - signer keys are placed on five hosts and have soaked ≥ 1 day on release A
+    - the Windows binary has been recut on a native runner (or is listed as
+      "not yet available" below — do not ship an untested binary)
+    - the operator has approved the compensation rule below (100% of earned
+      rewards to non-foundation miners; one address, 3,030 FMX as of 08-22).
+      Numbers in that section are a CENSUS of the chain as of block 25,656 —
+      re-run it at publication time, since anyone may mine before the fork.
+    NOTE ON NOTICE PERIOD: the runbook wants 14 days' notice, but at the
+    measured pace (7.4 s/block on 2026-08-22) block 160,000 arrives in ~11.5
+    days. Publishing today gives ~11 days. Either accept the shorter notice
+    and say so, or let the pace decide — do not quietly publish a 14-day
+    promise that the block number contradicts.
+  Dates are ESTIMATES from measured block pace; the block number is the fact.
+-->
+<link rel="icon" href="data:,">
+<style>
+:root{--bg:#ffffff;--surface:#fbfbfa;--border:#e3e3e0;--hairline:#efefec;--ink:#16181c;--muted:#5b6169;--faint:#8b9198;--accent:#a8761c;--warn:#a33a1f;--r:6px;
+--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}code{font-family:var(--mono);font-size:.92em}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(168,118,28,.35)}
+.wrap{max-width:860px;margin:0 auto;padding:0 24px}
+header{border-bottom:1px solid var(--border)}.head{display:flex;align-items:center;justify-content:space-between;height:56px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600}.mark{width:9px;height:9px;background:var(--accent);border-radius:2px}.brand span{color:var(--muted);font-weight:400}
+.nav{display:flex;gap:20px;font-size:13.5px}.nav a{color:var(--muted);border:0}
+h1{font-size:30px;line-height:1.2;letter-spacing:-.02em;margin:44px 0 10px;font-weight:650}
+.lede{font-size:16.5px;color:var(--muted);margin:0 0 28px;max-width:64ch}
+h2{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--hairline)}
+p{margin:0 0 14px;max-width:70ch}
+.key{border:1px solid var(--border);border-radius:var(--r);background:var(--surface);padding:18px 20px;margin:0 0 18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+.key .k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600}.key .v{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.act{border:1px solid var(--border);border-left:3px solid var(--warn);border-radius:var(--r);background:var(--surface);padding:18px 20px;margin:6px 0 18px}
+table{width:100%;border-collapse:collapse;margin:6px 0 18px;font-size:14.5px}
+th{text-align:left;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:600;padding:0 12px 8px 0;border-bottom:1px solid var(--border)}
+td{padding:11px 12px 11px 0;border-bottom:1px solid var(--hairline);vertical-align:top}tr:last-child td{border-bottom:0}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.65;margin:6px 0 16px}
+footer{border-top:1px solid var(--border);margin-top:56px;padding:22px 0 44px;font-size:13px;color:var(--faint)}footer a{color:var(--muted);border:0}
+@media (max-width:640px){.key{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap head">
+  <div class="brand"><span class="mark"></span>Ferminux <span>Network upgrade</span></div>
+  <nav class="nav"><a href="/">Network</a><a href="/consensus.html">Consensus</a><a href="/security.html">Security</a><a href="https://explorer.ferminux.net">Explorer</a></nav>
+</div></header>
+
+<div class="wrap">
+  <h1>Ferminux changes consensus at block 160,000</h1>
+  <p class="lede">Proof-of-work ends and a fixed set of five foundation-operated signers takes over block production. This page says exactly what that means for you, what you must do, and how to check the release yourself.</p>
+
+  <div class="key">
+    <div><div class="k">Fork block</div><div class="v num">160,000</div></div>
+    <div><div class="k">Estimated date</div><div class="v">2–9 Sept 2026</div></div>
+    <div><div class="k">Current block</div><div class="v num" id="head">—</div></div>
+  </div>
+  <p>The block number is the fact. The date is not: it is arithmetic on a block pace that has ranged from 7 to 12 seconds over the last few days, which is the difference between the 2nd and the 9th of September. It will move again, and it is quoted as a range for that reason rather than a single day that would read as a commitment. The countdown above reads the live chain, so it is always more current than this paragraph.</p>
+
+  <h2>Why</h2>
+  <p>On 21 August the chain stopped producing blocks for four hours and thirty-six minutes, and did not return to normal for nine — blocks 20,570 to 20,577 took nine hours between them. Rented GPU hashrate had set the difficulty to a level the remaining miners could not meet, and proof-of-work only lowers difficulty when a block is found. Nothing downstream could work: the bridge could not confirm transfers and the explorer froze. That failure is structural to a small proof-of-work chain, and it will recur. Authority consensus removes the dependency on hashrate entirely. What it costs is stated plainly on the <a href="/consensus.html">consensus page</a>.</p>
+
+  <h2>What you must do</h2>
+  <div class="act">
+    <table>
+      <thead><tr><th>If you…</th><th>Then…</th></tr></thead>
+      <tbody>
+        <tr><td><strong>run a node</strong></td><td><strong>Upgrade before block 160,000.</strong> A node on the old software stops at the fork and cannot follow the chain. Downloads and checksums are below; the one-line installer fetches the new release.</td></tr>
+        <tr><td><strong>mine FMX</strong></td><td><strong>Mining ends at block 160,000.</strong> There is no proof-of-work after it and the public pool closes at <code>F+1h</code>. See the compensation note below.</td></tr>
+        <tr><td>hold FMX, AZNT or USDF</td><td>Nothing. Same chain ID, same addresses, same balances, same contracts.</td></tr>
+        <tr><td>use the bridge</td><td>Deposits are paused for a window around the fork and resume once the first post-fork checkpoint is attested. In-flight transfers are completed before the pause.</td></tr>
+        <tr><td>use the DEX, wallet or launchpad</td><td>Nothing.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Miners</h2>
+  <p>Mining ends at block 160,000. We looked at who that actually affects rather than guessing: of the 25,656 blocks sealed since launch, <strong>97.05%</strong> were sealed by the foundation's own mining address and a further <strong>0.98%</strong> by the treasury address during the launch hour. Exactly one address that is not ours has ever sealed a Ferminux block — <code>0x4adbea69…742669bd</code>, 505 blocks on 20 August, earning 3,030 FMX which it still holds.</p>
+  <div class="act">
+    <p style="margin:0"><strong>Compensation.</strong> Every address that sealed a block before the fork and <strong>is not a foundation address</strong> receives a one-time credit equal to <strong>100% of the block rewards it earned</strong>, paid from the community allocation on top of the rewards it already has. On today's numbers that is one address and 3,030 FMX. The eligible list is derived from block headers, published with the claim form, and fixed at the fork block — so anyone who mines between now and then is included on the same terms.</p>
+  </div>
+  <p>Foundation addresses are excluded by name, because paying ourselves out of the community allocation for our own hashrate would be a transfer dressed up as compensation. The excluded addresses are <code>0x7F164333…E45130f7</code> and <code>0xc0A5Eb61…65af15aB</code>.</p>
+
+  <h2>Downloads — release v1.1.0-posa</h2>
+  <p>The release is identical to the current software except that it knows the fork block and the reward-sink contract. Below the fork block it behaves exactly as today and peers with un-upgraded nodes; at the fork it refuses them. Verify every file against the checksums.</p>
+  <table>
+    <thead><tr><th>Platform</th><th>File</th><th>SHA-256</th></tr></thead>
+    <tbody>
+      <tr><td>Linux amd64</td><td><code>ferminux-geth-v1.1.0-posa-linux-amd64</code></td><td><code>8bab124978fae52d8a1894189ba35ba1ba16e3524186b3f2a935dc0555257294</code></td></tr>
+      <tr><td>Linux arm64</td><td><code>ferminux-geth-v1.1.0-posa-linux-arm64</code></td><td><code>e47c53fcdec1e7c6b588a52c170587dbe199d20700c2977b8ca773c8ee1e5f8e</code></td></tr>
+      <tr><td>macOS Apple Silicon</td><td><code>ferminux-geth-v1.1.0-posa-macos-arm64</code></td><td><code>c3b98947d500822d65dab38985aa4f5fe54639aa39400b04c9c1bef79de311c2</code></td></tr>
+      <tr><td>Windows amd64</td><td colspan="2"><em>Not yet available — a verified build will be added to this page before the fork.</em></td></tr>
+    </tbody>
+  </table>
+  <pre>curl -fsSL https://ferminux.net/install.sh | bash      # installs v1.1.0-posa
+ferminux-geth version                                   # must print 1.10.26 and list PosaBlock 160000 at startup</pre>
+
+  <h2>Verify the release, not this page</h2>
+  <p>Start the new binary and read its banner: it prints <code>Ferminux PoSA (Clique authority from this block): 160000</code>. Dump its genesis and compare the hash to the chain's: both must be <code>0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</code>. The signer set is in the <a href="/consensus.html">consensus page</a> and will be readable from any node after the fork via <code>clique_getSigners</code>.</p>
+
+  <h2>What this is not</h2>
+  <p>It is not proof of stake, and it is not decentralised: five signers, one operator. The <a href="/consensus.html">consensus page</a> and the <a href="/security.html">security page</a> say so in full, including what history is secured by after the fork and what happens if signers are lost. Read them before you decide what to do with your FMX.</p>
+</div>
+
+<footer><div class="wrap">Ferminux Network · chain ID 3961 · <a href="/">network</a> · <a href="/consensus.html">consensus</a> · <a href="/security.html">security</a> · <a href="https://explorer.ferminux.net">explorer</a></div></footer>
+
+<script>
+(function(){
+  fetch('https://rpc.ferminux.net',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_blockNumber',params:[]})})
+  .then(r=>r.json()).then(j=>{var h=parseInt(j.result,16);var e=document.getElementById('head');e.textContent=h.toLocaleString('en-US')+' ('+(160000-h).toLocaleString('en-US')+' to go)';}).catch(function(){});
+})();
+</script>
+</body>
+</html>

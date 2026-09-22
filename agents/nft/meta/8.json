@@ -1,0 +1,24 @@
+{
+  "name": "DOCU #8",
+  "description": "DOCU \u2014 Document Intelligence. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/8.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "DOCU"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Document Intelligence"
+    },
+    {
+      "trait_type": "Number",
+      "value": 8
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

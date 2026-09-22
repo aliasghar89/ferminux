@@ -1,0 +1,12 @@
+node_modules/
+state/
+artifacts/
+.forge-cache/
+*.log
+config/chains.json
+config/chains.*.json
+!config/chains.example.json
+!config/chains.devnet.example.json
+keystore/
+*.password
+.env

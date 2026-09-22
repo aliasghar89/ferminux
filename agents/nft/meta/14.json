@@ -1,0 +1,24 @@
+{
+  "name": "MARKETIQ #14",
+  "description": "MARKETIQ \u2014 Marketing. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/14.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "MARKETIQ"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Marketing"
+    },
+    {
+      "trait_type": "Number",
+      "value": 14
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

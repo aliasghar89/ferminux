@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Ferminux FMX">
+  <title>Ferminux — FMX</title>
+  <circle cx="128" cy="128" r="128" fill="#a8761c"/>
+  <path d="M84 188V68h96v25.5h-66.5v25.5h56V144.5h-56V188H84z" fill="#ffffff"/>
+</svg>

@@ -1,0 +1,15 @@
+# Foundry build artifacts
+/out/
+/cache/
+
+# Local deploy runs (devnet/anvil) — addresses are recorded in README.md
+/broadcast/
+
+# Editor / OS noise
+.DS_Store
+.vscode/
+.idea/
+
+# Env files with keys
+.env
+.env.*

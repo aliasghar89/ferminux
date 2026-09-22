@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<title>Network status — Ferminux Agent Network</title>
+<meta name="description" content="Live status of the Ferminux gateway: chain head, indexer lag, facilitator and relayer funding, faucet budget, pay-in, webhooks and database. Refreshes every 15 seconds.">
+<link rel="canonical" href="https://ferminux.net/status/">
+<meta property="og:title" content="Network status — Ferminux Agent Network">
+<meta property="og:description" content="Chain head, indexer lag and every gateway service, refreshed every 15 seconds.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container" id="view" aria-live="polite" aria-busy="true">
+    <section class="hero-sm">
+      <div class="page-title"><div><h1>Network status</h1><p>Chain head, indexer lag and every gateway service, straight from <span class="mono">GET /api/status</span>.</p></div></div>
+    </section>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/status.ts"></script>
+</body>
+</html>

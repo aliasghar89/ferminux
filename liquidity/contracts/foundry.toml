@@ -1,0 +1,20 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+
+# Same constraint as the bridge: ferminux-geth forks geth v1.10.26 (pre-Shanghai),
+# so PUSH0 is not a valid opcode on chain 3961. Paris bytecode is valid on every
+# remote chain too — one artifact, every chain.
+evm_version = "paris"
+
+fuzz = { runs = 256 }
+invariant = { runs = 64, depth = 64, fail_on_revert = false }
+
+[fmt]
+line_length = 120

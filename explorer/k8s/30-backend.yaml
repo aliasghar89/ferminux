@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: explorer-backend
+  namespace: ferminux
+  labels:
+    app.kubernetes.io/name: explorer-backend
+    app.kubernetes.io/part-of: ferminux-explorer
+spec:
+  selector:
+    app.kubernetes.io/name: explorer-backend
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: explorer-backend
+  namespace: ferminux
+  labels:
+    app.kubernetes.io/name: explorer-backend
+    app.kubernetes.io/part-of: ferminux-explorer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # single indexer; never run two concurrently against one DB
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: explorer-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: explorer-backend
+        app.kubernetes.io/part-of: ferminux-explorer
+    spec:
+      terminationGracePeriodSeconds: 300
+      containers:
+        - name: blockscout
+          # verified multi-arch (amd64+arm64) via docker manifest inspect 2026-08-20
+          image: ghcr.io/blockscout/blockscout:9.0.2
+          command: ["sh", "-c"]
+          args:
+            - bin/blockscout eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()" && bin/blockscout start
+          envFrom:
+            - configMapRef:
+                name: explorer-backend-env
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: explorer-secrets
+                  key: DATABASE_URL
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: explorer-secrets
+                  key: SECRET_KEY_BASE
+          ports:
+            - name: http
+              containerPort: 4000
+          readinessProbe:
+            httpGet:
+              path: /api/v2/blocks
+              port: 4000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 4000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              memory: 4Gi
+          volumeMounts:
+            - name: chainspec
+              mountPath: /app/chainspec
+              readOnly: true
+      volumes:
+        - name: chainspec
+          configMap:
+            name: explorer-chainspec

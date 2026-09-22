@@ -1,0 +1,96 @@
+{
+  "_comment": "Verified 2026-08-20. Every router/factory was cross-checked two ways: (1) the cited documentation/explorer pages, (2) live on-chain reads — router.factory() must return the factory listed here and router.WETH() the wrapped-native listed here (commands in README 'How these addresses were verified'). Do NOT edit an address without repeating both checks. feeBps is the pair swap fee the DEX hardcodes (Pancake v2 = 25, Uniswap v2 / QuickSwap v2 = 30).",
+  "bsc": {
+    "chainId": 56,
+    "name": "BNB Smart Chain",
+    "dex": "PancakeSwap v2",
+    "router": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+    "factory": "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
+    "wrappedNative": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+    "wrappedNativeSymbol": "WBNB",
+    "nativeSymbol": "BNB",
+    "coingeckoNativeId": "binancecoin",
+    "feeBps": 25,
+    "defaultRpc": "https://bsc-dataseed.bnbchain.org",
+    "explorer": "https://bscscan.com",
+    "sources": [
+      "BscScan label 'PancakeSwap: Router v2' at https://bscscan.com/address/0x10ed43c718714eb63d5aa57b78b54704e256024e and 'PancakeSwap: Factory v2' at https://bscscan.com/address/0xca143ce32fe78f1f7019d7d551a6402fc5350c73",
+      "PancakeSwap docs router-v2 page (docs.pancakeswap.finance /code/smart-contracts/pancakeswap-exchange/router-v2)",
+      "on-chain 2026-08-20 via bsc-dataseed.bnbchain.org: router.factory() == 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73, router.WETH() == 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+    ]
+  },
+  "ethereum": {
+    "chainId": 1,
+    "name": "Ethereum",
+    "dex": "Uniswap v2",
+    "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    "factory": "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
+    "wrappedNative": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    "wrappedNativeSymbol": "WETH",
+    "nativeSymbol": "ETH",
+    "coingeckoNativeId": "ethereum",
+    "feeBps": 30,
+    "defaultRpc": "https://ethereum-rpc.publicnode.com",
+    "explorer": "https://etherscan.io",
+    "sources": [
+      "Uniswap official deployments page https://developers.uniswap.org/docs/protocols/v2/deployments (Factory 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, V2Router02 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D)",
+      "on-chain 2026-08-20 via THREE independent RPCs (ethereum-rpc.publicnode.com, rpc.mevblocker.io, eth.drpc.org): router.factory() == 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f; factory.allPairsLength() == 519170; factory.getPair(USDC, WETH) == 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc (the canonical USDC/WETH v2 pair)",
+      "NOTE: a one-hex-digit lookalike 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc8aa6f has NO code on mainnet — never copy this factory address from memory or from random blog posts"
+    ]
+  },
+  "base": {
+    "chainId": 8453,
+    "name": "Base",
+    "dex": "Uniswap v2",
+    "router": "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+    "factory": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+    "wrappedNative": "0x4200000000000000000000000000000000000006",
+    "wrappedNativeSymbol": "WETH",
+    "nativeSymbol": "ETH",
+    "coingeckoNativeId": "ethereum",
+    "feeBps": 30,
+    "defaultRpc": "https://mainnet.base.org",
+    "explorer": "https://basescan.org",
+    "sources": [
+      "Uniswap official deployments page https://developers.uniswap.org/docs/protocols/v2/deployments (Base: Factory 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6, V2Router02 0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24)",
+      "on-chain 2026-08-20 via mainnet.base.org (Base's own public RPC): router.factory() == 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6, router.WETH() == 0x4200000000000000000000000000000000000006 (Base canonical WETH predeploy)"
+    ]
+  },
+  "arbitrum": {
+    "chainId": 42161,
+    "name": "Arbitrum One",
+    "dex": "Uniswap v2",
+    "router": "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+    "factory": "0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9",
+    "wrappedNative": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "wrappedNativeSymbol": "WETH",
+    "nativeSymbol": "ETH",
+    "coingeckoNativeId": "ethereum",
+    "feeBps": 30,
+    "defaultRpc": "https://arb1.arbitrum.io/rpc",
+    "explorer": "https://arbiscan.io",
+    "sources": [
+      "Uniswap official deployments page https://developers.uniswap.org/docs/protocols/v2/deployments (Arbitrum: Factory 0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9, V2Router02 0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24)",
+      "on-chain 2026-08-20 via arb1.arbitrum.io/rpc (Arbitrum Foundation public RPC): router.factory() == 0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9, router.WETH() == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1 (canonical Arbitrum WETH)"
+    ]
+  },
+  "polygon": {
+    "chainId": 137,
+    "name": "Polygon PoS",
+    "dex": "QuickSwap v2",
+    "router": "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+    "factory": "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32",
+    "wrappedNative": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+    "wrappedNativeSymbol": "WPOL",
+    "nativeSymbol": "POL",
+    "coingeckoNativeId": "matic-network",
+    "feeBps": 30,
+    "defaultRpc": "https://polygon-bor-rpc.publicnode.com",
+    "explorer": "https://polygonscan.com",
+    "sources": [
+      "QuickSwap docs contracts page https://docs.quickswap.exchange/overview/contracts-and-addresses (Router 0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, Factory 0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32)",
+      "PolygonScan label 'QuickSwap V2: Router' at https://polygonscan.com/address/0xa5e0829caced8ffdd4de3c43696c57f7d7a678ff",
+      "on-chain 2026-08-20 via THREE RPCs (polygon-bor-rpc.publicnode.com, polygon.drpc.org, 1rpc.io/matic): router.factory() == 0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32, router.WETH() == 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270 (WMATIC/WPOL). polygon-rpc.com itself returned HTTP 401 'tenant disabled' on 2026-08-20 — do not hardcode it"
+    ]
+  }
+}

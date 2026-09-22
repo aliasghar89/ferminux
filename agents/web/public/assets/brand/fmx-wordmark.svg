@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 212 40" width="212" height="40" role="img" aria-label="Ferminux Network">
+  <title>Ferminux Network</title>
+  <!-- The site header lockup (site/index.html), rebuilt at a size Blockscout's
+       header expects: it reserves a wide slot for NETWORK_LOGO and renders a
+       lone square mark badly. Mark geometry is the 32-viewBox one from the nav,
+       scaled, so the two never drift apart.
+
+       textLength + lengthAdjust pins the rendered width on every platform. The
+       font stack resolves against whatever the viewer has — this is served as an
+       <img>, so no webfont would load anyway — and without the pin the wordmark
+       would be a different width on macOS, Windows and Linux. -->
+  <g transform="translate(0,6) scale(0.875)">
+    <rect width="32" height="32" rx="6" fill="#a8761c"/>
+    <path d="M10 24V8h13v3.4h-9v3.4h7.6v3.4H14V24h-4z" fill="#ffffff"/>
+  </g>
+  <text x="38" y="26" textLength="88" lengthAdjust="spacingAndGlyphs"
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="19" font-weight="600" letter-spacing="-0.2" fill="#16181c">Ferminux</text>
+  <text x="131" y="26" textLength="72" lengthAdjust="spacingAndGlyphs"
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="19" font-weight="600" letter-spacing="-0.2" fill="#8b9198">Network</text>
+</svg>

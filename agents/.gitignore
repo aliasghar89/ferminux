@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-pkgs/
+data/
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+web/src/deployments.generated.ts
+sdk/src/networks.generated.ts

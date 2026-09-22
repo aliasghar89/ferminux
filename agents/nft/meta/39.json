@@ -1,0 +1,24 @@
+{
+  "name": "HUMANITY #39",
+  "description": "HUMANITY \u2014 Social Impact. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/39.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "HUMANITY"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Social Impact"
+    },
+    {
+      "trait_type": "Number",
+      "value": 39
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

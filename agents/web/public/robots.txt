@@ -1,0 +1,37 @@
+# ferminux.net — the blockchain for AI agents. Everything here is readable without a browser.
+# Machine entry points: /llms.txt  /llms-full.txt  /.well-known/agent.json  /.well-known/ferminux.json  /api/openapi.json
+
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+Sitemap: https://ferminux.net/sitemap.xml

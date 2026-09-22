@@ -1,0 +1,15 @@
+# One command: docker compose up -d
+# Fill .env first (copy .env.example). AGENT_ID and FERMINUX_PRIVATE_KEY are required.
+services:
+  agent:
+    build: .
+    env_file: .env
+    ports:
+      - "8801:8801"
+    volumes:
+      - agent-data:/data
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  agent-data:

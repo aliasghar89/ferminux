@@ -1,0 +1,986 @@
+[
+ {
+  "name": "NEXUS #1",
+  "description": "NEXUS \u2014 General AI Agent. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/1.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "NEXUS"
+   },
+   {
+    "trait_type": "Category",
+    "value": "General AI Agent"
+   },
+   {
+    "trait_type": "Number",
+    "value": 1
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "SAGE #2",
+  "description": "SAGE \u2014 Research & Knowledge. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/2.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "SAGE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Research & Knowledge"
+   },
+   {
+    "trait_type": "Number",
+    "value": 2
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "TRADER #3",
+  "description": "TRADER \u2014 Market Intelligence. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/3.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "TRADER"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Market Intelligence"
+   },
+   {
+    "trait_type": "Number",
+    "value": 3
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "ORACLE #4",
+  "description": "ORACLE \u2014 Prediction & Analytics. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/4.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "ORACLE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Prediction & Analytics"
+   },
+   {
+    "trait_type": "Number",
+    "value": 4
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "CODEX #5",
+  "description": "CODEX \u2014 Code & Development. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/5.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "CODEX"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Code & Development"
+   },
+   {
+    "trait_type": "Number",
+    "value": 5
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "AURA #6",
+  "description": "AURA \u2014 Voice & Audio. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/6.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "AURA"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Voice & Audio"
+   },
+   {
+    "trait_type": "Number",
+    "value": 6
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "LEX #7",
+  "description": "LEX \u2014 Legal Assistant. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/7.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "LEX"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Legal Assistant"
+   },
+   {
+    "trait_type": "Number",
+    "value": 7
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "DOCU #8",
+  "description": "DOCU \u2014 Document Intelligence. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/8.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "DOCU"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Document Intelligence"
+   },
+   {
+    "trait_type": "Number",
+    "value": 8
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "MINDMAP #9",
+  "description": "MINDMAP \u2014 Learning & Memory. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/9.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "MINDMAP"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Learning & Memory"
+   },
+   {
+    "trait_type": "Number",
+    "value": 9
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "ORBIT #10",
+  "description": "ORBIT \u2014 Automation. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/10.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "ORBIT"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Automation"
+   },
+   {
+    "trait_type": "Number",
+    "value": 10
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "SHIELD #11",
+  "description": "SHIELD \u2014 Security & Risk. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/11.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "SHIELD"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Security & Risk"
+   },
+   {
+    "trait_type": "Number",
+    "value": 11
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "ANALYTIX #12",
+  "description": "ANALYTIX \u2014 Data Analysis. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/12.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "ANALYTIX"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Data Analysis"
+   },
+   {
+    "trait_type": "Number",
+    "value": 12
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "CREATIVE #13",
+  "description": "CREATIVE \u2014 Design & Content. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/13.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "CREATIVE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Design & Content"
+   },
+   {
+    "trait_type": "Number",
+    "value": 13
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "MARKETIQ #14",
+  "description": "MARKETIQ \u2014 Marketing. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/14.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "MARKETIQ"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Marketing"
+   },
+   {
+    "trait_type": "Number",
+    "value": 14
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "SOCIAL #15",
+  "description": "SOCIAL \u2014 Social Media. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/15.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "SOCIAL"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Social Media"
+   },
+   {
+    "trait_type": "Number",
+    "value": 15
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "TRANSLATE #16",
+  "description": "TRANSLATE \u2014 Language & Localization. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/16.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "TRANSLATE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Language & Localization"
+   },
+   {
+    "trait_type": "Number",
+    "value": 16
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "DEFI #17",
+  "description": "DEFI \u2014 Web3 & Finance. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/17.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "DEFI"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Web3 & Finance"
+   },
+   {
+    "trait_type": "Number",
+    "value": 17
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "NFTGEN #18",
+  "description": "NFTGEN \u2014 NFT Creation. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/18.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "NFTGEN"
+   },
+   {
+    "trait_type": "Category",
+    "value": "NFT Creation"
+   },
+   {
+    "trait_type": "Number",
+    "value": 18
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "GAMEAI #19",
+  "description": "GAMEAI \u2014 Gaming & Metaverse. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/19.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "GAMEAI"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Gaming & Metaverse"
+   },
+   {
+    "trait_type": "Number",
+    "value": 19
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "AVATAR #20",
+  "description": "AVATAR \u2014 3D & Virtual Identity. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/20.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "AVATAR"
+   },
+   {
+    "trait_type": "Category",
+    "value": "3D & Virtual Identity"
+   },
+   {
+    "trait_type": "Number",
+    "value": 20
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "MUSIC #21",
+  "description": "MUSIC \u2014 Audio Generation. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/21.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "MUSIC"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Audio Generation"
+   },
+   {
+    "trait_type": "Number",
+    "value": 21
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "EDU #22",
+  "description": "EDU \u2014 Education & Tutoring. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/22.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "EDU"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Education & Tutoring"
+   },
+   {
+    "trait_type": "Number",
+    "value": 22
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "HEALTH #23",
+  "description": "HEALTH \u2014 Healthcare & Wellness. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/23.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "HEALTH"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Healthcare & Wellness"
+   },
+   {
+    "trait_type": "Number",
+    "value": 23
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "TRAVEL #24",
+  "description": "TRAVEL \u2014 Travel & Tourism. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/24.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "TRAVEL"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Travel & Tourism"
+   },
+   {
+    "trait_type": "Number",
+    "value": 24
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "REALTY #25",
+  "description": "REALTY \u2014 Real Estate. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/25.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "REALTY"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Real Estate"
+   },
+   {
+    "trait_type": "Number",
+    "value": 25
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "SHOP #26",
+  "description": "SHOP \u2014 E-commerce. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/26.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "SHOP"
+   },
+   {
+    "trait_type": "Category",
+    "value": "E-commerce"
+   },
+   {
+    "trait_type": "Number",
+    "value": 26
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "RECRUIT #27",
+  "description": "RECRUIT \u2014 HR & Talent. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/27.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "RECRUIT"
+   },
+   {
+    "trait_type": "Category",
+    "value": "HR & Talent"
+   },
+   {
+    "trait_type": "Number",
+    "value": 27
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "FINANCE #28",
+  "description": "FINANCE \u2014 Investment & Trading. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/28.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "FINANCE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Investment & Trading"
+   },
+   {
+    "trait_type": "Number",
+    "value": 28
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "AGRI #29",
+  "description": "AGRI \u2014 Agriculture. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/29.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "AGRI"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Agriculture"
+   },
+   {
+    "trait_type": "Number",
+    "value": 29
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "CLIMATE #30",
+  "description": "CLIMATE \u2014 Sustainability. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/30.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "CLIMATE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Sustainability"
+   },
+   {
+    "trait_type": "Number",
+    "value": 30
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "SCIENCE #31",
+  "description": "SCIENCE \u2014 R&D & Innovation. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/31.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "SCIENCE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "R&D & Innovation"
+   },
+   {
+    "trait_type": "Number",
+    "value": 31
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "SPACE #32",
+  "description": "SPACE \u2014 Exploration. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/32.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "SPACE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Exploration"
+   },
+   {
+    "trait_type": "Number",
+    "value": 32
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "DAO #33",
+  "description": "DAO \u2014 Governance. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/33.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "DAO"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Governance"
+   },
+   {
+    "trait_type": "Number",
+    "value": 33
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "METAVERSE #34",
+  "description": "METAVERSE \u2014 Virtual Worlds. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/34.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "METAVERSE"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Virtual Worlds"
+   },
+   {
+    "trait_type": "Number",
+    "value": 34
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "CYBER #35",
+  "description": "CYBER \u2014 Threat Intelligence. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/35.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "CYBER"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Threat Intelligence"
+   },
+   {
+    "trait_type": "Number",
+    "value": 35
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "IOT #36",
+  "description": "IOT \u2014 Smart Devices. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/36.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "IOT"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Smart Devices"
+   },
+   {
+    "trait_type": "Number",
+    "value": 36
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "SUPPLY #37",
+  "description": "SUPPLY \u2014 Supply Chain. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/37.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "SUPPLY"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Supply Chain"
+   },
+   {
+    "trait_type": "Number",
+    "value": 37
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "MEDIA #38",
+  "description": "MEDIA \u2014 News & Information. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/38.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "MEDIA"
+   },
+   {
+    "trait_type": "Category",
+    "value": "News & Information"
+   },
+   {
+    "trait_type": "Number",
+    "value": 38
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "HUMANITY #39",
+  "description": "HUMANITY \u2014 Social Impact. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/39.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "HUMANITY"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Social Impact"
+   },
+   {
+    "trait_type": "Number",
+    "value": 39
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "CUSTOM #40",
+  "description": "CUSTOM \u2014 Build Your Own. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/40.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "CUSTOM"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Build Your Own"
+   },
+   {
+    "trait_type": "Number",
+    "value": 40
+   },
+   {
+    "trait_type": "Edition",
+    "value": "Genesis 40"
+   }
+  ]
+ },
+ {
+  "name": "J1 #41",
+  "description": "J1 \u2014 the first operator. A legendary 1/1 in the Ferminux Agents collection.",
+  "image": "https://ferminux.net/nft/agents/images/41.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+   {
+    "trait_type": "Archetype",
+    "value": "J1"
+   },
+   {
+    "trait_type": "Category",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Number",
+    "value": 41
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ }
+]

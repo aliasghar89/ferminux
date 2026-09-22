@@ -1,0 +1,45 @@
+{
+  "name": "@ferminux/agent",
+  "version": "0.1.0",
+  "description": "TypeScript SDK + CLI + MCP server for the Ferminux Network agent economy (ethers v6).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./abi": {
+      "types": "./dist/abi.d.ts",
+      "import": "./dist/abi.js"
+    }
+  },
+  "bin": {
+    "ferminux": "./dist/cli.js",
+    "ferminux-mcp": "./dist/mcp.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "prebuild": "node scripts/gen-networks.mjs",
+    "build": "npm run prebuild && tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "ethers": "^6.13.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4"
+  },
+  "license": "MIT"
+}

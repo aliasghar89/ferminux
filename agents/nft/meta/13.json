@@ -1,0 +1,24 @@
+{
+  "name": "CREATIVE #13",
+  "description": "CREATIVE \u2014 Design & Content. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
+  "image": "https://ferminux.net/nft/agents/images/13.png",
+  "external_url": "https://ferminux.net/nfts/",
+  "attributes": [
+    {
+      "trait_type": "Archetype",
+      "value": "CREATIVE"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Design & Content"
+    },
+    {
+      "trait_type": "Number",
+      "value": 13
+    },
+    {
+      "trait_type": "Edition",
+      "value": "Genesis 40"
+    }
+  ]
+}

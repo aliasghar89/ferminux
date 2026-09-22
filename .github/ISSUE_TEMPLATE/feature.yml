@@ -1,0 +1,57 @@
+name: Feature request
+description: Propose a new capability or improvement for Ferminux Network.
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you solving
+      description: Describe the problem or gap this feature addresses.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the solution you'd like to see.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative approaches or workarounds you've considered.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Which package
+      description: Which package or component does this affect?
+      options:
+        - agents/contracts
+        - agents/gateway
+        - agents/sdk
+        - agents/runtime
+        - agents/web
+        - chain
+        - bridge
+        - dex
+        - explorer
+        - infra
+        - wallet-web
+        - site
+        - other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope-ack
+    attributes:
+      label: Scope acknowledgment
+      options:
+        - label: I understand that changes to deployed contract addresses and `agents/deployments.3961.json` are out of scope for feature requests.
+          required: true
