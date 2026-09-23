@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 // MarshalJSON marshals as JSON.

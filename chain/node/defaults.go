@@ -22,9 +22,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/nat"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/aliasghar89/ferminux/chain/p2p"
+	"github.com/aliasghar89/ferminux/chain/p2p/nat"
+	"github.com/aliasghar89/ferminux/chain/rpc"
 )
 
 const (

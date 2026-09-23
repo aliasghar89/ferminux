@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/common/math"
+	"github.com/aliasghar89/ferminux/chain/core/types"
+	"github.com/aliasghar89/ferminux/chain/params"
 )
 
 // VerifyEip1559Header verifies some header attributes which were changed in EIP-1559,

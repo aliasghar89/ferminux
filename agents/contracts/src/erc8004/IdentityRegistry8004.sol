@@ -3,10 +3,10 @@ pragma solidity ^0.8.24;
 
 import {AgentRegistry} from "../AgentRegistry.sol";
 
-/// @title IdentityRegistry8004 — ERC-8004 Identity Registry as an ERC-721 VIEW over AgentRegistry
+/// @title IdentityRegistry8004 — FRC-8004 Identity Registry as an FRC-721 VIEW over AgentRegistry
 /// @notice tokenId = agentId; ownerOf(id) = AgentRegistry.getAgent(id).owner. Registration happens in
 ///         `AgentRegistry.register` (the `register()` overloads here revert) and transfers happen through
-///         `AgentRegistry.transferOwnership` (ERC-721 transfers/approvals here revert).
+///         `AgentRegistry.transferOwnership` (FRC-721 transfers/approvals here revert).
 ///         Function names/signatures follow erc-8004/erc-8004-contracts (IdentityRegistryUpgradeable 2.0.0).
 /// @dev Paris EVM, dependency-free. `agentWallet` = the AgentRegistry owner (not settable — use
 ///      AgentRegistry.transferOwnership). `balanceOf` iterates the registry (view only, O(nextId)).
@@ -27,11 +27,11 @@ contract IdentityRegistry8004 {
     mapping(uint256 => string) private _agentURI; // "" = default
     mapping(uint256 => mapping(string => bytes)) private _metadata;
 
-    // ERC-721
+    // FRC-721
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
-    // ERC-8004
+    // FRC-8004
     event Registered(uint256 indexed agentId, string agentURI, address indexed owner);
     event MetadataSet(uint256 indexed agentId, string indexed indexedMetadataKey, string metadataKey, bytes metadataValue);
     event URIUpdated(uint256 indexed agentId, string newURI, address indexed updatedBy);
@@ -55,7 +55,7 @@ contract IdentityRegistry8004 {
         return id == 0x01ffc9a7 || id == 0x80ac58cd || id == 0x5b5e139f; // 165, 721, 721Metadata
     }
 
-    // ───────────────────────────── ERC-721 views ─────────────────────────────
+    // ───────────────────────────── FRC-721 views ─────────────────────────────
 
     function ownerOf(uint256 tokenId) public view returns (address) {
         AgentRegistry.Agent memory a = registry.getAgent(tokenId);
@@ -97,7 +97,7 @@ contract IdentityRegistry8004 {
         return false;
     }
 
-    // ───────────────────────────── ERC-721 writes (disabled) ─────────────────────────────
+    // ───────────────────────────── FRC-721 writes (disabled) ─────────────────────────────
 
     function approve(address, uint256) external pure {
         revert UseAgentRegistryTransferOwnership();
@@ -119,7 +119,7 @@ contract IdentityRegistry8004 {
         revert UseAgentRegistryTransferOwnership();
     }
 
-    // ───────────────────────────── ERC-8004 ─────────────────────────────
+    // ───────────────────────────── FRC-8004 ─────────────────────────────
 
     function register() external pure returns (uint256) {
         revert RegistrationViaAgentRegistry();

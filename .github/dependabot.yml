@@ -30,6 +30,6 @@ updates:
       - dependencies
       - ci
 
-  # chain/ is a go-ethereum fork. Its dependencies are upstream's and are
-  # updated by rebasing the fork, never by a bot: a bumped crypto or networking
-  # dependency is a consensus risk.
+  # chain/ descends from an upstream client (see LICENSES.md). Its dependencies
+  # are upstream's and are updated by rebasing onto upstream, never by a bot: a
+  # bumped crypto or networking dependency is a consensus risk.

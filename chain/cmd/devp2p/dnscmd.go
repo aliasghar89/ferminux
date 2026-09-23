@@ -24,11 +24,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/console/prompt"
-	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/accounts/keystore"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/console/prompt"
+	"github.com/aliasghar89/ferminux/chain/p2p/dnsdisc"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
 	"github.com/urfave/cli/v2"
 )
 
@@ -250,7 +250,7 @@ func dnsNukeRoute53(ctx *cli.Context) error {
 	return client.deleteDomain(ctx.Args().First())
 }
 
-// loadSigningKey loads a private key in Ethereum keystore format.
+// loadSigningKey loads a private key in Ferminux keystore format.
 func loadSigningKey(keyfile string) *ecdsa.PrivateKey {
 	keyjson, err := os.ReadFile(keyfile)
 	if err != nil {

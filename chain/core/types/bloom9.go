@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/aliasghar89/ferminux/chain/common/hexutil"
+	"github.com/aliasghar89/ferminux/chain/crypto"
 )
 
 type bytesBacked interface {

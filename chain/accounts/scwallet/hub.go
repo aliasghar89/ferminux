@@ -41,10 +41,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/aliasghar89/ferminux/chain/accounts"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/event"
+	"github.com/aliasghar89/ferminux/chain/log"
 	pcsc "github.com/gballet/go-libpcsclite"
 )
 

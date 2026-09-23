@@ -21,9 +21,9 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb/memorydb"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/fmxdb/memorydb"
+	"github.com/aliasghar89/ferminux/chain/trie"
 )
 
 // randTest performs random trie operations.

@@ -55,7 +55,7 @@ skipping it has cost somebody a bridge.
 - [ ] `forge build --sizes` shows `FerminuxBridge` at **21,346 B runtime**,
       inside the 24,576 B limit (margin 3,230 B) and `BridgeToken` at 3,864 B
 - [ ] `foundry.toml` still says `evm_version = "paris"` and `solc = "0.8.24"`.
-      **Ferminux-geth forks geth v1.10.26 and has no `PUSH0`** — Shanghai
+      **The `ferminux` node client descends from go-ethereum v1.10.26 and has no `PUSH0`** — Shanghai
       bytecode bricks on chain 3961
 - [ ] `bash script/devnet-e2e.sh` passes against two local anvils, with the
       **real remote chain id** substituted for `CHAIN_B`

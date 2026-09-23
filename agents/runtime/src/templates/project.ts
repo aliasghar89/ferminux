@@ -122,7 +122,7 @@ AGENT_PUBLIC_URL=http://localhost:8801
 # Job/watch state: never re-delivers or re-claims across a restart.
 DATA_DIR=./data
 
-# --- network overrides (defaults point at mainnet 3961) --------------------
+# --- network overrides (defaults point at chain 3961) ----------------------
 FERMINUX_RPC={{rpc}}
 FERMINUX_GATEWAY={{gateway}}
 # FERMINUX_REGISTRY=0x

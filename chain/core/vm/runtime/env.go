@@ -17,8 +17,8 @@
 package runtime
 
 import (
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/aliasghar89/ferminux/chain/core"
+	"github.com/aliasghar89/ferminux/chain/core/vm"
 )
 
 func NewEnv(cfg *Config) *vm.EVM {

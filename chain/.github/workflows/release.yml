@@ -1,5 +1,5 @@
-# Ferminux-geth release builds: linux amd64/arm64, windows amd64, macos arm64.
-# Every target builds NATIVELY on a matching runner (geth needs cgo for
+# Ferminux node release builds: linux amd64/arm64, windows amd64, macos arm64.
+# Every target builds NATIVELY on a matching runner (ferminux needs cgo for
 # secp256k1, so cross-compiling would require C cross-toolchains).
 #
 # Triggers: version tags (v*) publish a GitHub Release; manual dispatch builds
@@ -37,17 +37,17 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          # go-ethereum v1.10.26 line builds with Go 1.18–1.20; linux/windows
+          # The go-ethereum v1.10.26 line builds with Go 1.18–1.20; linux/windows
           # match the Dockerfile's Go 1.18.
           go-version: ${{ matrix.go }}
           cache: true
 
-      - name: Build ferminux-geth
+      - name: Build the ferminux node
         shell: bash
         run: |
-          go run build/ci.go install ./cmd/geth
+          go run build/ci.go install ./cmd/ferminux
           mkdir -p dist
-          mv "build/bin/geth${{ matrix.ext }}" "dist/ferminux-geth${{ matrix.ext }}"
+          mv "build/bin/ferminux${{ matrix.ext }}" "dist/ferminux-geth${{ matrix.ext }}"
 
       - name: Package
         shell: bash

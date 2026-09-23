@@ -1,4 +1,4 @@
-module github.com/ethereum/go-ethereum
+module github.com/aliasghar89/ferminux/chain
 
 go 1.17
 

@@ -19,7 +19,7 @@ package trie
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 // leaf represents a trie leaf node

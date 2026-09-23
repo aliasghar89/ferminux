@@ -26,13 +26,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/signer/core"
-	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/aliasghar89/ferminux/chain/accounts/keystore"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/common/hexutil"
+	"github.com/aliasghar89/ferminux/chain/common/math"
+	"github.com/aliasghar89/ferminux/chain/crypto"
+	"github.com/aliasghar89/ferminux/chain/signer/core"
+	"github.com/aliasghar89/ferminux/chain/signer/core/apitypes"
 )
 
 var typesStandard = apitypes.Types{

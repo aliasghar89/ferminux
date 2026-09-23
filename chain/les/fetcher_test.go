@@ -21,13 +21,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/light"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/aliasghar89/ferminux/chain/consensus/powhash"
+	"github.com/aliasghar89/ferminux/chain/core"
+	"github.com/aliasghar89/ferminux/chain/core/rawdb"
+	"github.com/aliasghar89/ferminux/chain/core/types"
+	"github.com/aliasghar89/ferminux/chain/light"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/params"
 )
 
 // verifyImportEvent verifies that one single event arrive on an import channel.
@@ -140,7 +140,7 @@ func testGappedAnnouncements(t *testing.T, protocol int) {
 
 	// Send a reorged announcement
 	blocks, _ := core.GenerateChain(rawdb.ReadChainConfig(s.db, s.backend.Blockchain().Genesis().Hash()), s.backend.Blockchain().GetBlockByNumber(3),
-		ethash.NewFaker(), s.db, 2, func(i int, gen *core.BlockGen) {
+		powhash.NewFaker(), s.db, 2, func(i int, gen *core.BlockGen) {
 			gen.OffsetTime(-9) // higher block difficulty
 		})
 	s.backend.Blockchain().InsertChain(blocks)

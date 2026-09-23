@@ -23,12 +23,12 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	vfc "github.com/ethereum/go-ethereum/les/vflux/client"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/core/types"
+	"github.com/aliasghar89/ferminux/chain/crypto"
+	vfc "github.com/aliasghar89/ferminux/chain/les/vflux/client"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/rlp"
 )
 
 // Constants to match up protocol versions and messages

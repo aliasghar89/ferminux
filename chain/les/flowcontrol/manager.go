@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/common/prque"
+	"github.com/aliasghar89/ferminux/chain/common/mclock"
+	"github.com/aliasghar89/ferminux/chain/common/prque"
 )
 
 // cmNodeFields are ClientNode fields used by the client manager

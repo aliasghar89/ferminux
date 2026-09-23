@@ -16,18 +16,18 @@
 
 package rawdb
 
-import "github.com/ethereum/go-ethereum/ethdb"
+import "github.com/aliasghar89/ferminux/chain/fmxdb"
 
 // KeyLengthIterator is a wrapper for a database iterator that ensures only key-value pairs
 // with a specific key length will be returned.
 type KeyLengthIterator struct {
 	requiredKeyLength int
-	ethdb.Iterator
+	fmxdb.Iterator
 }
 
 // NewKeyLengthIterator returns a wrapped version of the iterator that will only return key-value
 // pairs where keys with a specific key length will be returned.
-func NewKeyLengthIterator(it ethdb.Iterator, keyLen int) ethdb.Iterator {
+func NewKeyLengthIterator(it fmxdb.Iterator, keyLen int) fmxdb.Iterator {
 	return &KeyLengthIterator{
 		Iterator:          it,
 		requiredKeyLength: keyLen,

@@ -19,10 +19,10 @@ package simulations
 import (
 	"testing"
 
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/aliasghar89/ferminux/chain/p2p"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/p2p/enr"
+	"github.com/aliasghar89/ferminux/chain/rpc"
 )
 
 // NoopService is the service that does not do anything

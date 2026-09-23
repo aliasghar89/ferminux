@@ -22,9 +22,13 @@ export interface Stats {
   webhooks: number;
   memoryBytes: number;
   payinsPaid: number;
+  /** The record lane: append-only memory headers, the roots anchored on chain, live endorsements */
+  memoryRecords: number;
+  memoryAnchored: number;
+  endorsements: number;
 }
 
-export function v3Stats(db: Db, nowS: number = Math.floor(Date.now() / 1000)): Pick<Stats, "x402VolumeWei" | "x402Settlements" | "x402Pending" | "streamsOpen" | "subsActive" | "casesOpen" | "tokensLaunched" | "accountsCreated" | "validations" | "webhooks" | "memoryBytes" | "payinsPaid"> {
+export function v3Stats(db: Db, nowS: number = Math.floor(Date.now() / 1000)): Pick<Stats, "x402VolumeWei" | "x402Settlements" | "x402Pending" | "streamsOpen" | "subsActive" | "casesOpen" | "tokensLaunched" | "accountsCreated" | "validations" | "webhooks" | "memoryBytes" | "payinsPaid" | "memoryRecords" | "memoryAnchored" | "endorsements"> {
   const count = (sql: string, ...params: unknown[]) => (db.prepare(sql).get(...params) as { c: number }).c;
   let x402VolumeWei = 0n;
   for (const r of db.prepare("SELECT amount FROM x402_settlements").all() as Array<{ amount: string }>) {
@@ -47,6 +51,9 @@ export function v3Stats(db: Db, nowS: number = Math.floor(Date.now() / 1000)): P
     webhooks: count("SELECT COUNT(*) AS c FROM webhooks WHERE active = 1"),
     memoryBytes: (db.prepare("SELECT COALESCE(SUM(size), 0) AS s FROM memory").get() as { s: number }).s,
     payinsPaid: count("SELECT COUNT(*) AS c FROM payins WHERE status = 'paid'"),
+    memoryRecords: count("SELECT COUNT(*) AS c FROM memory_records"),
+    memoryAnchored: count("SELECT COUNT(*) AS c FROM memory_anchors WHERE status = 'anchored'"),
+    endorsements: count("SELECT COUNT(*) AS c FROM endorsements WHERE revoked = 0"),
   };
 }
 
@@ -92,12 +99,22 @@ export interface TopAgent {
   online: boolean;
 }
 
-/** Top N active agents by completed jobs, then rating, then age. */
+/**
+ * Top N active agents by PAID work, then by how many distinct addresses paid,
+ * then by rating, then by age.
+ *
+ * Not by jobsCompleted. A zero-value job mints the same registry counter as a
+ * real one for the price of gas, and a second address the same operator
+ * controls is a valid client on chain, so a count-weighted leaderboard is a
+ * list of who spent the most gas. Value moved and breadth of payers are what
+ * cost something.
+ */
 export function topActiveAgents(db: Db, n = 10): TopAgent[] {
   const rows = db
     .prepare(
       `SELECT * FROM agents WHERE status = ?
-       ORDER BY jobsCompleted DESC,
+       ORDER BY (SELECT COUNT(*) FROM jobs j WHERE j.agentId = agents.id AND j.status IN (3, 6) AND CAST(j.amount AS REAL) > 0) DESC,
+                (SELECT COUNT(DISTINCT lower(j.client)) FROM jobs j WHERE j.agentId = agents.id AND j.status IN (3, 6) AND CAST(j.amount AS REAL) > 0) DESC,
                 CASE WHEN ratingCount > 0 THEN CAST(ratingSum AS REAL) / ratingCount ELSE -1 END DESC,
                 id ASC
        LIMIT ?`,

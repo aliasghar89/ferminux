@@ -23,10 +23,10 @@ import (
 	"io"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/ethdb/memorydb"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/core/rawdb"
+	"github.com/aliasghar89/ferminux/chain/fmxdb/memorydb"
+	"github.com/aliasghar89/ferminux/chain/trie"
 )
 
 type kv struct {

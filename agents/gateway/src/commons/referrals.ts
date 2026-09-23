@@ -329,7 +329,7 @@ export class ReferralPayout {
    * One transfer, crash-safe: the wallet nonce is reserved in the row BEFORE
    * sending, and sends use that explicit nonce. After a crash between send and
    * record, the next tick sees the reserved nonce: if the chain has already
-   * mined it (GROWTH_KEY is used by this worker only, sequentially) the
+   * confirmed it (GROWTH_KEY is used by this worker only, sequentially) the
    * transfer happened and is recorded as recovered; otherwise it is re-sent
    * with the same nonce, which can never double-pay.
    */

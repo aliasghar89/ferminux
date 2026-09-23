@@ -25,8 +25,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/ethereum/go-ethereum/cmd/evm/internal/t8ntool"
-	"github.com/ethereum/go-ethereum/internal/cmdtest"
+	"github.com/aliasghar89/ferminux/chain/cmd/evm/internal/t8ntool"
+	"github.com/aliasghar89/ferminux/chain/internal/cmdtest"
 )
 
 func TestMain(m *testing.M) {
@@ -387,9 +387,9 @@ type b11rInput struct {
 	inOmmersRlp string
 	inTxsRlp    string
 	inClique    string
-	ethash      bool
-	ethashMode  string
-	ethashDir   string
+	powhash      bool
+	powhashMode  string
+	powhashDir   string
 }
 
 func (args *b11rInput) get(base string) []string {
@@ -410,14 +410,14 @@ func (args *b11rInput) get(base string) []string {
 		out = append(out, "--seal.clique")
 		out = append(out, fmt.Sprintf("%v/%v", base, opt))
 	}
-	if args.ethash {
+	if args.powhash {
 		out = append(out, "--seal.ethash")
 	}
-	if opt := args.ethashMode; opt != "" {
+	if opt := args.powhashMode; opt != "" {
 		out = append(out, "--seal.ethash.mode")
 		out = append(out, fmt.Sprintf("%v/%v", base, opt))
 	}
-	if opt := args.ethashDir; opt != "" {
+	if opt := args.powhashDir; opt != "" {
 		out = append(out, "--seal.ethash.dir")
 		out = append(out, fmt.Sprintf("%v/%v", base, opt))
 	}
@@ -444,7 +444,7 @@ func TestB11r(t *testing.T) {
 			},
 			expOut: "exp.json",
 		},
-		{ // ethash test seal
+		{ // powhash test seal
 			base: "./testdata/21",
 			input: b11rInput{
 				inEnv:       "header.json",

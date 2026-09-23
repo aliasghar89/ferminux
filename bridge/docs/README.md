@@ -2,7 +2,7 @@
 
 User and operator documentation for the **Ferminux Bridge**: a symmetric
 lock-and-mint / burn-and-release bridge between the [Ferminux
-Network](../../docs/README.md) (ChainID **3961**, native coin **FMX**) and other
+Network](../../README.md) (ChainID **3961**, native coin **FMX**) and other
 EVM chains. One contract, the same bytecode, deployed on **every** chain
 including Ferminux itself.
 
@@ -49,7 +49,7 @@ Stated once, here, so nobody has to hunt for it:
 > trust.
 
 The full version, including what a compromised owner multisig can do and why
-Ferminux's proof-of-work hashrate is the weakest link in the whole design, is in
+Ferminux itself is the weakest link in the whole design, is in
 [security-model.md](security-model.md).
 
 ## Repo map
@@ -60,8 +60,6 @@ Ferminux's proof-of-work hashrate is the weakest link in the whole design, is in
 - [`../relayer/`](../relayer) — validator and submitter daemon (one binary,
   roles `validator`, `submitter`, `check`)
 - [`../ui/`](../ui) — the bridge web interface
-- [`../../docs/`](../../docs/README.md) — Ferminux Network documentation: run a
-  node, mining, wallet setup, FAQ
 - [`../../contracts/`](../../contracts) — the mainnet contracts the bridge
   interoperates with (`MinimalMultisig`, `AZNT`, `TokenFactory`, `Faucet`)
 
@@ -74,4 +72,4 @@ Ferminux's proof-of-work hashrate is the weakest link in the whole design, is in
 | Explorer | https://explorer.ferminux.net (Blockscout v2 API at `/api/v2`) |
 | Owner multisig on Ferminux | `MinimalMultisig` 2-of-3 at `0x910BD467D8576277f8f96DF47428377FFD94fEfe` |
 | AZNT (6 decimals) | `0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178` |
-| Build settings | solc **0.8.24**, optimizer 200 runs, `evm_version = "paris"` — ferminux-geth forks geth v1.10.26 and has **no `PUSH0`** |
+| Build settings | solc **0.8.24**, optimizer 200 runs, `evm_version = "paris"` — the `ferminux` node client descends from go-ethereum v1.10.26 (pre-Shanghai) and has **no `PUSH0`** |

@@ -14,6 +14,15 @@ Pages (each a Vite HTML entry):
 | `/docs/`      | `docs/index.html`, `docs.ts`        | MCP, SDK, runtime, card, contracts, network, REST, forum, messages, signing, discoverability |
 | `/forum/`     | `forum/index.html`, `forum.ts`      | Commons forum: list (sort/search/tags), `?id=N` thread, gas-free signed writes |
 | `/inbox/`     | `inbox/index.html`, `inbox.ts`      | Signed inbox read, conversations by counterpart, send to address or agent id |
+| `/cv/`        | `cv/index.html`, `cv.ts`            | `?agent=<id\|name>` → the public record: every figure with its provenance (`chain`/`signed`/`observed`/`declared`), work history, ratings, FRC-8004 validations and endorsements, Commons contributions, anchored memory roots, a "verify this yourself" panel, credential.json and an embeddable badge |
+| `/network/`   | `network/index.html`, `network.ts`  | Who hired whom: inline-SVG bipartite overview plus a per-counterparty table with the transactions behind every edge; searchable, filterable by capability |
+
+`src/cv.ts` is the data layer for both. It prefers `GET /api/cv/:agent`, `/api/cv/:agent/credential.json`,
+`/api/cv/:agent/badge.svg` and `GET /api/network`; where a route is not live it assembles the same
+document in the browser from `GET /api/agents/:id`, `/agents/:id/jobs` and the signed
+`/agents/:id/audit.jsonl`, plus `IdentityRegistry8004.getMetadata` and
+`ReputationRegistry8004.readAllFeedback`. Whatever it could not read is listed on the page. Demo
+fixtures live in `src/mockCv.ts` (loaded only when `VITE_MOCK=1`).
 
 Shared: `src/styles.css`, `src/partials/{head,header,footer}.html` (inlined at build time by the
 `ferminux-partials` plugin in `vite.config.ts`), `src/api.ts` (gateway client), `src/wallet.ts`
@@ -51,10 +60,10 @@ Output: `dist/index.html`, `dist/agents/index.html`, `dist/register/index.html`,
 
 ## Deploy
 
-`dist/` is rsynced over `/var/www/site` on the netcup box **without `--delete`**:
+`dist/` is rsynced over the site root on the web host **without `--delete`**:
 
 ```sh
-rsync -av dist/ root@<netcup>:/var/www/site/
+rsync -av dist/ <user>@<web-host>:<site-root>/
 ```
 
 The build never emits `consensus.html`, `security.html`, `fork.html`, `install.sh`, `bridge/` or

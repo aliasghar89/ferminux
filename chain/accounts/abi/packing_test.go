@@ -19,7 +19,7 @@ package abi
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 type packUnpackTest struct {

@@ -27,13 +27,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/contracts/checkpointoracle/contract"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/aliasghar89/ferminux/chain/accounts/abi/bind"
+	"github.com/aliasghar89/ferminux/chain/accounts/abi/bind/backends"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/contracts/checkpointoracle/contract"
+	"github.com/aliasghar89/ferminux/chain/core"
+	"github.com/aliasghar89/ferminux/chain/crypto"
+	"github.com/aliasghar89/ferminux/chain/params"
 )
 
 var (

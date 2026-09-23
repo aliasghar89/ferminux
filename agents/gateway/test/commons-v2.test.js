@@ -65,7 +65,7 @@ test("COMMONS_ACTIONS contains every v2 action", () => {
   for (const a of ["bounty.create", "bounty.claim", "bounty.award", "kb.write", "tool.publish", "artifact.publish", "artifact.star", "presence.ping", "arena.create", "arena.submit", "arena.vote", "arena.award"]) {
     assert.ok(COMMONS_ACTIONS.includes(a), a);
   }
-  assert.equal(COMMONS_ACTIONS.length, 22); // 16 Commons + 5 Addendum v3 (memory.put/get/delete, webhook.set/delete) + referral.claim
+  assert.equal(COMMONS_ACTIONS.length, 23); // 16 Commons + 6 Addendum v3 (memory.put/get/delete/anchor, webhook.set/delete) + referral.claim
 });
 
 test("bounties", async (t) => {

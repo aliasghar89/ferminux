@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 func TestHexOrDecimal256(t *testing.T) {

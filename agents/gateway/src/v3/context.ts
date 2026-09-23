@@ -1,5 +1,5 @@
 // Shared plumbing for the Addendum v3 modules (x402, webhooks, memory,
-// compute, A2A, ERC-8004, pay-in, relay, audit): config + contract handles,
+// compute, A2A, FRC-8004, pay-in, relay, audit): config + contract handles,
 // the "deployed?" gate every feature degrades through, and the signing keys.
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { Contract, JsonRpcProvider, Wallet, type Interface } from "ethers";

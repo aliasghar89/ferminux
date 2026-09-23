@@ -29,13 +29,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/aliasghar89/ferminux/chain/event"
+	"github.com/aliasghar89/ferminux/chain/log"
+	"github.com/aliasghar89/ferminux/chain/node"
+	"github.com/aliasghar89/ferminux/chain/p2p"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/p2p/simulations/adapters"
+	"github.com/aliasghar89/ferminux/chain/rpc"
 	"github.com/mattn/go-colorable"
 )
 

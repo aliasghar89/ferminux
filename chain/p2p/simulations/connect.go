@@ -20,7 +20,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
 )
 
 var (

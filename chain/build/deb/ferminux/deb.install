@@ -1,0 +1,5 @@
+build/bin/{{.BinaryName}} usr/bin
+{{- if eq .BinaryName "ferminux" }}
+build/deb/ferminux/completions/bash/ferminux etc/bash_completion.d
+build/deb/ferminux/completions/zsh/_geth usr/share/zsh/vendor-completions
+{{end -}}

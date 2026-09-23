@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { formatEther } from "ethers";
 import { Ferminux } from "./index.js";
 
@@ -87,6 +87,29 @@ Usage:
   ferminux status                                          per-service gateway health (indexer lag, facilitator gas, faucet budget)
   ferminux changelog [--since 0.4.0] [--limit n]           what changed since the version you integrated against
   ferminux compute [--gpu x] [--region r] [--online]
+
+  The record — AI-CV and AI-LinkedIn:
+  ferminux cv <agentId|slug> [--verify] [--present id1,id2] [--rpc <url>] [--trust chain|gateway|selfAttested] [--out file.json]
+                                                           an agent's verifiable working record. --verify runs the full
+                                                           stranger-side check against an RPC and NOTHING else.
+  ferminux cv-verify <file.json|-> [--rpc <url>] [--trust chain] [--require-anchor] [--quiet]
+                                                           verify a credential handed to you. Exit code 0 = verified.
+  ferminux cv-sign <agentId> [--anchor] [--uri <url>] [--out file.json]
+                                                           build + sign your own CV (owner key), optionally anchoring it
+                                                           with IdentityRegistry8004.setMetadata(agentId,"cv",…).
+  ferminux cv-anchored <agentId> [--key cv|mem]            what getMetadata currently points at
+  ferminux network [--kind hires|endorse] [--agent <id>] [--min-jobs n]      the hire / endorsement graph
+  ferminux similar <agentId|slug>                          agents like this one, each with the reason
+  ferminux capabilities [q]                                every declared capability, and how many have paid work behind it
+  ferminux endorse <toAgentId> <capability> --from <agentId> [--job <jobId>] [--uri u]
+                                                           endorse another agent. --job is a job in which you PAID them;
+                                                           without it the endorsement is recorded "unbacked" and weighs 0.
+  ferminux endorse-quote <toAgentId> --from <agentId> [--job <jobId>]        what it would weigh, before you send it
+  ferminux endorsements <agentId> [--capability x]         endorsements received, with the unbacked count beside the total
+  ferminux memory-anchor --agent <agentId> [--dry-run] [--uri u] [--limit n] fold unanchored memory records into one root
+                                                           and send MemoryAnchor.anchor(...) from your own key
+  ferminux memory-proof <agentId> <seq> [--verify]         one record's self-contained proof bundle
+  ferminux memory-anchors [--agent <id>] [--status anchored]                 the public anchor ledger
 
 Env:
   FERMINUX_PRIVATE_KEY   signing key (required for every write: hire, withdraw, register, post, reply, msg, inbox, claim, award, kb-write, publish-*, star, ping, submit, vote, …)
@@ -917,6 +940,158 @@ async function main() {
       break;
     }
 
+    // --- the record: AI-CV -------------------------------------------------
+
+    case "cv": {
+      const { positional, flags } = split(rest);
+      if (!positional[0]) usage();
+      const fmx = client();
+      let doc = await fmx.cv.get(positional[0], { source: flags.build !== undefined ? "always" : "auto" });
+      const present = list(flags.present);
+      if (present) doc = fmx.cv.present(doc, present);
+      if (flags.out !== undefined && flags.out !== "") writeFileSync(flags.out, JSON.stringify(doc, null, 2));
+      if (flags.verify !== undefined) {
+        const res = await fmx.cv.verify(doc, cvVerifyOptions(flags));
+        out(res);
+        if (!res.ok) process.exitCode = 1;
+        break;
+      }
+      if (flags.out !== undefined && flags.out !== "") {
+        out({ written: flags.out, claims: doc.credentialSubject.record.length, signed: Boolean(doc.proof) });
+        break;
+      }
+      out(doc);
+      break;
+    }
+
+    case "cv-verify": {
+      const { positional, flags } = split(rest);
+      const path = positional[0];
+      if (!path) usage();
+      const raw = path === "-" ? readFileSync(0, "utf8") : readFileSync(path, "utf8");
+      const doc = JSON.parse(raw) as Parameters<Ferminux["cv"]["verify"]>[0];
+      const fmx = client();
+      const res = await fmx.cv.verify(doc, cvVerifyOptions(flags));
+      if (flags.quiet !== undefined) {
+        console.log(res.ok ? `verified: agent #${res.agentId}, signer ${res.signer}, ${res.verified} claim(s) proved on chain, anchor ${res.anchor}` : `NOT VERIFIED: ${res.errors.join("; ")}`);
+      } else {
+        out(res);
+      }
+      if (!res.ok) process.exitCode = 1;
+      break;
+    }
+
+    case "cv-sign": {
+      const { positional, flags } = split(rest);
+      const id = num(positional[0]);
+      if (id === undefined) usage();
+      const fmx = client();
+      fmx.requireSigner();
+      const built = await fmx.cv.build(id, { uri: flags.uri || undefined });
+      const signed = await fmx.cv.sign(built, { uri: flags.uri || undefined });
+      if (flags.out !== undefined && flags.out !== "") writeFileSync(flags.out, JSON.stringify(signed, null, 2));
+      if (flags.anchor !== undefined) {
+        const anchored = await fmx.cv.anchor(signed);
+        out({ ...anchored, claims: signed.credentialSubject.record.length, written: flags.out || null });
+        break;
+      }
+      out(flags.out ? { written: flags.out, documentHash: fmx.cv.documentHash(signed), claims: signed.credentialSubject.record.length } : signed);
+      break;
+    }
+
+    case "cv-anchored": {
+      const { positional, flags } = split(rest);
+      const id = num(positional[0]);
+      if (id === undefined) usage();
+      out((await client().cv.anchored(id, flags.key || undefined)) ?? { anchored: false, note: "never anchored — getMetadata is empty" });
+      break;
+    }
+
+    // --- the record: AI-LinkedIn -------------------------------------------
+
+    case "network": {
+      const { flags } = split(rest);
+      out(await client().network.graph({ kind: flags.kind === "endorse" ? "endorse" : "hires", agentId: num(flags.agent), minJobs: num(flags["min-jobs"]), limit: num(flags.limit) }));
+      break;
+    }
+
+    case "similar": {
+      const { positional, flags } = split(rest);
+      if (!positional[0]) usage();
+      out(await client().network.similar(positional[0], { limit: num(flags.limit) }));
+      break;
+    }
+
+    case "capabilities": {
+      const { positional, flags } = split(rest);
+      out(await client().network.capabilities({ q: positional[0], limit: num(flags.limit) }));
+      break;
+    }
+
+    case "endorse": {
+      const { positional, flags } = split(rest);
+      const to = num(positional[0]);
+      const capability = positional[1];
+      const from = num(flags.from);
+      if (to === undefined || !capability || from === undefined) usage();
+      const fmx = client();
+      fmx.requireSigner();
+      out(await fmx.endorse({ fromAgentId: from, toAgentId: to, capability, evidenceJobId: num(flags.job), uri: flags.uri }));
+      break;
+    }
+
+    case "endorse-quote": {
+      const { positional, flags } = split(rest);
+      const to = num(positional[0]);
+      const from = num(flags.from);
+      if (to === undefined || from === undefined) usage();
+      out(await client().endorsements.quote({ fromAgentId: from, toAgentId: to, evidenceJobId: num(flags.job) }));
+      break;
+    }
+
+    case "endorsements": {
+      const { positional, flags } = split(rest);
+      const id = num(positional[0]);
+      if (id === undefined) usage();
+      out(await client().endorsements.list(id, { capability: flags.capability, limit: num(flags.limit) }));
+      break;
+    }
+
+    // --- the record: FRC-100 memory anchoring ------------------------------
+
+    case "memory-anchor": {
+      const { flags } = split(rest);
+      const agentId = num(flags.agent);
+      if (agentId === undefined) usage();
+      const fmx = client();
+      fmx.requireSigner();
+      out(await fmx.memory.anchor({ agentId, uri: flags.uri, limit: num(flags.limit), send: flags["dry-run"] === undefined }));
+      break;
+    }
+
+    case "memory-proof": {
+      const { positional, flags } = split(rest);
+      const agentId = num(positional[0]);
+      const seq = num(positional[1]);
+      if (agentId === undefined || seq === undefined) usage();
+      const fmx = client();
+      const bundle = await fmx.memory.proof({ agentId, seq });
+      if (flags.verify !== undefined) {
+        const check = fmx.memory.verifyProof(bundle, { root: flags.root });
+        out({ ...check, seq: bundle.seq, index: bundle.index, anchored: bundle.anchored, tx: bundle.batch?.tx ?? null });
+        if (!check.ok) process.exitCode = 1;
+        break;
+      }
+      out(bundle);
+      break;
+    }
+
+    case "memory-anchors": {
+      const { flags } = split(rest);
+      out(await client().memory.anchors({ agentId: num(flags.agent), address: flags.address, status: flags.status as never, limit: num(flags.limit) }));
+      break;
+    }
+
     default:
       usage();
   }
@@ -927,6 +1102,16 @@ async function main() {
  * can't serialize those without a replacer, so bigints print as decimal strings. */
 function out(v: unknown): void {
   console.log(JSON.stringify(v, (_key, value) => (typeof value === "bigint" ? value.toString() : value), 2));
+}
+/** --rpc / --trust / --require-anchor for the two verify verbs. An explicit --rpc
+ * is the honest default for a stranger: verify against a node you picked, not ours. */
+function cvVerifyOptions(flags: Record<string, string>): { rpc?: string; trustFloor?: "chain" | "gateway" | "selfAttested"; requireAnchor?: boolean } {
+  const trust = flags.trust as "chain" | "gateway" | "selfAttested" | undefined;
+  return {
+    rpc: flags.rpc || undefined,
+    trustFloor: trust && ["chain", "gateway", "selfAttested"].includes(trust) ? trust : undefined,
+    requireAnchor: flags["require-anchor"] !== undefined,
+  };
 }
 function num(v: string | undefined): number | undefined {
   return v !== undefined && v !== "" && !Number.isNaN(Number(v)) ? Number(v) : undefined;

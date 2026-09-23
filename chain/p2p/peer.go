@@ -25,13 +25,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/aliasghar89/ferminux/chain/common/mclock"
+	"github.com/aliasghar89/ferminux/chain/event"
+	"github.com/aliasghar89/ferminux/chain/log"
+	"github.com/aliasghar89/ferminux/chain/metrics"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/p2p/enr"
+	"github.com/aliasghar89/ferminux/chain/rlp"
 )
 
 var (
@@ -482,7 +482,7 @@ func (rw *protoRW) ReadMsg() (Msg, error) {
 // peer. Sub-protocol independent fields are contained and initialized here, with
 // protocol specifics delegated to all connected sub-protocols.
 type PeerInfo struct {
-	ENR     string   `json:"enr,omitempty"` // Ethereum Node Record
+	ENR     string   `json:"enr,omitempty"` // Ferminux Node Record
 	Enode   string   `json:"enode"`         // Node URL
 	ID      string   `json:"id"`            // Unique node identifier
 	Name    string   `json:"name"`          // Name of the node, including client type, version, OS, custom data

@@ -16,8 +16,8 @@
       "healthyEndpoints": 3,
       "endpoints": [
         { "url": "https://rpc.ferminux.net", "host": "rpc.ferminux.net", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 },
-        { "url": "https://rpc.ferminux.net", "host": "<node-host>", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 },
-        { "url": "https://rpc2.ferminux.net", "host": "<node-host>", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 }
+        { "url": "https://fmx-node-b.example", "host": "fmx-node-b.example", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 },
+        { "url": "https://fmx-node-c.example", "host": "fmx-node-c.example", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 }
       ],
       "watcher": { "cursor": 412340, "head": 412345, "lastPollAt": 1755820795000 },
       "finality": {

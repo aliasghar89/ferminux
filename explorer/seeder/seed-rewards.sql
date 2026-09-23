@@ -5,7 +5,7 @@
 --   emission_funds = the shares the protocol pays to contracts, not to a miner
 --
 -- The subsidy MUST mirror the chain:
---   chain/consensus/ethash/ferminux.go:FerminuxBlockReward
+--   chain/consensus/powhash/ferminux.go:FerminuxBlockReward
 --       block <  20,000  -> 6 FMX                      (launch rate)
 --       block >= 20,000  -> 1 FMX >> (block / 4,500,000)
 --   chain/consensus/posa (from PosaBlock = 160,000)

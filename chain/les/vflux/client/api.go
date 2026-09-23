@@ -19,9 +19,9 @@ package client
 import (
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/les/utils"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/common/mclock"
+	"github.com/aliasghar89/ferminux/chain/les/utils"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
 )
 
 // PrivateClientAPI implements the vflux client side API

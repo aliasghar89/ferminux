@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/aliasghar89/ferminux/chain/common/mclock"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/p2p/enr"
+	"github.com/aliasghar89/ferminux/chain/rlp"
 )
 
 // Packet is implemented by all message types.

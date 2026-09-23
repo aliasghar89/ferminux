@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/aliasghar89/ferminux/chain/core/types"
 )
 
 // Tests that batched bloom bits are correctly rotated from the input bloom

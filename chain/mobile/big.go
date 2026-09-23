@@ -16,13 +16,13 @@
 
 // Contains all the wrappers from the math/big package.
 
-package geth
+package fmxmobile
 
 import (
 	"errors"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 // A BigInt represents a signed multi-precision integer.

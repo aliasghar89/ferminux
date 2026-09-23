@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/aliasghar89/ferminux/chain/params"
 )
 
 // TestFerminuxPosaForkID checks that PosaBlock participates in the EIP-2124

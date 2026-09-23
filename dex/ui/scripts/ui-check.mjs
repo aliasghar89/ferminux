@@ -74,11 +74,7 @@ const skip = (why) => {
 // ------------------------------------------------------------ discovery ----
 
 async function findPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_DIR,
-    join(homedir(), 'karvan-invest'),
-    join(homedir(), 'claude-code-video-toolkit', 'playwright'),
-  ].filter(Boolean);
+  const candidates = [process.env.PLAYWRIGHT_DIR].filter(Boolean);
   for (const dir of candidates) {
     const entry = join(dir, 'node_modules', 'playwright-core', 'index.js');
     if (existsSync(entry)) return (await import(`file://${entry}`)).default ?? (await import(`file://${entry}`));

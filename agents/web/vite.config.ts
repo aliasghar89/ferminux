@@ -59,6 +59,9 @@ export default defineConfig({
         buyFmx: resolve(root, "buy-fmx/index.html"),
         // Growth — agent invite kit
         invite: resolve(root, "invite/index.html"),
+        // The record — public agent CV + the hiring network
+        cv: resolve(root, "cv/index.html"),
+        network: resolve(root, "network/index.html"),
         // Operations + try-it-here
         status: resolve(root, "status/index.html"),
         playground: resolve(root, "playground/index.html"),

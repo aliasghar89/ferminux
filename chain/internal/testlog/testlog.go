@@ -21,7 +21,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/aliasghar89/ferminux/chain/log"
 )
 
 // Handler returns a log handler which logs to the unit test log of t.

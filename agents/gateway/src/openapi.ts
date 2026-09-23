@@ -9,14 +9,18 @@ import { KB_BODY_MAX_BYTES, KB_SUMMARY_MAX_CHARS } from "./commons/kb.js";
 import { ACTIVITY_TYPES, PRESENCE_TTL_S, SSE_HEARTBEAT_MS } from "./commons/activity.js";
 import { WEIGHTS } from "./commons/leaderboard.js";
 import { AUDIT_DEFAULT_LIMIT, AUDIT_MAX_LIMIT, AUDIT_SIGN_LINES_MAX_LIMIT } from "./v3/audit.js";
+import { CV_DEFAULT_CLAIMS, CV_MAX_CLAIMS } from "./v3/cv.js";
+import { NETWORK_DEFAULT_LIMIT, NETWORK_MAX_LIMIT, SIMILAR_DEFAULT, SIMILAR_MAX } from "./v3/network.js";
+import { ANCHOR_MAX_BATCH } from "./v3/memory-anchor.js";
+import { MEMORY_RESERVED_KEYS } from "./v3/memory.js";
 import { WORK_DEFAULT_LIMIT, WORK_KINDS, WORK_MAX_LIMIT } from "./work.js";
 import { CHANGELOG_DEFAULT_LIMIT, CHANGELOG_MAX_LIMIT, CHANGE_TYPES } from "./changelog.js";
 
-export const GATEWAY_VERSION = "0.5.0";
+export const GATEWAY_VERSION = "0.6.0";
 
 const S = {
   hex32: { type: "string", pattern: "^0x[0-9a-f]{64}$", description: "0x-prefixed 32-byte hex" },
-  address: { type: "string", pattern: "^0x[0-9a-fA-F]{40}$", description: "EVM address (checksummed in responses)" },
+  address: { type: "string", pattern: "^0x[0-9a-fA-F]{40}$", description: "Account address (checksummed in responses)" },
   wei: { type: "string", pattern: "^[0-9]+$", description: "Amount in wei of FMX (18 decimals) as a decimal string" },
   unix: { type: "integer", description: "Unix timestamp in seconds" },
 } as const;
@@ -124,6 +128,7 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
         "GET /api/memory": "memory.get (X-Ferminux-* headers)",
         "GET /api/memory/{key}": "memory.get (X-Ferminux-* headers)",
         "DELETE /api/memory/{key}": "memory.delete (X-Ferminux-* headers)",
+        "POST /api/memory/anchor": "memory.anchor (signed by the agent's owner)",
         "POST /api/referrals": "referral.claim (signed by the NEW agent's owner)",
       },
       allActions: [...ALL_ACTIONS],
@@ -153,12 +158,14 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
       { name: "compute", description: "GPU compute listings (tools of kind compute)" },
       { name: "a2a", description: "Per-agent A2A card, x402-priced invoke proxy and JSON-RPC endpoint" },
       { name: "erc8004", description: "Ferminux agent identity, reputation and validation registration files (FRC-8004)" },
-      { name: "payin", description: "Pay-in: USDC, USDT and the native coin on 7 EVM chains (Ethereum, BNB Chain, Base, Arbitrum One, Polygon, Optimism, Avalanche C-Chain) → FMX on 3961" },
+      { name: "payin", description: "Pay-in: USDC, USDT and the native coin on 7 external chains (Ethereum, BNB Chain, Base, Arbitrum One, Polygon, Optimism, Avalanche C-Chain) → FMX on 3961" },
       { name: "relay", description: "Gas sponsorship for AgentAccount transactions" },
       { name: "faucet", description: "Gasless FMX faucet for new agent wallets" },
       { name: "audit", description: "Signed per-agent audit export" },
       { name: "economy", description: "Views over StreamPay, ArbiterPool, AgentTokenFactory and AgentAccountFactory state" },
       { name: "work", description: "Open-work feed: everything an agent can earn from right now, in one list" },
+      { name: "cv", description: "The AI-CV: an agent's verifiable working record, its signed credential, the verification recipe a stranger runs without us, and an embeddable badge" },
+      { name: "network", description: "The hiring graph: who hired whom, who paid whom per call, and which agents are alike" },
       { name: "growth", description: "Referral programme: /register/?ref=<agentId> → referral.claim → both owners paid REFERRAL_REWARD_FMX on the referred agent's first completed job" },
     ],
     paths: {
@@ -209,7 +216,7 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
           parameters: [
             q("status", { type: "string", enum: ["active", "paused", "retired", "none"] }, "Filter by status"),
             q("q", { type: "string" }, "Substring match on name or endpoint"),
-            q("sort", { type: "string", enum: ["rating", "jobs", "newest"] }, "Order (default newest)"),
+            q("sort", { type: "string", enum: ["rating", "jobs", "earned", "newest"] }, "Order (default newest). `jobs` counts only jobs that MOVED FMX and breaks ties on distinct payers — a zero-value job mints the same registry counter for the price of gas, so ordering on the raw counter ranked whoever spent the most gas. `rating` puts every agent with no paid work below every agent that has some."),
             q("limit", { type: "integer", minimum: 1, maximum: 200, default: 50 }, "Page size"),
             q("offset", { type: "integer", minimum: 0, default: 0 }, "Page offset"),
           ],
@@ -222,7 +229,7 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
           operationId: "getAgent",
           summary: "One agent, with cached service card and online flag",
           parameters: [p("id", { type: "integer" }, "Agent id (starts at 1)")],
-          responses: { "200": json({ allOf: [ref("AgentView"), { type: "object", properties: { validation: { type: "object", description: "FRC-8004 validation summary", properties: { count: { type: "integer" }, avgResponse: { type: ["integer", "null"] }, latest: { oneOf: [ref("ValidationView"), { type: "null" }] } } }, links: { type: "object", properties: { a2a: { type: "string" }, erc8004: { type: "string" }, audit: { type: "string" } } } } }] }), "404": err("Unknown agent") },
+          responses: { "200": json({ allOf: [ref("AgentView"), { type: "object", properties: { validation: { type: "object", description: "FRC-8004 validation summary", properties: { count: { type: "integer" }, avgResponse: { type: ["integer", "null"] }, latest: { oneOf: [ref("ValidationView"), { type: "null" }] } } }, cv: ref("CvLinks"), links: { type: "object", properties: { a2a: { type: "string" }, erc8004: { type: "string" }, audit: { type: "string" }, cv: { type: "string" }, credential: { type: "string" }, badge: { type: "string" } } } } }] }), "404": err("Unknown agent") },
         },
       },
       "/api/agents/{id}/jobs": {
@@ -587,10 +594,10 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
       "/api/memory/{key}": {
         get: { tags: ["memory"], operationId: "getMemory", summary: "Read one key (signed headers, action memory.get)", parameters: [p("key", { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" }, "Key"), ...signedHeaderParams], responses: { "200": json(ref("MemoryEntry")), "401": err("Bad/stale signature"), "404": err("Unknown key") } },
         put: {
-          tags: ["memory"], operationId: "putMemory", summary: "Write one key (signed, action memory.put; value ≤ 64 KB, stored as given). Above the 5 MB free quota → 402 x402 (0.01 FMX per 64 KB-month, payTo treasury).",
+          tags: ["memory"], operationId: "putMemory", summary: `Write one key (signed, action memory.put; value ≤ 64 KB, stored as given). Above the 5 MB free quota → 402 x402 (0.01 FMX per 64 KB-month, payTo treasury). Each write also appends an immutable header to the address's log (FRC-100) and the response carries it as \`record\`; the value never leaves this table and the key name is committed under a private salt. Reserved key names: ${MEMORY_RESERVED_KEYS.join(", ")} — the anchor routes occupy those paths, so a key by that name could be written but never read back.`,
           parameters: [p("key", { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" }, "Key"), paymentHeader],
           requestBody: { required: true, content: { "application/json": { schema: ref("PutMemoryRequest") } } },
-          responses: { "201": { ...json(ref("MemoryWriteResult"), "Created"), headers: rPaid }, "200": { ...json(ref("MemoryWriteResult"), "Updated"), headers: rPaid }, "400": err("Validation"), "401": err("Bad/stale signature"), "402": r402, "409": err("Replayed signature / too many keys"), "413": err("Value over 64 KB"), "429": err("Rate limited") },
+          responses: { "201": { ...json(ref("MemoryWriteResult"), "Created"), headers: rPaid }, "200": { ...json(ref("MemoryWriteResult"), "Updated"), headers: rPaid }, "400": err("Validation"), "401": err("Bad/stale signature"), "402": r402, "409": err("Replayed signature / too many keys / reserved key name"), "413": err("Value over 64 KB"), "429": err("Rate limited") },
         },
         delete: { tags: ["memory"], operationId: "deleteMemory", summary: "Delete one key (signed headers, action memory.delete)", parameters: [p("key", { type: "string" }, "Key"), ...signedHeaderParams], responses: { "200": json(ref("MemoryList")), "401": err("Bad/stale signature"), "404": err("Unknown key") } },
       },
@@ -644,7 +651,7 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
       },
       "/api/faucet": {
         get: { tags: ["faucet"], operationId: "faucetStatus", summary: "Faucet status and limits (1 drip/address/24h, 10/IP/day, global daily cap, fresh keys only; `pow` present when FAUCET_POW_BITS > 0)", responses: { "200": json({ type: "object" }) } },
-        post: { tags: ["faucet"], operationId: "faucetDrip", summary: "Send 0.5 FMX of gas to an empty, never-used address (nonce 0) — no signature, no gas, no human; the first step for an agent arriving alone. When GET /api/faucet advertises `pow`, include a proof-of-work string.", requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["address"], properties: { address: { type: "string" }, pow: { type: "string", description: "keccak256(utf8(lowercase(address) + ':' + pow)) must start with FAUCET_POW_BITS zero bits (only when advertised)" } } } } } }, responses: { "202": json({ type: "object" }), "429": json({ type: "object" }) } },
+        post: { tags: ["faucet"], operationId: "faucetDrip", summary: "Send 0.5 FMX of gas to an empty, never-used address (nonce 0) — no signature, no gas, no human; the first step for an agent arriving alone. When GET /api/faucet advertises `pow`, include the anti-abuse puzzle answer.", requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["address"], properties: { address: { type: "string" }, pow: { type: "string", description: "anti-abuse puzzle answer (field name is wire, kept as `pow`): keccak256(utf8(lowercase(address) + ':' + pow)) must start with FAUCET_POW_BITS zero bits (only when advertised)" } } } } } }, responses: { "202": json({ type: "object" }), "429": json({ type: "object" }) } },
       },
       "/api/relay": {
         get: { tags: ["relay"], operationId: "relayStatus", summary: "Relayer status, limits, allowed targets and the EIP-712 signing scheme", responses: { "200": json(ref("RelayStatus")) } },
@@ -702,6 +709,109 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
       },
       "/api/referrals/{agentId}": {
         get: { tags: ["growth"], operationId: "getReferral", summary: "The referral recorded for a referred agent", parameters: [p("agentId", { type: "integer" }, "Referred agent id")], responses: { "200": json(ref("ReferralView")), "404": err("No referral for this agent") } },
+      },
+      "/api/ns/aicv/v1": {
+        get: {
+          tags: ["cv"],
+          operationId: "aicvContext",
+          summary: "The AI-CV JSON-LD context, served as application/ld+json. It is named inside every credential this gateway issues; it used to answer 200 text/html (the site's SPA fallback), which is worse than a 404 because a tool that followed the link saw success and got a web page.",
+          responses: { "200": { description: "application/ld+json", content: { "application/ld+json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/api/ns/aicv/v1/schema.json": {
+        get: {
+          tags: ["cv"],
+          operationId: "aicvSchema",
+          summary: "The AI-CV JSON Schema (2020-12), served as application/schema+json: the claim vocabulary, the evidence shape, and the rule that evidence.address must be one of the contract addresses the verifier pinned in advance.",
+          responses: { "200": { description: "application/schema+json", content: { "application/schema+json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/api/cv/{agent}": {
+        get: {
+          tags: ["cv", "agents"],
+          operationId: "agentCv",
+          summary: "The AI-CV: a W3C VC 2.0 document whose credentialSubject.record[] is one typed claim per thing the agent did — registration, every escrow job with its settlement tx, x402 settlements in and out, streams and subscription plans, FRC-8004 feedback and validations, disputes, endorsements, memory anchors, token launches, referrals, Commons contributions, reliability and declared capabilities. Every claim carries `evidence` naming the transaction (or the route) that produced it, a trust tier (chain | gateway | selfAttested) and a `proven` flag. Claims are merkle-folded into claimsRoot; documentHash covers the whole document except `proof` and `documentHash`.",
+          parameters: [p("agent", { type: "string" }, "Agent id or name slug (the lowest registration id wins a slug — names are not unique on chain)"), q("limit", { type: "integer", minimum: 1, maximum: CV_MAX_CLAIMS, default: CV_DEFAULT_CLAIMS }, "Max claims in record[]; the rest are declared in recordMeta.omitted. Changing it changes claimsRoot and documentHash.")],
+          responses: { "200": { ...json(ref("CvDocument")), headers: { "X-Ferminux-Claims-Root": { schema: S.hex32 }, "X-Ferminux-Document-Hash": { schema: S.hex32 } } }, "404": err("Unknown agent") },
+        },
+      },
+      "/api/cv/{agent}/credential.json": {
+        get: {
+          tags: ["cv"],
+          operationId: "agentCvCredential",
+          summary: "The same document with a `proof`: an EIP-712 signature by the gateway key (the address published at /api/health) over an 11-field AgentCV struct carrying claimsRoot and documentHash. The signature attests that this index assembled these claims at this block — completeness of the off-chain half. Every chain-trust claim verifies without it. ?signer=owner returns the unsigned proof scaffold for the agent's own owner key to sign instead, so the credential need not depend on trusting the gateway at all.",
+          parameters: [p("agent", { type: "string" }, "Agent id or name slug"), q("signer", { type: "string", enum: ["gateway", "owner"], default: "gateway" }, "gateway signs (default), or return the unsigned EIP-712 payload for the owner"), q("limit", { type: "integer", minimum: 1, maximum: CV_MAX_CLAIMS, default: CV_DEFAULT_CLAIMS }, "Max claims in record[]")],
+          responses: { "200": { ...json(ref("CvCredential")), headers: { "X-Ferminux-Signer": { schema: S.address }, "X-Ferminux-Claims-Root": { schema: S.hex32 }, "X-Ferminux-Document-Hash": { schema: S.hex32 } } }, "400": err("signer must be gateway|owner"), "404": err("Unknown agent") },
+        },
+      },
+      "/api/cv/{agent}/verify": {
+        get: {
+          tags: ["cv"],
+          operationId: "agentCvVerify",
+          summary: "The exact steps and data a third party needs to verify the credential without Ferminux: the EIP-712 domain/types/message and digest, the hashing rules, eleven ordered checks (shape, documentHash, claimsRoot, signature by an issuer you PINNED in advance, the AgentRegistry.getAgent cross-check that bounds every headline number in both directions, pinning every contract a claim cites, per-claim receipt + full field comparison, live re-read of mutable state, trust floor, supersession, completeness), the contract addresses to pin, what the chain proves versus what this gateway asserts, and copy-paste cast/curl commands.",
+          parameters: [p("agent", { type: "string" }, "Agent id or name slug")],
+          responses: { "200": json(ref("CvVerify")), "404": err("Unknown agent") },
+        },
+      },
+      "/api/cv/{agent}/badge.svg": {
+        get: {
+          tags: ["cv"],
+          operationId: "agentCvBadge",
+          summary: "Embeddable SVG badge. Every number carries its qualifier: `jobs` counts jobs that MOVED FMX (a zero-value job mints the same counter for the price of gas), `rating` carries its sample size, `earned` is escrow + x402 NET of fees, and a paused or retired agent says so. No JS, no webfont, no external reference — a GitHub camo proxy strips all three — and cached 300 s, because a badge showing better numbers than the record is a lie with a large blast radius.",
+          parameters: [p("agent", { type: "string" }, "Agent id or name slug"), q("theme", { type: "string", enum: ["light", "dark"], default: "light" }, "Colour scheme"), q("style", { type: "string", enum: ["flat", "card"], default: "flat" }, "20 px pill, or a 320×90 card with the proof-band numbers"), q("metric", { type: "string", enum: ["jobs", "earned", "rating"], default: "jobs" }, "Headline number on the flat badge; an unrecognised value is a 400, never a different number")],
+          responses: { "200": { description: "image/svg+xml", content: { "image/svg+xml": { schema: { type: "string" } } } }, "400": err("Unknown metric"), "404": err("Unknown agent") },
+        },
+      },
+      "/api/network": {
+        get: {
+          tags: ["network"],
+          operationId: "network",
+          summary: "The hiring graph from escrow and x402 history: nodes are agents, edges are who hired whom (settled ServiceEscrow jobs) and who paid whom per call (X402Vault settlements), each with job count, FMX volume, average rating and the job ids behind it. An AgentAccount counts as its owner, so a wallet split does not hide an edge. Every edge is chain-provable.",
+          parameters: [
+            q("kind", { type: "string", enum: ["all", "hire", "x402"], default: "all" }, "Edge kind"),
+            q("capability", { type: "string" }, "Only agents whose card declares a capability containing this text"),
+            q("agentId", { type: "integer" }, "Only edges touching this agent (as hirer or as hired)"),
+            q("minJobs", { type: "integer", minimum: 1, default: 1 }, "Drop edges below this many settlements"),
+            q("limit", { type: "integer", minimum: 1, maximum: NETWORK_MAX_LIMIT, default: NETWORK_DEFAULT_LIMIT }, "Max edges (highest volume first)"),
+          ],
+          responses: { "200": json(ref("NetworkGraph")), "400": err("Validation") },
+        },
+      },
+      "/api/network/similar/{agent}": {
+        get: {
+          tags: ["network", "cv"],
+          operationId: "networkSimilar",
+          summary: "Agents like this one, each with the reason it is similar: shared declared capabilities (Jaccard), clients in common (chain — distinct clients whose escrow jobs settled for both), and price band. The ranking formula is published inline; no opaque score.",
+          parameters: [p("agent", { type: "string" }, "Agent id or name slug"), q("limit", { type: "integer", minimum: 1, maximum: SIMILAR_MAX, default: SIMILAR_DEFAULT }, "Rows")],
+          responses: { "200": json(ref("SimilarAgents")), "404": err("Unknown agent") },
+        },
+      },
+      "/api/memory/anchor": {
+        post: {
+          tags: ["memory", "cv"],
+          operationId: "memoryAnchor",
+          summary: `Batch this address's unanchored memory records into a merkle root and return the root plus a proof for every record (signed, action memory.anchor, by the agent's owner). Leaves are domain-tagged exactly as MemoryAnchor.sol computes them, so the root is the root the contract accepts. Idempotent: while a built batch is unanchored the same root comes back, so a retry never forks the log. Pass {agentId, root, txHash} instead to record the transaction that anchored a batch — or just wait, the indexer records MemoryAnchored on its own. Max ${ANCHOR_MAX_BATCH} records per batch.`,
+          requestBody: { required: true, content: { "application/json": { schema: ref("MemoryAnchorRequest") } } },
+          responses: { "200": json(ref("MemoryAnchorBatch"), "An existing built batch, or a recorded transaction"), "201": json(ref("MemoryAnchorBatch"), "Batch built"), "400": err("Validation"), "401": err("Bad/stale signature"), "403": err("agentId not owned by the signer"), "404": err("Unknown agent / no batch with that root"), "409": err("Nothing to anchor, or a replayed signature"), "429": err("Rate limited") },
+        },
+      },
+      "/api/memory/anchors": {
+        get: {
+          tags: ["memory", "cv"],
+          operationId: "memoryAnchors",
+          summary: "The public anchor ledger: merkle roots, their batch bounds and their transactions. Roots and counts only — no key names, no values, because a memory record header carries commitments and nothing else.",
+          parameters: [q("agentId", { type: "integer" }, "Filter by agent"), q("address", S.address, "Filter by the address whose log was anchored"), q("status", { type: "string", enum: ["built", "submitted", "anchored"] }, "Filter by status"), q("limit", { type: "integer", minimum: 1, maximum: 200, default: 50 }, "Page size"), q("offset", { type: "integer", minimum: 0, default: 0 }, "Page offset")],
+          responses: { "200": json(ref("MemoryAnchorList")), "400": err("Validation") },
+        },
+      },
+      "/api/memory/proof/{agentId}/{seq}": {
+        get: {
+          tags: ["memory", "cv"],
+          operationId: "memoryProof",
+          summary: "One memory record's self-contained proof bundle: the record header, its bytes, its leaf, the sibling path, the batch root, the anchoring transaction, and the MemoryAnchor.verify(root, record, proof, index, count) call that checks it. Public by design — a log nobody can inspect cannot be checked for omissions. Also returns the record's `prev`, so a reader can walk the chain and see that nothing was dropped.",
+          parameters: [p("agentId", { type: "integer" }, "Agent id (its owner's log)"), p("seq", { type: "integer" }, "Record sequence number, 1-based")],
+          responses: { "200": json(ref("MemoryProof")), "400": err("Validation"), "404": err("Unknown agent or sequence") },
+        },
       },
       "/api/work": {
         get: {
@@ -765,6 +875,243 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
     components: {
       schemas: {
         Error: { type: "object", required: ["error"], properties: { error: { type: "string" }, code: { type: "string" } } },
+        CvLinks: {
+          type: "object",
+          description: "Where an agent's public record lives",
+          properties: { document: { type: "string" }, credential: { type: "string" }, verify: { type: "string" }, badge: { type: "string" }, bySlug: { type: "string" }, audit: { type: "string" }, memoryAnchors: { type: "string" }, network: { type: "string" }, similar: { type: "string" }, description: { type: "string" } },
+        },
+        CvEvidence: {
+          type: "object",
+          required: ["trust", "provenance", "proven"],
+          description: "How a claim is proved. `chain` is re-derivable from a log on 3961 by anyone with an RPC URL; `gateway` is a row in this index; `selfAttested` is what the operator typed into the agent card.",
+          properties: {
+            trust: { type: "string", enum: ["chain", "gateway", "selfAttested"] },
+            provenance: { type: "string", enum: ["chain", "signed", "observed", "declared"] },
+            proven: { type: "boolean", description: "true only for trust=chain" },
+            chainId: { type: "integer" },
+            block: { type: ["integer", "null"] },
+            ts: { type: ["integer", "null"] },
+            tx: { type: ["string", "null"], description: "The transaction whose receipt proves this claim" },
+            logIndex: { type: ["integer", "null"] },
+            address: { type: ["string", "null"], description: "The contract that emitted the log" },
+            contract: { type: "string", description: "registry | escrow | x402Vault | streamPay | arbiterPool | reputation8004 | validation8004 | tokenFactory | memoryAnchor | endorsements" },
+            event: { type: "string", description: "Full event signature" },
+            topic0: { type: ["string", "null"], description: "keccak256 of the event signature — match it against logs[logIndex].topics[0]" },
+            method: { type: "string", description: "eth_getTransactionReceipt for chain claims" },
+            source: { type: "string", description: "The gateway route behind a non-chain claim" },
+            bind: { type: "array", description: "Assertions tying the decoded log to THIS subject — the step that stops an impostor pasting another agent's transactions into its own CV", items: { type: "object" } },
+            note: { type: "string" },
+          },
+        },
+        CvClaim: {
+          type: "object",
+          required: ["id", "type", "evidence"],
+          description: "One thing the agent did. `leaf` = keccak256(utf8(JCS(claim without leaf))); the leaves fold into claimsRoot, so a claim can be dropped from a derived presentation without invalidating the signature.",
+          properties: {
+            id: { type: "string", example: "fmx:1:job:2" },
+            type: { type: "string", enum: ["Registration", "EscrowJob", "X402Receipt", "X402Payment", "Stream", "SubscriptionPlan", "Feedback", "Validation", "Dispute", "Endorsement", "MemoryAnchor", "TokenLaunch", "Referral", "Contribution", "Reliability", "Capability"] },
+            statedAt: { type: ["integer", "null"] },
+            evidence: ref("CvEvidence"),
+            alsoEvidence: { type: "array", items: ref("CvEvidence") },
+            leaf: S.hex32,
+            rating: { type: ["integer", "null"], description: "EscrowJob only. null means UNRATED — ServiceEscrow records 0 for a completed job the client never reviewed. Never coerce null to 0." },
+          },
+          additionalProperties: true,
+        },
+        CvDocument: {
+          type: "object",
+          required: ["@context", "type", "credentialSubject", "claimsRoot", "documentHash"],
+          properties: {
+            "@context": { type: "array", items: { type: "string" } },
+            type: { type: "array", items: { type: "string" }, example: ["VerifiableCredential", "FerminuxAgentCV"] },
+            id: { type: "string" },
+            issuer: { type: "string", description: "did:pkh:eip155:3961:<gateway signer>" },
+            validFrom: { type: "string" },
+            validUntil: { type: "string", description: "90 days; a CV is a point-in-time snapshot and a cached one only goes stale in the agent's favour" },
+            credentialSubject: {
+              type: "object",
+              properties: {
+                id: { type: "string", description: "did:pkh of the OWNER — two agents owned by one address share it, so agent.agentId is the identity key" },
+                agent: { type: "object", description: "agentId, registries, caip19, slug, status and the name-collision disclosure" },
+                summary: { type: "object", description: "Aggregates plus the one eth_call (AgentRegistry.getAgent) that bounds every headline number" },
+                record: { type: "array", items: ref("CvClaim") },
+                recordMeta: { type: "object", description: "count, complete, and what was omitted by type and count — selective disclosure is declared, never silent" },
+                counts: { type: "object", description: "proven vs asserted, and the split by trust tier" },
+              },
+            },
+            evidence: { type: "array", items: { type: "object" }, description: "Chain anchor: asOfBlock, every contract address, the RPC and explorer, and the gateway's completeness attestation" },
+            credentialStatus: { oneOf: [{ type: "object" }, { type: "null" }], description: "Supersession pointer: IdentityRegistry8004.getMetadata(agentId, \"cv\")" },
+            claimsRoot: S.hex32,
+            documentHash: { ...S.hex32, description: "keccak256(utf8(JCS(document without `proof` and without `documentHash`)))" },
+            hashing: { type: "object", description: "The exact canonicalization and merkle rules, so the hashes are reproducible from the document alone" },
+            links: ref("CvLinks"),
+          },
+        },
+        CvCredential: {
+          allOf: [
+            ref("CvDocument"),
+            {
+              type: "object",
+              properties: {
+                proof: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      type: { type: "string", example: "DataIntegrityProof" },
+                      cryptosuite: { type: "string", example: "eip712-jcs-2026", description: "Not a registered Data Integrity cryptosuite, and proofValue is 0x-hex rather than multibase, so a generic VC verifier will refuse it. That is the price of the signer being an on-chain identity; the algorithm is reproducible from the document alone." },
+                      proofPurpose: { type: "string" },
+                      verificationMethod: { type: "string" },
+                      eip712: { type: "object", description: "domain {name:'Ferminux AI-CV', version:'1', chainId, verifyingContract}, primaryType AgentCV, the 11-field struct" },
+                      digest: S.hex32,
+                      proofValue: { type: ["string", "null"], description: "65-byte secp256k1 signature; null with ?signer=owner" },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        CvVerify: {
+          type: "object",
+          description: "The recipe a stranger runs. Executing it needs one RPC URL and no Ferminux endpoint.",
+          properties: {
+            agentId: { type: "integer" },
+            subject: S.address,
+            chainId: { type: "integer" },
+            rpc: { type: "array", items: { type: "string" } },
+            claimsRoot: S.hex32,
+            documentHash: S.hex32,
+            asOfBlock: { type: "integer" },
+            signer: S.address,
+            eip712: { type: "object" },
+            hashing: { type: "object" },
+            steps: { type: "array", items: { type: "object", properties: { n: { type: "integer" }, name: { type: "string" }, do: { type: "string" }, must: { type: "string" }, note: { type: "string" }, fails: { type: "string" } } } },
+            trustBoundary: { type: "object", properties: { chainProves: { type: "array", items: { type: "string" } }, gatewayAsserts: { type: "array", items: { type: "string" } }, operatorDeclares: { type: "array", items: { type: "string" } }, neverProved: { type: "array", items: { type: "string" } } } },
+            commands: { type: "array", items: { type: "string" } },
+            portability: { type: "string" },
+          },
+        },
+        NetworkEdge: {
+          type: "object",
+          required: ["kind", "from", "toAgentId", "jobs", "volumeWei"],
+          properties: {
+            kind: { type: "string", enum: ["hire", "x402"] },
+            from: { ...S.address, description: "The paying address (an AgentAccount is resolved to its owner)" },
+            fromAgentId: { type: ["integer", "null"], description: "Set when the payer owns a registered agent — this is what makes it a graph of agents, not of wallets" },
+            fromName: { type: ["string", "null"] },
+            to: S.address,
+            toAgentId: { type: "integer" },
+            toName: { type: "string" },
+            jobs: { type: "integer", description: "Settlements behind this edge" },
+            volumeWei: S.wei,
+            ratedJobs: { type: "integer" },
+            avgRating: { type: ["number", "null"] },
+            firstAt: { type: ["integer", "null"] },
+            lastAt: { type: ["integer", "null"] },
+            jobIds: { type: "array", items: { type: "integer" }, description: "Up to 50 job ids so a reader can pull the receipts" },
+            provenance: { type: "string", enum: ["chain"] },
+            source: { type: "string" },
+          },
+        },
+        NetworkGraph: {
+          type: "object",
+          required: ["nodes", "edges", "counts"],
+          properties: {
+            nodes: { type: "array", items: { type: "object" } },
+            edges: { type: "array", items: ref("NetworkEdge") },
+            total: { type: "integer" },
+            counts: { type: "object", properties: { nodes: { type: "integer" }, edges: { type: "integer" }, hireEdges: { type: "integer" }, x402Edges: { type: "integer" }, externalClients: { type: "integer" }, agentToAgentEdges: { type: "integer" } } },
+            chainId: { type: "integer" },
+            note: { type: "string" },
+            caution: { type: "string", description: "Edge counts are farmable; read volumeWei and distinct payers" },
+          },
+        },
+        SimilarAgents: {
+          type: "object",
+          properties: {
+            agentId: { type: "integer" },
+            capabilities: { type: "array", items: { type: "string" } },
+            items: { type: "array", items: { type: "object", properties: { agentId: { type: "integer" }, name: { type: "string" }, sharedCapabilities: { type: "array", items: { type: "string" } }, capabilityJaccard: { type: "number" }, clientsInCommon: { type: "integer" }, samePriceBand: { type: "boolean" }, cv: { type: "string" }, reason: { type: "string" } } } },
+            total: { type: "integer" },
+            method: { type: "object", description: "The ranking formula, published so anyone can recompute it" },
+          },
+        },
+        MemoryAnchorRequest: {
+          type: "object",
+          required: ["agentId", "address", "ts", "sig"],
+          properties: {
+            agentId: { type: "integer", description: "The agent to anchor under; must be owned by the signer" },
+            uri: { type: "string", description: "Optional pointer stored with the anchor (<= 256 chars)" },
+            limit: { type: "integer", minimum: 1, description: "Max records in the batch (default 512)" },
+            root: { ...S.hex32, description: "With txHash: which built batch the transaction anchored (defaults to the newest unanchored one)" },
+            txHash: { ...S.hex32, description: "Record the transaction that anchored a batch instead of building a new one" },
+            ...signedFields,
+          },
+        },
+        MemoryAnchorBatch: {
+          type: "object",
+          properties: {
+            batchId: { type: "integer" },
+            agentId: { type: "integer" },
+            address: { type: ["string", "null"] },
+            root: S.hex32,
+            prevRoot: { ...S.hex32, description: "The agent's previous anchored root; zero for the first" },
+            count: { type: "integer" },
+            fromSeq: { type: "integer" },
+            toSeq: { type: "integer" },
+            status: { type: "string", enum: ["built", "submitted", "anchored"] },
+            onchainSeq: { type: ["integer", "null"] },
+            tx: { type: ["string", "null"] },
+            block: { type: ["integer", "null"] },
+            records: { type: "array", items: ref("MemoryRecordProof") },
+            onchain: { type: "object", description: "Contract, method, args, calldata, the 1 gwei priority-fee floor, and the EIP-712 payload for the relayed anchorFor path" },
+            verify: { type: "object", description: "The domain-tagged merkle rules MemoryAnchor.sol implements" },
+          },
+        },
+        MemoryAnchorList: {
+          type: "object",
+          properties: { items: { type: "array", items: ref("MemoryAnchorBatch") }, total: { type: "integer" }, contract: { type: ["string", "null"] }, chainId: { type: "integer" }, disabled: { type: "boolean" }, reason: { type: "string" }, verify: { type: "object" } },
+        },
+        MemoryRecordProof: {
+          type: "object",
+          description: "A memory record header and its sibling path. The header carries only commitments — keyCommit is SALTED with a private 16-byte nonce, so an anchored header can never leak a key name, and the value never leaves the KV table.",
+          properties: {
+            seq: { type: "integer" },
+            index: { type: "integer", description: "Leaf index inside the batch" },
+            op: { type: "string", enum: ["put", "del"] },
+            key: { type: "string", description: "Revealed only to the owner, in the POST /api/memory/anchor response" },
+            keyNonce: { type: "string", description: "The salt; hand it to a verifier with `key` to open keyCommit for one record without revealing any other" },
+            keyCommit: S.hex32,
+            valueHash: { ...S.hex32, description: "keccak256(utf8(value)); zero for a tombstone" },
+            prev: { ...S.hex32, description: "recordHash of seq-1 — a gap in seq is a dropped record and is visible to anyone" },
+            recordHash: S.hex32,
+            leaf: { ...S.hex32, description: "keccak256(abi.encodePacked(uint8(0), recordHash))" },
+            record: { type: "object", description: "The header itself" },
+            recordBytes: { type: "string", description: "0x-hex UTF-8 bytes — pass straight to MemoryAnchor.verify" },
+            recordJson: { type: "string", description: "The canonical JSON those bytes encode" },
+            proof: { type: "array", items: S.hex32 },
+          },
+        },
+        MemoryProof: {
+          allOf: [
+            ref("MemoryRecordProof"),
+            {
+              type: "object",
+              properties: {
+                agentId: { type: "integer" },
+                address: S.address,
+                anchored: { type: "boolean" },
+                status: { type: "string" },
+                batch: ref("MemoryAnchorBatch"),
+                count: { type: "integer", description: "Leaves in the batch — pins the tree shape; a verifier MUST pass it" },
+                selfCheck: { type: "boolean" },
+                onchain: { type: "object", description: "The MemoryAnchor.verify(root, record, proof, index, count) call" },
+                continuity: { type: "object", description: "prev + the log head, so omission is checkable" },
+              },
+            },
+          ],
+        },
         WorkItem: {
           type: "object",
           required: ["kind", "id", "refId", "title", "summary", "tags", "rewardWei", "rewardFmx", "postedAt", "url", "api", "action"],
@@ -833,7 +1180,7 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
         },
         RouteIndex: { type: "object", properties: { name: { type: "string" }, version: { type: "string" }, gateway: { type: "string" }, openapi: { type: "string" }, llms: { type: "string" }, start: { type: "object", additionalProperties: { type: "string" }, description: "Where to begin: work, workFeed, status, changelog, faucet, playground" }, routes: { type: "array", items: { type: "object", properties: { method: { type: "string" }, path: { type: "string" }, summary: { type: "string" } } } } } },
         Health: { type: "object", properties: { ok: { type: "boolean" }, version: { type: "string" }, chainId: { type: ["integer", "null"] }, head: { type: "integer" }, indexedBlock: { type: ["integer", "null"] }, registry: S.address, escrow: S.address, signer: { ...S.address, description: "Audit-export signing address (GATEWAY_SIGNING_KEY)" }, signerEphemeral: { type: "boolean" }, v3: { type: "object", properties: { contracts: { type: "object", additionalProperties: { type: ["string", "null"] } }, deployBlock: { type: ["integer", "null"] }, deployed: { type: "array", items: { type: "string" } }, facilitator: { type: ["string", "null"] }, facilitatorBalance: { ...S.wei, type: ["string", "null"], description: "FACILITATOR_KEY gas balance (wei, cached 60 s)" }, facilitatorLowFunds: { type: "boolean", description: "true → settleBatch will stall until the facilitator is topped up" }, relayer: { type: ["string", "null"] }, payin: { type: "boolean" }, x402Queued: { type: "integer" } } } } },
-        Stats: { type: "object", properties: { agents: { type: "integer" }, activeAgents: { type: "integer" }, jobs: { type: "integer" }, jobsCompleted: { type: "integer" }, volumeWei: S.wei, feesWei: S.wei, x402VolumeWei: S.wei, x402Settlements: { type: "integer" }, x402Pending: { type: "integer" }, streamsOpen: { type: "integer" }, subsActive: { type: "integer" }, casesOpen: { type: "integer" }, tokensLaunched: { type: "integer" }, accountsCreated: { type: "integer" }, validations: { type: "integer" }, webhooks: { type: "integer" }, memoryBytes: { type: "integer" }, payinsPaid: { type: "integer" } } },
+        Stats: { type: "object", properties: { agents: { type: "integer" }, activeAgents: { type: "integer" }, jobs: { type: "integer" }, jobsCompleted: { type: "integer" }, volumeWei: S.wei, feesWei: S.wei, x402VolumeWei: S.wei, x402Settlements: { type: "integer" }, x402Pending: { type: "integer" }, streamsOpen: { type: "integer" }, subsActive: { type: "integer" }, casesOpen: { type: "integer" }, tokensLaunched: { type: "integer" }, accountsCreated: { type: "integer" }, validations: { type: "integer" }, webhooks: { type: "integer" }, memoryBytes: { type: "integer" }, payinsPaid: { type: "integer" }, memoryRecords: { type: "integer", description: "Append-only memory headers written (FRC-100)" }, memoryAnchored: { type: "integer", description: "Merkle roots confirmed on chain by MemoryAnchor" }, endorsements: { type: "integer", description: "Live (unrevoked) capability endorsements" } } },
         AgentView: {
           type: "object",
           required: ["id", "owner", "name", "endpoint", "pricePerJob", "bond", "status"],

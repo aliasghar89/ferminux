@@ -1,4 +1,6 @@
-// ERC-8004 registration file for an agent: GET /api/agents/:id/erc8004.json.
+// FRC-8004 registration file for an agent: GET /api/agents/:id/erc8004.json.
+// The label is ours (FRC-8004); the route, the `type` URI below and the
+// contract names keep the 8004 spelling because external tooling parses them.
 // IdentityRegistry8004.agentURI(id) points here unless the owner set its own.
 import type { FastifyInstance } from "fastify";
 import type { AgentRow } from "../types.js";

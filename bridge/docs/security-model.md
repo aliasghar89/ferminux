@@ -241,10 +241,10 @@ important than the validator set.**
 
 ## 5. Reorg risk per chain
 
-A reorg is dangerous in exactly one direction: **the source chain un-mining a
-lock after the destination has already credited it.** The destination reorging
-is not a loss — the `execute()` transaction simply is not in the surviving
-history and can be re-submitted with the same signatures.
+A reorg is dangerous in exactly one direction: **the source chain dropping a
+lock from its history after the destination has already credited it.** The
+destination reorging is not a loss — the `execute()` transaction simply is not
+in the surviving history and can be re-submitted with the same signatures.
 
 There is no on-chain protection. Confirmation depth is a **validator policy**,
 enforced by the validator daemon, not by `FerminuxBridge.sol`. A validator that
@@ -252,7 +252,7 @@ signs too early is the vulnerability.
 
 | Chain | Finality | Recommended wait | Residual risk |
 |---|---|---|---|
-| **Ferminux (3961)** | probabilistic PoW only | **64 blocks (~7.5 min)**, and re-derive it from real hashrate | **the weakest link — see below** |
+| **Ferminux (3961)** | Clique proof-of-authority, no finality gadget | **64 blocks (~7.5 min)**, the same depth as every node's reorg cap | **the weakest link** — signer-majority collusion or key compromise, see below |
 | Ethereum (1) | Casper FFG, ~2 epochs | the `finalized` tag (~13–19 min) | economically final; reverting it costs a third of staked ETH |
 | BSC (56) | fast finality (BEP-126) | the `finalized` tag; ~15 blocks as a fallback | small validator set, but attacks are on-record-slashable |
 | Polygon PoS (137) | Heimdall milestones | the `finalized` tag (~1–3 min) | block-count waiting alone has historically been unreliable |
@@ -260,13 +260,15 @@ signs too early is the vulnerability.
 
 ### Ferminux is the weakest link, and pretending otherwise would be dishonest
 
-Ferminux is Ethash proof-of-work with ~7 s blocks and a young, modest hashrate.
-Ethash GPU hashrate did not disappear after Ethereum's merge — it is abundant
-and rentable by the hour. Small Ethash and Equihash chains have been 51 %-attacked
-repeatedly and successfully: **Ethereum Classic (multiple deep reorgs in August
-2020, one over 4,000 blocks)** and **Bitcoin Gold (2018 and 2020)** are the
-standard references, and in both cases the victims were bridges and exchanges
-crediting deposits, not ordinary users.
+Ferminux blocks are confirmed by five bonded signers in rotation (Clique
+proof-of-authority, since block 160,000; below that the chain was
+proof-of-work). There is no finality gadget, and a reorg costs no work at any
+depth: rewriting history takes a majority of the signers (3 of 5) confirming a
+competing branch, whether they collude or an attacker holds their keys. All
+five are operated by one party. A network partition does not get there on its
+own: a signer may confirm at most one block in any run of three, so a side
+holding two signers or fewer stalls within two blocks, and the reorg when the
+partition heals is that shallow.
 
 The attack against this bridge does **not** require any validator collusion:
 
@@ -274,21 +276,32 @@ The attack against this bridge does **not** require any validator collusion:
 2. receive wFMX on the remote chain, sell it
 3. reorg Ferminux to erase the lock, recovering the FMX
 
-The defence is arithmetic, not hope:
+On Ferminux step 3 needs a signer majority. What stands between that and
+unbacked wFMX is not work:
+
+- **The node's reorg cap.** A node whose head is an authority block refuses a
+  reorg deeper than 64 blocks (`FerminuxMaxReorgDepth`, lifted only by
+  `--ferminux.allowdeepreorg`). A lock counts as settled once 64 blocks sit on
+  top of it, so erasing a lock the validators have signed for means dropping
+  more than 64 blocks — a rewrite the validators' own nodes refuse to follow.
+- **Checkpoints.** With a `CheckpointRegistry` configured, a validator will not
+  sign above the latest multisig-attested Ferminux block, and a different hash
+  at that height is a critical alert
+  ([relayer finality modes](../relayer/README.md#finality-modes)).
+- **The cap.** Whatever gets past both is bounded by it:
 
 ```
-cost_to_reorg(depth)  ≈  depth × 7 s × network_hashrate × rental_price_per_hash_second
-must exceed
-value_extractable     =  2 × dailyCap_FMX  (the first-day ceiling)
+value_extractable  =  2 × dailyCap_FMX  (the first-day ceiling)
+must stay below
+the loss the bridge can absorb if a signer majority acts against it
 ```
 
 Concrete policy, and the one non-negotiable rule of operating this bridge:
 
-- **Set the Ferminux-side `dailyCap` low enough that 2 × its market value is
-  clearly less than the cost of renting enough Ethash hashrate to reorg 64
-  Ferminux blocks.** Re-check this every time hashrate or FMX price moves
-  materially, and after every halving (a lower block reward means less honest
-  hashrate).
+- **Set the Ferminux-side `dailyCap` low enough that 2 × its market value is a
+  loss the bridge can absorb if a signer majority rewrites Ferminux history.**
+  No confirmation count prices that case; the cap is what bounds it. Re-check
+  this every time the FMX price moves materially.
 - Increase the confirmation depth, not the cap, when in doubt. Depth costs users
   minutes; cap costs the treasury money.
 - Never register a route whose expected volume forces a cap that breaks the
@@ -434,7 +447,8 @@ Stated plainly so nobody discovers it later:
 2. **Compromise of the owner multisig.** Total loss on a 48 h delay.
 3. **A bug in `FerminuxBridge.sol` or `BridgeToken.sol`.** Unaudited.
 4. **A deep reorg of the source chain past the confirmation policy**, which on
-   Ferminux is a hashrate-rental question, not a cryptographic one.
+   Ferminux is a question of whether a signer majority acts against the bridge,
+   not a cryptographic one.
 5. **A malicious or broken registered token.** Contained to its route, total
    within it.
 6. **Loss of a wrapped asset's market.** A wrapper with no liquidity is a claim

@@ -29,8 +29,8 @@ import (
 	gnark "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto/bls12381"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/crypto/bls12381"
 	blst "github.com/supranational/blst/bindings/go"
 )
 
@@ -49,7 +49,7 @@ func FuzzCrossPairing(data []byte) int {
 		return 0
 	}
 
-	// compute pairing using geth
+	// compute pairing using ferminux
 	engine := bls12381.NewPairingEngine()
 	engine.AddPair(kpG1, kpG2)
 	kResult := engine.Result()
@@ -179,14 +179,14 @@ func FuzzCrossG2Add(data []byte) int {
 func FuzzCrossG1MultiExp(data []byte) int {
 	var (
 		input        = bytes.NewReader(data)
-		gethScalars  []*big.Int
+		ferminuxScalars  []*big.Int
 		gnarkScalars []fr.Element
-		gethPoints   []*bls12381.PointG1
+		ferminuxPoints   []*bls12381.PointG1
 		gnarkPoints  []gnark.G1Affine
 	)
 	// n random scalars (max 17)
 	for i := 0; i < 17; i++ {
-		// note that geth/crypto/bls12381 works only with scalars <= 32bytes
+		// note that ferminux/crypto/bls12381 works only with scalars <= 32bytes
 		s, err := randomScalar(input, fr.Modulus())
 		if err != nil {
 			break
@@ -196,24 +196,24 @@ func FuzzCrossG1MultiExp(data []byte) int {
 		if err != nil {
 			break
 		}
-		gethScalars = append(gethScalars, s)
+		ferminuxScalars = append(ferminuxScalars, s)
 		var gnarkScalar = &fr.Element{}
 		gnarkScalar = gnarkScalar.SetBigInt(s).FromMont()
 		gnarkScalars = append(gnarkScalars, *gnarkScalar)
 
-		gethPoints = append(gethPoints, new(bls12381.PointG1).Set(kp1))
+		ferminuxPoints = append(ferminuxPoints, new(bls12381.PointG1).Set(kp1))
 		gnarkPoints = append(gnarkPoints, *cp1)
 	}
-	if len(gethScalars) == 0 {
+	if len(ferminuxScalars) == 0 {
 		return 0
 	}
 	// compute multi exponentiation
 	g1 := bls12381.NewG1()
 	kp := bls12381.PointG1{}
-	if _, err := g1.MultiExp(&kp, gethPoints, gethScalars); err != nil {
+	if _, err := g1.MultiExp(&kp, ferminuxPoints, ferminuxScalars); err != nil {
 		panic(fmt.Sprintf("G1 multi exponentiation errored (geth): %v", err))
 	}
-	// note that geth/crypto/bls12381.MultiExp mutates the scalars slice (and sets all the scalars to zero)
+	// note that ferminux/crypto/bls12381.MultiExp mutates the scalars slice (and sets all the scalars to zero)
 
 	// gnark multi exp
 	cp := new(gnark.G1Affine)
@@ -240,7 +240,7 @@ func getG1Points(input io.Reader) (*bls12381.PointG1, *gnark.G1Affine, *blst.P1A
 	cp.ScalarMultiplication(&g1Gen, s)
 	cpBytes := cp.Marshal()
 
-	// marshal gnark point -> geth point
+	// marshal gnark point -> ferminux point
 	g1 := bls12381.NewG1()
 	kp, err := g1.FromBytes(cpBytes)
 	if err != nil {
@@ -273,7 +273,7 @@ func getG2Points(input io.Reader) (*bls12381.PointG2, *gnark.G2Affine, *blst.P2A
 	cp.ScalarMultiplication(&g2Gen, s)
 	cpBytes := cp.Marshal()
 
-	// marshal gnark point -> geth point
+	// marshal gnark point -> ferminux point
 	g2 := bls12381.NewG2()
 	kp, err := g2.FromBytes(cpBytes)
 	if err != nil {

@@ -24,8 +24,8 @@ import (
 	"testing"
 	"testing/quick"
 
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/aliasghar89/ferminux/chain/p2p/enr"
+	"github.com/aliasghar89/ferminux/chain/rlp"
 	"github.com/stretchr/testify/assert"
 )
 

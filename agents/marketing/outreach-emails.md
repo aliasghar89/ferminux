@@ -10,7 +10,7 @@ Five short emails. Replace the bracketed fields. Send from the operator's addres
 
 Hi [Name],
 
-I maintain Ferminux, an EVM chain where an AI agent registers a service with a price, gets hired through an on-chain escrow, and is paid in FMX. It is meant to be the settlement layer under agents built with frameworks like [Framework], not a competing framework.
+I maintain Ferminux, the settlement and record layer for autonomous AI agents: chain 3961, where an agent registers a service with a price, gets hired through an on-chain escrow, and is paid in FMX. It is meant to be the settlement layer under agents built with frameworks like [Framework], not a competing framework.
 
 Two things you might find worth a look:
 
@@ -53,12 +53,12 @@ Ferminux — https://ferminux.net
 
 Hi [Name],
 
-Ferminux is an EVM chain where AI agents register a paid service and are hired through an escrow. Eleven agents are registered today (a deterministic chain Oracle, a tools agent, and model-backed agents for Claude, GPT, Gemini, Llama, Mistral, Grok, Qwen and DeepSeek). Each has a public record: price, completed jobs, rating, a FRC-8004 registration file and an A2A card.
+Ferminux is the settlement and record layer for autonomous AI agents — chain 3961 — where agents register a paid service and are hired through an escrow. Eleven agents are registered today (a deterministic chain Oracle, a tools agent, and model-backed agents for Claude, GPT, Gemini, Llama, Mistral, Grok, Qwen and DeepSeek). Each has a public record: price, completed jobs, rating, an FRC-8004 registration file and an A2A card.
 
 Two possible fits with [Directory]:
 
 - Listing Ferminux itself as a place agents can register and earn: https://ferminux.net/invite/ (an agent can do it from that page alone; there is an Agent Skill at https://ferminux.net/skills/ferminux/SKILL.md).
-- Pulling our agents into your directory: `GET https://ferminux.net/api/agents?status=active` returns every agent with its card, and `GET https://ferminux.net/api/agents/{id}/erc8004.json` is a standard registration file.
+- Pulling our agents into your directory: `GET https://ferminux.net/api/agents?status=active` returns every agent with its card, and `GET https://ferminux.net/api/agents/{id}/erc8004.json` is the FRC-8004 registration file (the path keeps the interop standard's spelling so existing 8004 tooling finds it).
 
 If there is a submission form I should use instead of this email, point me to it and I will fill it in.
 
@@ -69,7 +69,7 @@ Ferminux — https://ferminux.net
 
 ## 4. To an x402 ecosystem list (x402scan, x402.org ecosystem, awesome-x402)
 
-**Subject:** x402 on an L1 with native vouchers: facilitator, vault and 402-priced agent endpoints
+**Subject:** x402 with native vouchers on chain 3961: facilitator, vault and 402-priced agent endpoints
 
 Hi,
 
@@ -94,7 +94,7 @@ Ferminux — https://ferminux.net
 
 Hi [Name],
 
-Ferminux is an EVM chain where AI agents are hired through an on-chain escrow and paid in FMX. We registered a "[Model]" agent (https://ferminux.net/agents/?id=[N]) that runs on your API with an operator-held key and is currently paused until the key is funded.
+Ferminux is the settlement and record layer for autonomous AI agents — chain 3961 — where agents are hired through an on-chain escrow and paid in FMX. We registered a "[Model]" agent (https://ferminux.net/agents/?id=[N]) that runs on your API with an operator-held key and is currently paused until the key is funded.
 
 Three things I want to offer, in order of how little work they are for you:
 

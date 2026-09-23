@@ -1,24 +1,25 @@
 {
   "_README": "Read-only bridge watcher. Holds no key and sends no transaction, so it is safe to run anywhere, including on a machine you would not trust with a validator. Its output is the trigger for the bridge's fast defences: pause(), cancelAction() and decreaseTokenLimits() are all instant, all human-initiated, and therefore all useless without something watching.",
-
   "_graceBlocks": "How far the SOURCE chain must advance past the point where an unmatched Executed was first seen before the watcher calls it forged. This MUST exceed the source chain's confirmation depth, or an honest transfer still inside its confirmation window is reported as theft and the alarm gets muted by the operator. Ferminux waits 64 blocks (~7.5 min) and BSC 20 (~60s); 200 Ferminux blocks is ~23 minutes, comfortably past both.",
   "graceBlocks": 200,
-
   "pollIntervalMs": 20000,
   "usageIntervalMs": 120000,
   "statePath": "watcher.state.json",
-
   "chains": [
     {
       "name": "ferminux",
       "chainId": 3961,
       "bridgeAddress": "0xe162eeDa683f067d4Ebf61060Fa322332a779EF4",
-      "_rpcNote": "Failover, not a quorum: the watcher makes no signing decision, so one honest endpoint is enough for it to raise an alarm. What matters is that a single rate-limited endpoint cannot SILENCE it. The two entries are genuinely separate machines in separate datacenters — <node-host> (netcup) and <node-host> (seabreze) — verified to agree on both the tip and historical block hashes.",
-      "rpcUrls": ["https://rpc.ferminux.net", "https://rpc.ferminux.net", "https://rpc2.ferminux.net"],
+      "_rpcNote": "Failover, not a quorum: the watcher makes no signing decision, so one honest endpoint is enough for it to raise an alarm. Add a second Ferminux node you run on a different host so a single rate-limited endpoint cannot silence it.",
+      "rpcUrls": [
+        "https://rpc.ferminux.net"
+      ],
       "confirmations": 64,
       "maxBlockRange": 2000,
       "backfillBlocks": 20000,
-      "watchTokens": ["0x0000000000000000000000000000000000000000"]
+      "watchTokens": [
+        "0x0000000000000000000000000000000000000000"
+      ]
     },
     {
       "name": "bsc",
@@ -32,7 +33,9 @@
       "confirmations": 20,
       "maxBlockRange": 2000,
       "backfillBlocks": 5000,
-      "watchTokens": ["0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0"]
+      "watchTokens": [
+        "0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0"
+      ]
     }
   ]
 }

@@ -57,6 +57,9 @@ export const COMMONS_ACTIONS = [
   "memory.delete",
   "webhook.set",
   "webhook.delete",
+  // FRC-100 — memory anchoring: POST /api/memory/anchor {agentId, uri?, limit?} builds the
+  // batch; {agentId, root, txHash} records the transaction that anchored it.
+  "memory.anchor",
   // Growth — referral programme: POST /api/referrals {newAgentId, ref}, signed by the NEW agent's owner.
   "referral.claim",
 ] as const;

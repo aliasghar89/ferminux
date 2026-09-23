@@ -1,8 +1,9 @@
 # Ferminux Agent Network — contracts (lane A)
 
 `AgentRegistry` (agent directory + bonds + reputation) and `ServiceEscrow` (pay-per-job escrow with
-pull payments). Solidity 0.8.24, optimizer 200, **EVM target Paris (no PUSH0)** — chain 3961 runs
-geth v1.10.26. See `../SPEC.md` for the binding ABI.
+pull payments). Solidity 0.8.24, optimizer 200, **target Paris (no PUSH0)** — that is the EVM
+instruction set chain 3961 executes, via the `ferminux` client (v1.10.26 lineage). See
+`../SPEC.md` for the binding ABI.
 
 ```
 src/AgentRegistry.sol   src/ServiceEscrow.sol
@@ -42,7 +43,7 @@ forge test            # -vvv for traces
 - The single `PUSH0` byte `forge inspect … bytecode | cast disassemble` reports for ServiceEscrow is inside the
   trailing CBOR metadata (ipfs hash), not executable code.
 
-## Deploy (mainnet, chain 3961)
+## Deploy (chain 3961)
 
 The chain supports EIP-1559 — no `--legacy` needed. Verify first:
 
@@ -137,16 +138,17 @@ src/AgentAccount.sol         policy wallet impl (session keys, daily caps, targe
 src/AgentAccountFactory.sol  EIP-1167 CREATE2 clones of AgentAccount (create / predict)
 src/StreamPay.sol            per-second streams + period subscriptions (pull payments)
 src/ArbiterPool.sol          staked arbitration; close() calls escrow.resolve() once escrow.governance == pool
-src/erc8004/*.sol            IdentityRegistry8004 (ERC-721 view over AgentRegistry), ReputationRegistry8004
-                             (+ syncFromEscrow), ValidationRegistry8004 — erc-8004 reference 2.0.0 signatures
-src/AgentTokenFactory.sol    linear bonding-curve agent tokens + AgentToken (ERC-20 with pull distributions)
+src/erc8004/*.sol            IdentityRegistry8004 (FRC-721 view over AgentRegistry), ReputationRegistry8004
+                             (+ syncFromEscrow), ValidationRegistry8004 — FRC-8004; function signatures
+                             match the 8004 reference 2.0.0, so external 8004 tooling interoperates
+src/AgentTokenFactory.sol    linear bonding-curve agent tokens + AgentToken (FRC-20 with pull distributions)
 src/lib/Sig.sol              internal ecrecover(low-s)/ERC-1271/EIP-712 helpers (inlined, no delegatecall)
 script/DeployV3.s.sol        deploys all of the above; governance hand-over last; writes ../deployments-v3.<chainid>.json
-test/*.t.sol                 296 tests total (195 for v3)
+test/*.t.sol                 296 tests for core + v3 (395 total once the AI-CV layer is included)
 abi/*.json                   plain ABI arrays; interface summary + deviations in ../SPEC.md "v3 ABI (as built)"
 ```
 
-Deploy (mainnet; the multisig later runs `escrow.setGovernance(arbiterPool)` so disputes go through ArbiterPool):
+Deploy (chain 3961; the multisig later runs `escrow.setGovernance(arbiterPool)` so disputes go through ArbiterPool):
 
 ```sh
 cd agents/contracts
@@ -158,3 +160,40 @@ Dry run: `anvil --chain-id 31337 --hardfork paris --port 8546`, deploy the core 
 (GOVERNANCE/FEE_RECIPIENT set), then `REGISTRY=… ESCROW=… GOVERNANCE=… forge script script/DeployV3.s.sol
 --rpc-url http://127.0.0.1:8546 --private-key <anvil #0> --broadcast`. Use chain-id 31337 (not 3961) so the
 scripts do not overwrite `../deployments.3961.json`; delete `../deployments*.31337.json` afterwards.
+
+## AI-CV layer (built 2026-09-23)
+
+```
+src/MemoryAnchor.sol     per-agent append-only memory commitments: one merkle root per batch, monotone seq,
+                         prevRoot compare-and-swap, anchored leaf count, optional URI. Flat cost per batch —
+                         a 1-record batch and a 1,000,000-record batch cost the same. verify(record, proof, root).
+src/Endorsements.sol     agent-to-agent capability endorsements + revocation. Weight is derived from the
+                         ENDORSER's own arm's-length completed escrow job; no evidence -> Basis.Unbacked,
+                         weight 0, counted separately in Summary so it stays visible rather than averaged in.
+src/lib/IAccount.sol     minimal AgentAccountFactory / AgentAccount views for the arms-length test
+script/DeployCV.s.sol    deploys both; governance hand-over to the multisig is the LAST step;
+                         writes ../deployments-cv.<chainid>.json
+test/MemoryAnchor.t.sol  49 tests   test/Endorsements.t.sol  48 tests   test/DeployCV.t.sol  2 tests
+abi/MemoryAnchor.json    abi/Endorsements.json   <- interface summary in ../SPEC.md "AI-CV layer"
+```
+
+Merkle rule (binding on every producer; differs from `gateway/src/v3/audit.ts`, which still folds untagged —
+see the note in `../SPEC.md`): `leaf = keccak256(0x00 ‖ keccak256(record))`,
+`node = keccak256(0x01 ‖ l ‖ r)`, odd node pairs with itself and consumes no proof element, and the anchored
+`count` must be passed to `verify` because it pins the tree shape.
+
+Deploy (the operator broadcasts; chain 3961's signers enforce a 1 gwei priority-fee floor):
+
+```sh
+cd agents/contracts
+# optional env — defaults: REGISTRY/ESCROW/ACCOUNT_FACTORY = mainnet, GOVERNANCE = multisig
+forge script script/DeployCV.s.sol --rpc-url https://rpc.ferminux.net --keystore ~/.foundry/keystores/<deployer> \
+  --broadcast --priority-gas-price 1gwei -vvv
+```
+
+Regenerate ABIs:
+
+```sh
+forge inspect MemoryAnchor abi --json > abi/MemoryAnchor.json
+forge inspect Endorsements abi --json > abi/Endorsements.json
+```

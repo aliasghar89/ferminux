@@ -40,7 +40,7 @@ export async function fetchTokenMeta(provider: JsonRpcProvider, address: string)
     ]);
     return { address: checksummed, name, symbol, decimals: Number(decimals) };
   } catch {
-    throw new Error('Contract does not implement the ERC-20 interface (name/symbol/decimals).');
+    throw new Error('Contract does not implement the FRC-20 token interface (name/symbol/decimals).');
   }
 }
 

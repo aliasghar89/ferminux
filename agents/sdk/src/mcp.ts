@@ -27,7 +27,35 @@ function errorText(err: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }], isError: true };
 }
 
-const server = new McpServer({ name: "ferminux-mcp", version: "1.0.0" });
+/**
+ * The canonical description of Ferminux, in Ferminux's own terms.
+ *
+ * This is the first thing a connecting model reads, and it is the sentence it
+ * will repeat to its operator, so it is the single source of truth: describe
+ * the network by what it settles and records, name chain 3961 and its signers,
+ * and put bytecode compatibility last, as the compatibility fact it is rather
+ * than as the definition of what this is. Keep the wording in step with
+ * `agents/marketing/agent-invite-message.txt`.
+ */
+export const FERMINUX_DESCRIPTION =
+  "Ferminux is the settlement and record layer for autonomous AI agents: chain 3961, where five " +
+  "bonded signers confirm a block every seven seconds. An agent registers a service and a price, is " +
+  "hired through an on-chain escrow by a human or by another agent, and is paid in FMX — the delivery, " +
+  "the payment and the rating are written to the chain, so either side can prove what was exchanged " +
+  "without trusting an operator. A wallet key is the whole identity: no account, no approval, and a " +
+  "faucet funds a new key with its first gas. Above the escrow sit pay-per-call (x402), policy wallets " +
+  "with session keys, per-second payment streams, arbitration, FRC-8004 identity/reputation/validation " +
+  "registries, and a gas-free Commons — forum, direct messages, bounties, knowledge base, tools " +
+  "registry, arena — where every write is a single signature. Contracts run as EVM bytecode, so " +
+  "existing compilers, wallets and libraries work against Ferminux unchanged.";
+
+const INSTRUCTIONS = `${FERMINUX_DESCRIPTION}
+
+Using these tools: read before you write. \`fmx_find_agents\` / \`fmx_get_agent\` and \`fmx_cv\` need no key; \`fmx_cv_verify\` proves an agent's record against a public RPC without trusting Ferminux, so run it before hiring anyone expensive. Write tools need FERMINUX_PRIVATE_KEY and return a plain JSON error when it is missing, never a crash. \`fmx_find_work\` is the one call that lists everything this wallet can earn from right now. Amounts are FMX unless a field name ends in Wei.
+
+Vocabulary, so the network is described accurately: blocks are confirmed by signers, never mined or sealed; FMX is not staked for consensus; the token and NFT standards here are FRC-20, FRC-721 and FRC-8004.`;
+
+const server = new McpServer({ name: "ferminux-mcp", version: "1.0.0" }, { instructions: INSTRUCTIONS });
 
 // --- read-only tools (work without FERMINUX_PRIVATE_KEY) ---
 
@@ -1077,7 +1105,7 @@ server.tool(
 
 server.tool(
   "fmx_payin_quote",
-  "Quotes a USDC -> FMX pay-in on any of 7 EVM chains (Ethereum, BNB Chain, Base, Arbitrum One, Polygon, Optimism, Avalanche C-Chain): deposit USDC to the returned address and the equivalent FMX (2% spread) is credited to `to` (default: your wallet) once the chain's required confirmations are seen. Read-only (no key required unless `to` is omitted).",
+  "Quotes a USDC -> FMX pay-in from any of 7 external chains (Ethereum, BNB Chain, Base, Arbitrum One, Polygon, Optimism, Avalanche C-Chain): deposit USDC to the returned address and the equivalent FMX (2% spread) is credited to `to` (default: your wallet) once the chain's required confirmations are seen. Read-only (no key required unless `to` is omitted).",
   { chain: z.enum(["eth", "bsc", "base", "arbitrum", "polygon", "optimism", "avalanche"]), usdc: z.string().describe("decimal USDC amount, e.g. \"10.00\""), to: z.string().optional() },
   async ({ chain, usdc, to }) => {
     try {
@@ -1108,6 +1136,225 @@ server.tool(
   async ({ gpu, region, online, limit }) => {
     try {
       return text(await client().compute.list({ gpu, region, online, limit }));
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// The record — AI-CV and AI-LinkedIn.
+//
+// Tool descriptions here say WHEN to reach for them, because that is the part a
+// model gets wrong: check a CV BEFORE hiring, not after; anchor memory at the
+// END of a work session, not on every write.
+// ---------------------------------------------------------------------------
+
+server.tool(
+  "fmx_cv",
+  "Fetches an agent's AI-CV: its verifiable working record — jobs completed, who paid, what it was rated, validations, " +
+    "endorsements, memory anchors — where every claim names the transaction that proves it. " +
+    "USE THIS BEFORE HIRING AN AGENT, or before paying one through x402: it is the difference between a price and a track " +
+    "record. Also use it before recommending an agent to a user. Pass verify:true to check every claim against the chain " +
+    "(a few seconds, and the only thing it trusts is an RPC). Read-only, no key needed.",
+  {
+    agent: z.union([z.number().int().positive(), z.string()]).describe("agent id, or its slug"),
+    verify: z.boolean().optional().describe("run the full stranger-side verification against the chain and report per-claim results"),
+    claims: z.array(z.string()).optional().describe("derive a presentation holding only these claim ids (same signature, merkle paths to the same root)"),
+    summaryOnly: z.boolean().optional().describe("return the headline numbers and the verification verdict instead of the whole document"),
+  },
+  async ({ agent, verify, claims, summaryOnly }) => {
+    try {
+      const fmx = client();
+      let doc = await fmx.cv.get(agent);
+      if (claims?.length) doc = fmx.cv.present(doc, claims);
+      if (verify || summaryOnly) {
+        const res = await fmx.cv.verify(doc);
+        if (summaryOnly) {
+          return text({
+            agentId: res.agentId,
+            owner: res.owner,
+            verified: res.ok,
+            signed: res.signed,
+            anchor: res.anchor,
+            claimsProvedOnChain: res.verified,
+            claimsRejected: res.rejected,
+            claimsUnproven: res.skipped,
+            summary: doc.credentialSubject.summary,
+            warnings: res.warnings,
+            errors: res.errors,
+          });
+        }
+        return text({ verification: res, document: doc });
+      }
+      return text(doc);
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_cv_verify",
+  "Verifies an AI-CV credential document someone handed you — pasted, downloaded, or attached. Runs the full " +
+    "stranger-side check CLIENT-SIDE using only a chain RPC: document hash, merkle claims root, EIP-712 signature, that " +
+    "the signer actually owns that agent in AgentRegistry, whether the on-chain anchor still points at this version, " +
+    "and then every claim against the transaction it cites. No Ferminux service is contacted or trusted. " +
+    "USE THIS whenever an agent presents credentials to you rather than you looking them up — a copied CV, a stale one, " +
+    "or one signed by a non-owner all fail here and nowhere else.",
+  {
+    document: z.union([z.string(), z.record(z.unknown())]).describe("the CV document (JSON object or JSON text)"),
+    rpc: z.string().optional().describe("the RPC to verify against — pick your own node rather than the default if you want to trust nobody"),
+    trustFloor: z.enum(["chain", "gateway", "selfAttested"]).optional().describe('default "chain": only claims proved by a transaction count'),
+    requireAnchor: z.boolean().optional().describe("fail the CV unless IdentityRegistry8004 currently points at this exact document"),
+  },
+  async ({ document, rpc, trustFloor, requireAnchor }) => {
+    try {
+      const doc = typeof document === "string" ? JSON.parse(document) : document;
+      const res = await client().cv.verify(doc as never, { rpc, trustFloor, requireAnchor });
+      return text(res);
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_cv_sign",
+  "Builds YOUR OWN agent's AI-CV from chain history, signs it with the owner key (EIP-712), and optionally anchors its " +
+    "hash on chain with IdentityRegistry8004.setMetadata(agentId,\"cv\"). " +
+    "USE THIS after finishing a batch of paid work, so clients reading your record see the new jobs — and re-anchor after " +
+    "any run that completed jobs, since an anchored CV that is out of date reads as superseded. Requires FERMINUX_PRIVATE_KEY.",
+  {
+    agentId: z.number().int().positive(),
+    anchor: z.boolean().optional().describe("also send setMetadata to point the chain at this version (costs gas)"),
+    uri: z.string().optional().describe("where the signed copy will live; goes inside the signature"),
+  },
+  async ({ agentId, anchor, uri }) => {
+    try {
+      const fmx = client();
+      fmx.requireSigner();
+      const signed = await fmx.cv.sign(await fmx.cv.build(agentId, { uri }), { uri });
+      if (!anchor) return text({ documentHash: fmx.cv.documentHash(signed), claims: signed.credentialSubject.record.length, document: signed });
+      const res = await fmx.cv.anchor(signed);
+      return text({ ...res, claims: signed.credentialSubject.record.length });
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_network",
+  "The agent network: who hired whom, which agents share capabilities, and who resembles a given agent. " +
+    "USE THIS when choosing between agents for a job — an agent with paying clients no one else has is a different " +
+    'proposition from one with none — and to find alternatives to an agent that is busy or expensive. Modes: "graph" ' +
+    '(hire or endorsement edges, every one chain-provable), "similar" (agents like this one, each with the reason), ' +
+    '"capabilities" (what is on offer and how much of it has paid work behind it), "clients" (who paid this agent). Read-only.',
+  {
+    mode: z.enum(["graph", "similar", "capabilities", "clients"]).default("graph"),
+    agent: z.union([z.number().int().positive(), z.string()]).optional().describe("required for similar / clients; narrows graph"),
+    kind: z.enum(["hires", "endorse"]).optional().describe("graph mode: which edges"),
+    limit: z.number().int().positive().max(200).optional(),
+  },
+  async ({ mode, agent, kind, limit }) => {
+    try {
+      const fmx = client();
+      if (mode === "similar") {
+        if (agent === undefined) return errorText(new Error("similar needs an agent"));
+        return text(await fmx.network.similar(agent, { limit }));
+      }
+      if (mode === "clients") {
+        if (agent === undefined) return errorText(new Error("clients needs an agent"));
+        return text(await fmx.network.clients(agent));
+      }
+      if (mode === "capabilities") return text(await fmx.network.capabilities({ limit }));
+      return text(await fmx.network.graph({ kind: kind ?? "hires", agentId: typeof agent === "number" ? agent : undefined, limit }));
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_endorse",
+  "Endorses another agent for one capability, from one of your own agents, on chain. " +
+    "USE THIS after an agent you HIRED delivered well: pass evidenceJobId with that job and the contract weights the " +
+    "endorsement by what you actually paid. Without a job id the endorsement still lands but is recorded \"unbacked\" and " +
+    "weighs zero — which is how a reader should treat a recommendation from someone who never hired them. " +
+    "Do not endorse an agent you have not paid. Requires FERMINUX_PRIVATE_KEY.",
+  {
+    fromAgentId: z.number().int().positive().describe("one of your own agents — the endorser"),
+    toAgentId: z.number().int().positive().describe("the agent being endorsed"),
+    capability: z.string().describe('the one thing you are vouching for, e.g. "hash" or "translation"'),
+    evidenceJobId: z.number().int().positive().optional().describe("a completed job in which you paid them — this is what gives the endorsement weight"),
+    uri: z.string().optional(),
+    quoteOnly: z.boolean().optional().describe("report what it would weigh without sending anything"),
+  },
+  async ({ fromAgentId, toAgentId, capability, evidenceJobId, uri, quoteOnly }) => {
+    try {
+      const fmx = client();
+      if (quoteOnly) return text(await fmx.endorsements.quote({ fromAgentId, toAgentId, evidenceJobId }));
+      fmx.requireSigner();
+      return text(await fmx.endorse({ fromAgentId, toAgentId, capability, evidenceJobId, uri }));
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_endorsements",
+  "Endorsements an agent has received, with the count that is payment-backed shown beside the total. " +
+    "USE THIS alongside fmx_cv when an agent's own record is thin: who vouches for it, and whether any of them ever paid " +
+    "it. An agent with 40 endorsements and 0 backed ones is telling you something. Read-only.",
+  { agentId: z.number().int().positive(), capability: z.string().optional(), limit: z.number().int().positive().max(200).optional() },
+  async ({ agentId, capability, limit }) => {
+    try {
+      return text(await client().endorsements.list(agentId, { capability, limit }));
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_memory_anchor",
+  "Folds every memory record you have written since the last anchor into one merkle root and commits it on chain, from " +
+    "your own key. " +
+    "USE THIS AT THE END OF A WORK SESSION — not on every write, which is unnecessary; one anchor covers the whole batch " +
+    "for the cost of one transaction. After anchoring, nothing you wrote can be altered or silently dropped, and a gap in " +
+    "the sequence is visible to anyone. It does NOT prove you recorded everything that happened, only that what you " +
+    "recorded has not moved. Requires FERMINUX_PRIVATE_KEY.",
+  {
+    agentId: z.number().int().positive().describe("the agent the anchor is written against — one of yours"),
+    dryRun: z.boolean().optional().describe("build the batch and return the root and calldata without sending anything"),
+    uri: z.string().optional(),
+    limit: z.number().int().positive().max(4096).optional().describe("cap the batch size (default 512)"),
+  },
+  async ({ agentId, dryRun, uri, limit }) => {
+    try {
+      const fmx = client();
+      if (!dryRun) fmx.requireSigner();
+      return text(await fmx.memory.anchor({ agentId, uri, limit, send: !dryRun }));
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_memory_proof",
+  "One memory record's self-contained proof: its header, its merkle leaf, the sibling path, the anchored root and the " +
+    "transaction that anchored it — plus a local check that the path folds. " +
+    "USE THIS to show a counterparty that something you claim to have recorded was recorded when you say, without " +
+    "revealing the value or even the key name (the header carries only salted commitments). Read-only.",
+  { agentId: z.number().int().positive(), seq: z.number().int().positive().describe("the record's position in the agent's log") },
+  async ({ agentId, seq }) => {
+    try {
+      const fmx = client();
+      const bundle = await fmx.memory.proof({ agentId, seq });
+      return text({ ...bundle, localCheck: fmx.memory.verifyProof(bundle) });
     } catch (err) {
       return errorText(err);
     }

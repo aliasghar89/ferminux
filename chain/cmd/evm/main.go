@@ -22,8 +22,8 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/ethereum/go-ethereum/cmd/evm/internal/t8ntool"
-	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/aliasghar89/ferminux/chain/cmd/evm/internal/t8ntool"
+	"github.com/aliasghar89/ferminux/chain/internal/flags"
 	"github.com/urfave/cli/v2"
 )
 
@@ -185,9 +185,9 @@ var blockBuilderCommand = &cli.Command{
 		t8ntool.InputOmmersFlag,
 		t8ntool.InputTxsRlpFlag,
 		t8ntool.SealCliqueFlag,
-		t8ntool.SealEthashFlag,
-		t8ntool.SealEthashDirFlag,
-		t8ntool.SealEthashModeFlag,
+		t8ntool.SealPowhashFlag,
+		t8ntool.SealPowhashDirFlag,
+		t8ntool.SealPowhashModeFlag,
 		t8ntool.VerbosityFlag,
 	},
 }

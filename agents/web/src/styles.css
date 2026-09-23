@@ -678,3 +678,142 @@ a.pill:hover{border-color:var(--accent);color:var(--ink)}
 .pg-calls textarea{width:100%;min-width:0}
 .pg-calls .panel-body .btn,#pg-burner .panel-body .btn{width:auto}
 .pg-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ===================== the record (/cv/) and the network (/network/) ===================== */
+/* Provenance is the spine of both pages: every figure renders next to the kind of source it
+   came from. Four levels, four looks, no other colours introduced. */
+.prov{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:3px;border:1px solid var(--border);color:var(--faint);background:var(--surface-2);white-space:nowrap;line-height:1.6;vertical-align:middle;cursor:help}
+.prov.chain{border-color:var(--accent-border);color:var(--accent);background:var(--accent-soft)}
+.prov.signed{border-color:var(--info-border);color:var(--info);background:var(--info-soft)}
+.prov.observed{border-color:var(--border-strong);color:var(--muted);background:var(--surface-2)}
+.prov.declared{border-color:var(--border);color:var(--faint);background:transparent;border-style:dashed}
+.src{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;padding-top:9px;border-top:1px solid var(--hairline);font-size:12px;color:var(--faint);line-height:1.45}
+.src-inline{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12.5px;color:var(--faint);font-weight:400}
+
+/* §0 identity band */
+.cv-head{display:flex;gap:16px;align-items:flex-start;margin-top:10px;min-width:0}
+.cv-head-main{min-width:0;flex:1}
+.cv-avatar{width:52px;height:52px;border-radius:var(--r);flex:none;object-fit:cover;background:var(--surface-2);border:1px solid var(--border)}
+.cv-avatar.mark{display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-color:var(--accent-border)}
+.cv-headline{margin-top:10px;font-size:16px;color:var(--muted);max-width:680px;overflow-wrap:anywhere}
+.cv-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+@media(max-width:480px){.cv-avatar{width:40px;height:40px;font-size:18px}}
+
+/* §1 proof band */
+.cv-band{margin-top:22px}
+.cv-tile{display:flex;flex-direction:column;background:var(--surface);padding:14px 16px;color:inherit;min-width:0}
+.cv-tile:hover{background:var(--surface-2);color:inherit}
+.cv-tile .l{font-size:12px;color:var(--faint);font-weight:500}
+.cv-tile .v{font-size:22px;font-weight:600;margin-top:3px;letter-spacing:-.01em;overflow-wrap:anywhere}
+.cv-tile .v .u{font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0}
+.cv-tile .v .none{font-size:16px;font-weight:600;color:var(--faint)}
+.cv-tile .sub{font-size:12.5px;color:var(--muted);margin-top:3px;min-height:1.2em}
+.cv-tile .p{margin-top:auto;padding-top:10px}
+
+/* sections */
+.cv-sections{display:grid;gap:40px;padding:36px 0 56px;min-width:0}
+.cv-sections>section{display:grid;gap:14px;min-width:0;scroll-margin-top:84px}
+.cv-sections h2{font-size:20px}
+.cv-sections .section-head{margin-bottom:0}
+.cv-two{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:760px){.cv-two{grid-template-columns:1fr 1fr}}
+.cv-two .card{display:flex;flex-direction:column}
+.cv-two .card .src{margin-top:auto}
+.card>.l,.agg .l{font-size:12px;color:var(--faint);font-weight:500}
+.big{font-size:24px;font-weight:600;letter-spacing:-.01em;margin-top:3px}
+.big .u{font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0}
+.big .none{font-size:17px;color:var(--faint)}
+.plain{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.plain li{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.plain.small li{font-size:13.5px;color:var(--muted);display:list-item;margin-left:16px;list-style:disc}
+
+/* declared blocks read differently from proven ones — dashed rule, no green */
+.declared-box{border:1px dashed var(--border-strong);border-left-width:3px;border-radius:0 var(--r) var(--r) 0;background:var(--surface);padding:16px 18px;min-width:0}
+.declared-box .l{font-size:12px;color:var(--faint);font-weight:500;display:flex;align-items:center;gap:8px}
+.declared-box .desc{color:var(--ink);font-size:15.5px;overflow-wrap:anywhere}
+
+/* §3 skills */
+.skills{display:grid;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.skill{background:var(--surface);padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;min-width:0}
+.skill-n{font-weight:600;font-size:14.5px;min-width:130px}
+.skill-ev{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.ev{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:2px 10px 2px 6px;background:var(--surface)}
+a.ev:hover{border-color:var(--accent);color:var(--ink)}
+
+/* §4 aggregates */
+.cv-aggs{display:grid;grid-template-columns:1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:14px}
+@media(min-width:700px){.cv-aggs{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1000px){.cv-aggs{grid-template-columns:repeat(4,1fr)}}
+.agg{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;min-width:0}
+.agg .v{font-size:18px;font-weight:600;margin-top:3px;overflow-wrap:anywhere}
+.agg .v .u{font-size:12.5px;font-weight:500;color:var(--muted)}
+.agg .v .none{font-size:15px;color:var(--faint);font-weight:600}
+.agg .sub{font-size:12.5px;color:var(--muted);margin-top:4px;flex:1}
+.agg .src{margin-top:10px}
+.txcell{white-space:nowrap}
+.txcell a{margin-right:6px}
+
+/* §5 rating distribution — plain bars, no chart library */
+.dist{display:grid;gap:4px;margin-top:12px}
+.dist-row{display:grid;grid-template-columns:28px 1fr 28px;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.dist-row .bar{height:7px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.dist-row .bar i{display:block;height:100%;background:var(--accent);border-radius:999px;min-width:0}
+.dist-row .c{text-align:right;font-variant-numeric:tabular-nums}
+
+/* §10 verify */
+.verify{border:1px solid var(--accent-border);border-left-width:3px;border-radius:0 var(--r) var(--r) 0;background:var(--surface);padding:20px 22px;display:grid;gap:14px;min-width:0}
+.verify>p{color:var(--muted);font-size:15px;max-width:760px}
+.verify-cmds{display:grid;gap:10px}
+.verify-cmds pre{font-size:12.5px}
+@media(max-width:480px){.verify{padding:16px}}
+
+/* §11 embed */
+.badge-holder{display:flex;align-items:center;min-height:26px}
+.badge-holder img,.badge-holder svg{display:block;max-width:100%}
+.embeds{display:grid;gap:8px;margin-top:14px}
+.embed-row{display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12.5px}
+.embed-row .l{color:var(--faint);font-weight:500}
+.embed-row code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.embed-row .copy{margin-left:0}
+@media(max-width:560px){.embed-row{grid-template-columns:1fr auto}.embed-row .l{grid-column:1/-1}}
+
+/* §12 machine footer */
+.cv-machine{border-top:1px solid var(--hairline);padding-top:18px;display:grid;gap:6px;font-size:12.5px;color:var(--faint)}
+.cv-machine .l{display:inline-block;min-width:78px;color:var(--faint);font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px}
+.cv-machine a{color:var(--muted);overflow-wrap:anywhere}
+.cv-machine a:hover{color:var(--accent-hover)}
+.cv-machine button.linkish{color:var(--muted);text-decoration:underline}
+
+/* ---- /network/ ---- */
+.net-graph{margin:4px 0 18px}
+.net-graph:empty{display:none}
+.net-fig{margin:0;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);padding:10px 6px;overflow:hidden}
+.net-fig figcaption{font-size:12.5px;color:var(--faint);padding:8px 12px 2px}
+.net-fig svg{display:block;width:100%;height:auto}
+.net-edge{stroke:var(--border-strong);opacity:.7;transition:stroke .12s,opacity .12s}
+.net-edge.on{stroke:var(--accent);opacity:1}
+.net-node circle{fill:var(--border-strong)}
+.net-node.agent circle{fill:var(--accent)}
+.net-node text{font-family:var(--sans);font-size:11.5px;fill:var(--muted)}
+.net-node.on circle{fill:var(--accent)}
+.net-node.on text{fill:var(--ink);font-weight:600}
+.net-col{font-family:var(--sans);font-size:10px;fill:var(--faint);letter-spacing:.08em;text-transform:uppercase}
+@media(max-width:699px){.net-graph{display:none}}
+@media(prefers-reduced-motion:reduce){.net-edge{transition:none}}
+.net-tbl tbody tr:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.net-proof td{background:var(--surface-2);font-size:12.5px;color:var(--muted);white-space:normal}
+.net-proof td a{margin-right:8px}
+.filters.net{grid-template-columns:1fr}
+
+/* record/network polish found in review at 1280 and 390 */
+.cv-tile .sub:empty{min-height:1.2em}
+.card .plain{font-size:13.5px}
+.cv-machine a{text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
+.cv-machine a:hover{text-decoration-color:var(--accent)}
+.dist .l{font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+@media(max-width:560px){
+  .cv-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cv-actions .btn:first-child{grid-column:1/-1}
+  .txcell{white-space:normal}
+  .txcell a{display:inline-block;margin:1px 8px 1px 0}
+}

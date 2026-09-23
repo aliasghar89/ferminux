@@ -1,7 +1,8 @@
 # Ferminux Web Wallet
 
-Official self-hosted web wallet for the **Ferminux Network** — sovereign EVM L1,
-chain id **3961** (`0xF79`), native coin **FMX** (18 decimals), EIP-1559 from genesis.
+Official self-hosted web wallet for the **Ferminux Network** — the settlement and
+record layer for autonomous AI agents, chain id **3961** (`0xF79`), native coin
+**FMX** (18 decimals), EIP-1559 from genesis.
 
 Vite + React + TypeScript. `ethers` v6 bundled from npm — the shipped page makes
 **no external requests** other than the configured RPC endpoints and the explorer
@@ -40,13 +41,13 @@ native deps, no WASM) — both are compiled into the bundle, never fetched.
   wallet scanning it learns the chain; an optional *request a specific amount*
   toggle appends `?value=<wei>` so the amount travels with the code. The plain
   address stays one click away for anything that only understands `0x…`.
-- **Tokens** — add any ERC-20 by contract address (symbol/name/decimals read over
+- **Tokens** — add any FRC-20 token by contract address (symbol/name/decimals read over
   RPC), balances, `transfer()` send flow, remove. Only the contract *addresses*
   are persisted in `localStorage`.
 - **Activity** — one chronological feed merging **Sent**, **Received** and
-  **Mined** rows from the Blockscout v2 API, with a graceful "history
-  unavailable" fallback; the wallet is fully functional RPC-only. See *Mining
-  rewards* below.
+  **Signed** block-reward rows from the Blockscout v2 API, with a graceful
+  "history unavailable" fallback; the wallet is fully functional RPC-only. See
+  *Block rewards* below.
 
 ## Multi-account model
 
@@ -222,39 +223,39 @@ on the StrictMode double-mount — the `rAF` loop is cancelled first, then
 light is left on. This is asserted in the browser check (`stop()` call count,
 `readyState === 'ended'`, and zero further decode passes after close).
 
-## Mining rewards
+## Block rewards
 
-Ferminux is proof-of-work, and **a block reward is not a transaction** — the
-miner's balance is credited directly in state. An actively mining address
-therefore had an *empty* Activity tab while earning 6 FMX a block. `src/lib/rewards.ts`
+Ferminux blocks are confirmed by signers, and **a block reward is not a transaction** — the
+signer's balance is credited directly in state. An active signer address
+therefore had an *empty* Activity tab while earning a reward on every block it confirmed. `src/lib/rewards.ts`
 fixes that by merging two more Blockscout endpoints into the feed:
 
 - `GET /api/v2/addresses/{addr}/coin-balance-history` — per-block balance deltas
-- `GET /api/v2/addresses/{addr}/blocks-validated` — blocks this address mined
+- `GET /api/v2/addresses/{addr}/blocks-validated` — blocks this address signed
 
-Attribution is deliberately conservative — a phantom "+6 FMX mined" row would be
+Attribution is deliberately conservative — a phantom "+0.1 FMX signed" row would be
 worse than no row at all:
 
-1. `/blocks-validated` is authoritative for **which** blocks were mined and for
+1. `/blocks-validated` is authoritative for **which** blocks were signed and for
    the reward figure when it has one. Blockscout indexes a block before it
    computes its reward, so the newest blocks come back with `rewards: []`; that
    block's own unattributed balance credit is used instead and the row is
    marked *inferred from balance change*. With neither, the reward shows as `—`
    ("reward not yet indexed") and is excluded from the total rather than guessed.
-2. A balance delta becomes a Mined row of its own only when nothing else
+2. A balance delta becomes a signed-block row of its own only when nothing else
    explains it: positive, attributed to no transaction, not already covered by
    (1), and **no transaction of ours in that block** — that last condition is the
    dedup for a reward and a transfer sharing a block.
 3. Transactions are deduped by hash.
 
-Mined rows are visually distinct (amber `MINED` badge, amber value, a subtle
-amber left rule) and link to the **block**, not a transaction. A **Mining**
-summary card appears *only* when the address has mined something, and is explicit
+Signed-block rows are visually distinct (amber `SIGNED` badge, amber value, a subtle
+amber left rule) and link to the **block**, not a transaction. A **Block rewards**
+summary card appears *only* when the address has signed something, and is explicit
 that it covers the fetched window: *"Covers blocks 1,722–1,771 only — the
 explorer holds more history than one page, so this is not an all-time total."*
 
 If the explorer is unreachable the wallet stays fully functional on RPC alone and
-the Activity panel says so; if only the transactions endpoint fails, mined rows
+the Activity panel says so; if only the transactions endpoint fails, signed-block rows
 still render with a note.
 
 ## Development
@@ -343,7 +344,7 @@ all, so a stricter `img-src 'self' data:` also works on any current browser —
   node --test tests/vault.test.mjs     # multi-account storage, migration, plaintext scan
   node --test tests/balances.test.mjs  # batching: one round trip, id matching, totals
   node --test tests/qr.test.mjs        # QR: every parse + rejection case
-  node --test tests/rewards.test.mjs   # Activity: merge, dedup, mining summary
+  node --test tests/rewards.test.mjs   # Activity: merge, dedup, block-reward summary
   ```
 
   `tests/accounts.test.mjs` asserts the **exact published addresses** for two
@@ -373,7 +374,7 @@ all, so a stricter `img-src 'self' data:` also works on any current browser —
   `tests/qr.test.mjs` covers plain addresses (checksummed / lowercase /
   uppercase / bad checksum), every EIP-681 form above, `value` in exponent form
   (`2.014e18`, `1.234567890123456789e18` — asserted exact, no float rounding),
-  the ERC-20 `transfer` form, wrong chain ids (named), unsupported schemes and
+  the FRC-20 token `transfer` form, wrong chain ids (named), unsupported schemes and
   functions, empty and junk input, structurally broken URIs, `buildEip681Uri`
   round-tripping back through the parser, and jsQR image decoding — QR codes are
   rendered to raw RGBA in-test with the `qrcode` package and decoded back,
@@ -384,17 +385,17 @@ all, so a stricter `img-src 'self' data:` also works on any current browser —
   then block number descending), dedup of duplicate transactions and duplicate
   blocks, **a reward and a transfer in the same block**, the `rewards: []`
   fallback to a balance credit, negative/attributed deltas being ignored, empty
-  states, and the mining summary's totals, window bounds and honesty flags.
+  states, and the block-reward summary's totals, window bounds and honesty flags.
 
 - `npm run live` (`scripts/live-activity.mjs`) runs the wallet's **own**
   activity + rewards modules against the real `explorer.ferminux.net` and prints
-  the feed the Activity tab would render, then asserts mined rows are present,
+  the feed the Activity tab would render, then asserts signed-block rows are present,
   the feed is newest-first, there are no duplicates and the 6 FMX block reward
   shows up. Read-only: it only GETs the REST API — nothing is signed or
   broadcast. Pass an address to check a different one:
 
   ```sh
-  npm run live                                              # a live miner
+  npm run live                                              # default: a pre-fork block producer
   npm run live -- 0x7F16433359E4eF704E90cE08460c6238E45130f7
   ```
 

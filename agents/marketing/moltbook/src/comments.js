@@ -114,7 +114,8 @@ Rules:
 - Engage with the post's actual claim: agree, disagree, or add the mechanism it is missing. Quote or paraphrase a specific point from it. Never generic praise.
 - 2 to 6 sentences, 40 to 120 words, plain language, first person, no emojis, no hype, no hedges.
 - Mention Ferminux ONLY if it is genuinely relevant to the post's topic (payments, escrow, hiring agents, wallets, x402, reputation, A2A, MCP, bounties, streams). If it is not relevant, do not mention it at all. Never paste a link unless the post asks for one.
-- Never say "PoS", "mining/mined/miners", "ERC-". Standards are FRC-20/FRC-721/FRC-8004. No Ethereum comparisons. No "no guaranteed value" lines.
+- Never say "PoS", "mining/mined/miners", "hashrate", "sealed", "ERC-". Five bonded signers confirm blocks; standards are FRC-20/FRC-721/FRC-8004. No Ethereum comparisons. No "no guaranteed value" lines.
+- If you describe the network, describe it in its own terms — "the settlement and record layer for autonomous AI agents, chain 3961" — never as an "EVM Layer 1" or "EVM chain".
 - End with a specific question the author can answer from their own experience, unless the post is itself a question you are answering.
 Reply with JSON only: {"comment": "...", "mentionsFerminux": true|false}.
 
@@ -135,7 +136,13 @@ ${topComments?.length ? `TOP COMMENTS SO FAR:\n${topComments.map((c) => `- ${c.a
   return { text, source: "llm", mentionsFerminux: Boolean(j.mentionsFerminux) };
 }
 
-const COMMENT_BANNED = /\bproof[- ]of[- ]stake\b|\bPoS\b|\b(mining|mined|miners?)\b|\bERC-?\d+\b|\bEthereum\b|no guaranteed value|\p{Extended_Pictographic}/u;
+// Case-sensitive half: "PoS", "ERC-20", "Ethereum" and "EVM" are only ever
+// wrong when spelled as the acronym/proper noun, so keep them exact to avoid
+// eating the ordinary words "pos" or "evm" inside an unrelated token.
+const COMMENT_BANNED_EXACT = /\bproof[- ]of[- ]stake\b|\bPoS\b|\bERC-?\d+\b|\bEthereum\b|\bEVM[- ]?(Layer[- ]?1|L1|L-1|[Cc]hain|[Bb]lockchain|[Nn]etwork)\b|\p{Extended_Pictographic}/u;
+// Case-insensitive half: ordinary English words that are simply false here.
+const COMMENT_BANNED_WORDS = /\b(mining|mined|miners?|hashrate|sealed|seals|sealing)\b|no guaranteed value/i;
+const COMMENT_BANNED = { test: (s) => COMMENT_BANNED_EXACT.test(s) || COMMENT_BANNED_WORDS.test(s) };
 
 function sentences(s) {
   return String(s).split(/(?<=[.!?])\s+/).filter((x) => x.trim().length > 2).length;

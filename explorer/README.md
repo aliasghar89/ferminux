@@ -1,8 +1,8 @@
 # Ferminux Explorer — Blockscout
 
 Blockscout block explorer for **Ferminux Network** (ChainID **3961**, coin **FMX**,
-Ethash PoW, ~7s blocks, EIP-1559 from genesis, 6 FMX reward halving every
-4,500,000 blocks).
+Clique proof-of-authority with five bonded signers, ~7 s blocks, EIP-1559 from
+genesis).
 
 Every image tag is pinned and was verified **multi-arch (linux/amd64 + linux/arm64)**
 with `docker manifest inspect` on 2026-08-20 — these are the newest release tags
@@ -30,28 +30,32 @@ explorer/
 ├── envs/frontend.env        # static frontend config (network name, FMX, decimals)
 ├── proxy/default.conf       # nginx: /api,/socket -> backend:4000, rest -> frontend:3000
 ├── chainspec/genesis.json   # copy of the chain genesis; imports premine balances
-├── seeder/                  # miner-reward seeder (see "Why a rewards sidecar")
+├── seeder/                  # block-reward seeder (see "Why a rewards sidecar")
 └── k8s/                     # same stack for Kubernetes (namespace ferminux)
 ```
 
 ## Why a rewards sidecar
 
-`ferminux-geth` is a geth v1.10.26 fork. Blockscout's `geth` JSON-RPC variant
-cannot fetch PoW block beneficiaries over RPC (that needs `trace_block`, a
-Nethermind/Erigon API), so out of the box the explorer would show **no miner
-rewards**. The `rewards-sidecar` (compose) / `explorer-rewards-seeder` CronJob
-(k8s) writes the exact consensus reward into Blockscout's own `block_rewards`
-table:
+The `ferminux` node client (v1.10.26 lineage) is served through Blockscout's
+`geth` JSON-RPC variant, which cannot fetch block rewards over RPC (that needs
+`trace_block`, a Nethermind/Erigon API), so out of the box the explorer would
+show **no block rewards**. The `rewards-sidecar` (compose) /
+`explorer-rewards-seeder` CronJob (k8s) writes the exact consensus reward into
+Blockscout's own `block_rewards` table (`seeder/seed-rewards.sql` mirrors the
+chain):
 
 ```
-reward = subsidy + tip fees
-subsidy = 6 FMX >> era,  era = block / 4,500,000   (chain/consensus/ethash/ferminux.go)
+reward   = subsidy share + tip fees
+subsidy  = 6 FMX below block 20,000; from it 1 FMX >> era, era = block / 4,500,000
+           (chain/consensus/powhash/ferminux.go)
+from block 160,000 (chain/consensus/posa): subsidy / 4, split 40% signer,
+           50% reward sink, 10% treasury
 tip fees = sum(tx gas_used × effective_gas_price) − base_fee × block gas_used
 ```
 
 It also seeds the static `emission_rewards` halving schedule. It writes only to
 the explorer's Postgres — never to the chain. Uncle rewards are not modeled
-(uncles are effectively absent at 7s blocks).
+(uncles are effectively absent at 7s blocks, and authority blocks have none).
 
 Caveat: the *first page* of `GET /api/v2/blocks` is served from Blockscout's
 in-memory block cache, which is populated at index time — seconds before the
@@ -105,7 +109,7 @@ Override in `.env` (see `.env.example`). Production values are typically the
 internal RPC service or `https://rpc.ferminux.net` / `wss://rpc.ferminux.net`.
 The node must expose `eth`, `net`, `web3` (and ideally `txpool`) over HTTP and WS.
 `debug`/`trace` are NOT required — internal-transaction indexing is disabled to
-match ferminux-geth's public RPC surface.
+match the `ferminux` node's public RPC surface.
 
 ## Production — single server (compose)
 
@@ -193,7 +197,7 @@ Static chain config (chain id 3961, FMX, fetcher flags) lives in
 
 ## Known limitations
 
-- **Internal transactions are not indexed** — ferminux-geth's public RPC exposes
+- **Internal transactions are not indexed** — the `ferminux` node's public RPC exposes
   no `debug`/`trace` namespace. If a traced node becomes available, remove
   `INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER` and point
   `ETHEREUM_JSONRPC_TRACE_URL` at it.

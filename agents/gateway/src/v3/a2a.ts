@@ -8,6 +8,7 @@ import { HttpError } from "../commons/context.js";
 import { JobStatusEnum } from "../abi.js";
 import { GATEWAY_VERSION } from "../openapi.js";
 import { getPayload } from "../payloads.js";
+import type { Db } from "../db.js";
 import type { AgentRow, JobRow } from "../types.js";
 import { CHAIN } from "../constants.js";
 import type { V3Context } from "./context.js";
@@ -139,26 +140,43 @@ async function forwardInvoke(ctx: V3Context, row: AgentRow, body: Buffer, conten
   }
 }
 
-export function registerA2aRoutes(app: FastifyInstance, ctx: V3Context, fac: X402Facilitator): void {
-  const { db, commons } = ctx;
-  const byId = db.prepare("SELECT * FROM agents WHERE id = ?");
-  const all = db.prepare("SELECT * FROM agents ORDER BY CASE WHEN status = 1 THEN 0 ELSE 1 END, id ASC");
-
-  function resolve(slug: string): AgentRow {
-    let row: AgentRow | undefined;
-    if (/^\d+$/.test(slug)) row = byId.get(Number(slug)) as AgentRow | undefined;
-    else {
-      const want = slug.toLowerCase();
-      for (const r of all.all() as AgentRow[]) {
-        if (slugify(r.name) === want) {
-          row = r;
-          break;
-        }
+/**
+ * Agent id, or the slugified name. Names are NOT unique on chain — register
+ * costs ~0.0002 FMX and takes any 1–64 byte string — so a slug is resolved to
+ * the LOWEST registration id that claims it: the earliest claimant, regardless
+ * of status. Ordering by status first (as this did) handed the slug to a
+ * squatter the moment the real agent paused, and /a/<slug>/invoke pays
+ * `payTo = agent owner`, so that was a payment-misrouting hole, not a cosmetic
+ * one. A name carries no trust here; identity is `agentId` + owner address.
+ */
+export function resolveAgentSlug(db: Db, slug: string): AgentRow {
+  let row: AgentRow | undefined;
+  if (/^\d+$/.test(slug)) row = db.prepare("SELECT * FROM agents WHERE id = ?").get(Number(slug)) as AgentRow | undefined;
+  else {
+    const want = slug.toLowerCase();
+    for (const r of db.prepare("SELECT * FROM agents ORDER BY id ASC").all() as AgentRow[]) {
+      if (slugify(r.name) === want) {
+        row = r;
+        break;
       }
     }
-    if (!row) throw new HttpError(404, `no agent with slug "${slug}"`);
-    return row;
   }
+  if (!row) throw new HttpError(404, `no agent with slug "${slug}"`);
+  return row;
+}
+
+/** How many agents share a slug — shown on the CV so a name collision is visible rather than silent. */
+export function slugCollisions(db: Db, slug: string): Array<{ id: number; name: string; owner: string; status: number }> {
+  const want = slug.toLowerCase();
+  return (db.prepare("SELECT id, name, owner, status FROM agents ORDER BY id ASC").all() as Array<{ id: number; name: string; owner: string; status: number }>).filter(
+    (r) => slugify(r.name) === want,
+  );
+}
+
+export function registerA2aRoutes(app: FastifyInstance, ctx: V3Context, fac: X402Facilitator): void {
+  const { db, commons } = ctx;
+
+  const resolve = (slug: string): AgentRow => resolveAgentSlug(db, slug);
 
   const bodyOf = (req: FastifyRequest) => (Buffer.isBuffer(req.body) ? req.body : Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? {})));
 
@@ -182,9 +200,25 @@ export function registerA2aRoutes(app: FastifyInstance, ctx: V3Context, fac: X40
         description: () => `Invoke Ferminux agent #${row.id} ${row.name}`,
       });
       if (!paid) return reply;
-      const res = await forwardInvoke(ctx, row, bodyOf(req), (req.headers["content-type"] as string) || "application/json", {
-        ...(paid.payer ? { "x-ferminux-payer": paid.payer, "x-ferminux-payment-nonce": paid.nonce ?? "" } : {}),
-      });
+      // The voucher is accepted before the agent runs, so a failed or timed-out
+      // upstream would otherwise bill the caller for nothing. Release it on any
+      // non-2xx or throw; a voucher already submitted on-chain cannot be released.
+      const release = (why: string) => {
+        if (paid.free) return false;
+        const released = fac.voidQueued(paid.payer, paid.nonce, why);
+        if (released) reply.header("x-ferminux-payment-released", why.slice(0, 120));
+        return released;
+      };
+      let res;
+      try {
+        res = await forwardInvoke(ctx, row, bodyOf(req), (req.headers["content-type"] as string) || "application/json", {
+          ...(paid.payer ? { "x-ferminux-payer": paid.payer, "x-ferminux-payment-nonce": paid.nonce ?? "" } : {}),
+        });
+      } catch (err) {
+        release(`agent unreachable: ${(err as Error).message.slice(0, 80)}`);
+        throw err;
+      }
+      if (res.status >= 400) release(`agent returned ${res.status}`);
       reply.code(res.status).header("content-type", res.contentType).header("x-content-type-options", "nosniff");
       return reply.send(res.body);
     } catch (err) {

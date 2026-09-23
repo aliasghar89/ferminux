@@ -216,7 +216,7 @@ export function SendPanel({
       if (receipt && receipt.status === 1) {
         setPhase({ kind: 'confirmed', hash: sent.hash });
       } else {
-        setPhase({ kind: 'failed', message: 'Transaction was mined but reverted.', hash: sent.hash });
+        setPhase({ kind: 'failed', message: 'Transaction was included in a block but reverted.', hash: sent.hash });
       }
       onSent();
     } catch (e) {

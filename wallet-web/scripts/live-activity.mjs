@@ -3,18 +3,18 @@
 //
 // Drives the wallet's own modules (src/lib/activity.ts + src/lib/rewards.ts —
 // the exact code the Activity tab runs) against a live address and prints the
-// feed the UI would render, so mined-block rows can be verified against the
+// feed the UI would render, so signed-block rows can be verified against the
 // chain rather than against a fixture.
 //
 // Sends nothing. Signs nothing. Only GETs the Blockscout REST API.
 //
 //   node scripts/live-activity.mjs [address]
 //
-// Default address: 0x7F16433359E4eF704E90cE08460c6238E45130f7 (a live miner).
+// Default address: 0x7F16433359E4eF704E90cE08460c6238E45130f7 (a pre-fork block producer).
 
 import { EXPLORER_URL, NATIVE_SYMBOL, CHAIN_ID } from '../src/config.ts';
 import { fetchActivity } from '../src/lib/activity.ts';
-import { fetchMiningData, buildFeed, summariseMining } from '../src/lib/rewards.ts';
+import { fetchBlockRewardData, buildFeed, summariseSigning } from '../src/lib/rewards.ts';
 import { formatAmount, formatAmountExact, shortAddress } from '../src/lib/validate.ts';
 
 const address = process.argv[2] ?? '0x7F16433359E4eF704E90cE08460c6238E45130f7';
@@ -24,37 +24,37 @@ const fmt = (wei) => `${formatAmount(wei)} ${NATIVE_SYMBOL}`;
 console.log(`Ferminux Network · chain ${CHAIN_ID} · explorer ${EXPLORER_URL}`);
 console.log(`Address ${address}\n`);
 
-const [txsResult, miningResult] = await Promise.allSettled([
+const [txsResult, rewardResult] = await Promise.allSettled([
   fetchActivity(EXPLORER_URL, address),
-  fetchMiningData(EXPLORER_URL, address),
+  fetchBlockRewardData(EXPLORER_URL, address),
 ]);
 
 const txs = txsResult.status === 'fulfilled' ? txsResult.value : [];
-const mining =
-  miningResult.status === 'fulfilled'
-    ? miningResult.value
+const rewards =
+  rewardResult.status === 'fulfilled'
+    ? rewardResult.value
     : { history: [], validated: [], available: false, complete: true };
 
 console.log(
   `sources: transactions=${txsResult.status === 'fulfilled' ? `${txs.length} item(s)` : `FAILED (${txsResult.reason?.message ?? txsResult.reason})`}` +
-    ` · coin-balance-history=${mining.history.length} row(s)` +
-    ` · blocks-validated=${mining.validated.length} block(s)` +
-    ` · complete-window=${mining.complete}`,
+    ` · coin-balance-history=${rewards.history.length} row(s)` +
+    ` · blocks-validated=${rewards.validated.length} block(s)` +
+    ` · complete-window=${rewards.complete}`,
 );
 
-if (txsResult.status === 'rejected' && !mining.available) {
+if (txsResult.status === 'rejected' && !rewards.available) {
   console.error('\nBoth explorer endpoints failed — the wallet would render "History unavailable".');
   process.exit(1);
 }
 
-const feed = buildFeed(txs, mining.history, mining.validated);
-const summary = summariseMining(feed, { complete: mining.complete });
+const feed = buildFeed(txs, rewards.history, rewards.validated);
+const summary = summariseSigning(feed, { complete: rewards.complete });
 
-console.log('\n--- Mining summary card (rendered only when this is non-null) ---');
+console.log('\n--- Block-reward summary card (rendered only when this is non-null) ---');
 if (!summary) {
-  console.log('(hidden — this address has mined nothing in the fetched window)');
+  console.log('(hidden — this address has signed nothing in the fetched window)');
 } else {
-  console.log(`  Blocks mined    ${summary.blocks.toLocaleString('en-US')}`);
+  console.log(`  Blocks signed    ${summary.blocks.toLocaleString('en-US')}`);
   console.log(`  Rewards earned  ${fmt(summary.totalWei)}   (exact: ${formatAmountExact(summary.totalWei)})`);
   console.log(`  Most recent     ${summary.latestTimestamp ?? '—'}`);
   console.log(
@@ -69,7 +69,7 @@ if (!summary) {
 
 console.log('\n--- Activity feed (first 25 rows, newest first) ---');
 for (const row of feed.slice(0, 25)) {
-  if (row.kind === 'mined') {
+  if (row.kind === 'signed') {
     console.log(
       `  MINED   block #${String(row.blockNumber).padStart(7)}  ` +
         `+${fmt(row.rewardWei).padStart(14)}  ${row.timestamp ?? 'time unknown'}  [${row.source}]`,
@@ -90,7 +90,7 @@ if (feed.length === 0) console.log('  (empty — the wallet would show the "No a
 
 /* ---------------- assertions ---------------- */
 
-const minedRows = feed.filter((r) => r.kind === 'mined');
+const signedRows = feed.filter((r) => r.kind === 'signed');
 const txRows = feed.filter((r) => r.kind === 'tx');
 const blocks = feed.map((r) => r.blockNumber ?? Number.MAX_SAFE_INTEGER);
 const ordered = blocks.every((b, i) => i === 0 || blocks[i - 1] >= b);
@@ -98,18 +98,18 @@ const noDupes = new Set(feed.map((r) => r.id)).size === feed.length;
 
 console.log('\n--- Checks ---');
 const results = [
-  ['Mined rows present', minedRows.length > 0],
+  ['Signed-block rows present', signedRows.length > 0],
   ['Transfer rows present', txRows.length > 0],
   ['Feed is newest-first', ordered],
   ['No duplicate rows', noDupes],
-  ['No mined row reports a negative reward', minedRows.every((r) => r.rewardWei >= 0n)],
+  ['No signed-block row reports a negative reward', signedRows.every((r) => r.rewardWei >= 0n)],
   [
     'Block rewards are the expected 6 FMX',
-    minedRows.filter((r) => r.rewardWei === 6n * 10n ** 18n).length > 0,
+    signedRows.filter((r) => r.rewardWei === 6n * 10n ** 18n).length > 0,
   ],
   [
     'At most a handful of rewards are still un-indexed',
-    minedRows.filter((r) => r.rewardWei === 0n).length <= minedRows.length / 4,
+    signedRows.filter((r) => r.rewardWei === 0n).length <= signedRows.length / 4,
   ],
 ];
 let failed = 0;
@@ -119,7 +119,7 @@ for (const [label, pass] of results) {
 }
 
 const rewardHistogram = new Map();
-for (const r of minedRows) {
+for (const r of signedRows) {
   const key = formatAmountExact(r.rewardWei);
   rewardHistogram.set(key, (rewardHistogram.get(key) ?? 0) + 1);
 }

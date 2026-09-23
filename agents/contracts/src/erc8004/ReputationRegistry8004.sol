@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {IdentityRegistry8004} from "./IdentityRegistry8004.sol";
 import {ServiceEscrow} from "../ServiceEscrow.sol";
 
-/// @title ReputationRegistry8004 — ERC-8004 Reputation Registry (reference 2.0.0 signatures)
+/// @title ReputationRegistry8004 — FRC-8004 Reputation Registry (reference 2.0.0 signatures)
 /// @notice Any address except the agent owner may `giveFeedback`; `syncFromEscrow(jobId)` (anyone) imports
 ///         a finished ServiceEscrow job once, as feedback from `job.client` with tag1 = "escrow".
 /// @dev Paris EVM, dependency-free. Deviation from the addendum text: the deployed ServiceEscrow does not

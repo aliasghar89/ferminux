@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
-// Package utils contains internal helper functions for go-ethereum commands.
+// Package utils contains internal helper functions for ferminux commands.
 package utils
 
 import (
@@ -29,43 +29,43 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/fdlimit"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth"
-	ethcatalyst "github.com/ethereum/go-ethereum/eth/catalyst"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
-	"github.com/ethereum/go-ethereum/eth/filters"
-	"github.com/ethereum/go-ethereum/eth/gasprice"
-	"github.com/ethereum/go-ethereum/eth/tracers"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/ethdb/remotedb"
-	"github.com/ethereum/go-ethereum/ethstats"
-	"github.com/ethereum/go-ethereum/graphql"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/internal/flags"
-	"github.com/ethereum/go-ethereum/les"
-	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/metrics/exp"
-	"github.com/ethereum/go-ethereum/metrics/influxdb"
-	"github.com/ethereum/go-ethereum/miner"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/nat"
-	"github.com/ethereum/go-ethereum/p2p/netutil"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/aliasghar89/ferminux/chain/accounts"
+	"github.com/aliasghar89/ferminux/chain/accounts/keystore"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/common/fdlimit"
+	"github.com/aliasghar89/ferminux/chain/consensus"
+	"github.com/aliasghar89/ferminux/chain/consensus/powhash"
+	"github.com/aliasghar89/ferminux/chain/core"
+	"github.com/aliasghar89/ferminux/chain/core/rawdb"
+	"github.com/aliasghar89/ferminux/chain/core/vm"
+	"github.com/aliasghar89/ferminux/chain/crypto"
+	"github.com/aliasghar89/ferminux/chain/fmx"
+	fmxcatalyst "github.com/aliasghar89/ferminux/chain/fmx/catalyst"
+	"github.com/aliasghar89/ferminux/chain/fmx/downloader"
+	"github.com/aliasghar89/ferminux/chain/fmx/fmxconfig"
+	"github.com/aliasghar89/ferminux/chain/fmx/filters"
+	"github.com/aliasghar89/ferminux/chain/fmx/gasprice"
+	"github.com/aliasghar89/ferminux/chain/fmx/tracers"
+	"github.com/aliasghar89/ferminux/chain/fmxdb"
+	"github.com/aliasghar89/ferminux/chain/fmxdb/remotedb"
+	"github.com/aliasghar89/ferminux/chain/fmxstats"
+	"github.com/aliasghar89/ferminux/chain/graphql"
+	"github.com/aliasghar89/ferminux/chain/internal/fmxapi"
+	"github.com/aliasghar89/ferminux/chain/internal/flags"
+	"github.com/aliasghar89/ferminux/chain/les"
+	lescatalyst "github.com/aliasghar89/ferminux/chain/les/catalyst"
+	"github.com/aliasghar89/ferminux/chain/log"
+	"github.com/aliasghar89/ferminux/chain/metrics"
+	"github.com/aliasghar89/ferminux/chain/metrics/exp"
+	"github.com/aliasghar89/ferminux/chain/metrics/influxdb"
+	"github.com/aliasghar89/ferminux/chain/miner"
+	"github.com/aliasghar89/ferminux/chain/node"
+	"github.com/aliasghar89/ferminux/chain/p2p"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/p2p/nat"
+	"github.com/aliasghar89/ferminux/chain/p2p/netutil"
+	"github.com/aliasghar89/ferminux/chain/params"
+	"github.com/aliasghar89/ferminux/chain/rpc"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"github.com/urfave/cli/v2"
@@ -119,50 +119,55 @@ var (
 	}
 	NetworkIdFlag = &cli.Uint64Flag{
 		Name:     "networkid",
-		Usage:    "Explicitly set network id (integer)(For testnets: use --ropsten, --rinkeby, --goerli instead)",
-		Value:    ethconfig.Defaults.NetworkId,
+		Usage:    "Explicitly set network id (integer). Ferminux Network is 3961",
+		Value:    fmxconfig.Defaults.NetworkId,
 		Category: flags.EthCategory,
 	}
 	MainnetFlag = &cli.BoolFlag{
 		Name:     "mainnet",
-		Usage:    "Ethereum mainnet",
+		Usage:    "Ferminux Network (chain 3961) — the default; this binary runs no other chain",
 		Category: flags.EthCategory,
 	}
 	RopstenFlag = &cli.BoolFlag{
 		Name:     "ropsten",
-		Usage:    "Ropsten network: pre-configured proof-of-stake test network",
+		Usage:    "Unsupported foreign network preset (this binary only runs Ferminux Network)",
 		Category: flags.EthCategory,
+		Hidden:   true,
 	}
 	RinkebyFlag = &cli.BoolFlag{
 		Name:     "rinkeby",
-		Usage:    "Rinkeby network: pre-configured proof-of-authority test network",
+		Usage:    "Unsupported foreign network preset (this binary only runs Ferminux Network)",
 		Category: flags.EthCategory,
+		Hidden:   true,
 	}
 	GoerliFlag = &cli.BoolFlag{
 		Name:     "goerli",
-		Usage:    "Görli network: pre-configured proof-of-authority test network",
+		Usage:    "Unsupported foreign network preset (this binary only runs Ferminux Network)",
 		Category: flags.EthCategory,
+		Hidden:   true,
 	}
 	SepoliaFlag = &cli.BoolFlag{
 		Name:     "sepolia",
-		Usage:    "Sepolia network: pre-configured proof-of-work test network",
+		Usage:    "Unsupported foreign network preset (this binary only runs Ferminux Network)",
 		Category: flags.EthCategory,
+		Hidden:   true,
 	}
 	KilnFlag = &cli.BoolFlag{
 		Name:     "kiln",
-		Usage:    "Kiln network: pre-configured proof-of-work to proof-of-stake test network",
+		Usage:    "Unsupported foreign network preset (this binary only runs Ferminux Network)",
 		Category: flags.EthCategory,
+		Hidden:   true,
 	}
 
 	// Dev mode
 	DeveloperFlag = &cli.BoolFlag{
 		Name:     "dev",
-		Usage:    "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
+		Usage:    "Ephemeral local authority network with a pre-funded developer account, block production enabled",
 		Category: flags.DevCategory,
 	}
 	DeveloperPeriodFlag = &cli.IntFlag{
 		Name:     "dev.period",
-		Usage:    "Block period to use in developer mode (0 = mine only if transaction pending)",
+		Usage:    "Block period to use in developer mode (0 = produce a block only if a transaction is pending)",
 		Category: flags.DevCategory,
 	}
 	DeveloperGasLimitFlag = &cli.Uint64Flag{
@@ -218,7 +223,7 @@ var (
 		Value: 0,
 	}
 
-	defaultSyncMode = ethconfig.Defaults.SyncMode
+	defaultSyncMode = fmxconfig.Defaults.SyncMode
 	SyncModeFlag    = &flags.TextMarshalerFlag{
 		Name:     "syncmode",
 		Usage:    `Blockchain sync mode ("snap", "full" or "light")`,
@@ -240,7 +245,7 @@ var (
 	TxLookupLimitFlag = &cli.Uint64Flag{
 		Name:     "txlookuplimit",
 		Usage:    "Number of recent blocks to maintain transactions index for (default = about one year, 0 = entire chain)",
-		Value:    ethconfig.Defaults.TxLookupLimit,
+		Value:    fmxconfig.Defaults.TxLookupLimit,
 		Category: flags.EthCategory,
 	}
 	LightKDFFlag = &cli.BoolFlag{
@@ -278,37 +283,37 @@ var (
 	LightServeFlag = &cli.IntFlag{
 		Name:     "light.serve",
 		Usage:    "Maximum percentage of time allowed for serving LES requests (multi-threaded processing allows values over 100)",
-		Value:    ethconfig.Defaults.LightServ,
+		Value:    fmxconfig.Defaults.LightServ,
 		Category: flags.LightCategory,
 	}
 	LightIngressFlag = &cli.IntFlag{
 		Name:     "light.ingress",
 		Usage:    "Incoming bandwidth limit for serving light clients (kilobytes/sec, 0 = unlimited)",
-		Value:    ethconfig.Defaults.LightIngress,
+		Value:    fmxconfig.Defaults.LightIngress,
 		Category: flags.LightCategory,
 	}
 	LightEgressFlag = &cli.IntFlag{
 		Name:     "light.egress",
 		Usage:    "Outgoing bandwidth limit for serving light clients (kilobytes/sec, 0 = unlimited)",
-		Value:    ethconfig.Defaults.LightEgress,
+		Value:    fmxconfig.Defaults.LightEgress,
 		Category: flags.LightCategory,
 	}
 	LightMaxPeersFlag = &cli.IntFlag{
 		Name:     "light.maxpeers",
 		Usage:    "Maximum number of light clients to serve, or light servers to attach to",
-		Value:    ethconfig.Defaults.LightPeers,
+		Value:    fmxconfig.Defaults.LightPeers,
 		Category: flags.LightCategory,
 	}
 	UltraLightServersFlag = &cli.StringFlag{
 		Name:     "ulc.servers",
 		Usage:    "List of trusted ultra-light servers",
-		Value:    strings.Join(ethconfig.Defaults.UltraLightServers, ","),
+		Value:    strings.Join(fmxconfig.Defaults.UltraLightServers, ","),
 		Category: flags.LightCategory,
 	}
 	UltraLightFractionFlag = &cli.IntFlag{
 		Name:     "ulc.fraction",
 		Usage:    "Minimum % of trusted ultra-light servers required to announce a new head",
-		Value:    ethconfig.Defaults.UltraLightFraction,
+		Value:    fmxconfig.Defaults.UltraLightFraction,
 		Category: flags.LightCategory,
 	}
 	UltraLightOnlyAnnounceFlag = &cli.BoolFlag{
@@ -327,51 +332,51 @@ var (
 		Category: flags.LightCategory,
 	}
 
-	// Ethash settings
-	EthashCacheDirFlag = &flags.DirectoryFlag{
+	// Powhash settings
+	PowhashCacheDirFlag = &flags.DirectoryFlag{
 		Name:     "ethash.cachedir",
 		Usage:    "Directory to store the ethash verification caches (default = inside the datadir)",
-		Category: flags.EthashCategory,
+		Category: flags.PowhashCategory,
 	}
-	EthashCachesInMemoryFlag = &cli.IntFlag{
+	PowhashCachesInMemoryFlag = &cli.IntFlag{
 		Name:     "ethash.cachesinmem",
 		Usage:    "Number of recent ethash caches to keep in memory (16MB each)",
-		Value:    ethconfig.Defaults.Ethash.CachesInMem,
-		Category: flags.EthashCategory,
+		Value:    fmxconfig.Defaults.Powhash.CachesInMem,
+		Category: flags.PowhashCategory,
 	}
-	EthashCachesOnDiskFlag = &cli.IntFlag{
+	PowhashCachesOnDiskFlag = &cli.IntFlag{
 		Name:     "ethash.cachesondisk",
 		Usage:    "Number of recent ethash caches to keep on disk (16MB each)",
-		Value:    ethconfig.Defaults.Ethash.CachesOnDisk,
-		Category: flags.EthashCategory,
+		Value:    fmxconfig.Defaults.Powhash.CachesOnDisk,
+		Category: flags.PowhashCategory,
 	}
-	EthashCachesLockMmapFlag = &cli.BoolFlag{
+	PowhashCachesLockMmapFlag = &cli.BoolFlag{
 		Name:     "ethash.cacheslockmmap",
 		Usage:    "Lock memory maps of recent ethash caches",
-		Category: flags.EthashCategory,
+		Category: flags.PowhashCategory,
 	}
-	EthashDatasetDirFlag = &flags.DirectoryFlag{
+	PowhashDatasetDirFlag = &flags.DirectoryFlag{
 		Name:     "ethash.dagdir",
 		Usage:    "Directory to store the ethash mining DAGs",
-		Value:    flags.DirectoryString(ethconfig.Defaults.Ethash.DatasetDir),
-		Category: flags.EthashCategory,
+		Value:    flags.DirectoryString(fmxconfig.Defaults.Powhash.DatasetDir),
+		Category: flags.PowhashCategory,
 	}
-	EthashDatasetsInMemoryFlag = &cli.IntFlag{
+	PowhashDatasetsInMemoryFlag = &cli.IntFlag{
 		Name:     "ethash.dagsinmem",
 		Usage:    "Number of recent ethash mining DAGs to keep in memory (1+GB each)",
-		Value:    ethconfig.Defaults.Ethash.DatasetsInMem,
-		Category: flags.EthashCategory,
+		Value:    fmxconfig.Defaults.Powhash.DatasetsInMem,
+		Category: flags.PowhashCategory,
 	}
-	EthashDatasetsOnDiskFlag = &cli.IntFlag{
+	PowhashDatasetsOnDiskFlag = &cli.IntFlag{
 		Name:     "ethash.dagsondisk",
 		Usage:    "Number of recent ethash mining DAGs to keep on disk (1+GB each)",
-		Value:    ethconfig.Defaults.Ethash.DatasetsOnDisk,
-		Category: flags.EthashCategory,
+		Value:    fmxconfig.Defaults.Powhash.DatasetsOnDisk,
+		Category: flags.PowhashCategory,
 	}
-	EthashDatasetsLockMmapFlag = &cli.BoolFlag{
+	PowhashDatasetsLockMmapFlag = &cli.BoolFlag{
 		Name:     "ethash.dagslockmmap",
 		Usage:    "Lock memory maps for recent ethash mining DAGs",
-		Category: flags.EthashCategory,
+		Category: flags.PowhashCategory,
 	}
 
 	// Ferminux settings
@@ -407,43 +412,43 @@ var (
 	TxPoolPriceLimitFlag = &cli.Uint64Flag{
 		Name:     "txpool.pricelimit",
 		Usage:    "Minimum gas price limit to enforce for acceptance into the pool",
-		Value:    ethconfig.Defaults.TxPool.PriceLimit,
+		Value:    fmxconfig.Defaults.TxPool.PriceLimit,
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolPriceBumpFlag = &cli.Uint64Flag{
 		Name:     "txpool.pricebump",
 		Usage:    "Price bump percentage to replace an already existing transaction",
-		Value:    ethconfig.Defaults.TxPool.PriceBump,
+		Value:    fmxconfig.Defaults.TxPool.PriceBump,
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolAccountSlotsFlag = &cli.Uint64Flag{
 		Name:     "txpool.accountslots",
 		Usage:    "Minimum number of executable transaction slots guaranteed per account",
-		Value:    ethconfig.Defaults.TxPool.AccountSlots,
+		Value:    fmxconfig.Defaults.TxPool.AccountSlots,
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolGlobalSlotsFlag = &cli.Uint64Flag{
 		Name:     "txpool.globalslots",
 		Usage:    "Maximum number of executable transaction slots for all accounts",
-		Value:    ethconfig.Defaults.TxPool.GlobalSlots,
+		Value:    fmxconfig.Defaults.TxPool.GlobalSlots,
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolAccountQueueFlag = &cli.Uint64Flag{
 		Name:     "txpool.accountqueue",
 		Usage:    "Maximum number of non-executable transaction slots permitted per account",
-		Value:    ethconfig.Defaults.TxPool.AccountQueue,
+		Value:    fmxconfig.Defaults.TxPool.AccountQueue,
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolGlobalQueueFlag = &cli.Uint64Flag{
 		Name:     "txpool.globalqueue",
 		Usage:    "Maximum number of non-executable transaction slots for all accounts",
-		Value:    ethconfig.Defaults.TxPool.GlobalQueue,
+		Value:    fmxconfig.Defaults.TxPool.GlobalQueue,
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolLifetimeFlag = &cli.DurationFlag{
 		Name:     "txpool.lifetime",
 		Usage:    "Maximum amount of time non-executable transaction are queued",
-		Value:    ethconfig.Defaults.TxPool.Lifetime,
+		Value:    fmxconfig.Defaults.TxPool.Lifetime,
 		Category: flags.TxPoolCategory,
 	}
 
@@ -469,13 +474,13 @@ var (
 	CacheTrieJournalFlag = &cli.StringFlag{
 		Name:     "cache.trie.journal",
 		Usage:    "Disk journal directory for trie cache to survive node restarts",
-		Value:    ethconfig.Defaults.TrieCleanCacheJournal,
+		Value:    fmxconfig.Defaults.TrieCleanCacheJournal,
 		Category: flags.PerfCategory,
 	}
 	CacheTrieRejournalFlag = &cli.DurationFlag{
 		Name:     "cache.trie.rejournal",
 		Usage:    "Time interval to regenerate the trie cache journal",
-		Value:    ethconfig.Defaults.TrieCleanCacheRejournal,
+		Value:    fmxconfig.Defaults.TrieCleanCacheRejournal,
 		Category: flags.PerfCategory,
 	}
 	CacheGCFlag = &cli.IntFlag{
@@ -504,7 +509,7 @@ var (
 		Name:     "cache.blocklogs",
 		Usage:    "Size (in number of blocks) of the log cache for filtering",
 		Category: flags.PerfCategory,
-		Value:    ethconfig.Defaults.FilterLogCacheSize,
+		Value:    fmxconfig.Defaults.FilterLogCacheSize,
 	}
 	FDLimitFlag = &cli.IntFlag{
 		Name:     "fdlimit",
@@ -512,15 +517,24 @@ var (
 		Category: flags.PerfCategory,
 	}
 
-	// Miner settings
+	// Block-production settings.
+	//
+	// The flag NAMES below are frozen: infra/compose, k8s manifests and operator
+	// scripts pass them literally, and a removed flag makes the binary exit with
+	// "flag provided but not defined". On Ferminux Network blocks are CONFIRMED
+	// by the authority signer set — nothing is mined — so only the help text and
+	// the added aliases speak the network's own vocabulary.
 	MiningEnabledFlag = &cli.BoolFlag{
-		Name:     "mine",
-		Usage:    "Enable mining",
+		Name: "mine",
+		// NOTE: no "signer" alias — --signer is already taken by the external
+		// (clef) signer flag, and urfave/cli panics on a redefined name.
+		Aliases:  []string{"signer.enabled"},
+		Usage:    "Produce blocks as a signer (only effective for an authorised signer key)",
 		Category: flags.MinerCategory,
 	}
 	MinerThreadsFlag = &cli.IntFlag{
 		Name:     "miner.threads",
-		Usage:    "Number of CPU threads to use for mining",
+		Usage:    "Number of CPU threads to use for local block production (pre-authority engine only)",
 		Value:    0,
 		Category: flags.MinerCategory,
 	}
@@ -536,36 +550,37 @@ var (
 	}
 	MinerGasLimitFlag = &cli.Uint64Flag{
 		Name:     "miner.gaslimit",
-		Usage:    "Target gas ceiling for mined blocks",
-		Value:    ethconfig.Defaults.Miner.GasCeil,
+		Usage:    "Target gas ceiling for produced blocks",
+		Value:    fmxconfig.Defaults.Miner.GasCeil,
 		Category: flags.MinerCategory,
 	}
 	MinerGasPriceFlag = &flags.BigFlag{
 		Name:     "miner.gasprice",
-		Usage:    "Minimum gas price for mining a transaction",
-		Value:    ethconfig.Defaults.Miner.GasPrice,
+		Usage:    "Minimum gas price to accept a transaction into a block",
+		Value:    fmxconfig.Defaults.Miner.GasPrice,
 		Category: flags.MinerCategory,
 	}
 	MinerEtherbaseFlag = &cli.StringFlag{
 		Name:     "miner.etherbase",
-		Usage:    "Public address for block mining rewards (default = first account)",
+		Aliases:  []string{"signer.rewardaddress"},
+		Usage:    "Public address that receives the block reward (default = first account)",
 		Value:    "0",
 		Category: flags.MinerCategory,
 	}
 	MinerExtraDataFlag = &cli.StringFlag{
 		Name:     "miner.extradata",
-		Usage:    "Block extra data set by the miner (default = client version)",
+		Usage:    "Block extra data set by the block producer (default = client version)",
 		Category: flags.MinerCategory,
 	}
 	MinerRecommitIntervalFlag = &cli.DurationFlag{
 		Name:     "miner.recommit",
-		Usage:    "Time interval to recreate the block being mined",
-		Value:    ethconfig.Defaults.Miner.Recommit,
+		Usage:    "Time interval to recreate the block being assembled",
+		Value:    fmxconfig.Defaults.Miner.Recommit,
 		Category: flags.MinerCategory,
 	}
 	MinerNoVerifyFlag = &cli.BoolFlag{
 		Name:     "miner.noverify",
-		Usage:    "Disable remote sealing verification",
+		Usage:    "Disable remote work-package verification (pre-authority engine only)",
 		Category: flags.MinerCategory,
 	}
 
@@ -605,19 +620,19 @@ var (
 	RPCGlobalGasCapFlag = &cli.Uint64Flag{
 		Name:     "rpc.gascap",
 		Usage:    "Sets a cap on gas that can be used in eth_call/estimateGas (0=infinite)",
-		Value:    ethconfig.Defaults.RPCGasCap,
+		Value:    fmxconfig.Defaults.RPCGasCap,
 		Category: flags.APICategory,
 	}
 	RPCGlobalEVMTimeoutFlag = &cli.DurationFlag{
 		Name:     "rpc.evmtimeout",
 		Usage:    "Sets a timeout used for eth_call (0=infinite)",
-		Value:    ethconfig.Defaults.RPCEVMTimeout,
+		Value:    fmxconfig.Defaults.RPCEVMTimeout,
 		Category: flags.APICategory,
 	}
 	RPCGlobalTxFeeCapFlag = &cli.Float64Flag{
 		Name:     "rpc.txfeecap",
 		Usage:    "Sets a cap on transaction fee (in ether) that can be sent via the RPC APIs (0 = no cap)",
-		Value:    ethconfig.Defaults.RPCTxFeeCap,
+		Value:    fmxconfig.Defaults.RPCTxFeeCap,
 		Category: flags.APICategory,
 	}
 	// Authenticated RPC HTTP settings
@@ -664,7 +679,7 @@ var (
 
 	IgnoreLegacyReceiptsFlag = &cli.BoolFlag{
 		Name:     "ignore-legacy-receipts",
-		Usage:    "Geth will start up even if there are legacy receipts in freezer",
+		Usage:    "Start up even if there are legacy receipts in the freezer",
 		Category: flags.MiscCategory,
 	}
 
@@ -868,25 +883,25 @@ var (
 	GpoBlocksFlag = &cli.IntFlag{
 		Name:     "gpo.blocks",
 		Usage:    "Number of recent blocks to check for gas prices",
-		Value:    ethconfig.Defaults.GPO.Blocks,
+		Value:    fmxconfig.Defaults.GPO.Blocks,
 		Category: flags.GasPriceCategory,
 	}
 	GpoPercentileFlag = &cli.IntFlag{
 		Name:     "gpo.percentile",
 		Usage:    "Suggested gas price is the given percentile of a set of recent transaction gas prices",
-		Value:    ethconfig.Defaults.GPO.Percentile,
+		Value:    fmxconfig.Defaults.GPO.Percentile,
 		Category: flags.GasPriceCategory,
 	}
 	GpoMaxGasPriceFlag = &cli.Int64Flag{
 		Name:     "gpo.maxprice",
 		Usage:    "Maximum transaction priority fee (or gasprice before London fork) to be recommended by gpo",
-		Value:    ethconfig.Defaults.GPO.MaxPrice.Int64(),
+		Value:    fmxconfig.Defaults.GPO.MaxPrice.Int64(),
 		Category: flags.GasPriceCategory,
 	}
 	GpoIgnoreGasPriceFlag = &cli.Int64Flag{
 		Name:     "gpo.ignoreprice",
 		Usage:    "Gas price below which gpo will ignore transactions",
-		Value:    ethconfig.Defaults.GPO.IgnorePrice.Int64(),
+		Value:    fmxconfig.Defaults.GPO.IgnorePrice.Int64(),
 		Category: flags.GasPriceCategory,
 	}
 
@@ -1014,7 +1029,7 @@ var (
 func MakeDataDir(ctx *cli.Context) string {
 	if path := ctx.String(DataDirFlag.Name); path != "" {
 		if ctx.Bool(RopstenFlag.Name) {
-			// Maintain compatibility with older Geth configurations storing the
+			// Maintain compatibility with older Ferminux configurations storing the
 			// Ropsten database in `testnet` instead of `ropsten`.
 			return filepath.Join(path, "ropsten")
 		}
@@ -1260,7 +1275,7 @@ func setIPC(ctx *cli.Context, cfg *node.Config) {
 }
 
 // setLes configures the les server and ultra light client settings from the command line flags.
-func setLes(ctx *cli.Context, cfg *ethconfig.Config) {
+func setLes(ctx *cli.Context, cfg *fmxconfig.Config) {
 	if ctx.IsSet(LightServeFlag.Name) {
 		cfg.LightServ = ctx.Int(LightServeFlag.Name)
 	}
@@ -1280,8 +1295,8 @@ func setLes(ctx *cli.Context, cfg *ethconfig.Config) {
 		cfg.UltraLightFraction = ctx.Int(UltraLightFractionFlag.Name)
 	}
 	if cfg.UltraLightFraction <= 0 && cfg.UltraLightFraction > 100 {
-		log.Error("Ultra light fraction is invalid", "had", cfg.UltraLightFraction, "updated", ethconfig.Defaults.UltraLightFraction)
-		cfg.UltraLightFraction = ethconfig.Defaults.UltraLightFraction
+		log.Error("Ultra light fraction is invalid", "had", cfg.UltraLightFraction, "updated", fmxconfig.Defaults.UltraLightFraction)
+		cfg.UltraLightFraction = fmxconfig.Defaults.UltraLightFraction
 	}
 	if ctx.IsSet(UltraLightOnlyAnnounceFlag.Name) {
 		cfg.UltraLightOnlyAnnounce = ctx.Bool(UltraLightOnlyAnnounceFlag.Name)
@@ -1295,7 +1310,7 @@ func setLes(ctx *cli.Context, cfg *ethconfig.Config) {
 }
 
 // MakeDatabaseHandles raises out the number of allowed file handles per process
-// for Geth and returns half of the allowance to assign to the database.
+// for Ferminux and returns half of the allowance to assign to the database.
 func MakeDatabaseHandles(max int) int {
 	limit, err := fdlimit.Maximum()
 	if err != nil {
@@ -1336,7 +1351,7 @@ func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error
 	log.Warn("-------------------------------------------------------------------")
 	log.Warn("Referring to accounts by order in the keystore folder is dangerous!")
 	log.Warn("This functionality is deprecated and will be removed in the future!")
-	log.Warn("Please use explicit addresses! (can search via `geth account list`)")
+	log.Warn("Please use explicit addresses! (can search via `ferminux account list`)")
 	log.Warn("-------------------------------------------------------------------")
 
 	accs := ks.Accounts()
@@ -1348,7 +1363,7 @@ func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error
 
 // setEtherbase retrieves the etherbase either from the directly specified
 // command line flags or from the keystore if CLI indexed.
-func setEtherbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *ethconfig.Config) {
+func setEtherbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *fmxconfig.Config) {
 	// Extract the current etherbase
 	var etherbase string
 	if ctx.IsSet(MinerEtherbaseFlag.Name) {
@@ -1525,7 +1540,7 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 	case ctx.Bool(DeveloperFlag.Name):
 		cfg.DataDir = "" // unless explicitly requested, use memory databases
 	case ctx.Bool(RopstenFlag.Name) && cfg.DataDir == node.DefaultDataDir():
-		// Maintain compatibility with older Geth configurations storing the
+		// Maintain compatibility with older Ferminux configurations storing the
 		// Ropsten database in `testnet` instead of `ropsten`.
 		legacyPath := filepath.Join(node.DefaultDataDir(), "testnet")
 		if common.FileExist(legacyPath) {
@@ -1551,7 +1566,7 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config, light bool) {
 	// If we are running the light client, apply another group
 	// settings for gas oracle.
 	if light {
-		*cfg = ethconfig.LightClientGPO
+		*cfg = fmxconfig.LightClientGPO
 	}
 	if ctx.IsSet(GpoBlocksFlag.Name) {
 		cfg.Blocks = ctx.Int(GpoBlocksFlag.Name)
@@ -1610,30 +1625,30 @@ func setTxPool(ctx *cli.Context, cfg *core.TxPoolConfig) {
 	}
 }
 
-func setEthash(ctx *cli.Context, cfg *ethconfig.Config) {
-	if ctx.IsSet(EthashCacheDirFlag.Name) {
-		cfg.Ethash.CacheDir = ctx.String(EthashCacheDirFlag.Name)
+func setPowhash(ctx *cli.Context, cfg *fmxconfig.Config) {
+	if ctx.IsSet(PowhashCacheDirFlag.Name) {
+		cfg.Powhash.CacheDir = ctx.String(PowhashCacheDirFlag.Name)
 	}
-	if ctx.IsSet(EthashDatasetDirFlag.Name) {
-		cfg.Ethash.DatasetDir = ctx.String(EthashDatasetDirFlag.Name)
+	if ctx.IsSet(PowhashDatasetDirFlag.Name) {
+		cfg.Powhash.DatasetDir = ctx.String(PowhashDatasetDirFlag.Name)
 	}
-	if ctx.IsSet(EthashCachesInMemoryFlag.Name) {
-		cfg.Ethash.CachesInMem = ctx.Int(EthashCachesInMemoryFlag.Name)
+	if ctx.IsSet(PowhashCachesInMemoryFlag.Name) {
+		cfg.Powhash.CachesInMem = ctx.Int(PowhashCachesInMemoryFlag.Name)
 	}
-	if ctx.IsSet(EthashCachesOnDiskFlag.Name) {
-		cfg.Ethash.CachesOnDisk = ctx.Int(EthashCachesOnDiskFlag.Name)
+	if ctx.IsSet(PowhashCachesOnDiskFlag.Name) {
+		cfg.Powhash.CachesOnDisk = ctx.Int(PowhashCachesOnDiskFlag.Name)
 	}
-	if ctx.IsSet(EthashCachesLockMmapFlag.Name) {
-		cfg.Ethash.CachesLockMmap = ctx.Bool(EthashCachesLockMmapFlag.Name)
+	if ctx.IsSet(PowhashCachesLockMmapFlag.Name) {
+		cfg.Powhash.CachesLockMmap = ctx.Bool(PowhashCachesLockMmapFlag.Name)
 	}
-	if ctx.IsSet(EthashDatasetsInMemoryFlag.Name) {
-		cfg.Ethash.DatasetsInMem = ctx.Int(EthashDatasetsInMemoryFlag.Name)
+	if ctx.IsSet(PowhashDatasetsInMemoryFlag.Name) {
+		cfg.Powhash.DatasetsInMem = ctx.Int(PowhashDatasetsInMemoryFlag.Name)
 	}
-	if ctx.IsSet(EthashDatasetsOnDiskFlag.Name) {
-		cfg.Ethash.DatasetsOnDisk = ctx.Int(EthashDatasetsOnDiskFlag.Name)
+	if ctx.IsSet(PowhashDatasetsOnDiskFlag.Name) {
+		cfg.Powhash.DatasetsOnDisk = ctx.Int(PowhashDatasetsOnDiskFlag.Name)
 	}
-	if ctx.IsSet(EthashDatasetsLockMmapFlag.Name) {
-		cfg.Ethash.DatasetsLockMmap = ctx.Bool(EthashDatasetsLockMmapFlag.Name)
+	if ctx.IsSet(PowhashDatasetsLockMmapFlag.Name) {
+		cfg.Powhash.DatasetsLockMmap = ctx.Bool(PowhashDatasetsLockMmapFlag.Name)
 	}
 }
 
@@ -1662,7 +1677,7 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	}
 }
 
-func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
+func setRequiredBlocks(ctx *cli.Context, cfg *fmxconfig.Config) {
 	requiredBlocks := ctx.String(EthRequiredBlocksFlag.Name)
 	if requiredBlocks == "" {
 		if ctx.IsSet(LegacyWhitelistFlag.Name) {
@@ -1732,7 +1747,7 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 }
 
 // SetEthConfig applies eth-related command line flags to the config.
-func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
+func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *fmxconfig.Config) {
 	// Avoid conflicting network flags
 	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RopstenFlag, RinkebyFlag, GoerliFlag, SepoliaFlag, KilnFlag)
 	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
@@ -1751,7 +1766,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	setEtherbase(ctx, ks, cfg)
 	setGPO(ctx, &cfg.GPO, ctx.String(SyncModeFlag.Name) == "light")
 	setTxPool(ctx, &cfg.TxPool)
-	setEthash(ctx, cfg)
+	setPowhash(ctx, cfg)
 	setMiner(ctx, &cfg.Miner)
 	setRequiredBlocks(ctx, cfg)
 	setLes(ctx, cfg)
@@ -1980,7 +1995,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 
 // SetDNSDiscoveryDefaults configures DNS discovery with the given URL if
 // no URLs are set.
-func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
+func SetDNSDiscoveryDefaults(cfg *fmxconfig.Config, genesis common.Hash) {
 	if cfg.EthDiscoveryURLs != nil {
 		return // already set through flags/config
 	}
@@ -1994,14 +2009,14 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 	}
 }
 
-// RegisterEthService adds an Ethereum client to the stack.
+// RegisterEthService adds a Ferminux client to the stack.
 // The second return value is the full node instance, which may be nil if the
 // node is running as a light client.
-func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend, *eth.Ethereum) {
+func RegisterEthService(stack *node.Node, cfg *fmxconfig.Config) (fmxapi.Backend, *fmx.Ferminux) {
 	if cfg.SyncMode == downloader.LightSync {
 		backend, err := les.New(stack, cfg)
 		if err != nil {
-			Fatalf("Failed to register the Ethereum service: %v", err)
+			Fatalf("Failed to register the Ferminux service: %v", err)
 		}
 		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
 		if err := lescatalyst.Register(stack, backend); err != nil {
@@ -2009,9 +2024,9 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		}
 		return backend.ApiBackend, nil
 	}
-	backend, err := eth.New(stack, cfg)
+	backend, err := fmx.New(stack, cfg)
 	if err != nil {
-		Fatalf("Failed to register the Ethereum service: %v", err)
+		Fatalf("Failed to register the Ferminux service: %v", err)
 	}
 	if cfg.LightServ > 0 {
 		_, err := les.NewLesServer(stack, backend, cfg)
@@ -2019,22 +2034,22 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 			Fatalf("Failed to create the LES server: %v", err)
 		}
 	}
-	if err := ethcatalyst.Register(stack, backend); err != nil {
+	if err := fmxcatalyst.Register(stack, backend); err != nil {
 		Fatalf("Failed to register the Engine API service: %v", err)
 	}
 	stack.RegisterAPIs(tracers.APIs(backend.APIBackend))
 	return backend.APIBackend, backend
 }
 
-// RegisterEthStatsService configures the Ethereum Stats daemon and adds it to the node.
-func RegisterEthStatsService(stack *node.Node, backend ethapi.Backend, url string) {
-	if err := ethstats.New(stack, backend, backend.Engine(), url); err != nil {
-		Fatalf("Failed to register the Ethereum Stats service: %v", err)
+// RegisterEthStatsService configures the Ferminux Stats daemon and adds it to the node.
+func RegisterEthStatsService(stack *node.Node, backend fmxapi.Backend, url string) {
+	if err := fmxstats.New(stack, backend, backend.Engine(), url); err != nil {
+		Fatalf("Failed to register the Ferminux Stats service: %v", err)
 	}
 }
 
 // RegisterGraphQLService adds the GraphQL API to the node.
-func RegisterGraphQLService(stack *node.Node, backend ethapi.Backend, filterSystem *filters.FilterSystem, cfg *node.Config) {
+func RegisterGraphQLService(stack *node.Node, backend fmxapi.Backend, filterSystem *filters.FilterSystem, cfg *node.Config) {
 	err := graphql.New(stack, backend, filterSystem, cfg.GraphQLCors, cfg.GraphQLVirtualHosts)
 	if err != nil {
 		Fatalf("Failed to register the GraphQL service: %v", err)
@@ -2042,7 +2057,7 @@ func RegisterGraphQLService(stack *node.Node, backend ethapi.Backend, filterSyst
 }
 
 // RegisterFilterAPI adds the eth log filtering RPC API to the node.
-func RegisterFilterAPI(stack *node.Node, backend ethapi.Backend, ethcfg *ethconfig.Config) *filters.FilterSystem {
+func RegisterFilterAPI(stack *node.Node, backend fmxapi.Backend, ethcfg *fmxconfig.Config) *filters.FilterSystem {
 	isLightClient := ethcfg.SyncMode == downloader.LightSync
 	filterSystem := filters.NewFilterSystem(backend, filters.Config{
 		LogCacheSize: ethcfg.FilterLogCacheSize,
@@ -2131,13 +2146,13 @@ func SplitTagsFlag(tagsFlag string) map[string]string {
 }
 
 // MakeChainDatabase open an LevelDB using the flags passed to the client and will hard crash if it fails.
-func MakeChainDatabase(ctx *cli.Context, stack *node.Node, readonly bool) ethdb.Database {
+func MakeChainDatabase(ctx *cli.Context, stack *node.Node, readonly bool) fmxdb.Database {
 	var (
 		cache   = ctx.Int(CacheFlag.Name) * ctx.Int(CacheDatabaseFlag.Name) / 100
 		handles = MakeDatabaseHandles(ctx.Int(FDLimitFlag.Name))
 
 		err     error
-		chainDb ethdb.Database
+		chainDb fmxdb.Database
 	)
 	switch {
 	case ctx.IsSet(RemoteDBFlag.Name):
@@ -2176,7 +2191,7 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 }
 
 // MakeChain creates a chain manager from set command line flags.
-func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chainDb ethdb.Database) {
+func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chainDb fmxdb.Database) {
 	var err error
 	chainDb = MakeChainDatabase(ctx, stack, false) // TODO(rjl493456442) support read-only database
 	config, _, err := core.SetupGenesisBlock(chainDb, MakeGenesis(ctx))
@@ -2185,21 +2200,21 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 	}
 
 	var engine consensus.Engine
-	ethashConf := ethconfig.Defaults.Ethash
+	powhashConf := fmxconfig.Defaults.Powhash
 	if ctx.Bool(FakePoWFlag.Name) {
-		ethashConf.PowMode = ethash.ModeFake
+		powhashConf.PowMode = powhash.ModeFake
 	}
-	engine = ethconfig.CreateConsensusEngine(stack, config, &ethashConf, nil, false, chainDb)
+	engine = fmxconfig.CreateConsensusEngine(stack, config, &powhashConf, nil, false, chainDb)
 	if gcmode := ctx.String(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
 	}
 	cache := &core.CacheConfig{
-		TrieCleanLimit:      ethconfig.Defaults.TrieCleanCache,
+		TrieCleanLimit:      fmxconfig.Defaults.TrieCleanCache,
 		TrieCleanNoPrefetch: ctx.Bool(CacheNoPrefetchFlag.Name),
-		TrieDirtyLimit:      ethconfig.Defaults.TrieDirtyCache,
+		TrieDirtyLimit:      fmxconfig.Defaults.TrieDirtyCache,
 		TrieDirtyDisabled:   ctx.String(GCModeFlag.Name) == "archive",
-		TrieTimeLimit:       ethconfig.Defaults.TrieTimeout,
-		SnapshotLimit:       ethconfig.Defaults.SnapshotCache,
+		TrieTimeLimit:       fmxconfig.Defaults.TrieTimeout,
+		SnapshotLimit:       fmxconfig.Defaults.SnapshotCache,
 		Preimages:           ctx.Bool(CachePreimagesFlag.Name),
 
 		FerminuxMaxReorgDepth: params.FerminuxMaxReorgDepth,

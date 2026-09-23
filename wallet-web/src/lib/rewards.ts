@@ -1,12 +1,12 @@
-// Mining (block-reward) history + the merged Activity feed.
+// Block-reward history + the merged Activity feed.
 //
-// Ferminux is proof-of-work. A block reward is NOT a transaction — the miner's
-// balance is credited directly in state — so an actively mining address has an
+// Ferminux blocks are confirmed by signers. A block reward is NOT a transaction — the signer's
+// balance is credited directly in state — so an active signer address has an
 // empty /transactions list while earning 6 FMX a block. Two Blockscout v2
 // endpoints expose those credits:
 //
 //   /addresses/{a}/coin-balance-history  per-block balance deltas
-//   /addresses/{a}/blocks-validated      blocks this address mined (+ exact reward)
+//   /addresses/{a}/blocks-validated      blocks this address signed (+ exact reward)
 //
 // Everything here is pure except the two `fetch*` helpers, and both of those
 // degrade to "no data" rather than throwing the wallet offline.
@@ -29,7 +29,7 @@ export interface BalanceHistoryEntry {
   txHash: string | null;
 }
 
-/** One row of /blocks-validated: a block this address mined. */
+/** One row of /blocks-validated: a block this address signed. */
 export interface ValidatedBlock {
   height: number;
   hash: string | null;
@@ -112,7 +112,7 @@ export function hasNextPage(payload: unknown): boolean {
 export type FeedRow =
   | { kind: 'tx'; id: string; blockNumber: number | null; timestamp: string | null; tx: ActivityItem }
   | {
-      kind: 'mined';
+      kind: 'signed';
       id: string;
       blockNumber: number;
       timestamp: string | null;
@@ -130,20 +130,20 @@ export type FeedRow =
  * chronological feed.
  *
  * Attribution rules — deliberately conservative, because showing a phantom
- * "+6 FMX mined" row would be worse than showing nothing:
+ * "+0.1 FMX signed" row would be worse than showing nothing:
  *
- *  1. /blocks-validated is authoritative for WHICH blocks were mined, and for
+ *  1. /blocks-validated is authoritative for WHICH blocks were signed, and for
  *     the reward figure when it has one. Blockscout indexes a block before it
- *     computes its reward, so a just-mined block can come back with
+ *     computes its reward, so a just-confirmed block can come back with
  *     `rewards: []`; in that case the block's own unattributed balance credit
  *     is used instead (marked as inferred), and if there is no such credit the
  *     reward is left at 0 = "not known yet" and excluded from totals.
- *  2. A balance-history row is only promoted to a Mined row of its own when
+ *  2. A balance-history row is only promoted to a signed-block row of its own when
  *     the credit cannot be explained any other way: the delta is positive, the
  *     explorer attributed it to no transaction, the block is not already
  *     covered by rule 1, and no transaction of ours landed in that block. That
  *     last condition is the dedup: when a reward and a transfer share a block,
- *     the single net delta belongs to the transfer row, not to a second Mined
+ *     the single net delta belongs to the transfer row, not to a second signed-block
  *     row.
  *  3. Transactions are deduped by hash.
  *
@@ -176,10 +176,10 @@ export function buildFeed(
     if (!credits.has(entry.blockNumber)) credits.set(entry.blockNumber, entry.deltaWei);
   }
 
-  const minedBlocks = new Set<number>();
+  const signedBlocks = new Set<number>();
   for (const b of validated) {
-    if (minedBlocks.has(b.height)) continue;
-    minedBlocks.add(b.height);
+    if (signedBlocks.has(b.height)) continue;
+    signedBlocks.add(b.height);
     let rewardWei = b.rewardWei;
     let source: 'validated' | 'balance' = 'validated';
     if (rewardWei === 0n && !txBlocks.has(b.height)) {
@@ -190,8 +190,8 @@ export function buildFeed(
       }
     }
     rows.push({
-      kind: 'mined',
-      id: `mined:${b.height}`,
+      kind: 'signed',
+      id: `signed:${b.height}`,
       blockNumber: b.height,
       timestamp: b.timestamp,
       rewardWei,
@@ -203,12 +203,12 @@ export function buildFeed(
   for (const entry of history) {
     if (entry.deltaWei <= 0n) continue;
     if (entry.txHash !== null) continue;
-    if (minedBlocks.has(entry.blockNumber)) continue;
+    if (signedBlocks.has(entry.blockNumber)) continue;
     if (txBlocks.has(entry.blockNumber)) continue;
-    minedBlocks.add(entry.blockNumber);
+    signedBlocks.add(entry.blockNumber);
     rows.push({
-      kind: 'mined',
-      id: `mined:${entry.blockNumber}`,
+      kind: 'signed',
+      id: `signed:${entry.blockNumber}`,
       blockNumber: entry.blockNumber,
       timestamp: entry.timestamp,
       rewardWei: entry.deltaWei,
@@ -237,17 +237,17 @@ function compareRows(a: FeedRow, b: FeedRow): number {
 }
 
 /* ------------------------------------------------------------------ *
- * Mining summary
+ * Block-reward summary
  * ------------------------------------------------------------------ */
 
-export interface MiningSummary {
-  /** Mined blocks present in the fetched window. */
+export interface SigningSummary {
+  /** Confirmed blocks present in the fetched window. */
   blocks: number;
   /** Total reward across those blocks, in wei. */
   totalWei: bigint;
   /** ISO timestamp of the most recent reward, when known. */
   latestTimestamp: string | null;
-  /** Highest / lowest mined block in the window. */
+  /** Highest / lowest signed block in the window. */
   highestBlock: number;
   lowestBlock: number;
   /**
@@ -258,7 +258,7 @@ export interface MiningSummary {
   /** true when at least one row's reward was inferred from a balance delta. */
   hasInferred: boolean;
   /**
-   * Mined blocks the explorer has not yet published a reward figure for. They
+   * Confirmed blocks the explorer has not yet published a reward figure for. They
    * count towards `blocks` but contribute nothing to `totalWei`, so the UI has
    * to say the total is short by this many blocks.
    */
@@ -266,13 +266,13 @@ export interface MiningSummary {
 }
 
 /**
- * Summarise the Mined rows of a feed. Returns null when the address has mined
+ * Summarise the Signed-block rows of a feed. Returns null when the address has signed
  * nothing in the window — the caller hides the card entirely rather than
  * rendering a row of zeros.
  */
-export function summariseMining(rows: FeedRow[], opts?: { complete?: boolean }): MiningSummary | null {
-  const mined = rows.filter((r): r is Extract<FeedRow, { kind: 'mined' }> => r.kind === 'mined');
-  if (mined.length === 0) return null;
+export function summariseSigning(rows: FeedRow[], opts?: { complete?: boolean }): SigningSummary | null {
+  const signed = rows.filter((r): r is Extract<FeedRow, { kind: 'signed' }> => r.kind === 'signed');
+  if (signed.length === 0) return null;
 
   let totalWei = 0n;
   let latestTimestamp: string | null = null;
@@ -282,7 +282,7 @@ export function summariseMining(rows: FeedRow[], opts?: { complete?: boolean }):
   let hasInferred = false;
   let unknownRewards = 0;
 
-  for (const row of mined) {
+  for (const row of signed) {
     totalWei += row.rewardWei;
     if (row.rewardWei === 0n) unknownRewards += 1;
     if (row.source === 'balance') hasInferred = true;
@@ -298,7 +298,7 @@ export function summariseMining(rows: FeedRow[], opts?: { complete?: boolean }):
   }
 
   return {
-    blocks: mined.length,
+    blocks: signed.length,
     totalWei,
     latestTimestamp,
     highestBlock,
@@ -316,7 +316,7 @@ export function summariseMining(rows: FeedRow[], opts?: { complete?: boolean }):
 export interface MiningData {
   history: BalanceHistoryEntry[];
   validated: ValidatedBlock[];
-  /** true when either endpoint answered; false = no mining data at all. */
+  /** true when either endpoint answered; false = no block-reward data at all. */
   available: boolean;
   /** true when neither endpoint reported further pages. */
   complete: boolean;
@@ -335,12 +335,12 @@ async function getJson(url: string, timeoutMs: number): Promise<unknown> {
 }
 
 /**
- * Fetch both mining endpoints. Never throws: a Blockscout instance on a
- * non-PoW chain 404s /blocks-validated, and the whole explorer is optional —
+ * Fetch both block-reward endpoints. Never throws: a Blockscout instance on a
+ * chain without block-producer attribution 404s /blocks-validated, and the whole explorer is optional —
  * the caller falls back to transactions-only (or to RPC-only) rather than
  * failing.
  */
-export async function fetchMiningData(
+export async function fetchBlockRewardData(
   explorerUrl: string,
   address: string,
   opts?: { timeoutMs?: number },

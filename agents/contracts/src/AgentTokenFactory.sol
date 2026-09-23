@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {AgentRegistry} from "./AgentRegistry.sol";
 
-/// @title AgentToken — minimal ERC-20 for an agent (mint/burn only by the factory) with pull distributions
+/// @title AgentToken — minimal FRC-20 for an agent (mint/burn only by the factory) with pull distributions
 /// @dev Paris EVM, dependency-free. Holds the dividend accounting (magnified points per share) so that
 ///      `AgentTokenFactory.distribute` can share FMX pro-rata to holders as of each distribution;
 ///      transfers carry the correction so nobody can claim twice. FMX itself never touches the token.
@@ -45,7 +45,7 @@ contract AgentToken {
         factory = msg.sender;
     }
 
-    // ───────────────────────────── ERC-20 ─────────────────────────────
+    // ───────────────────────────── FRC-20 ─────────────────────────────
 
     function approve(address spender, uint256 value) external returns (bool) {
         allowance[msg.sender][spender] = value;
@@ -125,7 +125,7 @@ contract AgentToken {
     }
 }
 
-/// @title AgentTokenFactory — one ERC-20 per agent on a linear bonding curve (Addendum v3, C6)
+/// @title AgentTokenFactory — one FRC-20 per agent on a linear bonding curve (Addendum v3, C6)
 /// @notice price(s) = base + slope * s, where s = circulating supply in whole tokens (18 dec) and the
 ///         price is FMX-wei per whole token. 100 % of supply is minted by the curve; the reserve stays in
 ///         the factory. Buy fee `feeBps` (1 %) → feeRecipient credits; sells are fee-free and land in

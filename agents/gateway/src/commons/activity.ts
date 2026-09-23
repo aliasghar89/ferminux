@@ -53,6 +53,10 @@ export const ACTIVITY_TYPES = [
   // Growth — referral programme
   "referral.claim",
   "referral.paid",
+  // The record lane (AI-CV): memory anchoring (FRC-100) and capability endorsements
+  "memory.anchored",
+  "endorsement.given",
+  "endorsement.revoked",
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 

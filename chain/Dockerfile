@@ -3,29 +3,35 @@ ARG COMMIT=""
 ARG VERSION=""
 ARG BUILDNUM=""
 
-# Build Geth in a stock Go builder container
+# Build the Ferminux node in a stock Go builder container
 FROM golang:1.18-alpine as builder
 
 RUN apk add --no-cache gcc musl-dev linux-headers git
 
 # Get dependencies - will also be cached if we won't change go.mod/go.sum
-COPY go.mod /go-ethereum/
-COPY go.sum /go-ethereum/
-RUN cd /go-ethereum && go mod download
+COPY go.mod /src/
+COPY go.sum /src/
+RUN cd /src && go mod download
 
-ADD . /go-ethereum
-RUN cd /go-ethereum && go run build/ci.go install -static ./cmd/geth
+ADD . /src
+RUN cd /src && go run build/ci.go install -static ./cmd/ferminux
 
-# Pull ferminux-geth into a second stage deploy alpine container
+# Pull the node binary into a second stage deploy alpine container
 FROM alpine:latest
 
 RUN apk add --no-cache ca-certificates
-COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/ferminux-geth
-# Compatibility symlink so `geth` invocations keep working in scripts/compose.
-RUN ln -s /usr/local/bin/ferminux-geth /usr/local/bin/geth
+COPY --from=builder /src/build/bin/ferminux /usr/local/bin/ferminux
+# Compatibility symlinks. NEITHER is optional:
+#   ferminux-geth — the previously published binary name; operator scripts,
+#                   systemd units and cron-piped installs call it.
+#   geth          — every container healthcheck in infra/compose and infra/k8s
+#                   runs `geth attach --exec net.listening /data/geth.ipc`.
+#                   Deleting it takes the whole fleet unhealthy at once.
+RUN ln -s /usr/local/bin/ferminux /usr/local/bin/ferminux-geth \
+ && ln -s /usr/local/bin/ferminux /usr/local/bin/geth
 
 EXPOSE 8545 8546 30303 30303/udp
-ENTRYPOINT ["ferminux-geth"]
+ENTRYPOINT ["ferminux"]
 
 # Add some metadata labels to help programatic image consumption
 ARG COMMIT=""

@@ -12,22 +12,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/beacon"
-	"github.com/ethereum/go-ethereum/consensus/clique"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/consensus/misc"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/aliasghar89/ferminux/chain/accounts"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/common/hexutil"
+	"github.com/aliasghar89/ferminux/chain/consensus"
+	"github.com/aliasghar89/ferminux/chain/consensus/beacon"
+	"github.com/aliasghar89/ferminux/chain/consensus/clique"
+	"github.com/aliasghar89/ferminux/chain/consensus/powhash"
+	"github.com/aliasghar89/ferminux/chain/consensus/misc"
+	"github.com/aliasghar89/ferminux/chain/core"
+	"github.com/aliasghar89/ferminux/chain/core/rawdb"
+	"github.com/aliasghar89/ferminux/chain/core/types"
+	"github.com/aliasghar89/ferminux/chain/core/vm"
+	"github.com/aliasghar89/ferminux/chain/crypto"
+	"github.com/aliasghar89/ferminux/chain/fmxdb"
+	"github.com/aliasghar89/ferminux/chain/params"
+	"github.com/aliasghar89/ferminux/chain/rpc"
 )
 
 const (
@@ -135,9 +135,9 @@ func nodeCacheConfig() *core.CacheConfig {
 	}
 }
 
-func (env *testEnv) newEngine(t *testing.T, db ethdb.Database, cfg *Config) *Posa {
+func (env *testEnv) newEngine(t *testing.T, db fmxdb.Database, cfg *Config) *Posa {
 	t.Helper()
-	engine, err := New(env.chainConfig, cfg, ethash.NewFaker(), db)
+	engine, err := New(env.chainConfig, cfg, powhash.NewFaker(), db)
 	if err != nil {
 		t.Fatalf("failed to create posa engine: %v", err)
 	}
@@ -265,12 +265,12 @@ func ownerSigs(chainID *big.Int, number uint64, parent common.Hash, list []commo
 }
 
 // makeChain generates n blocks on top of parent in db (which must hold the
-// parent's state): Ethash (fake PoW) below PosaBlock with testMiner as
+// parent's state): Powhash (fake PoW) below PosaBlock with testMiner as
 // coinbase, authority blocks above it built from plan(number) and sealed with
 // that signer's key. plan must be deterministic: it is consulted once while
 // generating (to authorize the paid signer) and once while sealing, when the
 // actual parent hash is known (break-glass payloads are bound to it).
-func (env *testEnv) makeChain(t *testing.T, db ethdb.Database, parent *types.Block, n int, plan func(number uint64) blockPlan) []*types.Block {
+func (env *testEnv) makeChain(t *testing.T, db fmxdb.Database, parent *types.Block, n int, plan func(number uint64) blockPlan) []*types.Block {
 	t.Helper()
 	engine := env.newEngine(t, db, env.posaConfig)
 	defer engine.Close()
@@ -318,7 +318,7 @@ func (env *testEnv) makeChain(t *testing.T, db ethdb.Database, parent *types.Blo
 
 // makeBlocksDB generates n blocks from the genesis on a throwaway database
 // and returns both, so side chains can be generated from intermediate blocks.
-func (env *testEnv) makeBlocksDB(t *testing.T, n int, plan func(number uint64) blockPlan) ([]*types.Block, ethdb.Database) {
+func (env *testEnv) makeBlocksDB(t *testing.T, n int, plan func(number uint64) blockPlan) ([]*types.Block, fmxdb.Database) {
 	t.Helper()
 	db := rawdb.NewMemoryDatabase()
 	genesis := env.genesis.MustCommit(db)
@@ -345,7 +345,7 @@ func resealWith(t *testing.T, block *types.Block, key *ecdsa.PrivateKey) *types.
 }
 
 // newChain creates a fresh database + blockchain + engine for verification.
-func (env *testEnv) newChain(t *testing.T, cfg *Config) (*core.BlockChain, *Posa, ethdb.Database) {
+func (env *testEnv) newChain(t *testing.T, cfg *Config) (*core.BlockChain, *Posa, fmxdb.Database) {
 	t.Helper()
 	db := rawdb.NewMemoryDatabase()
 	env.genesis.MustCommit(db)
@@ -491,11 +491,11 @@ func TestDispatchAcrossFork(t *testing.T) {
 			t.Errorf("block %d: difficulty %v, want %v", n, header.Difficulty, diffInTurn)
 		}
 	}
-	// Below the fork the Ethash path is untouched: the miner got the full PoW reward.
+	// Below the fork the Powhash path is untouched: the miner got the full PoW reward.
 	state, _ := chain.State()
 	wantPoW := new(big.Int)
 	for n := int64(1); n < testPosaBlock; n++ {
-		wantPoW.Add(wantPoW, ethash.FerminuxBlockReward(big.NewInt(n)))
+		wantPoW.Add(wantPoW, powhash.FerminuxBlockReward(big.NewInt(n)))
 	}
 	if got := state.GetBalance(testMiner); got.Cmp(wantPoW) != 0 {
 		t.Errorf("PoW miner balance = %v, want %v", got, wantPoW)
@@ -529,7 +529,7 @@ func TestVerifyHeadersBatches(t *testing.T) {
 		}
 		return errs
 	}
-	// Mixed batch against a chain holding only the genesis: the Ethash prefix
+	// Mixed batch against a chain holding only the genesis: the Powhash prefix
 	// and the Clique suffix (whose parents are not in the database) must both
 	// verify, in order.
 	chain, engine, _ := env.newChain(t, env.posaConfig)
@@ -671,7 +671,7 @@ func TestSplitReward(t *testing.T) {
 	}
 	// The PoSA reward is the PoW schedule divided by four.
 	for _, n := range []int64{1, 19_999, 20_000, 4_500_000, 9_000_000} {
-		want := new(big.Int).Div(ethash.FerminuxBlockReward(big.NewInt(n)), big.NewInt(4))
+		want := new(big.Int).Div(powhash.FerminuxBlockReward(big.NewInt(n)), big.NewInt(4))
 		if got := BlockReward(big.NewInt(n)); got.Cmp(want) != 0 {
 			t.Errorf("BlockReward(%d) = %v, want %v", n, got, want)
 		}
@@ -738,12 +738,12 @@ func TestRewardSinkIsRequired(t *testing.T) {
 
 	noSink := *env.posaConfig
 	noSink.RewardSink = common.Address{}
-	_, err := New(env.chainConfig, &noSink, ethash.NewFaker(), db)
+	_, err := New(env.chainConfig, &noSink, powhash.NewFaker(), db)
 	assertErrContains(t, err, "FMXRewardSink")
 
 	// Pass-through (PosaBlock nil) does not care: the sink is never used.
 	passthrough := newTestEnv(-1)
-	if _, err := New(passthrough.chainConfig, &noSink, ethash.NewFaker(), db); err != nil {
+	if _, err := New(passthrough.chainConfig, &noSink, powhash.NewFaker(), db); err != nil {
 		t.Errorf("pass-through engine rejected an unset sink: %v", err)
 	}
 	// The live parameters: refused while the sink is zero, accepted once pinned.
@@ -752,11 +752,11 @@ func TestRewardSinkIsRequired(t *testing.T) {
 	old := params.FerminuxRewardSink
 	defer func() { params.FerminuxRewardSink = old }()
 	params.FerminuxRewardSink = common.Address{}
-	if _, err := New(&live, FerminuxConfig(), ethash.NewFaker(), db); err == nil {
+	if _, err := New(&live, FerminuxConfig(), powhash.NewFaker(), db); err == nil {
 		t.Errorf("live config with an unset sink was accepted")
 	}
 	params.FerminuxRewardSink = testSink
-	if _, err := New(&live, FerminuxConfig(), ethash.NewFaker(), db); err != nil {
+	if _, err := New(&live, FerminuxConfig(), powhash.NewFaker(), db); err != nil {
 		t.Errorf("live config with the sink pinned rejected: %v", err)
 	}
 }
@@ -1309,7 +1309,7 @@ func TestPoWDeadEndCannotDisplaceAuthorityChain(t *testing.T) {
 	headTd := chain.GetTd(head.Hash(), head.NumberU64())
 
 	// Side chain: fast PoW blocks from the common ancestor up to PosaBlock-2.
-	side, _ := core.GenerateChain(env.chainConfig, canon[branchAt-1], ethash.NewFaker(), db, fork-2-branchAt, func(i int, gen *core.BlockGen) {
+	side, _ := core.GenerateChain(env.chainConfig, canon[branchAt-1], powhash.NewFaker(), db, fork-2-branchAt, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(testMiner)
 		gen.OffsetTime(-9) // 1s blocks: +1/2048 per block
 	})
@@ -1367,7 +1367,7 @@ func TestAuthorityChainRecoversFromPoWDeadEnd(t *testing.T) {
 		t.Fatalf("canonical prefix import failed: %v", err)
 	}
 	defer chain.Stop()
-	side, _ := core.GenerateChain(env.chainConfig, canon[branchAt-1], ethash.NewFaker(), db, fork-2-branchAt, func(i int, gen *core.BlockGen) {
+	side, _ := core.GenerateChain(env.chainConfig, canon[branchAt-1], powhash.NewFaker(), db, fork-2-branchAt, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(testMiner)
 		gen.OffsetTime(-9)
 	})
@@ -1471,7 +1471,7 @@ func TestPassThroughWhenUnset(t *testing.T) {
 	state, _ := chain.State()
 	want := new(big.Int)
 	for n := int64(1); n <= 12; n++ {
-		want.Add(want, ethash.FerminuxBlockReward(big.NewInt(n)))
+		want.Add(want, powhash.FerminuxBlockReward(big.NewInt(n)))
 	}
 	if got := state.GetBalance(testMiner); got.Cmp(want) != 0 {
 		t.Errorf("miner balance = %v, want full PoW schedule %v", got, want)
@@ -1479,7 +1479,7 @@ func TestPassThroughWhenUnset(t *testing.T) {
 	if state.GetBalance(testSink).Sign() != 0 || state.GetBalance(testTreasury).Sign() != 0 {
 		t.Errorf("sink/treasury credited on a pure PoW chain")
 	}
-	if len(engine.APIs(chain)) != len(ethash.NewFaker().APIs(chain)) {
+	if len(engine.APIs(chain)) != len(powhash.NewFaker().APIs(chain)) {
 		t.Errorf("pass-through engine exposes extra APIs")
 	}
 }
@@ -1487,7 +1487,7 @@ func TestPassThroughWhenUnset(t *testing.T) {
 func TestNewValidation(t *testing.T) {
 	env := newTestEnv(testPosaBlock)
 	db := rawdb.NewMemoryDatabase()
-	pow := ethash.NewFaker()
+	pow := powhash.NewFaker()
 
 	mustFail := func(name string, cfg *Config, chainCfg *params.ChainConfig) {
 		if _, err := New(chainCfg, cfg, pow, db); err == nil {
@@ -1540,7 +1540,7 @@ func TestUnwrap(t *testing.T) {
 	if Unwrap(beacon.New(engine)) != engine {
 		t.Errorf("Unwrap(beacon(posa)) != posa")
 	}
-	if Unwrap(ethash.NewFaker()) != nil || Unwrap(beacon.New(ethash.NewFaker())) != nil {
+	if Unwrap(powhash.NewFaker()) != nil || Unwrap(beacon.New(powhash.NewFaker())) != nil {
 		t.Errorf("Unwrap found a posa engine where there is none")
 	}
 }

@@ -7,6 +7,7 @@ import { HttpError } from "../commons/context.js";
 import type { V3Context } from "./context.js";
 import type { X402Facilitator } from "./x402.js";
 import { signedEnvelope } from "./webhooks.js";
+import { appendMemoryRecord } from "./memory-anchor.js";
 
 export const MEMORY_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 export const MEMORY_VALUE_MAX_BYTES = 64 * 1024;
@@ -15,6 +16,14 @@ export const MEMORY_BLOCK_BYTES = 64 * 1024;
 export const MEMORY_PRICE_PER_BLOCK_WEI = 10n ** 16n; // 0.01 FMX
 export const MEMORY_CREDIT_TTL_S = 30 * 86_400;
 export const MEMORY_MAX_KEYS = 10_000;
+/**
+ * Key names the anchor routes occupy. `GET /api/memory/anchors` and
+ * `GET /api/memory/proof/:agentId/:seq` are static routes, so a key called
+ * `anchors` could be written but never read back — a silent failure. Refuse it
+ * at write time with a reason instead, the way IdentityRegistry8004 reserves
+ * `agentWallet`.
+ */
+export const MEMORY_RESERVED_KEYS = ["anchors", "proof"] as const;
 
 interface MemoryRow {
   address: string;
@@ -38,9 +47,33 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: V3Context, fac: 
   const { sendError } = commons;
   const getStmt = db.prepare("SELECT * FROM memory WHERE address = ? AND key = ?");
 
+  /**
+   * Every write appends one immutable header to the address's log (FRC-100).
+   * The KV store is the product and the log is the proof, so a failure here
+   * degrades the proof and never the write — the response simply carries no
+   * `record` and the next anchor picks the write up from the KV state.
+   */
+  function logRecord(address: string, op: "put" | "del", key: string, value: string | null) {
+    try {
+      const r = appendMemoryRecord(ctx, address, op, key, value);
+      return { seq: r.seq, prev: r.prev, recordHash: r.recordHash, keyCommit: r.keyCommit, keyNonce: r.keyNonce, valueHash: r.valueHash, ts: r.ts };
+    } catch (err) {
+      console.error(`[memory] appending the ${op} record for ${address} failed:`, (err as Error).message);
+      return null;
+    }
+  }
+
   function checkKey(raw: string): string {
     const key = decodeURIComponent(raw);
     if (!MEMORY_KEY_RE.test(key)) throw new HttpError(400, "key must be 1–128 chars: letters, digits, . _ : -");
+    return key;
+  }
+
+  function checkWritableKey(raw: string): string {
+    const key = checkKey(raw);
+    if ((MEMORY_RESERVED_KEYS as readonly string[]).includes(key)) {
+      throw new HttpError(409, `"${key}" is a reserved memory key: GET /api/memory/${key} serves the anchor routes, so a key by that name could be written but never read back. Prefix it, e.g. "my.${key}".`, "reserved_key");
+    }
     return key;
   }
 
@@ -78,7 +111,7 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: V3Context, fac: 
     try {
       const body = commons.parseJson(req);
       const address = commons.authenticateWrite("memory.put", body);
-      const key = checkKey(req.params.key);
+      const key = checkWritableKey(req.params.key);
       if (body.key !== undefined && String(body.key) !== key) throw new HttpError(400, "signed key does not match the URL", "bad_sig");
       if (body.value === undefined) throw new HttpError(400, "value is required (any JSON value)");
       const stored = typeof body.value === "string" ? body.value : JSON.stringify(body.value);
@@ -113,7 +146,8 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: V3Context, fac: 
         `INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(address, key) DO UPDATE SET value = excluded.value, size = excluded.size, updatedAt = excluded.updatedAt`,
       ).run(address, key, stored, size, t, t);
-      return reply.code(existing ? 200 : 201).send({ address, key, size, createdAt: existing?.createdAt ?? t, updatedAt: t, ...memoryQuota(ctx, address), ...(paid ? { paid } : {}) });
+      const record = logRecord(address, "put", key, stored);
+      return reply.code(existing ? 200 : 201).send({ address, key, size, createdAt: existing?.createdAt ?? t, updatedAt: t, ...memoryQuota(ctx, address), ...(paid ? { paid } : {}), ...(record ? { record } : {}) });
     } catch (err) {
       return sendError(reply, err);
     }
@@ -128,7 +162,8 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: V3Context, fac: 
       commons.commitWrite(address, signedEnvelope(req)); // replay guard: a captured DELETE signature is single-use
       const r = db.prepare("DELETE FROM memory WHERE address = ? AND key = ?").run(address, key);
       if (r.changes === 0) throw new HttpError(404, "key not found");
-      return { address, key, deleted: true, ...memoryQuota(ctx, address) };
+      const record = logRecord(address, "del", key, null);
+      return { address, key, deleted: true, ...memoryQuota(ctx, address), ...(record ? { record } : {}) };
     } catch (err) {
       return sendError(reply, err);
     }

@@ -223,7 +223,7 @@ function AccountRow({
         <div className="acct-manage-text">
           <div className="acct-manage-label">
             {account.label}
-            {isActive && <span className="dir-badge dir-mined">ACTIVE</span>}
+            {isActive && <span className="dir-badge dir-signed">ACTIVE</span>}
             <span className="acct-tag">{account.kind === 'hd' ? `HD #${account.index}` : 'IMPORTED'}</span>
             {account.backup === 'none' && (
               <span className="dir-badge dir-fail" title="This browser holds the only copy of this key.">

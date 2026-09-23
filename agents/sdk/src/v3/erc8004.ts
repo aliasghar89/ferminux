@@ -1,4 +1,4 @@
-// Addendum v3 — C5 ERC-8004 adapters: ReputationRegistry8004 + ValidationRegistry8004
+// Addendum v3 — C5 FRC-8004 adapters: ReputationRegistry8004 + ValidationRegistry8004
 // (SPEC.md "## C5", "## S."). IdentityRegistry8004 is exposed read-only through
 // `fmx.identity8004Contract()` — most identity data is already served by the
 // gateway's regular agent views and `/api/agents/:id/erc8004.json`.
@@ -13,7 +13,7 @@ export class ReputationAPI {
     this.contract = lazyContract("reputation8004", () => this.fmx.v3.reputation8004, REPUTATION_8004_ABI, this.fmx.runner);
   }
 
-  /** Any address except the agent owner may give feedback. `value`/`valueDecimals` follow ERC-8004 (e.g. value=450, valueDecimals=2 → 4.50). */
+  /** Any address except the agent owner may give feedback. `value`/`valueDecimals` follow FRC-8004 (e.g. value=450, valueDecimals=2 → 4.50). */
   async giveFeedback(params: {
     agentId: number | bigint;
     value: number | bigint;

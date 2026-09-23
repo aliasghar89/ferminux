@@ -21,18 +21,18 @@ import (
 )
 
 func TestURLParsing(t *testing.T) {
-	url, err := parseURL("https://ethereum.org")
+	url, err := parseURL("https://ferminux.org")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if url.Scheme != "https" {
 		t.Errorf("expected: %v, got: %v", "https", url.Scheme)
 	}
-	if url.Path != "ethereum.org" {
-		t.Errorf("expected: %v, got: %v", "ethereum.org", url.Path)
+	if url.Path != "ferminux.org" {
+		t.Errorf("expected: %v, got: %v", "ferminux.org", url.Path)
 	}
 
-	for _, u := range []string{"ethereum.org", ""} {
+	for _, u := range []string{"ferminux.org", ""} {
 		if _, err = parseURL(u); err == nil {
 			t.Errorf("input %v, expected err, got: nil", u)
 		}
@@ -40,38 +40,38 @@ func TestURLParsing(t *testing.T) {
 }
 
 func TestURLString(t *testing.T) {
-	url := URL{Scheme: "https", Path: "ethereum.org"}
-	if url.String() != "https://ethereum.org" {
-		t.Errorf("expected: %v, got: %v", "https://ethereum.org", url.String())
+	url := URL{Scheme: "https", Path: "ferminux.org"}
+	if url.String() != "https://ferminux.org" {
+		t.Errorf("expected: %v, got: %v", "https://ferminux.org", url.String())
 	}
 
-	url = URL{Scheme: "", Path: "ethereum.org"}
-	if url.String() != "ethereum.org" {
-		t.Errorf("expected: %v, got: %v", "ethereum.org", url.String())
+	url = URL{Scheme: "", Path: "ferminux.org"}
+	if url.String() != "ferminux.org" {
+		t.Errorf("expected: %v, got: %v", "ferminux.org", url.String())
 	}
 }
 
 func TestURLMarshalJSON(t *testing.T) {
-	url := URL{Scheme: "https", Path: "ethereum.org"}
+	url := URL{Scheme: "https", Path: "ferminux.org"}
 	json, err := url.MarshalJSON()
 	if err != nil {
 		t.Errorf("unexpcted error: %v", err)
 	}
-	if string(json) != "\"https://ethereum.org\"" {
-		t.Errorf("expected: %v, got: %v", "\"https://ethereum.org\"", string(json))
+	if string(json) != "\"https://ferminux.org\"" {
+		t.Errorf("expected: %v, got: %v", "\"https://ferminux.org\"", string(json))
 	}
 }
 
 func TestURLUnmarshalJSON(t *testing.T) {
 	url := &URL{}
-	err := url.UnmarshalJSON([]byte("\"https://ethereum.org\""))
+	err := url.UnmarshalJSON([]byte("\"https://ferminux.org\""))
 	if err != nil {
 		t.Errorf("unexpcted error: %v", err)
 	}
 	if url.Scheme != "https" {
 		t.Errorf("expected: %v, got: %v", "https", url.Scheme)
 	}
-	if url.Path != "ethereum.org" {
+	if url.Path != "ferminux.org" {
 		t.Errorf("expected: %v, got: %v", "https", url.Path)
 	}
 }
@@ -82,10 +82,10 @@ func TestURLComparison(t *testing.T) {
 		urlB   URL
 		expect int
 	}{
-		{URL{"https", "ethereum.org"}, URL{"https", "ethereum.org"}, 0},
-		{URL{"http", "ethereum.org"}, URL{"https", "ethereum.org"}, -1},
-		{URL{"https", "ethereum.org/a"}, URL{"https", "ethereum.org"}, 1},
-		{URL{"https", "abc.org"}, URL{"https", "ethereum.org"}, -1},
+		{URL{"https", "ferminux.org"}, URL{"https", "ferminux.org"}, 0},
+		{URL{"http", "ferminux.org"}, URL{"https", "ferminux.org"}, -1},
+		{URL{"https", "ferminux.org/a"}, URL{"https", "ferminux.org"}, 1},
+		{URL{"https", "abc.org"}, URL{"https", "ferminux.org"}, -1},
 	}
 
 	for i, tt := range tests {

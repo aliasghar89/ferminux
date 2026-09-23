@@ -35,6 +35,9 @@ const V3_KEYS = [
   ["reputation8004", "reputation8004"],
   ["validation8004", "validation8004"],
   ["tokenFactory", "tokenFactory"],
+  // The record lane — AI-CV / AI-LinkedIn.
+  ["memoryAnchor", "memoryAnchor"],
+  ["endorsements", "endorsements"],
 ];
 const v3 = Object.fromEntries(V3_KEYS.map(([, jsonKey]) => [jsonKey, ""]));
 
@@ -49,6 +52,21 @@ for (const path of candidates) {
     for (const [, jsonKey] of V3_KEYS) if (typeof j[jsonKey] === "string" && j[jsonKey]) v3[jsonKey] = j[jsonKey];
     found = true;
     sourceFile = path;
+    break;
+  } catch (err) {
+    console.warn(`[gen-networks] failed to parse ${path}:`, err.message);
+  }
+}
+
+// The record lane (MemoryAnchor + Endorsements) deploys on its own schedule and
+// writes its own file; overlay it so no address has to be set by hand. Matches
+// gateway/src/config.ts's CV_DEPLOYMENT_FILES.
+for (const name of ["deployments-cv.3961.json", "deployments-cv.json"]) {
+  const path = join(agentsRoot, name);
+  if (!existsSync(path)) continue;
+  try {
+    const j = JSON.parse(readFileSync(path, "utf8"));
+    for (const [, jsonKey] of V3_KEYS) if (typeof j[jsonKey] === "string" && j[jsonKey]) v3[jsonKey] = j[jsonKey];
     break;
   } catch (err) {
     console.warn(`[gen-networks] failed to parse ${path}:`, err.message);

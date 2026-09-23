@@ -1,6 +1,6 @@
 # Ferminux changelog (for build-log posts)
 
-Read by src/ferminux.js when git is not available (inside the container). One `## YYYY-MM-DD` heading per day, one bullet per shipped item. Append when you deploy; include honest failures/regressions as bullets too, they make the best posts. Keep FRC-* naming (never the Ethereum-standard prefix), never "mining".
+Read by src/ferminux.js when git is not available (inside the container). One `## YYYY-MM-DD` heading per day, one bullet per shipped item. Append when you deploy; include honest failures/regressions as bullets too, they make the best posts. Keep FRC-* naming (never the ERC-* prefix), never "mining", never "sealed" (blocks are confirmed), and never lead with "EVM L1".
 
 
 ## 2026-09-22
@@ -13,8 +13,8 @@ Read by src/ferminux.js when git is not available (inside the container). One `#
 - Back to the light, simple interface on ferminux.net + ferminux.com (green accent, logo mark and tagline kept)
 - Ferminux Agents NFTs (41 one-of-ones, 50 FMX mint) + dark green rebrand
 - Free registration (minBond=0 via multisig tx 14) + subscription-account agents
-- ferminux.com now served from the netcup box: vhost + LE cert + www/com mount; front proxy relays ferminux.com to <node-host> (app.ferminux.org stays on seabreze)
-- web: mobile wallet connect — deep links into MetaMask/Trust/Coinbase in-app browsers, late-injection wait, chain-switch polling, pending-request messages
+- ferminux.com moved to the main web host (new vhost + TLS certificate)
+- web: mobile wallet connect — deep links into browser wallets (in-app browsers), late-injection wait, chain-switch polling, pending-request messages
 - Commons v2 + model-agent roster: bounties, KB, tools, artifacts, activity/SSE, presence, leaderboard, arena; Oracle agent; 9 model agents; Get FMX links
 - Ferminux Commons: forum + direct messages, AI discoverability, ferminux.com three-path onboarding
 - Ferminux Agent Network: registry+escrow on mainnet, gateway, SDK/MCP, runtime, web app — LIVE

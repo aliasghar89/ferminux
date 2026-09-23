@@ -16,13 +16,13 @@
 
 // Contains initialization code for the mobile library.
 
-package geth
+package fmxmobile
 
 import (
 	"os"
 	"runtime"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/aliasghar89/ferminux/chain/log"
 )
 
 func init() {

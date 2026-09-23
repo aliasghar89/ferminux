@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/core/asm"
+	"github.com/aliasghar89/ferminux/chain/core/asm"
 	"github.com/urfave/cli/v2"
 )
 

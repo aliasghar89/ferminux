@@ -26,6 +26,7 @@ import { createV3Context } from "./v3/context.js";
 import { WebhookBus, registerWebhookRoutes } from "./v3/webhooks.js";
 import { X402Facilitator, registerX402Routes } from "./v3/x402.js";
 import { registerMemoryRoutes } from "./v3/memory.js";
+import { registerMemoryAnchorRoutes } from "./v3/memory-anchor.js";
 import { registerComputeRoutes } from "./v3/compute.js";
 import { registerA2aRoutes } from "./v3/a2a.js";
 import { registerErc8004Routes } from "./v3/erc8004.js";
@@ -34,6 +35,10 @@ import { registerRelayRoutes } from "./v3/relay.js";
 import { registerAuditRoutes } from "./v3/audit.js";
 import { registerFaucetRoutes } from "./v3/faucet.js";
 import { registerV3ReadRoutes } from "./v3/reads.js";
+import { cvLinks, registerCvRoutes } from "./v3/cv.js";
+import { registerNetworkRoutes } from "./v3/network.js";
+import { registerCvContextRoutes } from "./v3/cv-context.js";
+import { slugify } from "./v3/a2a.js";
 import { applyV3Event } from "./v3/indexer-v3.js";
 import { attachValidationOracle, validationForJob, agentValidations } from "./v3/validation.js";
 
@@ -154,11 +159,28 @@ export async function buildServer(opts: BuildOptions = {}) {
       }
       const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+      // RANK ON WHAT COSTS SOMETHING.
+      //
+      // ServiceEscrow.requestJob accepts msg.value = 0 and blocks only the
+      // agent's own owner from being the client, so a second address you
+      // control can mint a completed job and a five-star rating for the price
+      // of gas. Ordering by the registry's raw jobsCompleted / ratingSum put
+      // whoever spent the most gas at the top of a directory used to choose
+      // whom to pay. These sorts count only jobs that MOVED FMX, and break ties
+      // on how many distinct addresses did the paying — breadth is the part a
+      // self-dealer cannot buy cheaply.
+      const PAID_JOBS = "(SELECT COUNT(*) FROM jobs j WHERE j.agentId = agents.id AND j.status IN (3, 6) AND CAST(j.amount AS REAL) > 0)";
+      const PAYERS = "(SELECT COUNT(DISTINCT lower(j.client)) FROM jobs j WHERE j.agentId = agents.id AND j.status IN (3, 6) AND CAST(j.amount AS REAL) > 0)";
+      const EARNED = "(SELECT COALESCE(SUM(CAST(j.amount AS REAL)), 0) FROM jobs j WHERE j.agentId = agents.id AND j.status IN (3, 6))";
       let orderSql = "registeredAt DESC";
       if (sort === "rating") {
-        orderSql = "CASE WHEN ratingCount > 0 THEN CAST(ratingSum AS REAL) / ratingCount ELSE -1 END DESC";
+        // A rating on a job worth nothing is worth nothing. Agents with no paid
+        // work rank below every agent that has some, whatever their average.
+        orderSql = `CASE WHEN ${PAID_JOBS} > 0 AND ratingCount > 0 THEN CAST(ratingSum AS REAL) / ratingCount ELSE -1 END DESC, ${PAYERS} DESC, ${EARNED} DESC`;
       } else if (sort === "jobs") {
-        orderSql = "jobsCompleted DESC";
+        orderSql = `${PAID_JOBS} DESC, ${PAYERS} DESC, ${EARNED} DESC`;
+      } else if (sort === "earned") {
+        orderSql = `${EARNED} DESC, ${PAYERS} DESC`;
       }
 
       const total = (db.prepare(`SELECT COUNT(*) AS c FROM agents ${whereSql}`).get(...params) as { c: number }).c;
@@ -175,10 +197,13 @@ export async function buildServer(opts: BuildOptions = {}) {
     if (!row) return reply.code(404).send({ error: "agent not found" });
     const validations = agentValidations(v3, id, 20);
     const scored = validations.filter((v) => v.response !== null);
+    const base = cfg.publicUrl.replace(/\/+$/, "");
     return {
       ...agentRowToView(row),
       validation: { count: scored.length, avgResponse: scored.length ? Math.round(scored.reduce((a, v) => a + (v.response ?? 0), 0) / scored.length) : null, latest: validations[0] ?? null },
-      links: { a2a: `${cfg.publicUrl.replace(/\/+$/, "")}/a/${id}/.well-known/agent.json`, erc8004: `${cfg.publicUrl.replace(/\/+$/, "")}/api/agents/${id}/erc8004.json`, audit: `${cfg.publicUrl.replace(/\/+$/, "")}/api/agents/${id}/audit.jsonl` },
+      /** The agent's public record: the document, the signed credential, how to check it without us, and the badge. */
+      cv: { ...cvLinks(base, id, slugify(row.name)), description: "Every claim in the CV carries the transaction or the route that produced it. The chain claims verify against any RPC for chain 3961 without calling Ferminux." },
+      links: { a2a: `${base}/a/${id}/.well-known/agent.json`, erc8004: `${base}/api/agents/${id}/erc8004.json`, audit: `${base}/api/agents/${id}/audit.jsonl`, cv: `${base}/api/cv/${id}`, credential: `${base}/api/cv/${id}/credential.json`, badge: `${base}/api/cv/${id}/badge.svg` },
     };
   });
 
@@ -206,7 +231,7 @@ export async function buildServer(opts: BuildOptions = {}) {
     const row = db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow | undefined;
     if (!row) return reply.code(404).send({ error: "job not found" });
     const agent = db.prepare("SELECT name FROM agents WHERE id = ?").get(row.agentId) as { name: string } | undefined;
-    // verifiable delivery (ERC-8004 validation, if any) shown before the client releases
+    // verifiable delivery (FRC-8004 validation, if any) shown before the client releases
     return { ...jobRowToView(row, agent?.name ?? null), validation: validationForJob(v3, row) };
   });
 
@@ -272,7 +297,7 @@ export async function buildServer(opts: BuildOptions = {}) {
   const commonsCtx = registerCommons(app, { db, cfg, activity, ...(opts.commons ?? {}) });
   const indexerHooks = makeIndexerHooks(db, activity, { referralRules: referralRules(cfg.referralMinJobFmx) });
 
-  // Addendum v3 — agent economy (x402, webhooks, memory, compute, A2A, ERC-8004, pay-in, relay, audit)
+  // Addendum v3 — agent economy (x402, webhooks, memory, compute, A2A, FRC-8004, pay-in, relay, audit)
   const webhooks = new WebhookBus(db, now, opts.v3?.fetchImpl);
   const v3 = createV3Context({ db, cfg, provider, commons: commonsCtx, activity, webhooks, fetchImpl: opts.v3?.fetchImpl, feeRecipient: FIXED_CONTRACTS.treasury });
   const x402 = new X402Facilitator(v3);
@@ -281,6 +306,7 @@ export async function buildServer(opts: BuildOptions = {}) {
   registerX402Routes(app, v3, x402);
   registerWebhookRoutes(app, commonsCtx, webhooks);
   registerMemoryRoutes(app, v3, x402);
+  registerMemoryAnchorRoutes(app, v3);
   registerComputeRoutes(app, v3);
   registerA2aRoutes(app, v3, x402);
   registerErc8004Routes(app, v3);
@@ -289,6 +315,11 @@ export async function buildServer(opts: BuildOptions = {}) {
   registerAuditRoutes(app, v3);
   registerFaucetRoutes(app, v3);
   registerV3ReadRoutes(app, v3);
+  // The record lane: the AI-CV document, its signed credential, the verification
+  // recipe, the badge, and the hiring graph.
+  registerCvContextRoutes(app);
+  registerCvRoutes(app, v3);
+  registerNetworkRoutes(app, v3);
   // Open work (one feed of everything an agent can earn from), status page, changelog
   registerWorkRoutes(app, { db, cfg, commons: commonsCtx, activity }, { heartbeatMs: opts.commons?.sseHeartbeatMs });
   registerStatusRoutes(app, { db, cfg, provider, v3, x402, payin });

@@ -176,3 +176,102 @@ export interface PayinStatus {
 
 /* ---- audit export (G.) ---- */
 export interface AuditLine { at: number | string; kind: string; ref: unknown; sig: string }
+
+/* ==================================================================== *
+ * The record — /cv/ (AI-CV) and /network/ (who hired whom)
+ *
+ * Gateway routes: GET /api/cv/:agent, GET /api/cv/:agent/credential.json,
+ * GET /api/cv/:agent/badge.svg, GET /api/network. Every one of them is
+ * optional: src/cv.ts assembles the same document from the public routes
+ * (/agents/:id, /agents/:id/jobs, /agents/:id/audit.jsonl) and the chain
+ * when a route answers 404, so both pages render either way.
+ *
+ * The rule the whole surface is built on: no figure renders without the
+ * source it came from. `provenance` says who can check it —
+ *   chain     an indexed event or a contract read on 3961; a stranger re-derives it
+ *   signed    off-chain but carries a signature (Commons writes, x402 vouchers, audit root)
+ *   observed  only this gateway saw it (health probes, online, lastSeen)
+ *   declared  the agent says so (card capabilities, description, model, price per call)
+ * ==================================================================== */
+export type Provenance = "chain" | "signed" | "observed" | "declared";
+export interface CvProof {
+  kind: "tx" | "txs" | "call" | "sig" | "url" | "none";
+  tx?: string | null; txs?: string[]; count?: number;
+  address?: string | null; call?: string | null; uri?: string | null; note?: string | null;
+}
+/** A figure and everything a reader needs to check it. */
+export interface Env<T = unknown> { value: T; provenance: Provenance; source: string; proof?: CvProof | null }
+
+export interface CvEvidence { label: string; provenance: Provenance; tx?: string | null; href?: string | null }
+export interface CvSkill { name: string; evidence: CvEvidence[] }
+export interface CvWorkRow {
+  jobId: number; client: string; clientAgentId: number | null; clientName: string | null;
+  amountWei: string; payoutWei: string | null; feeWei: string | null; rating: number | null; status: string;
+  createdAt: number | null; deliveredAt: number | null; closedAt: number | null;
+  tx: { requested?: string | null; delivered?: string | null; closed?: string | null };
+  /** delivered inside the escrow delivery window — chain-provable, unlike uptime */
+  onTime: boolean | null;
+}
+export interface CvClientRow { address: string; agentId: number | null; name: string | null; jobs: number; paidWei: string; ratings: number[]; firstAt: number | null; lastAt: number | null }
+export interface CvContribution { kind: string; title: string; href: string | null; at: number | null; provenance: Provenance }
+export interface CvValidation { requestHash: string; validator: string; response: number | null; tag: string | null; requestedAt: number | null; respondedAt: number | null; txRequest: string | null; txResponse: string | null }
+export interface CvEndorsement { from: string; fromAgentId: number | null; fromName: string | null; capability: string | null; value: number | null; at: number | null; tx: string | null; paymentBacked: boolean }
+export interface CvAnchor { key: string; root: string; at: number | null; tx: string | null }
+export interface CvX402 { settlements: number; earnedWei: string; payments: number; spentWei: string; vouchers: number; resource: string | null }
+
+export interface CvDoc {
+  agentId: number;
+  slug: string;
+  canonical: string;
+  builtAt: number;
+  builtAtBlock: number | null;
+  /** "gateway" when GET /api/cv/:agent answered; "browser" when this page assembled it from the public routes. */
+  assembledBy: "gateway" | "browser";
+  identity: {
+    name: string; owner: string; endpoint: string; metadataURI: string; status: string;
+    registeredAt: number | null; online: boolean | null; lastSeen: number | null;
+    description: string | null; model: string | null; version: string | null; contact: string | null; image: string | null;
+    capabilities: string[];
+  };
+  metrics: {
+    jobsCompleted: Env<number>; jobsFailed: Env<number>; earnedWei: Env<string>;
+    rating: Env<{ avg: number | null; count: number }>;
+    pricePerJobWei: Env<string>; pricePerCallWei: Env<string | null>; bondWei: Env<string>;
+    validations: Env<{ count: number; avg: number | null }>;
+    x402: Env<CvX402>;
+    disputes: Env<number>;
+  };
+  skills: CvSkill[];
+  declaredOnly: string[];
+  work: CvWorkRow[];
+  clients: CvClientRow[];
+  contributions: CvContribution[];
+  validations: CvValidation[];
+  endorsements: CvEndorsement[];
+  endorsersWithoutRecord: number;
+  memory: { anchors: CvAnchor[]; anchored: boolean; note: string };
+  reliability: { online: boolean | null; lastSeen: number | null; onTime: number; onTimeOf: number; probeHistory: boolean };
+  network: { plans: number; streams: number; token: { symbol: string; address: string; priceWei: string | null } | null; referrals: number | null };
+  audit: { merkleRoot: string | null; leaves: number | null; signer: string | null; signerEphemeral: boolean; generatedAt: number | null; url: string };
+  /** The signed export is capped, so a busy agent's settlements may not all be in it. When `partial`
+   *  is true every summed figure is a floor and the page says so rather than printing it as exact. */
+  coverage?: { jobsSettled: number; jobsCompleted: number; partial: boolean };
+  /**
+   * WHAT A SELF-DEALER CAN BUY, so no count renders without it.
+   *
+   * ServiceEscrow.requestJob accepts msg.value = 0 and blocks only the agent's own owner from
+   * being the client, so a second address the operator controls can mint a completed job and a
+   * five-star rating for the price of gas. `paidJobs` counts the ones that actually moved FMX;
+   * `payers` counts the distinct addresses that did the paying, which is the part that is hard
+   * to manufacture. Both sit beside the raw counter everywhere it appears.
+   */
+  armsLength: { paidJobs: number; zeroValueJobs: number; payers: number; ratedPaidJobs: number };
+  links: { a2a: string; erc8004: string; audit: string; credential: string; badge: string; endpoint: string };
+  /** Anything the page could not read (missing route, undeployed contract). Rendered, never swallowed. */
+  notes: string[];
+}
+
+export type NetKind = "hire" | "endorse";
+export interface NetNode { key: string; address: string; agentId: number | null; name: string; jobs: number; earnedWei: string; ratingAvg: number | null; ratingCount: number; capabilities: string[]; status: string; isAgent: boolean }
+export interface NetEdge { from: string; to: string; fromName: string; toName: string; fromAgentId: number | null; toAgentId: number | null; jobs: number; fmxWei: string; ratingAvg: number | null; firstAt: number | null; lastAt: number | null; kind: NetKind; txs: string[]; /** the gateway names the jobs behind an edge instead of their transactions */ jobIds?: number[] }
+export interface NetView { kind: NetKind; nodes: NetNode[]; edges: NetEdge[]; builtAt: number; source: "gateway" | "browser"; notes: string[] }

@@ -17,6 +17,8 @@ export const V3_CONTRACT_KEYS = [
   "reputation8004",
   "validation8004",
   "tokenFactory",
+  "memoryAnchor",
+  "endorsements",
 ] as const;
 export type V3ContractKey = (typeof V3_CONTRACT_KEYS)[number];
 export type V3Contracts = Partial<Record<V3ContractKey, string>>;
@@ -28,25 +30,43 @@ interface DeploymentDefaults extends V3Contracts {
   v3DeployBlock?: number;
 }
 
+/** The AI-CV lane's own deployment file (DeployCV.s.sol writes deployments-cv.<chainid>.json). */
+const CV_DEPLOYMENT_FILES = ["deployments-cv.3961.json", "deployments-cv.json"] as const;
+
 function isAddress(v: unknown): v is string {
   return typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v) && v !== ZERO_ADDRESS;
 }
 
 function loadDeploymentDefaults(): DeploymentDefaults {
   const candidates = [join(agentsRoot, "deployments.3961.json"), join(agentsRoot, "deployments.json")];
+  let out: DeploymentDefaults = {};
   for (const path of candidates) {
     if (!existsSync(path)) continue;
     try {
       const j = JSON.parse(readFileSync(path, "utf8"));
-      const out: DeploymentDefaults = { registry: j.registry, escrow: j.escrow, deployBlock: j.deployBlock };
+      out = { registry: j.registry, escrow: j.escrow, deployBlock: j.deployBlock };
       for (const key of V3_CONTRACT_KEYS) if (isAddress(j[key])) out[key] = j[key];
       if (typeof j.v3DeployBlock === "number") out.v3DeployBlock = j.v3DeployBlock;
-      return out;
+      break;
     } catch (err) {
       console.warn(`[config] failed to parse ${path}:`, (err as Error).message);
     }
   }
-  return {};
+  // The record lane (MemoryAnchor + Endorsements) deploys on its own schedule and
+  // writes its own file; overlay it so no address has to be set by hand.
+  for (const name of CV_DEPLOYMENT_FILES) {
+    const path = join(agentsRoot, name);
+    if (!existsSync(path)) continue;
+    try {
+      const j = JSON.parse(readFileSync(path, "utf8"));
+      for (const key of V3_CONTRACT_KEYS) if (isAddress(j[key])) out[key] = j[key];
+      if (out.v3DeployBlock === undefined && typeof j.deployBlockCV === "number") out.v3DeployBlock = j.deployBlockCV;
+      break;
+    } catch (err) {
+      console.warn(`[config] failed to parse ${path}:`, (err as Error).message);
+    }
+  }
+  return out;
 }
 
 export interface GatewayConfig {
@@ -140,6 +160,8 @@ const V3_ENV: Record<V3ContractKey, string> = {
   reputation8004: "REPUTATION_8004",
   validation8004: "VALIDATION_8004",
   tokenFactory: "TOKEN_FACTORY",
+  memoryAnchor: "MEMORY_ANCHOR",
+  endorsements: "ENDORSEMENTS",
 };
 
 function optionalKey(name: string): string | undefined {

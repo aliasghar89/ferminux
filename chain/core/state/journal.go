@@ -19,7 +19,7 @@ package state
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
@@ -28,7 +28,7 @@ type journalEntry interface {
 	// revert undoes the changes introduced by this journal entry.
 	revert(*StateDB)
 
-	// dirtied returns the Ethereum address modified by this journal entry.
+	// dirtied returns the Ferminux address modified by this journal entry.
 	dirtied() *common.Address
 }
 

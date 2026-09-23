@@ -173,7 +173,7 @@ export function parseQrPayload(raw: string, expectedChainId: number = CHAIN_ID):
   if (scheme !== 'ethereum') {
     return fail(
       'unsupported-scheme',
-      `That is a "${scheme}:" code, not an Ethereum-style payment request. Ferminux can only pay ethereum: URIs and 0x… addresses.`,
+      `That is a "${scheme}:" code, not an EIP-681 payment request. Ferminux can only pay ethereum: URIs and 0x… addresses.`,
     );
   }
 
@@ -245,17 +245,17 @@ export function parseQrPayload(raw: string, expectedChainId: number = CHAIN_ID):
   if (functionName.toLowerCase() !== 'transfer') {
     return fail(
       'unsupported-function',
-      `That code asks the wallet to call "${functionName}()". Only plain payments and ERC-20 transfer() requests are supported.`,
+      `That code asks the wallet to call "${functionName}()". Only plain payments and token transfer() requests are supported.`,
     );
   }
 
   const recipientRaw = params.get('address');
   if (recipientRaw === null || recipientRaw.trim() === '') {
-    return fail('malformed', 'That ERC-20 transfer code is missing its "address" (recipient) parameter.');
+    return fail('malformed', 'That token transfer code is missing its "address" (recipient) parameter.');
   }
   const recipient = checksumAddress(recipientRaw);
   if (!recipient) {
-    return fail('bad-address', 'The recipient address inside that ERC-20 transfer code is not valid.');
+    return fail('bad-address', 'The recipient address inside that token transfer code is not valid.');
   }
 
   let amount: bigint | undefined;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title Ferminux Agents — 41 one-of-one agent archetypes (ERC-721) on Ferminux Network.
-/// @notice Minimal, dependency-free ERC-721 (Paris EVM, no PUSH0). Fixed set of token ids
+/// @title Ferminux Agents — 41 one-of-one agent archetypes (FRC-721) on Ferminux Network.
+/// @notice Minimal, dependency-free FRC-721 (Paris EVM target, no PUSH0). Fixed set of token ids
 ///         1..MAX_ID; anyone mints an unminted id for `price` FMX; proceeds go to the owner
 ///         (the governance multisig) via withdraw(). Owner may reserve ids for free.
 contract FerminuxAgents {
@@ -90,7 +90,9 @@ contract FerminuxAgents {
         if (!ok) revert TransferFailed();
     }
 
-    // ---- ERC-721 transfers ----
+    // ---- FRC-721 transfers ----
+    // Function and event NAMES below keep their standard spelling: the 4-byte
+    // selector and the 32-byte topic hash are keccak of the literal signature.
     function approve(address spender, uint256 tokenId) external {
         address o = ownerOf(tokenId);
         if (msg.sender != o && !isApprovedForAll[o][msg.sender]) revert NotAuthorized();

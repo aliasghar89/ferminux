@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/aliasghar89/ferminux/chain/common/mclock"
 )
 
 func TestUpdateTimer(t *testing.T) {

@@ -26,7 +26,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/aliasghar89/ferminux/chain/common/math"
 	"github.com/urfave/cli/v2"
 )
 
@@ -53,7 +53,7 @@ var (
 )
 
 // DirectoryFlag is custom cli.Flag type which expand the received string to an absolute path.
-// e.g. ~/.ethereum -> /home/username/.ethereum
+// e.g. ~/.ferminux -> /home/username/.ferminux
 type DirectoryFlag struct {
 	Name string
 

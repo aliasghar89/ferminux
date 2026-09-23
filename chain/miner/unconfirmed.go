@@ -20,9 +20,9 @@ import (
 	"container/ring"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/core/types"
+	"github.com/aliasghar89/ferminux/chain/log"
 )
 
 // chainRetriever is used by the unconfirmed block set to verify whether a previously
@@ -81,8 +81,8 @@ func (set *unconfirmedBlocks) Insert(index uint64, hash common.Hash) {
 	} else {
 		set.blocks.Move(-1).Link(item)
 	}
-	// Display a log for the user to notify of a new mined block unconfirmed
-	log.Info("🔨 mined potential block", "number", index, "hash", hash)
+	// Display a log for the user to notify of a newly produced, unconfirmed block
+	log.Info("🔏 signed potential block", "number", index, "hash", hash)
 }
 
 // Shift drops all unconfirmed blocks from the set which exceed the unconfirmed sets depth
@@ -102,7 +102,7 @@ func (set *unconfirmedBlocks) Shift(height uint64) {
 		header := set.chain.GetHeaderByNumber(next.index)
 		switch {
 		case header == nil:
-			log.Warn("Failed to retrieve header of mined block", "number", next.index, "hash", next.hash)
+			log.Warn("Failed to retrieve header of produced block", "number", next.index, "hash", next.hash)
 		case header.Hash() == next.hash:
 			log.Info("🔗 block reached canonical chain", "number", next.index, "hash", next.hash)
 		default:

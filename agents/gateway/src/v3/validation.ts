@@ -1,5 +1,5 @@
 // Verifiable delivery (spec C5, gateway part): when a job is Delivered and the
-// agent's ERC-8004 identity metadata "validator" names the gateway's Oracle
+// agent's FRC-8004 identity metadata "validator" names the gateway's Oracle
 // agent, the gateway posts ValidationRegistry8004.validationRequest(validator,
 // agentId, outputURI, outputHash) from ORACLE_KEY. The response (0..100) is
 // indexed into `validations` and shown on the job (GET /api/jobs/:id →

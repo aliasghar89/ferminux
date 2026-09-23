@@ -1,0 +1,11 @@
+{
+  "name": "ferminux-proof-tools",
+  "private": true,
+  "type": "module",
+  "description": "Builds consensus + receipt-proof fixtures from real Ferminux blocks for the proof-bridge contracts.",
+  "dependencies": {
+    "@ethereumjs/trie": "^6.2.1",
+    "@ethereumjs/util": "^9.1.0",
+    "ethers": "^6.13.4"
+  }
+}

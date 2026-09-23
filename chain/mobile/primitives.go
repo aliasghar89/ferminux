@@ -16,13 +16,13 @@
 
 // Contains various wrappers for primitive types.
 
-package geth
+package fmxmobile
 
 import (
 	"errors"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 // Strings represents s slice of strs.

@@ -17,10 +17,10 @@
 package les
 
 import (
-	"github.com/ethereum/go-ethereum/core/forkid"
-	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/aliasghar89/ferminux/chain/core/forkid"
+	"github.com/aliasghar89/ferminux/chain/p2p/dnsdisc"
+	"github.com/aliasghar89/ferminux/chain/p2p/enode"
+	"github.com/aliasghar89/ferminux/chain/rlp"
 )
 
 // lesEntry is the "les" ENR entry. This is set for LES servers only.
@@ -41,7 +41,7 @@ type ethEntry struct {
 func (ethEntry) ENRKey() string { return "eth" }
 
 // setupDiscovery creates the node discovery source for the eth protocol.
-func (eth *LightEthereum) setupDiscovery() (enode.Iterator, error) {
+func (eth *LightFerminux) setupDiscovery() (enode.Iterator, error) {
 	it := enode.NewFairMix(0)
 
 	// Enable DNS discovery.

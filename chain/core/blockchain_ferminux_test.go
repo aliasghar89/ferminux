@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/consensus/powhash"
+	"github.com/aliasghar89/ferminux/chain/core/rawdb"
+	"github.com/aliasghar89/ferminux/chain/core/vm"
+	"github.com/aliasghar89/ferminux/chain/params"
 )
 
 // testReorgCap builds a 100-block canonical chain and a heavier side chain
@@ -34,7 +34,7 @@ func testReorgCap(t *testing.T, posaBlock int64, depth int, allow bool, wantFoll
 		gendb   = rawdb.NewMemoryDatabase()
 		gspec   = &Genesis{Config: &config, BaseFee: big.NewInt(params.InitialBaseFee)}
 		genesis = gspec.MustCommit(gendb)
-		engine  = ethash.NewFaker()
+		engine  = powhash.NewFaker()
 	)
 	canon, _ := GenerateChain(&config, genesis, engine, gendb, canonLen, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})

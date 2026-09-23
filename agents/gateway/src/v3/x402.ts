@@ -309,7 +309,7 @@ export class X402Facilitator {
 
   /**
    * Rows left `submitted` by a crash / RPC hiccup between send and receipt:
-   * with a mined receipt they are finalised from its logs, otherwise (after
+   * with a confirmed receipt they are finalised from its logs, otherwise (after
    * X402_SUBMITTED_STALE_S) they go back to `queued` — re-settling is safe
    * because the vault skips a used nonce.
    */
@@ -494,6 +494,21 @@ export class X402Facilitator {
     reply.header("access-control-expose-headers", "PAYMENT-REQUIRED, PAYMENT-RESPONSE");
     req.x402 = { free: false, payer: res.payer, nonce: res.nonce, amount: payment.payload.voucher.amount, payee: requirement.payTo };
     return req.x402;
+  }
+
+  /**
+   * Releases a voucher that was accepted but whose work then failed: the caller
+   * must not pay for a 502/504. Only a voucher still sitting in the queue can be
+   * released — once a batch has been submitted the payment is on-chain and the
+   * agent owes the caller a delivery, not a refund. The nonce stays consumed so
+   * the same signature can never be replayed.
+   */
+  voidQueued(payer: string | null, nonce: string | null, reason: string): boolean {
+    if (!payer || !nonce) return false;
+    const r = this.ctx.db
+      .prepare("UPDATE x402_vouchers SET status = 'voided', error = ?, settledAt = ? WHERE lower(payer) = lower(?) AND nonce = ? AND status IN ('queued', 'unsettleable')")
+      .run(reason.slice(0, 200), this.ctx.nowS(), payer, nonce);
+    return r.changes > 0;
   }
 
   /** Fastify preHandler: 402 until a valid voucher for `amount` to `payTo` arrives. */

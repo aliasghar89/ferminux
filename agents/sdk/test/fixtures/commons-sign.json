@@ -1,5 +1,5 @@
 {
-  "note": "Shared vector for gateway/src/commons/sign.ts and sdk/src/sign.ts. privateKey is a public hardhat test key. `vectors` covers every other COMMONS_ACTIONS entry with the same key + ts. Addendum v3 adds memory.put/get/delete and webhook.set/delete vectors (same key+ts). Growth adds a referral.claim vector (same key+ts).",
+  "note": "Shared vector for gateway/src/commons/sign.ts and sdk/src/sign.ts. privateKey is a public hardhat test key. `vectors` covers every other COMMONS_ACTIONS entry with the same key + ts. Addendum v3 adds memory.put/get/delete, memory.anchor (FRC-100) and webhook.set/delete vectors (same key+ts). Growth adds a referral.claim vector (same key+ts).",
   "privateKey": "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
   "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
   "action": "thread.create",
@@ -10,7 +10,7 @@
       "b",
       "a"
     ],
-    "body": "First post — ünïcödé ✓\nline2",
+    "body": "First post \u2014 \u00fcn\u00efc\u00f6d\u00e9 \u2713\nline2",
     "nested": {
       "z": 1,
       "a": [
@@ -22,7 +22,7 @@
       ]
     }
   },
-  "canonicalJson": "{\"body\":\"First post — ünïcödé ✓\\nline2\",\"nested\":{\"a\":[1,{\"x\":null,\"y\":true}],\"z\":1},\"tags\":[\"b\",\"a\"],\"title\":\"Hello, Ferminux\"}",
+  "canonicalJson": "{\"body\":\"First post \u2014 \u00fcn\u00efc\u00f6d\u00e9 \u2713\\nline2\",\"nested\":{\"a\":[1,{\"x\":null,\"y\":true}],\"z\":1},\"tags\":[\"b\",\"a\"],\"title\":\"Hello, Ferminux\"}",
   "bodyHash": "2c498399ad9870405fe2db97a0d1b8de4d70872056889fd2b9b0ec655c12d746",
   "message": "Ferminux Commons\naction: thread.create\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 2c498399ad9870405fe2db97a0d1b8de4d70872056889fd2b9b0ec655c12d746",
   "sig": "0xa9c1318d4cba2befc391bee1f7d8169a7421e92cc1c1a0f1fb7979352e8693cf0098975181862a4874586aff8bec99fd218916b46e72768fbe615472e44ece281c",
@@ -49,6 +49,7 @@
     "memory.delete",
     "webhook.set",
     "webhook.delete",
+    "memory.anchor",
     "referral.claim"
   ],
   "vectors": [
@@ -284,6 +285,17 @@
       "bodyHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       "message": "Ferminux Commons\naction: webhook.delete\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       "sig": "0xdb9e38ec793364196f945aeeef32f69aa37bf1716fac233ea488bc3134e1381f112b492aac2487f0b4e7bf423b5147002a9d9cc120d79661fc695871f049d0701c"
+    },
+    {
+      "action": "memory.anchor",
+      "payload": {
+        "agentId": 7,
+        "uri": "fmx://memory/7"
+      },
+      "canonicalJson": "{\"agentId\":7,\"uri\":\"fmx://memory/7\"}",
+      "bodyHash": "fed2567784ce8704df123b4c3902f2d20d28a9451c4538677e45135788ca7673",
+      "message": "Ferminux Commons\naction: memory.anchor\naddress: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nts: 1758400000\nbody: fed2567784ce8704df123b4c3902f2d20d28a9451c4538677e45135788ca7673",
+      "sig": "0xcc56cc7a2d3306b8310e1676a861825bb151ee720bbb369bf3781e1ba237aa424ede463e9a1131d272700a73ee58ac4bdfdc0f30cbfefe486ffe54a4bcb563291c"
     },
     {
       "action": "referral.claim",

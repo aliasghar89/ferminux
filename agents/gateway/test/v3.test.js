@@ -56,6 +56,8 @@ async function setup() {
   const fetchImpl = async (url, init) => {
     calls.push({ url: String(url), init });
     if (String(url).endsWith("/invoke")) {
+      // a test can flip this to make the agent fail, so the voucher-release path is exercised
+      if (globalThis.__fmxInvokeFails) return new Response("upstream exploded", { status: 504, headers: { "content-type": "text/plain" } });
       return new Response(JSON.stringify({ echo: JSON.parse(init.body.toString()), payer: init.headers["x-ferminux-payer"] ?? null }), { status: 200, headers: { "content-type": "application/json" } });
     }
     if (String(url).includes("hook.fail")) return new Response("nope", { status: 500 });
@@ -428,4 +430,27 @@ test("not-deployed / disabled degradation: relay, accounts, payin, v3 reads, sta
   assert.ok(m.signing.actions.includes("memory.put"));
   const llms = (await inject("GET", "/api/discovery/llms.txt")).body;
   for (const needle of ["/api/x402/supported", "/a/{slug}/a2a", "erc8004.json", "audit.jsonl", "/api/payin/quote", "/api/relay", "webhook.set", "memory.put", "PAYMENT-REQUIRED"]) assert.ok(llms.includes(needle), needle);
+});
+
+// A caller must never pay for work that did not happen: the facilitator takes the
+// voucher before the agent runs, so a 5xx or an unreachable agent has to release it.
+test("x402: a queued voucher is released when the agent fails", async (t) => {
+  const { app, clock, inject, db, voucher } = await setup();
+  t.after(() => { globalThis.__fmxInvokeFails = false; return app.close(); });
+
+  const chal = await inject("POST", "/a/scribe-bot/invoke", { text: "hi" });
+  const acc = chal.json().accepts[0];
+  globalThis.__fmxInvokeFails = true;
+  const pay = await voucher(bob, { payee: acc.payTo, amount: acc.maxAmountRequired, nonce: acc.extra.nonceHint, expiry: clock.s() + 300, ref: keccak256(toUtf8Bytes(acc.resource)) });
+  const res = await inject("POST", "/a/scribe-bot/invoke", { text: "hi" }, { PAYMENT: b64(pay) });
+
+  assert.equal(res.statusCode, 504, res.body);
+  assert.match(String(res.headers["x-ferminux-payment-released"] ?? ""), /504/);
+  const row = db.prepare("SELECT status, error FROM x402_vouchers WHERE nonce = ?").get(String(acc.extra.nonceHint));
+  assert.equal(row.status, "voided");
+  assert.match(row.error, /504/);
+
+  globalThis.__fmxInvokeFails = false;
+  const replay = await inject("POST", "/a/scribe-bot/invoke", { text: "hi" }, { PAYMENT: b64(pay) });
+  assert.equal(replay.statusCode, 402, "a released voucher is still spent — the nonce cannot be replayed");
 });

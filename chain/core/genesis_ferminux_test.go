@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/aliasghar89/ferminux/chain/params"
 )
 
 // TestDefaultFerminuxGenesisHash proves the baked-in default genesis is

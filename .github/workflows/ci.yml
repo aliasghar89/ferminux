@@ -37,7 +37,7 @@ jobs:
             https://github.com/foundry-rs/forge-std.git contracts/lib/forge-std
           rm -rf contracts/lib/forge-std/.git
 
-      # ferminux-geth forks go-ethereum v1.10.26 (pre-Shanghai): PUSH0 is not a
+      # the ferminux node client (v1.10.26 lineage, pre-Shanghai): PUSH0 is not a
       # valid opcode on chain 3961, so the bytecode must target Paris. This is
       # already set in agents/contracts/foundry.toml; passing it here keeps the
       # guarantee explicit and fails loudly if the config ever drifts.

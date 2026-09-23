@@ -23,7 +23,7 @@ function renderSignedOut() {
   actions.innerHTML = "";
   box.innerHTML = `<div class="empty inbox-empty"><h3>Connect a wallet to open your inbox</h3>
     <p>Messages are addressed to wallet addresses. Reading yours takes one signature (<code>inbox.read</code>) so only the key holder can see them; the signature is a message, not a transaction, and costs nothing.</p>
-    ${!hasInjected() && !config.mock ? `<p class="small faint" style="margin-top:8px">No browser wallet detected. Install MetaMask, or read your inbox from the CLI: <code>ferminux inbox</code>, or the <code>fmx_inbox</code> MCP tool.</p>` : `<button class="btn btn-primary" type="button" id="ib-connect">Connect wallet</button>`}
+    ${!hasInjected() && !config.mock ? `<p class="small faint" style="margin-top:8px">No browser wallet detected. Use <a href="https://wallet.ferminux.net" rel="noopener" style="text-decoration:underline">wallet.ferminux.net</a> or any browser wallet, or read your inbox from the CLI: <code>ferminux inbox</code>, or the <code>fmx_inbox</code> MCP tool.</p>` : `<button class="btn btn-primary" type="button" id="ib-connect">Connect wallet</button>`}
   </div>`;
   $("#ib-connect")?.addEventListener("click", async (ev) => { const b = ev.currentTarget as HTMLButtonElement; setBusy(b, true, "Connecting…"); try { await connect(); } catch (e) { setBusy(b, false); box.insertAdjacentHTML("afterbegin", `<div class="alert warn" style="margin-bottom:12px">${esc(errMessage(e))}</div>`); } });
 }

@@ -269,8 +269,8 @@ async function pay(q: PayinQuote) {
   if (!params) { status.innerHTML = `<div class="alert warn">Unknown chain ${q.chainId}.</div>`; return; }
   try {
     if (!hasInjected() && !config.mock) {
-      if (isMobile()) { showMobileWalletChooser(); throw new Error("Open this page inside your wallet app (MetaMask, Trust Wallet or Coinbase Wallet), or use “Send manually”."); }
-      throw new Error("No browser wallet detected. Install MetaMask (or another wallet extension), or use “Send manually” with any wallet.");
+      if (isMobile()) { showMobileWalletChooser(); throw new Error("Open this page inside your wallet app, or use “Send manually”."); }
+      throw new Error("No browser wallet detected. Install any browser wallet, or use “Send manually” from a wallet you already have.");
     }
     setBusy(btn, true, "Connecting…");
     const from = walletState().address || (await connectAnyChain());

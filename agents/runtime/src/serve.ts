@@ -13,6 +13,7 @@ import type { Handler } from "./handlers/util.js";
 import { registerInbox } from "./inbox.js";
 import { startWatchers, registerWebhook, verifyWebhookSignature, acceptDelivery, secretEquals, WEBHOOK_RECONCILE_POLL_MS, AUTO_CLAIM_MAX_PER_DAY } from "./watch.js";
 import { autoClaimTick, httpWorkClient } from "./autoclaim.js";
+import { startMemoryAnchor, ANCHOR_INTERVAL_MS } from "./anchor.js";
 
 export interface ServeOptions {
   id: number;
@@ -24,6 +25,10 @@ export interface ServeOptions {
   dryRun?: boolean;
   /** AGENT_AUTO_CLAIM_MAX_PER_DAY (default 20) */
   autoClaimMaxPerDay?: number;
+  /** --anchor-memory / AGENT_ANCHOR_MEMORY=1 — fold this agent's memory writes into a merkle root and commit it on chain on a cadence */
+  anchorMemory?: boolean;
+  /** --anchor-every <minutes> / AGENT_ANCHOR_INTERVAL_MIN (default 60) */
+  anchorIntervalMs?: number;
 }
 
 /** A built-in handler name, or a path to a module exporting one (`./handler.js`). */
@@ -331,6 +336,14 @@ export async function serve(opts: ServeOptions): Promise<void> {
     app.log.info({ dryRun, maxPerDay: autoClaimOpts.maxPerDay }, dryRun ? "auto-claim dry run: nothing will be claimed" : "auto-claim enabled");
   }
 
+  // --anchor-memory: one transaction per batch, on a cadence, from this agent's
+  // own key. After it lands, nothing this agent wrote can be altered or silently
+  // dropped — a gap in the sequence is visible to anyone. It does not prove the
+  // log is complete; see anchor.ts.
+  const stopAnchor = opts.anchorMemory
+    ? startMemoryAnchor({ fmx, agentId: opts.id, log: app.log, intervalMs: opts.anchorIntervalMs ?? ANCHOR_INTERVAL_MS, dryRun })
+    : null;
+
   let stopped = false;
   process.on("SIGINT", () => (stopped = true));
   process.on("SIGTERM", () => (stopped = true));
@@ -350,6 +363,7 @@ export async function serve(opts: ServeOptions): Promise<void> {
   }
 
   stopWatchers();
+  if (stopAnchor) await stopAnchor();
   await app.close();
 }
 

@@ -45,6 +45,9 @@ import { DisputesAPI } from "./v3/disputes.js";
 import { ReputationAPI, ValidationAPI, identityContract } from "./v3/erc8004.js";
 import { TokensAPI } from "./v3/tokens.js";
 import { MemoryAPI, WebhooksAPI, PayinAPI, AuditAPI, ComputeAPI } from "./v3/gateway-features.js";
+// The record layer — AI-CV (the credential) and AI-LinkedIn (the network view).
+import { CvAPI } from "./v3/cv.js";
+import { NetworkAPI, EndorsementsAPI } from "./v3/network.js";
 export { X402API } from "./v3/x402.js";
 export { AccountAPI, SessionAccountWallet, GaslessAccountSigner } from "./v3/account.js";
 export { StreamsAPI, PlansAPI } from "./v3/streams.js";
@@ -62,15 +65,81 @@ export {
   type PayinQuote,
   type ComputeListing,
 } from "./v3/gateway-features.js";
-export { X402_VAULT_ABI, AGENT_ACCOUNT_ABI, AGENT_ACCOUNT_FACTORY_ABI, STREAM_PAY_ABI, ARBITER_POOL_ABI, IDENTITY_8004_ABI, REPUTATION_8004_ABI, VALIDATION_8004_ABI, AGENT_TOKEN_FACTORY_ABI, AGENT_TOKEN_ABI } from "./abi.js";
+export {
+  CvAPI,
+  verifyCv,
+  presentCv,
+  cvLeaf,
+  cvMerkleRoot,
+  cvMerklePath,
+  cvFoldPath,
+  cvDocumentHash,
+  cvDigest,
+  cvDomain,
+  cvInterface,
+  didPkh,
+  didPkhAddress,
+  CV_CONTEXT,
+  CV_TYPE,
+  CV_CRYPTOSUITE,
+  CV_DOMAIN_NAME,
+  CV_DOMAIN_VERSION,
+  CV_PRIMARY_TYPE,
+  CV_METADATA_KEY,
+  CV_DEFAULT_TTL_S,
+  CV_TRUST_TIERS,
+  CV_CLAIM_TYPES,
+  AGENT_CV_TYPES,
+  MEMORY_METADATA_KEY,
+  type CvDocument,
+  type CvClaim,
+  type CvEvidence,
+  type CvBind,
+  type CvSubject,
+  type CvSummary,
+  type CvRecordMeta,
+  type CvEip712Proof,
+  type AgentCvMessage,
+  type CvTrust,
+  type CvClaimType,
+  type CvRpc,
+  type CvLog,
+  type CvReceipt,
+  type CvVerifyOptions,
+  type CvVerifyResult,
+  type CvVerifyStep,
+  type CvClaimResult,
+  type CvBuildOptions,
+  type CvGetOptions,
+} from "./v3/cv.js";
+export {
+  NetworkAPI,
+  EndorsementsAPI,
+  ENDORSEMENT_BASIS,
+  type EndorsementView,
+  type EndorsementBasis,
+  type EndorsementSummary,
+  type GraphView,
+  type GraphEdge,
+  type SimilarAgent,
+} from "./v3/network.js";
+export {
+  memoryLeaf,
+  memoryRecordLeaf,
+  memoryRoot,
+  memoryProof,
+  memoryVerify,
+  MEMORY_MERKLE_SPEC,
+} from "./v3/merkle.js";
+export { X402_VAULT_ABI, AGENT_ACCOUNT_ABI, AGENT_ACCOUNT_FACTORY_ABI, STREAM_PAY_ABI, ARBITER_POOL_ABI, IDENTITY_8004_ABI, REPUTATION_8004_ABI, VALIDATION_8004_ABI, AGENT_TOKEN_FACTORY_ABI, AGENT_TOKEN_ABI, MEMORY_ANCHOR_ABI, ENDORSEMENTS_ABI } from "./abi.js";
 
 export { MIN_PRIORITY_FEE };
 
 /**
- * Ferminux signers enforce geth's default 1 gwei tip floor while the EIP-1559
- * base fee sits at a few wei. A tx that follows the raw fee-history suggestion
- * (often 1 wei) is accepted by the RPC node but never confirmed. This wallet floors
- * the priority fee at 1 gwei unless the caller sets fees explicitly.
+ * Ferminux signers enforce a 1 gwei minimum priority fee while the EIP-1559 base
+ * fee sits at a few wei. A tx that follows the raw fee-history suggestion (often
+ * 1 wei) is accepted by the RPC node but never confirmed. This wallet floors the
+ * priority fee at 1 gwei unless the caller sets fees explicitly.
  */
 class FerminuxWallet extends Wallet {
   override async populateTransaction(tx: TransactionRequest): Promise<any> {
@@ -99,6 +168,9 @@ export interface FerminuxOptions {
   reputation8004?: string;
   validation8004?: string;
   tokenFactory?: string;
+  /** The record layer — AI-CV / AI-LinkedIn. */
+  memoryAnchor?: string;
+  endorsements?: string;
   /**
    * C2 AgentAccount routing: when both are set, `privateKey` is treated as a
    * session key (or the account owner) and every contract-write transaction
@@ -558,6 +630,12 @@ export class Ferminux implements GatewayClient {
   readonly payin: PayinAPI;
   readonly audit: AuditAPI;
   readonly compute: ComputeAPI;
+  /** AI-CV — build, sign, anchor, verify and present an agent's verifiable working record. */
+  readonly cv: CvAPI;
+  /** AI-LinkedIn — the hire graph, capability facets and similar agents. */
+  readonly network: NetworkAPI;
+  /** Capability endorsements, weighted on chain by arm's-length paid evidence. */
+  readonly endorsements: EndorsementsAPI;
 
   constructor(opts: FerminuxOptions = {}) {
     const net = NETWORKS[opts.chainId ?? DEFAULT_CHAIN_ID];
@@ -578,6 +656,8 @@ export class Ferminux implements GatewayClient {
       reputation8004: opts.reputation8004 ?? net.reputation8004 ?? "",
       validation8004: opts.validation8004 ?? net.validation8004 ?? "",
       tokenFactory: opts.tokenFactory ?? net.tokenFactory ?? "",
+      memoryAnchor: opts.memoryAnchor ?? net.memoryAnchor ?? "",
+      endorsements: opts.endorsements ?? net.endorsements ?? "",
     };
 
     if (opts.x402MaxPerRequest !== undefined) this.x402MaxPerRequest = toWeiShared(opts.x402MaxPerRequest);
@@ -620,6 +700,26 @@ export class Ferminux implements GatewayClient {
     this.payin = new PayinAPI(this);
     this.audit = new AuditAPI(this);
     this.compute = new ComputeAPI(this);
+    this.cv = new CvAPI(this);
+    this.network = new NetworkAPI(this);
+    this.endorsements = new EndorsementsAPI(this);
+  }
+
+  /**
+   * Endorses another agent for one capability, from one of your own agents.
+   * Shorthand for `fmx.endorsements.give`. Pass the `evidenceJobId` of a job in
+   * which you PAID that agent and the endorsement carries weight; without one it
+   * is recorded `unbacked` and counts for nothing, which is exactly how a reader
+   * should treat a recommendation from someone who never hired them.
+   */
+  async endorse(params: {
+    fromAgentId: number | bigint;
+    toAgentId: number | bigint;
+    capability: string;
+    evidenceJobId?: number | bigint;
+    uri?: string;
+  }): Promise<{ tx: string; id: number | null; weight: number | null; basis: string | null }> {
+    return this.endorsements.give(params);
   }
 
   /** 402-aware `fetch`: `fmx.x402.pay(globalThis.fetch)` bound for convenience (SPEC.md "## S."). */

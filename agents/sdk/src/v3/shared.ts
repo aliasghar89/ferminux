@@ -10,8 +10,8 @@ import { Contract, parseEther, type ContractRunner, type Signer } from "ethers";
 export type AmountLike = bigint | string | number;
 
 /**
- * Ferminux signers enforce geth's default 1 gwei tip floor while the EIP-1559
- * base fee sits at a few wei (see ../index.ts's `FerminuxWallet` doc comment —
+ * Ferminux signers enforce a 1 gwei minimum priority fee while the EIP-1559 base
+ * fee sits at a few wei (see ../index.ts's `FerminuxWallet` doc comment —
  * this constant + helper are the shared source of truth so every v3 signer
  * (SessionAccountWallet, GaslessAccountSigner) keeps the same floor). A tx
  * that follows the raw fee-history suggestion (often 1 wei) is accepted by the
@@ -105,6 +105,9 @@ export interface V3Addresses {
   reputation8004: string;
   validation8004: string;
   tokenFactory: string;
+  /** The record layer — AI-CV / AI-LinkedIn. "" until DeployCV lands. */
+  memoryAnchor: string;
+  endorsements: string;
 }
 
 /** Lazily builds (and caches) an ethers Contract once its address is known; throws NotDeployed before that. */

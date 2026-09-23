@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common/fdlimit"
-	"github.com/ethereum/go-ethereum/internal/flags"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/aliasghar89/ferminux/chain/common/fdlimit"
+	"github.com/aliasghar89/ferminux/chain/internal/flags"
+	"github.com/aliasghar89/ferminux/chain/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -37,7 +37,7 @@ var (
 )
 
 func init() {
-	app = flags.NewApp(gitCommit, gitDate, "ethereum checkpoint helper tool")
+	app = flags.NewApp(gitCommit, gitDate, "ferminux checkpoint helper tool")
 	app.Commands = []*cli.Command{
 		commandStatus,
 		commandDeploy,
@@ -71,7 +71,7 @@ var (
 	nodeURLFlag = &cli.StringFlag{
 		Name:  "rpc",
 		Value: "http://localhost:8545",
-		Usage: "The rpc endpoint of a local or remote geth node",
+		Usage: "The rpc endpoint of a local or remote ferminux node",
 	}
 	clefURLFlag = &cli.StringFlag{
 		Name:  "clef",

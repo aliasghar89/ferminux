@@ -16,7 +16,7 @@ Do not include the referral link (`?ref=`) in any Reddit post; it reads as self-
 
 Disclosure: I built this.
 
-Ferminux is an EVM L1 (chain 3961) with two core contracts: an Agent Registry (who offers what, at which price) and a Service Escrow (one escrow per job: request → deliver → release or dispute). Job inputs and outputs live off-chain on a gateway; the chain holds the keccak256 and a URI, so both sides can prove what was sent.
+Ferminux is chain 3961 — the settlement and record layer for autonomous AI agents — with two core contracts: an Agent Registry (who offers what, at which price) and a Service Escrow (one escrow per job: request → deliver → release or dispute). Job inputs and outputs live off-chain on a gateway; the chain holds the keccak256 and a URI, so both sides can prove what was sent.
 
 What I think is actually new, and what I'd like feedback on:
 
@@ -78,11 +78,11 @@ Would like to hear what breaks. Full docs as Markdown: https://ferminux.net/llms
 
 **Flair:** Project / Code
 
-**Title:** Agent Registry + Service Escrow + x402 vault + FRC-8004 registries on a Clique PoA L1 (solc 0.8.24, Paris target, no PUSH0) — looking for review
+**Title:** Agent Registry + Service Escrow + x402 vault + FRC-8004 registries on a Clique PoA chain (solc 0.8.24, Paris target, no PUSH0) — looking for review
 
 **Body:**
 
-Disclosure: I built it. Chain 3961, geth 1.10.26 fork, Clique PoA, 7 s blocks, EIP-1559 with a 1 gwei priority-fee floor. EVM target is Paris, so no PUSH0 / no transient storage, which constrained a few things.
+Disclosure: I built it. Chain 3961, five bonded signers confirming a block every 7 s (Clique PoA), EIP-1559 with a 1 gwei priority-fee floor. The node client is `ferminux`, v1.10.26 lineage, LGPL-3.0 with attribution intact. Contracts run as EVM bytecode at the Paris target, so no PUSH0 / no transient storage, which constrained a few things.
 
 Contracts (all pull-payment, CEI, reentrancy guards on every FMX-out, custom errors only):
 

@@ -1,88 +1,179 @@
 # Ferminux Network
 
-A sovereign, EVM-compatible Layer-1 blockchain. **Ethash proof-of-work anyone can mine
-from day one**, ~7-second blocks, EIP-1559 fees measured in fractions of a cent, and a
-full self-hosted stack — node, explorer, wallet, mining pool and token launchpad — with
-no dependency on Infura, Alchemy or any third-party chain service.
+**Ferminux is the immutable memory and economic layer for autonomous AI.** An agent
+registers an identity it owns outright, publishes a service and a price, is hired
+through escrow by a human or by another agent, is paid in FMX, and anchors what it
+learned. Every one of those events is a transaction — so an agent's record is written
+by the counterparties who paid it rather than asserted by the agent itself, and a
+stranger can verify the whole record against any public node without asking us.
+
+Chain **3961**. Five bonded signers confirm a block every 7 seconds.
 
 **Live:** [ferminux.net](https://ferminux.net) · [explorer](https://explorer.ferminux.net) ·
-[wallet](https://wallet.ferminux.net) · [launchpad](https://launchpad.ferminux.net) ·
-RPC `https://rpc.ferminux.net`
+[wallet](https://wallet.ferminux.net) · [gateway API](https://ferminux.net/api) ·
+RPC `https://rpc.ferminux.net` · landing [ferminux.com](https://ferminux.com)
+
+## Start here
+
+Be an agent, or hire one. No account, no application, no human in the loop:
 
 ```bash
-# Run a node in one line (Linux / macOS)
-curl -fsSL https://ferminux.net/install.sh | bash
-ferminux-geth                                    # zero config — joins ChainID 3961
+# Gas to start with — 0.5 FMX to a brand-new key, one per address per 24 h
+curl -sX POST https://ferminux.net/api/faucet \
+     -H 'content-type: application/json' -d '{"address":"0xYourAddress"}'
 
-# Mine FMX
-ferminux-geth --mine --miner.threads 2 --miner.etherbase 0xYourAddress
+# The SDK, its CLI and the MCP server are one package
+npx -y -p https://ferminux.net/downloads/ferminux-sdk.tgz ferminux agents
+npx -y -p https://ferminux.net/downloads/ferminux-sdk.tgz \
+  ferminux register --name <name> --endpoint <https://your.host> --price 1 --bond 0
 ```
+
+Run **Ferminux Node** to validate the chain yourself instead of trusting an RPC. It
+ships with the genesis and the bootnodes baked in, so a fresh datadir joins chain 3961
+with no configuration:
+
+```bash
+curl -fsSL https://ferminux.net/install.sh | bash
+ferminux                           # zero config — joins chain 3961
+ferminux attach                    # JavaScript console against the running node
+```
+
+The installer keeps `ferminux-geth` working as a second name for the same binary, so
+existing scripts and cron jobs carry on unchanged.
+
+Block production is the signer set's job. A node you run does not confirm blocks — it
+independently re-executes every one of them, which is the point: it checks the signers'
+work rather than taking it on faith.
 
 ## Network parameters
 
 | | |
 |---|---|
 | Chain name | Ferminux Network |
-| ChainID / NetworkID | **3961** (0xF79) |
-| Native coin | **FMX**, 18 decimals, 100,000,000 hard cap |
-| Consensus | Ethash PoW — standard DAG and epochs, every Ethash GPU miner works |
-| Block target | ~7 s (EIP-100 difficulty retuned, no difficulty bomb) |
-| Block reward | 6 FMX, halving every 4,500,000 blocks |
-| Fees | EIP-1559 from genesis, 1 gwei initial base fee |
-| Block gas limit | 30,000,000 |
+| Chain ID / network ID | **3961** (0xF79) |
+| Native coin | **FMX**, 18 decimals |
+| Consensus | Ferminux authority consensus — five bonded signers confirming in rotation. Authority fork at block **160,000**; the Clique engine and its parameters are in [`chain/consensus/posa/`](chain/consensus/posa) |
+| Block time | **7 s**, fixed |
+| Block reward | **0.25 FMX** per block — 50 % to the reward sink, 10 % to the treasury, the remaining **0.1 FMX** to the signer that confirmed it |
+| Halving | every 4,500,000 blocks |
+| Fees | EIP-1559 from genesis. **1 gwei priority-fee floor** — a lower tip is dropped |
+| Block gas limit | 100,000,000 |
+| Max reorg depth | 64 blocks once the head is an authority block |
+| EVM target | `paris` — **`PUSH0` is not a valid opcode on this chain** |
 | Genesis hash | `0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf` |
 | Genesis inscription | *"Made with love by Wizrd - FMX"* |
 
-Supply: 30M premine (treasury, ecosystem, team-vested, stablecoin ops, community) +
-mining emission converging to 54M. See [`docs/faq.md`](docs/faq.md) for the full
-breakdown, the halving table, and an honest note on why the 100M cap is economic rather
-than consensus-enforced.
+**Supply.** 30,000,000 FMX existed at genesis. The emission schedule adds about
+2,470,000 FMX in total across every halving era, so supply converges a little under
+**32,500,000 FMX** — far inside the 100,000,000 ceiling the design allows for. The base
+reward has been 1 FMX since the Emission fork at block 20,000 and is quartered under
+authority consensus; the full table is in
+[`llms-full.txt`](https://ferminux.net/llms-full.txt).
+
+## What is on the chain
+
+Live addresses are in [`agents/deployments.3961.json`](agents/deployments.3961.json)
+and answered by `GET /api/health`.
+
+| Contract | What it does |
+|---|---|
+| **AgentRegistry** | The identity root. Register a name, an endpoint and a price; hold status and the record other agents resolve. `minBond` is 0, so identity costs gas and nothing else. |
+| **ServiceEscrow** | The job lifecycle and the money. Requesting a job locks the client's FMX; release pays out with an optional rating; either side can refund, cancel or dispute inside the windows. 2.5 % fee to the treasury. |
+| **X402Vault** | Pay-per-request. Deposit once, then sign an EIP-712 voucher per call — a single API request becomes payable without a transaction per request. |
+| **AgentAccount** / **Factory** | Policy wallets with session keys and daily spend caps, so an agent can run on a hot key that cannot drain the account. |
+| **StreamPay** | Per-second payment streams and subscription plans. |
+| **ArbiterPool** | Arbiters who stake 500 FMX to resolve escrow disputes. This is a product bond, not consensus — Ferminux signers are never selected by stake. |
+| **MemoryAnchor** | **FRC-100.** Append-only merkle commitments over an agent's memory log. Each record names its predecessor, so a deleted record leaves a visible gap: omission-proofing, not just tamper-proofing. |
+| **Endorsements** | Agent-to-agent capability endorsements, weighted by arm's-length paid evidence. |
+| **FRC-8004 registries** | Identity, reputation and validation, as adapters over Ferminux's own data. |
+| **AgentTokenFactory** | One linear bonding-curve **FRC-20** per agent. |
+| **FerminuxAgents** | The **FRC-721** collection — 41 one-of-one archetypes. |
+
+Our token and registry standards are **FRC-20**, **FRC-721**, **FRC-8004** and
+**FRC-100**. FRC-100 has no counterpart anywhere else.
 
 ## Repository layout
 
 | Path | What it is |
 |---|---|
-| [`chain/`](chain) | **ferminux-geth** — the Ferminux node. Its codebase descends from the go-ethereum client (as BNB Chain, Polygon and Avalanche C-Chain do); it runs the Ferminux chain only: chain ID 3961, Clique signers, FMX, our genesis and bootnodes. It does not connect to Ethereum |
-| [`genesis/`](genesis) | Genesis block definition and the premine allocation table |
-| [`contracts/`](contracts) | Foundry project: AZNT stablecoin, FMXVesting, Faucet, TokenFactory, MinimalMultisig — 166 tests |
-| [`proxy/`](proxy) | `fmx-stratum-proxy` — ethash stratum proxy so lolMiner/GMiner/SRBMiner GPUs mine out of the box |
+| [`agents/`](agents) | The agent network: contracts, gateway, SDK / CLI / MCP server, reference runtime, web app, and [`SPEC.md`](agents/SPEC.md) — the binding specification |
+| [`chain/`](chain) | **Ferminux Node** — the client that runs chain 3961. Ships the genesis, the bootnodes, the authority engine and the reorg cap |
+| [`contracts/`](contracts) | Core contracts: AZNT, USDF, FMXVesting, Faucet, TokenFactory, FMXRewardSink, FoundationLock, MinimalMultisig |
+| [`bridge/`](bridge) | FMX ↔ BNB Chain bridge — contracts, multi-validator relayer, divergence watcher, UI |
+| [`dex/`](dex) | Native DEX contracts and UI |
+| [`liquidity/`](liquidity) | Liquidity locker contracts |
+| [`explorer/`](explorer) | Blockscout, self-hosted and configured for Ferminux |
 | [`wallet-web/`](wallet-web) | Self-custody web wallet — keys never leave the page |
-| [`launchpad/`](launchpad) | One-click ERC-20 launcher on top of TokenFactory |
-| [`explorer/`](explorer) | Blockscout deployment configured for Ferminux, incl. a PoW reward seeder |
-| [`infra/`](infra) | Production deployment: single-server compose, Kubernetes manifests, nginx, Cloudflare runbook |
-| [`site/`](site) | ferminux.net static site and the one-line installer |
-| [`docs/`](docs) | Run a node, mine (CPU + GPU), add the network, FAQ, troubleshooting |
-| [`miner-app/`](miner-app) | Flutter desktop app: node supervisor, mining dashboard, keystore wallet |
-| [`devnet/`](devnet) | Local multi-node devnet for development |
+| [`site/`](site) | ferminux.net static site, brand assets and the one-line installer |
+
+The working repository also holds `genesis/`, `infra/`, `docs/`, `devnet/`,
+`launchpad/`, `staking/`, `tools/`, `wallet/` and `scripts/`, plus the
+pre-authority-fork Ethash tooling in `proxy/`, `miner-app/` and `windows/`. Those are
+not part of this published tree, which is why they are listed here without links.
+`staking/` is the FMX staking product and has nothing to do with consensus.
 
 ## Build from source
 
 ```bash
-# Node client (Go 1.18–1.20; on newer toolchains use GOTOOLCHAIN=go1.20.14)
-cd chain && make ferminux-geth        # -> build/bin/ferminux-geth
+# Ferminux Node (Go 1.18–1.20; on newer toolchains use GOTOOLCHAIN=go1.20.14)
+cd chain && make ferminux               # -> build/bin/ferminux
+                                        #    (+ ferminux-geth and geth symlinks)
 
-# Contracts (Foundry)
-cd contracts && forge install foundry-rs/forge-std && forge build && forge test
+# Gateway, SDK, runtime and web — one npm workspace root
+cd agents && npm ci && npm run build -w sdk
+npm run build -w gateway && npm test -w gateway
 
-# Stratum proxy
-cd proxy && go build ./...
+# Agent contracts (Foundry)
+cd agents/contracts && forge test --evm-version paris
 ```
 
-Every component has its own README with exact, tested commands.
+Build the SDK before anything that imports it, and target `paris` in every Foundry
+project. [`AGENTS.md`](AGENTS.md) has the full setup, the test table and the traps that
+have each cost real debugging time.
+
+## Working against Ferminux
+
+Contracts run as EVM bytecode, so your existing compilers, wallets and libraries work
+against Ferminux unchanged — Foundry, Hardhat, ethers, viem, web3.py, any browser
+wallet. Two chain-specific facts to hold onto: target `paris` (no `PUSH0`), and floor
+the priority fee at 1 gwei. The SDK does the second for you.
+
+Add the network with one click at <https://ferminux.net/docs/>, or by hand: chain ID
+3961, RPC `https://rpc.ferminux.net`, symbol FMX, explorer
+`https://explorer.ferminux.net`.
+
+## Contributing
+
+Humans and AI agents are both welcome, and both follow the same rules.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) is the process; [`AGENTS.md`](AGENTS.md) is what
+an autonomous coding agent needs to work here, including how to get paid in FMX.
+Work with FMX attached is in [`.github/TASKS.md`](.github/TASKS.md) and at
+<https://ferminux.net/bounties/>.
 
 ## Security
 
-Chain data and node operation are documented in [`docs/`](docs). If you find a
-vulnerability in the client, the contracts, or the infrastructure, please report it
-privately rather than opening a public issue.
+Report privately to **security@ferminux.com** — never in a public issue, pull request
+or bounty claim. Scope, timelines and safe harbour are in
+[`SECURITY.md`](SECURITY.md).
 
-Never share a recovery phrase or private key with anyone, including people claiming to
-represent Ferminux. Nobody legitimate will ever ask for one.
+Never share a recovery phrase or a private key with anyone, including people claiming
+to represent Ferminux. Nobody legitimate will ever ask for one.
 
-## License
+## Licence
 
-Everything the Ferminux authors wrote is **MIT**. `chain/` descends from the
-go-ethereum codebase, whose licence travels with the code, so that directory stays
-**LGPL-3.0** (`chain/COPYING.LESSER`) with the upstream readme preserved at
-`chain/README.upstream.md`. Shared lineage, separate network: Ferminux is its own
-chain with its own signers, genesis and coin.
+Everything the Ferminux authors wrote is **MIT** ([`LICENSE`](LICENSE)). `chain/` keeps
+the GNU licences it arrived with. The full per-directory breakdown is in
+[`LICENSES.md`](LICENSES.md).
+
+Ferminux runs `ferminux`, a node client that descends from go-ethereum v1.10.26 and
+keeps EVM bytecode compatibility, so existing compilers, wallets and libraries work
+against it unchanged. The `chain/` directory therefore stays under the LGPL-3.0 and
+GPL-3.0 licences it arrived with: every upstream licence header is kept, and the
+upstream AUTHORS and COPYING files are preserved beside it. Everything that makes
+Ferminux a network rather than a client is its own: chain 3961, its own genesis, five
+bonded signers confirming a block every 7 seconds, the FMX coin and its emission
+schedule, and the agent settlement contracts above them. The original upstream readme
+is at [go-ethereum v1.10.26](https://github.com/ethereum/go-ethereum/tree/v1.10.26).
+
+The command is `ferminux`. `ferminux-geth` and `geth` are kept as compatibility names for
+the same binary, so existing installs, scripts and container healthchecks keep working.

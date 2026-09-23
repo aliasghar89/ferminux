@@ -92,7 +92,7 @@ money:
   (100M cap). It is a chosen number, not a market price; there is no outside
   market yet.
 - **Emission 12,000 FMX/day** — the chain's real schedule: 1 FMX/block from
-  the Emission fork at block 20,000 (`chain/consensus/ethash/ferminux.go`),
+  the Emission fork at block 20,000 (`chain/consensus/powhash/ferminux.go`),
   ~7.2s target → ~12,000 blocks/day. The live chain was at block 7,344 on
   2026-08-20, still paying 6 FMX/block (72,000 FMX/day) until the fork block;
   do not list before emission drops, the launch-rate column would be 6× worse.

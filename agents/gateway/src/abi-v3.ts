@@ -1,6 +1,6 @@
 // Addendum v3 contract ABIs (ethers v6 human-readable fragments), coded
 // against SPEC.md "Addendum v3 — Agent Economy". Where the spec names an
-// event without its full signature (StreamPay, ArbiterPool, ERC-8004
+// event without its full signature (StreamPay, ArbiterPool, FRC-8004
 // reference registries, AgentTokenFactory Bought/Sold/…) the fragments below
 // are our best reading of the reference implementations. When the contracts
 // lane lands `contracts/abi/<Name>.json`, loadV3Abi() prefers that file, so
@@ -192,6 +192,45 @@ export const TOKEN_FACTORY_ABI = [
   "event Claimed(address indexed token, address indexed holder, uint256 amount)",
 ] as const;
 
+/** FRC-100 MemoryAnchor: append-only merkle commitments over an agent's memory records. */
+export const MEMORY_ANCHOR_ABI = [
+  "function anchor(uint256 agentId, bytes32 root, bytes32 prevRoot, uint32 count, string uri) returns (uint64 seq)",
+  "function anchorFor(uint256 agentId, bytes32 root, bytes32 prevRoot, uint32 count, string uri, uint64 deadline, bytes sig) returns (uint64 seq)",
+  "function setAnchorer(uint256 agentId, address who, bool allowed)",
+  "function head(uint256 agentId) view returns (bytes32 root, uint64 seq, uint64 totalRecords, uint64 anchoredAt)",
+  "function anchorCount(uint256 agentId) view returns (uint64)",
+  "function getAnchor(uint256 agentId, uint64 seq) view returns (tuple(bytes32 root, bytes32 prevRoot, uint64 seq, uint32 count, uint64 totalRecords, uint64 ts, string uri))",
+  "function canAnchor(uint256 agentId, address who) view returns (bool)",
+  "function nonceOf(uint256 agentId) view returns (uint256)",
+  "function leafOf(bytes32 recordHash) pure returns (bytes32)",
+  "function recordLeaf(bytes record) pure returns (bytes32)",
+  "function computeRoot(bytes32[] leaves) pure returns (bytes32)",
+  "function verify(bytes32 root, bytes record, bytes32[] proof, uint256 index, uint256 count) pure returns (bool)",
+  "function verifyLeaf(bytes32 root, bytes32 leaf, bytes32[] proof, uint256 index, uint256 count) pure returns (bool)",
+  "function verifyRecord(uint256 agentId, uint64 seq, bytes record, bytes32[] proof, uint256 index) view returns (bool)",
+  "function verifyAgainstHead(uint256 agentId, bytes record, bytes32[] proof, uint256 index) view returns (bool)",
+  "function NAME() pure returns (string)",
+  "function VERSION() pure returns (string)",
+  "event MemoryAnchored(uint256 indexed agentId, uint64 indexed seq, bytes32 indexed root, bytes32 prevRoot, uint32 count, uint64 totalRecords, address anchoredBy, string uri)",
+  "event AnchorerSet(uint256 indexed agentId, address indexed who, bool allowed)",
+] as const;
+
+/** Endorsements: agent→agent capability endorsements, weighted by arm's-length paid evidence. */
+export const ENDORSEMENTS_ABI = [
+  "function endorse(uint256 fromAgentId, uint256 toAgentId, string capability, string uri, uint256 evidenceJobId) returns (uint256 id)",
+  "function endorseFor(uint256 fromAgentId, uint256 toAgentId, string capability, string uri, uint256 evidenceJobId, uint64 deadline, bytes sig) returns (uint256 id)",
+  "function revoke(uint256 id)",
+  "function summary(uint256 toAgentId) view returns (tuple(uint32 total, uint32 backed, uint32 unbacked, uint32 revoked, uint128 weight))",
+  "function capabilitySummary(uint256 toAgentId, string capability) view returns (tuple(uint32 total, uint32 backed, uint32 unbacked, uint32 revoked, uint128 weight))",
+  "function quoteWeight(uint256 fromAgentId, uint256 toAgentId, uint256 evidenceJobId) view returns (uint32 weight, uint8 basis, uint256 evidenceAmountWei)",
+  "function isRelated(address a, address b) view returns (bool)",
+  "function capabilityIdOf(string capability) pure returns (bytes32)",
+  "function receivedCount(uint256 toAgentId) view returns (uint256)",
+  "function givenCount(uint256 fromAgentId) view returns (uint256)",
+  "event Endorsed(uint256 indexed id, uint256 indexed fromAgentId, uint256 indexed toAgentId, bytes32 capabilityId, string capability, uint8 basis, uint32 weight, uint64 evidenceJobId, uint256 evidenceAmountWei, string uri)",
+  "event EndorsementRevoked(uint256 indexed id, uint256 indexed fromAgentId, uint256 indexed toAgentId, uint32 weight)",
+] as const;
+
 /** deployments key → contracts/abi/<Name>.json + spec fallback fragments. */
 export const V3_ABI_SOURCES: Record<V3ContractKey, { file: string; fallback: readonly string[] }> = {
   x402Vault: { file: "X402Vault", fallback: X402_VAULT_ABI },
@@ -203,6 +242,8 @@ export const V3_ABI_SOURCES: Record<V3ContractKey, { file: string; fallback: rea
   reputation8004: { file: "ReputationRegistry8004", fallback: REPUTATION_8004_ABI },
   validation8004: { file: "ValidationRegistry8004", fallback: VALIDATION_8004_ABI },
   tokenFactory: { file: "AgentTokenFactory", fallback: TOKEN_FACTORY_ABI },
+  memoryAnchor: { file: "MemoryAnchor", fallback: MEMORY_ANCHOR_ABI },
+  endorsements: { file: "Endorsements", fallback: ENDORSEMENTS_ABI },
 };
 
 const abiCache = new Map<V3ContractKey, { abi: InterfaceAbi; source: "file" | "spec" }>();

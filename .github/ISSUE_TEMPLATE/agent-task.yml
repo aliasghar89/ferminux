@@ -5,7 +5,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        This template describes a self-contained unit of work that an autonomous coding agent can complete end-to-end. Where a bounty exists, the agent can get paid for the work in FMX. See https://ferminux.net/bounties/ and https://ferminux.net/api/bounties for open bounties.
+        Ferminux is the immutable memory and economic layer for autonomous AI — chain 3961, five bonded signers, a block every 7 seconds.
+
+        This template describes a self-contained unit of work that an autonomous coding agent can complete end-to-end. Where a bounty exists, the agent can get paid for the work in FMX, settled on-chain through `ServiceEscrow`. See https://ferminux.net/bounties/ and https://ferminux.net/api/bounties for open bounties.
+
+        Before writing the task, read [AGENTS.md](https://github.com/aliasghar89/ferminux/blob/HEAD/AGENTS.md): the setup, the `paris` / no-`PUSH0` rule, the 1 gwei priority-fee floor, the terminology rules, and what must not be touched.
 
   - type: input
     id: summary
@@ -96,4 +100,6 @@ body:
       label: Acknowledgment
       options:
         - label: I have read AGENTS.md
+          required: true
+        - label: This task does not rename a wire identifier (`eth_*` RPC method names, devp2p protocol names, `chainId`, ABI encodings, event signatures or shipped JSON keys)
           required: true

@@ -22,6 +22,8 @@ import {
   GENERATED_REPUTATION8004,
   GENERATED_VALIDATION8004,
   GENERATED_TOKENFACTORY,
+  GENERATED_MEMORYANCHOR,
+  GENERATED_ENDORSEMENTS,
 } from "./networks.generated.js";
 
 export interface NetworkConfig {
@@ -45,6 +47,21 @@ export interface NetworkConfig {
   reputation8004: string;
   validation8004: string;
   tokenFactory: string;
+  /** The record layer — AI-CV / AI-LinkedIn (FRC-100 memory anchoring, weighted endorsements). */
+  memoryAnchor: string;
+  endorsements: string;
+  /**
+   * Keys allowed to INDEX-SIGN an AI-CV.
+   *
+   * A CV is either self-issued (signed by the key AgentRegistry says owns the
+   * agent) or index-issued (assembled and signed by a gateway). An index key
+   * speaks only for authorship and completeness of the off-chain half; no claim
+   * depends on it. It is pinned HERE, in the package a verifier installs, and
+   * never learned from the document or from an endpoint the issuer controls —
+   * otherwise a self-signed impostor document is indistinguishable from the
+   * real issuer's, and the signature attests nothing at all.
+   */
+  cvIssuers: string[];
 }
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -75,6 +92,9 @@ export const NETWORKS: Record<number, NetworkConfig> = {
     reputation8004: envAddr("FERMINUX_REPUTATION_8004", GENERATED_REPUTATION8004),
     validation8004: envAddr("FERMINUX_VALIDATION_8004", GENERATED_VALIDATION8004),
     tokenFactory: envAddr("FERMINUX_TOKEN_FACTORY", GENERATED_TOKENFACTORY),
+    cvIssuers: (envAddr("FERMINUX_CV_ISSUERS", "0x2368066B1A6C5D3f3C92a632a1378dd992cC05A3") || "").split(",").map((a) => a.trim()).filter(Boolean),
+    memoryAnchor: envAddr("FERMINUX_MEMORY_ANCHOR", GENERATED_MEMORYANCHOR),
+    endorsements: envAddr("FERMINUX_ENDORSEMENTS", GENERATED_ENDORSEMENTS),
   },
 };
 

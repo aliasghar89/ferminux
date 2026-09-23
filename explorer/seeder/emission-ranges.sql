@@ -1,6 +1,6 @@
 -- Ferminux emission schedule -> Blockscout emission_rewards table.
 --
--- MUST mirror chain/consensus/ethash/ferminux.go:FerminuxBlockReward exactly:
+-- MUST mirror chain/consensus/powhash/ferminux.go:FerminuxBlockReward exactly:
 --
 --     if block <  20,000                -> 6 FMX          (launch rate)
 --     else  era = block / 4,500,000

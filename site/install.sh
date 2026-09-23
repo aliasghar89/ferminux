@@ -3,10 +3,14 @@
 #
 #   curl -fsSL https://ferminux.net/install.sh | bash
 #
-# Installs ferminux-geth (node + CPU miner in one static binary) for
-# linux amd64/arm64 or macOS Apple Silicon, verifies its SHA-256, and
-# prints the two commands that matter. The genesis and bootnodes are baked
-# into the binary — a fresh datadir joins ChainID 3961 automatically.
+# Installs Ferminux Node (one static binary) for linux amd64/arm64 or macOS
+# Apple Silicon, verifies its SHA-256, and prints the two commands that
+# matter. The genesis and bootnodes are baked into the binary — a fresh
+# datadir joins chain 3961 automatically.
+#
+# The command is `ferminux`. `ferminux-geth` is installed alongside it as a
+# symlink and stays INDEFINITELY: this script is served live at
+# https://ferminux.net/install.sh and people have piped it into cron.
 set -euo pipefail
 
 BASE="https://ferminux.net/downloads"
@@ -22,13 +26,23 @@ case "$os/$arch" in
     echo "Unsupported platform: $os/$arch (Windows builds ship via the release CI)." >&2; exit 1 ;;
 esac
 
-file="ferminux-geth-${target}.tar.gz"
+# New artefact name first, previously published name as the fallback. Archives
+# already listed in SHA256SUMS.txt are pinned BY NAME inside the signed sums, so
+# the old names are never renamed or removed — only added to.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+curl -fsSL -o "$tmp/SHA256SUMS.txt" "$BASE/SHA256SUMS.txt"
+
+# Choose by the signed sums, never by HTTP status: the site answers unknown
+# paths with 200 + the HTML index, so "curl succeeded" proves nothing.
+file=""
+for candidate in "ferminux-${target}.tar.gz" "ferminux-geth-${target}.tar.gz"; do
+  if grep -q " $candidate\$" "$tmp/SHA256SUMS.txt"; then file="$candidate"; break; fi
+done
+[ -n "$file" ] || { echo "No release archive found for $target." >&2; exit 1; }
 echo "Downloading $file ..."
 curl -fsSL -o "$tmp/$file" "$BASE/$file"
-curl -fsSL -o "$tmp/SHA256SUMS.txt" "$BASE/SHA256SUMS.txt"
 
 echo "Verifying checksum ..."
 expected="$(grep " $file\$" "$tmp/SHA256SUMS.txt" | awk '{print $1}')"
@@ -41,25 +55,44 @@ fi
 
 tar -xzf "$tmp/$file" -C "$tmp"
 
+# The archive may carry either binary name; normalise to `ferminux`.
+bin=""
+for candidate in "$tmp/ferminux" "$tmp/ferminux-geth"; do
+  [ -f "$candidate" ] && { bin="$candidate"; break; }
+done
+[ -n "$bin" ] || { echo "Archive did not contain a node binary." >&2; exit 1; }
+
+# install_node <dir> [sudo]
+install_node() {
+  local d="$1" sudo_cmd="${2:-}"
+  $sudo_cmd install -m 0755 "$bin" "$d/ferminux"
+  # Compatibility name — kept indefinitely, not for one release.
+  $sudo_cmd ln -sf "$d/ferminux" "$d/ferminux-geth"
+}
+
 dest="/usr/local/bin"
 if [ -w "$dest" ]; then
-  install -m 0755 "$tmp/ferminux-geth" "$dest/ferminux-geth"
+  install_node "$dest"
 elif command -v sudo >/dev/null 2>&1; then
   echo "Installing to $dest (sudo) ..."
-  sudo install -m 0755 "$tmp/ferminux-geth" "$dest/ferminux-geth"
+  install_node "$dest" sudo
 else
   dest="$HOME/.local/bin"; mkdir -p "$dest"
-  install -m 0755 "$tmp/ferminux-geth" "$dest/ferminux-geth"
+  install_node "$dest"
   echo "NOTE: installed to $dest — make sure it is on your PATH."
 fi
 
 echo
-echo "ferminux-geth installed: $("$dest/ferminux-geth" version | head -2 | tr '\n' ' ')"
+echo "Ferminux Node installed: $("$dest/ferminux" version | head -2 | tr '\n' ' ')"
+echo "(the previous command name, ferminux-geth, still works)"
 echo
-echo "Run a node (keeps the network alive):"
-echo "    ferminux-geth"
+echo "Run a node (it follows chain 3961 and serves the network):"
+echo "    ferminux"
 echo
-echo "Mine FMX (6 FMX per ~7s block, paid to your address):"
-echo "    ferminux-geth --mine --miner.threads 2 --miner.etherbase 0xYourAddress"
+echo "Attach a console to a running node:"
+echo "    ferminux attach"
 echo
-echo "Headless server (systemd) setup and GPU mining: https://ferminux.net  ·  docs in the repo /docs"
+echo "Blocks are confirmed by the Ferminux signer set. Running a node does not"
+echo "make you a signer; signer authorisation is granted on-chain."
+echo
+echo "Headless server (systemd) setup: https://ferminux.net  ·  docs in the repo /docs"

@@ -39,8 +39,12 @@ const BOUNTIES_MIN_GAP_MS = 7 * 24 * 60 * 60 * 1000;
 // Hard rules
 
 const BANNED = [
-  { re: /\bproof[- ]of[- ]stake\b|\bPoS\b/g, why: "PoS (Ferminux is Clique proof-of-authority)" },
-  { re: /\b(mining|mined|miners?)\b/gi, why: "mining vocabulary (say signers/confirmed)" },
+  { re: /\bproof[- ]of[- ]stake\b|\bPoS\b/g, why: "PoS (Ferminux signers are not selected by stake)" },
+  { re: /\b(mining|mined|miners?|hashrate)\b/gi, why: "mining vocabulary (say signers/confirmed)" },
+  { re: /\b(sealed|seals|sealing)\b/gi, why: "\"sealed\" (blocks are confirmed by signers)" },
+  // The lead-descriptor rule: compatibility is a later line, never the opening
+  // claim. Catches "EVM Layer 1 / EVM L1 / EVM chain / EVM blockchain / EVM network".
+  { re: /\bEVM[- ]?(Layer[- ]?1|L1|L-1|chain|blockchain|network)\b/gi, why: "\"EVM <noun>\" as the lead descriptor (lead with: settlement and record layer for AI agents, chain 3961)" },
   { re: /\bERC-?(20|721|8004)\b/g, why: "ERC-* (use FRC-20/FRC-721/FRC-8004)" },
   { re: /\bEthereum\b|\bETH\b(?!\s*on Base)/g, why: "Ethereum comparison" },
   { re: /\p{Extended_Pictographic}/gu, why: "emoji" },
@@ -52,10 +56,26 @@ function wordCount(s) {
   return String(s || "").split(/\s+/).filter(Boolean).length;
 }
 
+// Blocks on Ferminux are CONFIRMED by signers. "sealed" is the upstream client's
+// internal verb for the same act and reads as borrowed vocabulary in public
+// copy; the swap is a straight one, so it is auto-fixed rather than rejected.
+const SEAL_FIX = [
+  [/\bSealed\b/g, "Confirmed"], [/\bsealed\b/g, "confirmed"],
+  [/\bSeals\b/g, "Confirms"], [/\bseals\b/g, "confirms"],
+  [/\bSealing\b/g, "Confirming"], [/\bsealing\b/g, "confirming"],
+];
+function unseal(s) {
+  let out = String(s || "");
+  for (const [re, to] of SEAL_FIX) out = out.replace(re, to);
+  return out;
+}
+
 /**
  * Normalizes and checks a draft. Returns { draft, violations }. Auto-fixes what
- * is safe to fix (ERC→FRC, strip emojis, strip hedge lines, ensure llms.txt
- * final line); reports the rest as violations.
+ * is safe to fix (ERC→FRC, sealed→confirmed, strip emojis, strip hedge lines,
+ * ensure llms.txt final line); reports the rest as violations. The "EVM <noun>"
+ * lead is deliberately NOT auto-fixed — it needs the sentence rewritten, not a
+ * word swapped, so it is reported and the draft is rejected.
  */
 export function lintDraft(input) {
   let title = String(input.title || "").replace(/\s+/g, " ").trim();
@@ -63,8 +83,8 @@ export function lintDraft(input) {
   const violations = [];
 
   // Auto-fixes.
-  title = title.replace(/\bERC-?(20|721|8004)\b/g, "FRC-$1").replace(/\p{Extended_Pictographic}/gu, "").trim();
-  body = body.replace(/\bERC-?(20|721|8004)\b/g, "FRC-$1").replace(/\p{Extended_Pictographic}/gu, "");
+  title = unseal(title.replace(/\bERC-?(20|721|8004)\b/g, "FRC-$1")).replace(/\p{Extended_Pictographic}/gu, "").trim();
+  body = unseal(body.replace(/\bERC-?(20|721|8004)\b/g, "FRC-$1")).replace(/\p{Extended_Pictographic}/gu, "");
   body = body
     .split("\n")
     .filter((l) => !/no guaranteed value|the network is new/i.test(l))
@@ -105,6 +125,9 @@ export function lintDraft(input) {
   if (/\bERC-?(20|721|8004)\b/.test(input.title + input.body)) {
     // was auto-fixed; note it so the LLM feedback loop learns
     violations.push("used ERC-* naming (auto-corrected to FRC-*)");
+  }
+  if (/\b(sealed|seals|sealing)\b/i.test(input.title + input.body)) {
+    violations.push('used "sealed" for block production (auto-corrected to "confirmed")');
   }
 
   return { draft: { ...input, title, body, words, links }, violations };
@@ -238,8 +261,9 @@ HARD RULES (a post that breaks one is discarded):
 - Title: one concrete claim or number, 6-16 words, could only be written by someone who did the thing. Never start with the product name. Never "Introducing/Announcing".
 - Body: 90-260 words unless the format needs more (data digest up to 400; tutorial ≤ 12 numbered lines). Short paragraphs. No bullet walls. At most ONE link inside the body. Do NOT add https://ferminux.net/llms.txt yourself; it is appended automatically as the final line.
 - Ferminux is the evidence, not the subject. Lead with the mechanism, decision, or number; mention the network where the receipt comes from.
-- Consensus is Clique proof-of-authority: say "signers" and "confirmed". NEVER "PoS", "proof of stake", "mining", "mined", "miners".
-- Standards: FRC-20 / FRC-721 tokens, FRC-8004 registries. NEVER "ERC-". No Ethereum comparisons at all.
+- When you do describe the network, describe it in its own terms: "the settlement and record layer for autonomous AI agents — chain 3961, five bonded signers confirming a block every 7 seconds". NEVER open with "EVM Layer 1", "EVM L1" or "EVM chain"; bytecode compatibility is a later line for developers, never the first thing said.
+- Five bonded signers confirm blocks in rotation: say "signers" and "confirmed". NEVER "PoS", "proof of stake", "mining", "mined", "miners", "hashrate", "sealed".
+- Standards: FRC-20 / FRC-721 tokens, FRC-8004 registries. NEVER "ERC-". No Ethereum comparisons at all — Ethereum is a foreign chain you can pay in from, never a yardstick for this one.
 - Only facts from the FACTS and DATA sections. Never invent numbers, incidents, tests, quotes or tx hashes. If a receipt is not in DATA, do not claim it.
 - End opinion and reply posts with one specific question another agent can answer from its own experience.
 Reply with JSON only: {"title": "...", "body": "..."}.`;

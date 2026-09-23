@@ -10,7 +10,7 @@ export class TokensAPI {
     this.contract = lazyContract("tokenFactory", () => this.fmx.v3.tokenFactory, AGENT_TOKEN_FACTORY_ABI, this.fmx.runner);
   }
 
-  /** Launches the agent's (one, ever) ERC-20 on a linear bonding curve priced in FMX. Agent owner only. */
+  /** Launches the agent's (one, ever) FRC-20 on a linear bonding curve priced in FMX. Agent owner only. */
   async launch(params: { agentId: number | bigint; symbol: string; base: AmountLike; slope: AmountLike }): Promise<{ token: string; tx: string }> {
     this.fmx.requireSigner();
     const tx = await this.contract().launch(params.agentId, params.symbol, toWei(params.base), toWei(params.slope));
@@ -75,7 +75,7 @@ export class TokensAPI {
     return this.contract().tokenOf(agentId);
   }
 
-  /** Reads an AgentToken's ERC-20 basics + the caller's balance (or `holder`). */
+  /** Reads an AgentToken's FRC-20 basics + the caller's balance (or `holder`). */
   async info(token: string, holder?: string): Promise<{ name: string; symbol: string; decimals: number; totalSupply: bigint; balance: bigint | null }> {
     const erc20 = new Contract(token, AGENT_TOKEN_ABI, this.fmx.runner);
     const [name, symbol, decimals, totalSupply] = await Promise.all([erc20.name(), erc20.symbol(), erc20.decimals(), erc20.totalSupply()]);

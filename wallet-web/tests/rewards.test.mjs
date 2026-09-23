@@ -1,4 +1,4 @@
-// Mining-reward parsing and the merged Activity feed.
+// Block-reward parsing and the merged Activity feed.
 // Fixtures are trimmed copies of real chain-3961 Blockscout v2 responses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +7,7 @@ import {
   parseValidatedBlocks,
   hasNextPage,
   buildFeed,
-  summariseMining,
+  summariseSigning,
 } from '../src/lib/rewards.ts';
 import { parseActivity } from '../src/lib/activity.ts';
 
@@ -111,7 +111,7 @@ test('validated blocks: sums the rewards array and keeps the block hash', () => 
 
 /* ---------------- merge ---------------- */
 
-test('feed: merges transfers and mined blocks newest-first', () => {
+test('feed: merges transfers and signed blocks newest-first', () => {
   const txs = parseActivity({ items: [txRow('0xt1', 1400), txRow('0xt2', 1200, { from: OTHER, to: SELF })] }, SELF);
   const validated = parseValidatedBlocks({ items: [validatedRow(1500), validatedRow(1300)] });
   const history = parseBalanceHistory({ items: [historyRow(1500, REWARD), historyRow(1300, REWARD)] });
@@ -120,9 +120,9 @@ test('feed: merges transfers and mined blocks newest-first', () => {
   assert.deepEqual(
     feed.map((r) => [r.blockNumber, r.kind]),
     [
-      [1500, 'mined'],
+      [1500, 'signed'],
       [1400, 'tx'],
-      [1300, 'mined'],
+      [1300, 'signed'],
       [1200, 'tx'],
     ],
   );
@@ -132,18 +132,18 @@ test('feed: merges transfers and mined blocks newest-first', () => {
   assert.equal(feed[0].source, 'validated');
 });
 
-test('feed: a validated block and a balance row for the same block yield ONE mined row', () => {
+test('feed: a validated block and a balance row for the same block yield ONE signed-block row', () => {
   const validated = parseValidatedBlocks({ items: [validatedRow(1500)] });
   const history = parseBalanceHistory({ items: [historyRow(1500, REWARD)] });
   const feed = buildFeed([], history, validated);
   assert.equal(feed.length, 1);
-  assert.equal(feed[0].kind, 'mined');
+  assert.equal(feed[0].kind, 'signed');
   assert.equal(feed[0].source, 'validated'); // the exact figure wins over the inferred one
   assert.equal(feed[0].rewardWei, REWARD);
 });
 
 test('feed: a reward and a transfer in the same block are not double-counted', () => {
-  // The address mined 1500 AND received 2 FMX in it. Blockscout reports a
+  // The address signed 1500 AND received 2 FMX in it. Blockscout reports a
   // single net delta of 8 FMX for that block.
   const txs = parseActivity(
     { items: [txRow('0xmix', 1500, { from: OTHER, to: SELF, value: '2000000000000000000' })] },
@@ -151,18 +151,18 @@ test('feed: a reward and a transfer in the same block are not double-counted', (
   );
   const history = parseBalanceHistory({ items: [historyRow(1500, 8_000_000_000_000_000_000n)] });
 
-  // Without /blocks-validated the net delta is NOT promoted to a mined row:
+  // Without /blocks-validated the net delta is NOT promoted to a signed-block row:
   // the transfer already explains a credit in that block.
   const inferredOnly = buildFeed(txs, history, []);
   assert.deepEqual(inferredOnly.map((r) => r.kind), ['tx']);
-  assert.equal(summariseMining(inferredOnly), null);
+  assert.equal(summariseSigning(inferredOnly), null);
 
   // With /blocks-validated the exact 6 FMX reward is shown alongside the
   // transfer — one row each, transfer first, and no 8 FMX phantom.
   const withValidated = buildFeed(txs, history, parseValidatedBlocks({ items: [validatedRow(1500)] }));
-  assert.deepEqual(withValidated.map((r) => [r.blockNumber, r.kind]), [[1500, 'tx'], [1500, 'mined']]);
+  assert.deepEqual(withValidated.map((r) => [r.blockNumber, r.kind]), [[1500, 'tx'], [1500, 'signed']]);
   assert.equal(withValidated[1].rewardWei, REWARD);
-  assert.equal(summariseMining(withValidated).totalWei, REWARD);
+  assert.equal(summariseSigning(withValidated).totalWei, REWARD);
 });
 
 test('feed: a validated block with no reward figure yet falls back to its balance credit', () => {
@@ -182,7 +182,7 @@ test('feed: a validated block with no reward figure yet falls back to its balanc
   assert.equal(feed[1].source, 'validated');
   assert.equal(feed[2].rewardWei, 0n, 'no figure and no credit → unknown, never invented');
 
-  const s = summariseMining(feed);
+  const s = summariseSigning(feed);
   assert.equal(s.blocks, 3);
   assert.equal(s.totalWei, 2n * REWARD, 'an unknown reward contributes nothing to the total');
   assert.equal(s.unknownRewards, 1);
@@ -197,13 +197,13 @@ test('feed: the reward fallback never borrows a credit a transfer already explai
   const validated = parseValidatedBlocks({ items: [{ ...validatedRow(1694), rewards: [] }] });
   const history = parseBalanceHistory({ items: [historyRow(1694, 5_000_000_000_000_000_000n)] });
   const feed = buildFeed(txs, history, validated);
-  const mined = feed.find((r) => r.kind === 'mined');
-  assert.equal(mined.rewardWei, 0n, 'the 5 FMX belongs to the transfer row, not to the block reward');
-  assert.equal(mined.source, 'validated');
-  assert.equal(summariseMining(feed).unknownRewards, 1);
+  const signed = feed.find((r) => r.kind === 'signed');
+  assert.equal(signed.rewardWei, 0n, 'the 5 FMX belongs to the transfer row, not to the block reward');
+  assert.equal(signed.source, 'validated');
+  assert.equal(summariseSigning(feed).unknownRewards, 1);
 });
 
-test('feed: balance deltas become mined rows only when nothing else explains them', () => {
+test('feed: balance deltas become signed-block rows only when nothing else explains them', () => {
   const history = parseBalanceHistory({
     items: [
       historyRow(1500, REWARD), // unattributed credit → mined
@@ -215,7 +215,7 @@ test('feed: balance deltas become mined rows only when nothing else explains the
   });
   const txs = parseActivity({ items: [txRow('0xt', 1496)] }, SELF);
   const feed = buildFeed(txs, history, []);
-  assert.deepEqual(feed.map((r) => [r.blockNumber, r.kind]), [[1500, 'mined'], [1496, 'tx']]);
+  assert.deepEqual(feed.map((r) => [r.blockNumber, r.kind]), [[1500, 'signed'], [1496, 'tx']]);
   assert.equal(feed[0].source, 'balance');
   assert.equal(feed[0].blockHash, null);
 });
@@ -241,14 +241,14 @@ test('feed: pending transactions (no block yet) sort above everything', () => {
     SELF,
   );
   const feed = buildFeed(txs, [], parseValidatedBlocks({ items: [validatedRow(9999)] }));
-  assert.deepEqual(feed.map((r) => [r.blockNumber, r.kind]), [[null, 'tx'], [9999, 'mined'], [1400, 'tx']]);
+  assert.deepEqual(feed.map((r) => [r.blockNumber, r.kind]), [[null, 'tx'], [9999, 'signed'], [1400, 'tx']]);
   assert.equal(feed[0].tx.success, null);
 });
 
 test('feed: empty inputs produce an empty feed and no summary', () => {
   assert.deepEqual(buildFeed([], [], []), []);
-  assert.equal(summariseMining([]), null);
-  assert.equal(summariseMining(buildFeed(parseActivity({ items: [txRow('0xt', 10)] }, SELF), [], [])), null);
+  assert.equal(summariseSigning([]), null);
+  assert.equal(summariseSigning(buildFeed(parseActivity({ items: [txRow('0xt', 10)] }, SELF), [], [])), null);
 });
 
 test('feed: ordering is stable for rows sharing a block and a timestamp', () => {
@@ -256,7 +256,7 @@ test('feed: ordering is stable for rows sharing a block and a timestamp', () => 
   const a = buildFeed([], [], validated).map((r) => r.id);
   const b = buildFeed([], [], [...validated].reverse()).map((r) => r.id);
   assert.deepEqual(a, b);
-  assert.deepEqual(a, ['mined:1501', 'mined:1500']);
+  assert.deepEqual(a, ['signed:1501', 'signed:1500']);
 });
 
 /* ---------------- summary ---------------- */
@@ -264,7 +264,7 @@ test('feed: ordering is stable for rows sharing a block and a timestamp', () => 
 test('summary: totals, window bounds and the most recent reward', () => {
   const validated = parseValidatedBlocks({ items: [1500, 1499, 1498].map((h) => validatedRow(h)) });
   const feed = buildFeed(parseActivity({ items: [txRow('0xt', 1450)] }, SELF), [], validated);
-  const s = summariseMining(feed, { complete: false });
+  const s = summariseSigning(feed, { complete: false });
   assert.equal(s.blocks, 3);
   assert.equal(s.totalWei, 3n * REWARD);
   assert.equal(s.highestBlock, 1500);
@@ -276,15 +276,15 @@ test('summary: totals, window bounds and the most recent reward', () => {
 
 test('summary: flags inferred rewards and defaults to "windowed"', () => {
   const feed = buildFeed([], parseBalanceHistory({ items: [historyRow(1500, REWARD)] }), []);
-  const s = summariseMining(feed);
+  const s = summariseSigning(feed);
   assert.equal(s.hasInferred, true);
   assert.equal(s.complete, false);
-  assert.equal(summariseMining(feed, { complete: true }).complete, true);
+  assert.equal(summariseSigning(feed, { complete: true }).complete, true);
 });
 
 test('summary: survives rows with no timestamp', () => {
   const feed = buildFeed([], [], parseValidatedBlocks({ items: [{ ...validatedRow(1500), timestamp: null }] }));
-  const s = summariseMining(feed);
+  const s = summariseSigning(feed);
   assert.equal(s.blocks, 1);
   assert.equal(s.latestTimestamp, null);
 });

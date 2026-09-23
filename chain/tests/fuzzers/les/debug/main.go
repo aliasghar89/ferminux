@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ethereum/go-ethereum/tests/fuzzers/les"
+	"github.com/aliasghar89/ferminux/chain/tests/fuzzers/les"
 )
 
 func main() {

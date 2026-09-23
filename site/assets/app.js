@@ -377,7 +377,7 @@
         var title = svgEl('title', {});
         title.textContent = 'Block ' + FMX.formatHeight(p.b.number) +
           ' · ' + p.b.txns + ' txn' + (p.b.txns === 1 ? '' : 's') +
-          (p.dt != null ? ' · sealed ' + p.dt + 's before the next' : '');
+          (p.dt != null ? ' · confirmed ' + p.dt + 's before the next' : '');
         g.appendChild(title);
         el.tape.appendChild(g);
       }

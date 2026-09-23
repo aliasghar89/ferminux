@@ -4,6 +4,9 @@ test = "test"
 script = "script"
 out = "out"
 libs = ["lib"]
+# Proof-bridge tests read real Ferminux headers/receipts built by
+# bridge/tools/proof/gen-fixtures.mjs.
+fs_permissions = [{ access = "read", path = "./test/fixtures" }]
 
 # Pinned compiler — matches the `pragma solidity ^0.8.24` in all contracts.
 solc = "0.8.24"

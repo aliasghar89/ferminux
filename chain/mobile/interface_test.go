@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package geth
+package fmxmobile
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 func TestInterfaceGetSet(t *testing.T) {
@@ -34,7 +34,7 @@ func TestInterfaceGetSet(t *testing.T) {
 		{"Bool", true, true},
 		{"Bool", false, false},
 		{"Bools", &Bools{[]bool{false, true}}, &Bools{[]bool{false, true}}},
-		{"String", "go-ethereum", "go-ethereum"},
+		{"String", "ferminux", "ferminux"},
 		{"Strings", &Strings{strs: []string{"hello", "world"}}, &Strings{strs: []string{"hello", "world"}}},
 		{"Binary", []byte{0x01, 0x02}, []byte{0x01, 0x02}},
 		{"Binaries", &Binaries{[][]byte{{0x01, 0x02}, {0x03, 0x04}}}, &Binaries{[][]byte{{0x01, 0x02}, {0x03, 0x04}}}},

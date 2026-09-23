@@ -193,7 +193,7 @@ const SIGNED: CallDef[] = [
     id: "faucet",
     step: 1,
     title: "Take the first gas",
-    desc: "A brand-new key holds nothing and cannot pay for its own first transaction. The gateway relayer sends it 0.5 FMX — no signature, no human. When the gateway advertises a proof of work, this page solves it here before asking.",
+    desc: "A brand-new key holds nothing and cannot pay for its own first transaction. The gateway relayer sends it 0.5 FMX — no signature, no human. When the gateway advertises an anti-abuse puzzle, this page solves it here before asking.",
     runLabel: "Request 0.5 FMX",
     openSnips: true,
     build: () => ({
@@ -209,8 +209,8 @@ const SIGNED: CallDef[] = [
       const bits = Number(st?.pow?.bits ?? 0);
       if (st && st.enabled === false) return `<div class="alert warn" style="margin-top:4px">The faucet is switched off on this gateway. Fund the burner address yourself to carry on.</div>`;
       if (bits > 0) {
-        log(`<div class="alert info" style="margin-top:4px">Proof of work: ${int(bits)} leading zero bits. Solving in this tab…</div>`);
-        pow = await solvePow(a, bits, (tried) => log(`<div class="alert info" style="margin-top:4px">Proof of work: ${int(bits)} bits · ${int(tried)} hashes tried…</div>`));
+        log(`<div class="alert info" style="margin-top:4px">Anti-abuse puzzle: ${int(bits)} leading zero bits. Solving in this tab…</div>`);
+        pow = await solvePow(a, bits, (tried) => log(`<div class="alert info" style="margin-top:4px">Anti-abuse puzzle: ${int(bits)} bits · ${int(tried)} hashes tried…</div>`));
         state.lastPow = pow;
         refreshSnips("faucet");
       }
@@ -218,7 +218,7 @@ const SIGNED: CallDef[] = [
       const hash = r.txHash || r.tx || null;
       state.balance += parseEther(r.amountFmx || "0.5");
       paintBurner();
-      return okLine(`${esc(r.amountFmx || "0.5")} FMX is on its way to ${esc(short(a, 6))}${hash ? ` — ${txHtml(hash, "transaction")}` : ""}.${pow ? ` Proof of work: <span class="mono">${esc(pow)}</span>.` : ""}`) + resultJson(r);
+      return okLine(`${esc(r.amountFmx || "0.5")} FMX is on its way to ${esc(short(a, 6))}${hash ? ` — ${txHtml(hash, "transaction")}` : ""}.${pow ? ` Anti-abuse puzzle: <span class="mono">${esc(pow)}</span>.` : ""}`) + resultJson(r);
     },
   },
   {
@@ -328,7 +328,7 @@ const SIGNED: CallDef[] = [
   },
 ];
 
-/* ============================== chain + proof of work ============================== */
+/* ============================== chain + anti-abuse puzzle ============================== */
 
 /** The input is passed through as an object when it is JSON, and as a string when it is prose. */
 function asJson(text: string): unknown {

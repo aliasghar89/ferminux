@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/aliasghar89/ferminux/chain/common"
 )
 
 // TestReleaseAPosaBlock asserts the fork switch block is exactly F = 160000 and

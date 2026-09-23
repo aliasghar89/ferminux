@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
-// Package utils contains internal helper functions for go-ethereum commands.
+// Package utils contains internal helper functions for ferminux commands.
 package utils
 
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/console/prompt"
+	"github.com/aliasghar89/ferminux/chain/console/prompt"
 )
 
 // GetPassPhrase displays the given text(prompt) to the user and requests some textual

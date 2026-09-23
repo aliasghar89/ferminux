@@ -14,7 +14,7 @@ import {
 
 const CHAIN = 3961;
 const A = '0x8ba1f109551bD432803012645Ac136ddd64DBA72'; // checksummed
-const B = '0x7F16433359E4eF704E90cE08460c6238E45130f7'; // the live Ferminux miner
+const B = '0x7F16433359E4eF704E90cE08460c6238E45130f7'; // a live Ferminux signer address
 const TOKEN = '0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178'; // AZNT on chain 3961
 
 const ok = (input, chain = CHAIN) => {

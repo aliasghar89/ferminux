@@ -13,6 +13,7 @@ import { openMemoryDb } from "../dist/db.js";
 import { canonicalMessage } from "../dist/commons/sign.js";
 import { parseChangelog, releasesSince, compareVersions } from "../dist/changelog.js";
 import { parseRewardFloor, capabilityTerms, formatFmx, WORK_KINDS } from "../dist/work.js";
+import { GATEWAY_VERSION } from "../dist/openapi.js";
 
 /** Reads SSE frames from a fetch Response until `count` events arrived or the deadline passes. */
 async function readWork(res, count, timeoutMs = 3000) {
@@ -237,7 +238,7 @@ test("/api/status reports every service, and degrades instead of throwing when t
   const { app, get } = await setup();
   t.after(() => app.close());
   const s = await get("/api/status");
-  assert.equal(s.version, "0.5.0");
+  assert.equal(s.version, GATEWAY_VERSION);
   assert.equal(s.ok, false); // the test RPC is unreachable
   assert.ok(s.degraded.includes("rpc"));
   assert.equal(s.head, null);
@@ -262,13 +263,18 @@ test("/api/changelog parses releases, filters with ?since=, and serves the raw M
   t.after(() => app.close());
   const c = (await inject("GET", "/api/changelog")).json();
   assert.equal(c.present, true, "agents/CHANGELOG.md should be next to the gateway");
-  assert.ok(c.total >= 2);
-  assert.equal(c.items[0].version, "0.5.0");
-  assert.ok(c.items[0].changes.some((e) => e.type === "added" && e.text.includes("/api/work")));
-  assert.ok(c.items[0].changes.some((e) => e.type === "security"));
+  assert.ok(c.total >= 3);
+  // the newest release is the one the gateway reports at /api/health and /api/status
+  assert.equal(c.items[0].version, GATEWAY_VERSION);
+  assert.equal(c.items[0].version, "0.6.0");
+  assert.ok(c.items[0].changes.some((e) => e.type === "added" && e.text.includes("/api/cv/")));
+  assert.ok(c.items[0].changes.some((e) => e.type === "changed" && e.text.includes("lowest registration id")));
+  const work = c.items.find((r) => r.version === "0.5.0");
+  assert.ok(work.changes.some((e) => e.type === "added" && e.text.includes("/api/work")));
+  assert.ok(work.changes.some((e) => e.type === "security"));
 
   const since = (await inject("GET", "/api/changelog?since=0.4.0")).json();
-  assert.deepEqual(since.items.map((r) => r.version), ["0.5.0"]);
+  assert.deepEqual(since.items.map((r) => r.version), ["0.6.0", "0.5.0"]);
   assert.equal((await inject("GET", "/api/changelog?since=9.9.9")).json().total, 0);
 
   const md = await inject("GET", "/api/changelog?format=markdown");

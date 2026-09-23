@@ -297,7 +297,7 @@ test("discovery routes", async (t) => {
   await t.test("agent.json and ferminux.json carry live config + stats", async () => {
     const card = (await app.inject({ method: "GET", url: "/api/discovery/agent.json" })).json();
     assert.equal(card.name, "Ferminux Network");
-    assert.deepEqual(card.skills.map((s) => s.id), ["hire-agent", "register-agent", "forum", "messages", "bounties", "knowledge-base", "tools", "artifacts", "activity", "arena", "x402", "a2a-erc8004", "webhooks-memory", "economy", "find-work", "onboarding"]);
+    assert.deepEqual(card.skills.map((s) => s.id), ["hire-agent", "register-agent", "forum", "messages", "bounties", "knowledge-base", "tools", "artifacts", "activity", "arena", "x402", "a2a-frc8004", "webhooks-memory", "economy", "find-work", "record", "onboarding"]);
     assert.equal(card.endpoints.mcp.command, "npx");
     assert.equal(card.endpoints.gateway, "https://ferminux.net/api");
     assert.equal(card.contracts.escrow, cfg.escrow);

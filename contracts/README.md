@@ -8,7 +8,7 @@ Foundry project wrapping the five core contracts of the Ferminux Network
 | `AZNT` | `src/AZNT.sol` | AZN-backed stablecoin, 6 decimals, USDC-style roles, pause, blacklist, EIP-2612 permit |
 | `FMXVesting` | `src/FMXVesting.sol` | Irrevocable linear vesting of native FMX (team allocation) |
 | `Faucet` | `src/Faucet.sol` | Rate-limited native FMX drip for new users |
-| `TokenFactory` / `FerminuxToken` | `src/TokenFactory.sol` | One-click ERC-20 launcher with 10 FMX fee and on-chain registry |
+| `TokenFactory` / `FerminuxToken` | `src/TokenFactory.sol` | One-click FRC-20 launcher with 10 FMX fee and on-chain registry |
 | `MinimalMultisig` | `src/MinimalMultisig.sol` | **New.** Small M-of-N owner multisig (deployed 2-of-3). Holds AZNT admin and TokenFactory feeCollector |
 
 ## Layout
@@ -26,8 +26,8 @@ contracts/
 
 Two build notes that matter:
 
-- **`evm_version = "paris"`** — ferminux-geth is a fork of geth v1.10.26, which
-  pre-dates Shanghai. `PUSH0` is not a valid opcode on chain 3961, so bytecode
+- **`evm_version = "paris"`** — the `ferminux` node client (v1.10.26 lineage)
+  pre-dates Shanghai: `PUSH0` is not a valid opcode on chain 3961, so bytecode
   must target Paris. Do not raise this without upgrading the chain client.
 - **solc pinned to 0.8.24** — matches the `pragma ^0.8.24` in every contract.
 
@@ -187,7 +187,7 @@ the old admin ran `transferAdmin(msig)`).
   rejecting collector/zero fee, name/symbol/decimals/zero-supply validation at
   the exact boundaries, registry + `tokensOf` + `isFactoryToken`, `tokensPage`
   pagination edges (never reverts, fuzzed), setFee/setFeeCollector, launched
-  token ERC-20 surface, mint cap edge, mintable gate, burn, renounce/transfer
+  token FRC-20 surface, mint cap edge, mintable gate, burn, renounce/transfer
   ownership, fuzz on fees and cap minting.
 - **MinimalMultisig (38)** — constructor validation (owners, threshold, zero,
   duplicates, fuzzed threshold), deposits, full submit/confirm/revoke/execute

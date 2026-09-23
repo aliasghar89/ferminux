@@ -79,12 +79,12 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/aliasghar89/ferminux/chain/accounts"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/consensus"
+	"github.com/aliasghar89/ferminux/chain/core/types"
+	"github.com/aliasghar89/ferminux/chain/crypto"
+	"github.com/aliasghar89/ferminux/chain/log"
 )
 
 const (
@@ -300,7 +300,7 @@ func (c *Clique) BreakGlassMessage(number uint64, parentHash common.Hash, signer
 // further ancestors) may not be in the database yet: `ancestors` are the
 // already-verified headers immediately preceding headers[0], in ascending
 // order. The posa wrapper uses it for batches that straddle the fork block,
-// where the last Ethash headers are verified concurrently with the first
+// where the last Powhash headers are verified concurrently with the first
 // Clique ones.
 func (c *Clique) VerifyHeadersWithAncestors(chain consensus.ChainHeaderReader, headers []*types.Header, ancestors []*types.Header) (chan<- struct{}, <-chan error) {
 	abort := make(chan struct{})

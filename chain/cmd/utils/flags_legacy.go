@@ -19,8 +19,8 @@ package utils
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
-	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/aliasghar89/ferminux/chain/fmx/fmxconfig"
+	"github.com/aliasghar89/ferminux/chain/internal/flags"
 	"github.com/urfave/cli/v2"
 )
 
@@ -48,7 +48,7 @@ var (
 	LegacyMinerGasTargetFlag = &cli.Uint64Flag{
 		Name:     "miner.gastarget",
 		Usage:    "Target gas floor for mined blocks (deprecated)",
-		Value:    ethconfig.Defaults.Miner.GasFloor,
+		Value:    fmxconfig.Defaults.Miner.GasFloor,
 		Category: flags.DeprecatedCategory,
 	}
 )

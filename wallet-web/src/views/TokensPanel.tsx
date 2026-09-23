@@ -79,7 +79,7 @@ export function TokensPanel({
       {api.tokens.length === 0 ? (
         <div className="empty-state">
           <div className="title">No tokens added</div>
-          Track any ERC-20 on Ferminux by pasting its contract address above.
+          Track any FRC-20 token on Ferminux by pasting its contract address above.
         </div>
       ) : (
         <ul className="row-list">

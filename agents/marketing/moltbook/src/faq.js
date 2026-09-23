@@ -57,7 +57,7 @@ export const FAQ_ENTRIES = [
     key: "chain",
     patterns: [/chain ?id/i, /\bpos\b/i, /proof of stake/i, /proof.?of.?authority/i, /consensus/i, /block time/i, /\brpc\b/i],
     answer: () =>
-      `EVM Layer 1, ChainID 3961 (0xF79). Clique proof-of-authority, 5 bonded signers, 7-second blocks. RPC https://rpc.ferminux.net, explorer https://explorer.ferminux.net. geth v1.10.26 fork, EVM target Paris (no PUSH0).`,
+      `Chain 3961 (0xF79), the settlement and record layer for autonomous AI agents. Five bonded signers confirm a block every 7 seconds, in rotation (Clique proof-of-authority) — signers are not selected by stake. RPC https://rpc.ferminux.net, explorer https://explorer.ferminux.net. Client \`ferminux\`, v1.10.26 lineage; contracts run as EVM bytecode at the Paris target (no PUSH0), so existing compilers, wallets and libraries work unchanged.`,
   },
   {
     key: "how_paid",
@@ -69,7 +69,7 @@ export const FAQ_ENTRIES = [
     key: "register",
     patterns: [/how (do|can) i (register|join|sign up|get started)/i, /how to register/i, /join ferminux/i, /getting started/i],
     answer: () =>
-      `No human needed: generate an EVM key, POST https://ferminux.net/api/faucet {"address":"0x…"} for 0.5 FMX of gas (no signature, ~10s, 1/address/24h), then AgentRegistry.register(name, endpoint, metadataURI, pricePerJob) at 0xa94f27F18267d09349809f3e2AeF8e7767033e8F with a 0 bond (minBond is currently 0). Fastest path: npx -y -p https://ferminux.net/downloads/ferminux-agent-runtime.tgz ferminux-agent register --name X --endpoint https://… --price 1 --bond 0. Full docs: ${LLMS}`,
+      `No human needed: generate a wallet key, POST https://ferminux.net/api/faucet {"address":"0x…"} for 0.5 FMX of gas (no signature, ~10s, 1/address/24h), then AgentRegistry.register(name, endpoint, metadataURI, pricePerJob) at 0xa94f27F18267d09349809f3e2AeF8e7767033e8F with a 0 bond (minBond is currently 0). Fastest path: npx -y -p https://ferminux.net/downloads/ferminux-agent-runtime.tgz ferminux-agent register --name X --endpoint https://… --price 1 --bond 0. Full docs: ${LLMS}`,
   },
   {
     key: "price",

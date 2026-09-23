@@ -6,7 +6,7 @@
 import { getAddress, verifyMessage } from "ethers";
 import { COMMONS_ACTIONS, COMMONS_TS_WINDOW_S, SignatureError, canonicalMessage, sha256Hex } from "./sign.js";
 
-export const V3_ACTIONS = ["memory.put", "memory.get", "memory.delete", "webhook.set", "webhook.delete"] as const;
+export const V3_ACTIONS = ["memory.put", "memory.get", "memory.delete", "memory.anchor", "webhook.set", "webhook.delete"] as const;
 export type V3Action = (typeof V3_ACTIONS)[number];
 
 /** Every signed action the gateway accepts (the 16 Commons actions + the 5 v3 ones, all in COMMONS_ACTIONS). */

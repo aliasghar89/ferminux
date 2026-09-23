@@ -25,9 +25,8 @@ site/
   `eth_getBlockByNumber latest`, `eth_chainId`, plus `eth_call
   getReserves()` on the FMX/AZNT pair) polled every 7 s. Renders block
   height (pulses on new blocks), base fee, gas limit, chain ID, the live
-  FMX price in AZNT from the DEX pair reserves, estimated network hashrate
-  (mean difficulty / mean seal interval) and average block time over the
-  last ~18 headers. RPC endpoint resolution: `?rpc=<url>` query override →
+  FMX price in AZNT from the DEX pair reserves, the signer count (static)
+  and average block time over the last ~18 headers. RPC endpoint resolution: `?rpc=<url>` query override →
   `data-rpc` attribute on `<body>` → `https://rpc.ferminux.net`.
   Unreachable RPC degrades to a red dot + "unreachable"; last-known values
   stay on screen. A chain-ID mismatch renders in the warning color.
@@ -46,8 +45,8 @@ site/
   `https://rpc.ferminux.net`, explorer `https://explorer.ferminux.net`).
   No wallet installed → status message + the manual-parameters table (always
   visible) covers the fallback.
-- **Quickstart tabs** — run a node / mine CPU / mine GPU, with keyboard
-  (arrow-key) navigation and copy buttons.
+- **Quickstart** — run a node (install, sync, local JSON-RPC), with copy
+  buttons. The tab component keeps its keyboard (arrow-key) navigation.
 
 ## Local preview
 
@@ -103,8 +102,8 @@ server {
 `https://rpc.ferminux.net` must send CORS headers
 (`Access-Control-Allow-Origin: https://ferminux.net` or `*`, plus
 `Content-Type` in allowed headers for the JSON-RPC POST preflight) or the
-stats strip will show "unreachable" even when the chain is healthy. For geth
-that is `--http.corsdomain "https://ferminux.net"` on the RPC node (or the
+stats strip will show "unreachable" even when the chain is healthy. For the
+`ferminux` node that is `--http.corsdomain "https://ferminux.net"` on the RPC node (or the
 equivalent header injection in the nginx proxy in front of it).
 
 ## Downloads
@@ -121,14 +120,7 @@ Download links point at `/downloads/<asset>` on this host (plus
 
 Asset names must match what `/chain`'s release workflow
 (`.github/workflows/release.yml`) publishes — adjust either side if they
-drift. The "Ferminux Miner" desktop-app row is rendered disabled
-(`dl-row-soon`) until the app ships.
-
-**Sync note:** the GPU quickstart one-liner
-(`lolMiner --algo ETHASH --pool stratum+tcp://pool.ferminux.net:3333 --user 0xYourAddress.rig1`)
-was written before the `/proxy` component landed in this repo. When `/proxy`
-ships its README, verify the stratum port and user format match and update the
-GPU tab in `index.html` if they differ. Docs/launchpad links point at
+drift. Docs/launchpad links point at
 `docs.ferminux.net` and `launchpad.ferminux.net` — confirm those
 subdomains when the components deploy.
 

@@ -17,12 +17,12 @@
 package beacon
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/rpc"
 )
 
 // EngineAPIError is a standardized error message between consensus and execution
-// clients, also containing any custom error message Geth might include.
+// clients, also containing any custom error message Ferminux might include.
 type EngineAPIError struct {
 	code int
 	msg  string

@@ -118,6 +118,7 @@ async function renderDetail(id: number) {
       <p class="crumbs"><a href="/agents/">Agents</a> / <span class="num">#${a.id}</span></p>
       <div class="agent-head"><h1>${esc(a.name)}</h1><div class="pills">${pillFor(st)}<span class="pill">${onlineDot(a.online)}${a.online ? "online" : "offline"}</span>${card?.model ? `<span class="pill" title="Model declared in the agent card">${esc(card.model)}</span>` : ""}</div></div>
       <div class="meta-line"><span>Owner ${addrHtml(a.owner, { label: "Owner" })}</span><span>Registered ${timeHtml(a.registeredAt)}</span>${a.lastSeen ? `<span>Last seen ${timeHtml(a.lastSeen)}</span>` : ""}${card?.version ? `<span>Card v${esc(card.version)}</span>` : ""}</div>
+      <p style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px"><a class="btn btn-secondary btn-sm" href="/cv/?agent=${a.id}">Public record</a><a class="btn btn-secondary btn-sm" href="/network/?focus=${a.id}">Network position</a></p>
     </section>
     <div class="detail">
       <div class="detail-main">
@@ -131,7 +132,7 @@ async function renderDetail(id: number) {
         </div>
         <dl class="kv">
           <div class="kv-row"><dt>Agent id</dt><dd class="num">${a.id}</dd></div>
-          <div class="kv-row"><dt>Price per job</dt><dd class="num">${fmxUnit(a.pricePerJob)} <span class="faint small">(${esc(a.pricePerJob)} wei)</span></dd></div>
+          <div class="kv-row"><dt>Price per job</dt><dd class="num">${fmxUnit(a.pricePerJob)}</dd></div>
           <div class="kv-row"><dt>Endpoint</dt><dd><a class="mono" href="${safeHref(a.endpoint)}" rel="noopener nofollow">${esc(a.endpoint)}</a><button class="copy" type="button" data-copy="${esc(a.endpoint)}">copy</button></dd></div>
           <div class="kv-row"><dt>Metadata URI</dt><dd>${a.metadataURI ? `<span class="mono">${esc(a.metadataURI)}</span><button class="copy" type="button" data-copy="${esc(a.metadataURI)}">copy</button>` : `<span class="faint">none</span>`}</dd></div>
           <div class="kv-row"><dt>Owner</dt><dd>${addrHtml(a.owner, { n: 8 })}</dd></div>
@@ -272,7 +273,7 @@ function renderHire(a: AgentView, isOwner: () => boolean) {
       <span class="hint" id="hire-hint">Stored on the gateway; only its keccak256 hash goes on-chain.</span></div>
     <button class="btn btn-primary" type="button" id="hire-btn" ${st !== "Active" ? "disabled" : ""}>${walletState().address ? "Hire for " + fmxUnit(price) : "Connect wallet"}</button>
     ${st !== "Active" ? `<p class="alert warn">This agent is ${st.toLowerCase()} and cannot take new jobs.</p>` : ""}
-    ${!hasInjected() && !config.mock ? `<p class="small faint">No browser wallet detected. Install MetaMask or use <a href="https://wallet.ferminux.net" rel="noopener" style="text-decoration:underline">wallet.ferminux.net</a>; the SDK and MCP server can also hire this agent.</p>` : ""}
+    ${!hasInjected() && !config.mock ? `<p class="small faint">No browser wallet detected. Use <a href="https://wallet.ferminux.net" rel="noopener" style="text-decoration:underline">wallet.ferminux.net</a> or install any browser wallet; the SDK and MCP server can also hire this agent.</p>` : ""}
     <div id="hire-status" role="status" aria-live="polite"></div>
     <div id="hire-steps"></div>
     <div id="hire-result"></div>

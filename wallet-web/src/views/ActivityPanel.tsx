@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchActivity, type ActivityItem } from '../lib/activity.ts';
 import {
   buildFeed,
-  fetchMiningData,
-  summariseMining,
+  fetchBlockRewardData,
+  summariseSigning,
   type FeedRow,
-  type MiningSummary,
+  type SigningSummary,
 } from '../lib/rewards.ts';
 import { EXPLORER_URL, NATIVE_SYMBOL } from '../config.ts';
 import { formatAmount, formatAmountExact, shortAddress } from '../lib/validate.ts';
@@ -17,8 +17,8 @@ type State =
   | {
       kind: 'ready';
       rows: FeedRow[];
-      mining: MiningSummary | null;
-      /** true when the transactions endpoint failed but mining data came through. */
+      signing: SigningSummary | null;
+      /** true when the transactions endpoint failed but block-reward data came through. */
       txsMissing: boolean;
     };
 
@@ -37,29 +37,29 @@ export function ActivityPanel({
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
-    // Transactions and mining rewards are independent sources. Either alone is
+    // Transactions and block rewards are independent sources. Either alone is
     // enough to render a feed; only losing both is "history unavailable".
-    const [txsResult, miningResult] = await Promise.allSettled([
+    const [txsResult, rewardResult] = await Promise.allSettled([
       fetchActivity(EXPLORER_URL, address),
-      fetchMiningData(EXPLORER_URL, address),
+      fetchBlockRewardData(EXPLORER_URL, address),
     ]);
 
     const txs: ActivityItem[] = txsResult.status === 'fulfilled' ? txsResult.value : [];
-    const mining =
-      miningResult.status === 'fulfilled'
-        ? miningResult.value
+    const rewards =
+      rewardResult.status === 'fulfilled'
+        ? rewardResult.value
         : { history: [], validated: [], available: false, complete: true };
 
-    if (txsResult.status === 'rejected' && !mining.available) {
+    if (txsResult.status === 'rejected' && !rewards.available) {
       setState({ kind: 'unavailable' });
       return;
     }
 
-    const rows = buildFeed(txs, mining.history, mining.validated);
+    const rows = buildFeed(txs, rewards.history, rewards.validated);
     setState({
       kind: 'ready',
       rows,
-      mining: summariseMining(rows, { complete: mining.complete }),
+      signing: summariseSigning(rows, { complete: rewards.complete }),
       txsMissing: txsResult.status === 'rejected',
     });
   }, [address]);
@@ -123,7 +123,7 @@ export function ActivityPanel({
         {context}
         <div className="empty-state">
           <div className="title">No activity yet</div>
-          Transfers and mined block rewards for {label} will appear here once the explorer has indexed them.
+          Transfers and block rewards for {label} will appear here once the explorer has indexed them.
         </div>
       </>
     );
@@ -132,17 +132,17 @@ export function ActivityPanel({
   return (
     <>
       {context}
-      {state.mining && <MiningCard summary={state.mining} />}
+      {state.signing && <SigningCard summary={state.signing} />}
       {state.txsMissing && (
         <div className="notice" style={{ margin: '16px 20px 0' }}>
-          Showing mined block rewards only — the transactions endpoint did not respond.{' '}
+          Showing block rewards only — the transactions endpoint did not respond.{' '}
           <button className="btn btn-ghost btn-sm" onClick={() => setAttempt((a) => a + 1)}>
             Retry
           </button>
         </div>
       )}
       <ul className="row-list">
-        {state.rows.map((row) => (row.kind === 'mined' ? <MinedRow key={row.id} row={row} /> : <TxRow key={row.id} tx={row.tx} />))}
+        {state.rows.map((row) => (row.kind === 'signed' ? <SignedRow key={row.id} row={row} /> : <TxRow key={row.id} tx={row.tx} />))}
       </ul>
     </>
   );
@@ -150,16 +150,16 @@ export function ActivityPanel({
 
 /* ------------------------------------------------------------------ */
 
-function MiningCard({ summary }: { summary: MiningSummary }) {
+function SigningCard({ summary }: { summary: SigningSummary }) {
   return (
-    <div className="mining-card" data-testid="mining-card">
-      <div className="mining-head">
-        <span className="dir-badge dir-mined">MINED</span>
-        <span className="mining-title">Mining rewards</span>
+    <div className="signing-card" data-testid="signing-card">
+      <div className="signing-head">
+        <span className="dir-badge dir-signed">SIGNED</span>
+        <span className="signing-title">Block rewards</span>
       </div>
-      <div className="mining-stats">
+      <div className="signing-stats">
         <div>
-          <div className="k">Blocks mined</div>
+          <div className="k">Blocks signed</div>
           <div className="v num">{summary.blocks.toLocaleString('en-US')}</div>
         </div>
         <div>
@@ -173,22 +173,22 @@ function MiningCard({ summary }: { summary: MiningSummary }) {
           <div className="v">{summary.latestTimestamp ? timeAgo(summary.latestTimestamp) : '—'}</div>
         </div>
       </div>
-      <div className="mining-note">
+      <div className="signing-note">
         {summary.complete
           ? `Covers blocks ${summary.lowestBlock.toLocaleString('en-US')}–${summary.highestBlock.toLocaleString('en-US')} — everything the explorer returned for this address.`
           : `Covers blocks ${summary.lowestBlock.toLocaleString('en-US')}–${summary.highestBlock.toLocaleString('en-US')} only — the explorer holds more history than one page, so this is not an all-time total.`}
         {summary.hasInferred && ' Some rewards are inferred from balance changes rather than read from the block record.'}
         {summary.unknownRewards > 0 &&
-          ` ${summary.unknownRewards} recently mined block${summary.unknownRewards === 1 ? ' has' : 's have'} no reward figure from the explorer yet and ${summary.unknownRewards === 1 ? 'is' : 'are'} not included in the total.`}
+          ` ${summary.unknownRewards} recently confirmed block${summary.unknownRewards === 1 ? ' has' : 's have'} no reward figure from the explorer yet and ${summary.unknownRewards === 1 ? 'is' : 'are'} not included in the total.`}
       </div>
     </div>
   );
 }
 
-function MinedRow({ row }: { row: Extract<FeedRow, { kind: 'mined' }> }) {
+function SignedRow({ row }: { row: Extract<FeedRow, { kind: 'signed' }> }) {
   return (
-    <li className="row-mined">
-      <span className="dir-badge dir-mined">MINED</span>
+    <li className="row-signed">
+      <span className="dir-badge dir-signed">SIGNED</span>
       <div className="row-main">
         <div className="row-title num" style={{ fontSize: 13 }}>
           Block #{row.blockNumber.toLocaleString('en-US')}
@@ -203,7 +203,7 @@ function MinedRow({ row }: { row: Extract<FeedRow, { kind: 'mined' }> }) {
         </div>
       </div>
       <div
-        className="row-value num mined-value"
+        className="row-value num signed-value"
         title={row.rewardWei > 0n ? `${formatAmountExact(row.rewardWei)} ${NATIVE_SYMBOL}` : 'The explorer has not published this block’s reward yet.'}
       >
         {row.rewardWei > 0n ? `+${formatAmount(row.rewardWei)} ${NATIVE_SYMBOL}` : '—'}

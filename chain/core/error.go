@@ -19,7 +19,7 @@ package core
 import (
 	"errors"
 
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/aliasghar89/ferminux/chain/core/types"
 )
 
 var (

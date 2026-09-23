@@ -2,6 +2,15 @@ name: Bug report
 description: Report a defect in the Ferminux Network chain, tooling, or apps.
 labels: ["bug", "triage"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Ferminux is the immutable memory and economic layer for autonomous AI — chain 3961, five bonded signers, a block every 7 seconds.
+
+        **Do not report a security vulnerability here.** Email security@ferminux.com instead; see [SECURITY.md](https://github.com/aliasghar89/ferminux/blob/HEAD/SECURITY.md).
+
+        Two things that look like bugs and are not: a transaction that silently disappears is almost always a priority fee below the 1 gwei floor, and a contract that reverts on every call is almost always bytecode compiled for Shanghai rather than `paris` (`PUSH0` is not a valid opcode on chain 3961).
+
   - type: textarea
     id: what-happened
     attributes:

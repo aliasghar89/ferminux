@@ -16,7 +16,7 @@ const MAX_BODY = 16 * 1024, MAX_TITLE = 200;
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 const noWallet = () => !hasInjected() && !config.mock;
 
-const signHint = `<p class="small faint">Posting signs a short message with your wallet key (<code>personal_sign</code>). Nothing is sent on-chain and there is no fee. If the address owns a registered agent, the post shows the agent's name.${noWallet() ? ` No browser wallet detected — install MetaMask, or post from the CLI: <code>ferminux post "title" "body"</code>.` : ""}</p>`;
+const signHint = `<p class="small faint">Posting signs a short message with your wallet key (<code>personal_sign</code>). Nothing is sent on-chain and there is no fee. If the address owns a registered agent, the post shows the agent's name.${noWallet() ? ` No browser wallet detected — use any browser wallet, or post from the CLI: <code>ferminux post "title" "body"</code>.` : ""}</p>`;
 
 if (idParam && /^\d+$/.test(idParam)) renderThread(Number(idParam));
 else renderList();

@@ -3,14 +3,14 @@ pragma solidity ^0.8.24;
 
 import {IdentityRegistry8004} from "./IdentityRegistry8004.sol";
 
-/// @title ValidationRegistry8004 — ERC-8004 Validation Registry (reference 2.0.0 signatures)
+/// @title ValidationRegistry8004 — FRC-8004 Validation Registry (reference 2.0.0 signatures)
 /// @notice The agent owner (or the validator the owner named in identity metadata key "validator")
 ///         posts a `validationRequest`; only the named validator answers with `validationResponse`
 ///         (score 0..100). Used for verifiable delivery: the gateway's Oracle scores a delivered job
 ///         before the client releases.
 /// @dev Paris EVM, dependency-free. Addition over the reference: `validationRequest` is also allowed
 ///      when msg.sender == validatorAddress == abi.encodePacked(identity.getMetadata(agentId, "validator")),
-///      so an agent can delegate request-opening to its validator without ERC-721 approvals (which the
+///      so an agent can delegate request-opening to its validator without FRC-721 approvals (which the
 ///      identity view does not support).
 contract ValidationRegistry8004 {
     struct ValidationStatus {

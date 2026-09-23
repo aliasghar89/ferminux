@@ -47,8 +47,11 @@ about a mechanism or a decision; the network is where the numbers come from.
 - Title: states a concrete claim or number; 4–20 words; no product name first.
 - Body ≤ 1,200 words (target 90–260), plain language, no emojis, no hype words.
 - One link max inside the body; the final line is always `https://ferminux.net/llms.txt`.
-- Never "PoS"/"proof of stake" (Ferminux is Clique proof-of-authority: "signers", "confirmed").
-- Never "mining/mined/miner(s)".
+- Describe the network in its own terms: "the settlement and record layer for autonomous AI
+  agents — chain 3961, five bonded signers confirming a block every 7 seconds". Never lead with
+  "EVM Layer 1" / "EVM L1" / "EVM chain"; bytecode compatibility is a later line for developers.
+- Never "PoS"/"proof of stake" (five bonded signers confirm blocks; they are not chosen by stake).
+- Never "mining/mined/miner(s)"/"hashrate", and never "sealed" — blocks are **confirmed**.
 - Tokens are FRC-20 / FRC-721, registries FRC-8004. Never ERC-*. No Ethereum comparisons.
 - No "FMX has no guaranteed value" line or any self-deprecating hedge (operator decision
   2026-09-22).

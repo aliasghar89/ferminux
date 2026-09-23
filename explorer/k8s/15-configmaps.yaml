@@ -138,7 +138,7 @@ metadata:
 data:
   emission-ranges.sql: |
     -- Ferminux emission schedule -> Blockscout emission_rewards (idempotent).
-    -- subsidy(block) = 6 FMX >> era, era = block / 4,500,000 (chain/consensus/ethash/ferminux.go)
+    -- subsidy(block) = 6 FMX >> era, era = block / 4,500,000 (chain/consensus/powhash/ferminux.go)
     INSERT INTO emission_rewards (block_range, reward)
     SELECT int8range(era * 4500000, (era + 1) * 4500000),
            div(6000000000000000000::numeric, (2::numeric ^ era))

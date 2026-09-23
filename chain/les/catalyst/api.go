@@ -21,16 +21,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/beacon"
-	"github.com/ethereum/go-ethereum/les"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/core/beacon"
+	"github.com/aliasghar89/ferminux/chain/les"
+	"github.com/aliasghar89/ferminux/chain/log"
+	"github.com/aliasghar89/ferminux/chain/node"
+	"github.com/aliasghar89/ferminux/chain/rpc"
 )
 
 // Register adds catalyst APIs to the light client.
-func Register(stack *node.Node, backend *les.LightEthereum) error {
+func Register(stack *node.Node, backend *les.LightFerminux) error {
 	log.Warn("Catalyst mode enabled", "protocol", "les")
 	stack.RegisterAPIs([]rpc.API{
 		{
@@ -43,12 +43,12 @@ func Register(stack *node.Node, backend *les.LightEthereum) error {
 }
 
 type ConsensusAPI struct {
-	les *les.LightEthereum
+	les *les.LightFerminux
 }
 
 // NewConsensusAPI creates a new consensus api for the given backend.
 // The underlying blockchain needs to have a valid terminal total difficulty set.
-func NewConsensusAPI(les *les.LightEthereum) *ConsensusAPI {
+func NewConsensusAPI(les *les.LightFerminux) *ConsensusAPI {
 	if les.BlockChain().Config().TerminalTotalDifficulty == nil {
 		log.Warn("Catalyst started without valid total difficulty")
 	}

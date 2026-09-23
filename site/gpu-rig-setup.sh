@@ -5,15 +5,23 @@
 #   curl -fsSL https://ferminux.net/gpu-rig-setup.sh | bash
 #   or: bash gpu-rig-setup.sh
 #
-# Installs lolMiner and points it at the Ferminux stratum pool. Ferminux uses
-# standard Ethash with standard DAG epochs, so every Ethash miner works —
-# lolMiner, GMiner, T-Rex, TeamRedMiner, SRBMiner. lolMiner is used here
-# because it supports both NVIDIA and AMD from one binary.
+# RETIRED. Proof-of-work ended at block 160,000. Since then Ferminux blocks are
+# confirmed by five bonded signers in rotation (Clique proof-of-authority) and
+# there is no proof-of-work any more, so there is nothing for a GPU to do. The
+# script stops before installing anything; the body below is kept as the record
+# of the pre-fork setup.
 #
-# DAG: ~1.1 GB at the current epoch, so any GPU with 4 GB or more is fine.
-# Expect roughly 25-30 MH/s per RTX 3080-class card, 60-70 MH/s per RTX 4090.
+# Before the fork it installed lolMiner and pointed it at the Ferminux stratum
+# pool. The pre-fork chain used standard Ethash with standard DAG epochs, so
+# any Ethash miner worked; lolMiner was used because it supports both NVIDIA
+# and AMD from one binary.
 # =============================================================================
 set -euo pipefail
+
+echo "Ferminux has no GPU mining: since block 160,000 blocks are confirmed by" >&2
+echo "signers in rotation; there is no proof-of-work to do." >&2
+echo "To run a node instead:  curl -fsSL https://ferminux.net/install.sh | bash" >&2
+exit 1
 
 POOL="${FMX_POOL:-stratum+tcp://pool.ferminux.net:3333}"
 WALLET="${FMX_WALLET:-}"

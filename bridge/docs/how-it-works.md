@@ -127,16 +127,17 @@ function.** See [§7](#7-what-can-go-wrong).
 
 Each validator independently watches the source chain for `Sent` events and
 **waits a fixed number of block confirmations before signing anything.** This
-wait exists for one reason: if the source chain reorganises and un-mines your
-lock after the destination has already minted, the bridge becomes
-undercollateralized and everyone holding the wrapped asset eats the loss.
+wait exists for one reason: if the source chain reorganises and drops your
+lock from its history after the destination has already minted, the bridge
+becomes undercollateralized and everyone holding the wrapped asset eats the
+loss.
 
 Confirmation depth is a validator **policy** setting, not a contract rule. The
 recommended policy:
 
 | Source chain | Wait for | Wall clock | Why |
 |---|---|---|---|
-| Ferminux (3961) | 64 blocks | ~7.5 min | PoW, probabilistic finality only, modest hashrate — this is the deepest wait for a reason, see [security-model.md](security-model.md#5-reorg-risk-per-chain) |
+| Ferminux (3961) | 64 blocks | ~7.5 min | Clique proof-of-authority (five bonded signers), no finality gadget; 64 is the same depth at which every node refuses a reorg — this is the deepest wait for a reason, see [security-model.md](security-model.md#5-reorg-risk-per-chain) |
 | Ethereum (1) | the `finalized` tag | ~13–19 min | two epochs; economically final, not probabilistic |
 | BSC (56) | the `finalized` tag (fast finality) | ~45–75 s | falls back to ~15 blocks if the endpoint does not serve `finalized` |
 | Polygon PoS (137) | the `finalized` tag (Heimdall milestones) | ~1–3 min | block-count waiting alone has been unreliable historically |
@@ -326,14 +327,15 @@ whole security surface.
 | Design | What the destination verifies | Trust | Cost / practicality |
 |---|---|---|---|
 | **This bridge (validator-secured)** | M-of-N signatures over the transfer | M named parties do not collude, and their keys are not stolen | works between any two EVM chains today; cheap; ~124k gas to execute |
-| Light-client / ZK bridge | a proof of the source chain's consensus, on-chain | the source chain's own consensus, plus the proof system's soundness | needs a verifier for the source consensus on the destination chain; expensive; Ethash PoW headers are impractical to verify inside another EVM at reasonable cost |
+| Light-client / ZK bridge | a proof of the source chain's consensus, on-chain | the source chain's own consensus, plus the proof system's soundness | needs a verifier for the source consensus on the destination chain; for Ferminux that means checking Clique signer signatures over its headers (~545k gas for a 5-header finality proof) |
 | Optimistic bridge | a claim that nobody disproved within a challenge window | at least one honest watcher, and the window being long enough | adds a 30 min – several hour delay to every transfer |
 | Liquidity network (no minting) | nothing; a market maker fronts the asset on the far side | the market maker's solvency, per transfer | no wrapped supply and no honeypot, but capital-limited and no new-asset issuance |
 
-A light-client bridge to Ferminux would mean verifying Ethash proof-of-work
-headers inside the destination EVM. That is not economically sensible, so this
-design accepts external verification and spends its effort on **bounding the
-damage** instead of pretending the trust is not there.
+A light-client bridge to Ferminux would mean verifying Clique signer
+signatures over Ferminux headers inside the destination EVM. That light client
+is built and tested but not deployed ([PROOF-BRIDGE.md](PROOF-BRIDGE.md)), so
+the live bridge accepts external verification and spends its effort on
+**bounding the damage** instead of pretending the trust is not there.
 
 ### What you are actually trusting
 
@@ -434,8 +436,9 @@ cast call $BRIDGE_DST "tokenConfig(address)((uint8,bool,uint64,address,uint256,u
   threshold; the caps only bound it.
 - That a transfer will complete in a given time. Liveness depends on validators
   and relayers being up, and on the destination not being paused or cap-full.
-- That the Ferminux side is as hard to reorg as Ethereum. It is not — Ferminux
-  is a young Ethash chain, and that is discussed frankly in
+- That the Ferminux side cannot reorg. Ferminux blocks are confirmed by five
+  bonded signers (Clique proof-of-authority) with no finality gadget; how deep a
+  reorg can go, and why the relayer waits 64 blocks, is in
   [security-model.md](security-model.md#5-reorg-risk-per-chain).
 - That wrapped assets have a market. A wrapper is only liquid if somebody makes
   it liquid.

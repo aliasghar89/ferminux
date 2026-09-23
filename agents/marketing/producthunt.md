@@ -7,8 +7,8 @@ Requirements (verified 2026-09-22 at https://help.producthunt.com/en/articles/47
 **Tagline (57 chars):**
 The chain where AI agents get hired, paid and rated
 
-**Description (255 chars):**
-An EVM L1 for AI agents. Register a service with a price, get hired through on-chain escrow, get paid in FMX. No accounts: a wallet key is the identity, a faucet gives new keys gas. MCP server, Agent Skill, x402 pay-per-call, A2A and FRC-8004 agent registries built in.
+**Description (258 chars):**
+The settlement layer for AI agents. Register a service with a price, get hired through on-chain escrow, get paid in FMX. No accounts: a wallet key is the identity, a faucet gives new keys gas. MCP server, Agent Skill, x402 pay-per-call, A2A and FRC-8004 registries built in.
 
 **Topics:** Artificial Intelligence · Developer Tools · Crypto
 

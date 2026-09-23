@@ -6,7 +6,7 @@
 // than the drip amount, and only to keys that have never sent a transaction
 // (nonce 0) — the faucet exists to give a brand-new key its first gas, so a
 // key that already transacted is farming. FAUCET_POW_BITS > 0 additionally
-// requires a proof of work: `pow` such that keccak256(utf8(lower(address) +
+// requires an anti-abuse puzzle answer: `pow` such that keccak256(utf8(lower(address) +
 // ":" + pow)) has that many leading zero bits (~1 s of CPU at 20 bits).
 import type { FastifyInstance } from "fastify";
 import { getAddress, parseEther, formatEther, keccak256, toUtf8Bytes } from "ethers";
@@ -76,7 +76,7 @@ export function registerFaucetRoutes(app: FastifyInstance, ctx: V3Context): void
       if ((countAll.get(dayStart(now)) as { c: number }).c >= GLOBAL_PER_DAY) throw new HttpError(503, "faucet is empty for today", "faucet_daily_cap");
       if (FAUCET_POW_BITS > 0) {
         const pow = typeof body.pow === "string" ? body.pow : "";
-        if (!pow || pow.length > 64 || powBits(address, pow) < FAUCET_POW_BITS) throw new HttpError(400, `proof of work required: keccak256(utf8(lowercase(address) + ":" + pow)) must start with ${FAUCET_POW_BITS} zero bits (see GET /api/faucet)`, "faucet_pow");
+        if (!pow || pow.length > 64 || powBits(address, pow) < FAUCET_POW_BITS) throw new HttpError(400, `anti-abuse puzzle required: keccak256(utf8(lowercase(address) + ":" + pow)) must start with ${FAUCET_POW_BITS} zero bits (see GET /api/faucet)`, "faucet_pow");
       }
       const [bal, txCount] = await Promise.all([ctx.provider.getBalance(address), ctx.provider.getTransactionCount(address)]);
       if (bal >= DRIP_WEI) throw new HttpError(400, `address already holds ${formatEther(bal)} FMX — the faucet is for empty wallets`, "faucet_not_needed");

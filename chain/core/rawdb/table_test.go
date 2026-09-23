@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/aliasghar89/ferminux/chain/fmxdb"
 )
 
 func TestTableDatabase(t *testing.T)            { testTableDatabase(t, "prefix") }
@@ -98,7 +98,7 @@ func testTableDatabase(t *testing.T, prefix string) {
 		}
 	}
 
-	check := func(iter ethdb.Iterator, expCount, index int) {
+	check := func(iter fmxdb.Iterator, expCount, index int) {
 		count := 0
 		for iter.Next() {
 			key, value := iter.Key(), iter.Value()

@@ -21,8 +21,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/event"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/event"
 )
 
 // managerSubBufferSize determines how many incoming wallet events
@@ -109,7 +109,7 @@ func (am *Manager) Config() *Config {
 }
 
 // AddBackend starts the tracking of an additional backend for wallet updates.
-// cmd/geth assumes once this func returns the backends have been already integrated.
+// cmd/ferminux assumes once this func returns the backends have been already integrated.
 func (am *Manager) AddBackend(backend Backend) {
 	done := make(chan struct{})
 	am.newBackends <- newBackendEvent{backend, done}

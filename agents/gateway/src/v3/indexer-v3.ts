@@ -230,6 +230,55 @@ export function applyV3Event(deps: V3IndexerDeps, ev: V3LogEvent): void {
       }
       break;
     }
+    case "memoryAnchor": {
+      if (name === "MemoryAnchored") {
+        const agentId = num(args.agentId);
+        const root = str(args.root).toLowerCase();
+        const onchainSeq = num(pick(args, ["seq", "anchorSeq"]));
+        const anchoredBy = addr(pick(args, ["anchoredBy", "by", "sender"]));
+        const agent = agentStmt.get(agentId) as { owner: string; name: string } | undefined;
+        // The batch is normally ours (built by POST /api/memory/anchor). An agent that
+        // anchored a root we never built still gets a ledger row, so the count on its CV
+        // matches the chain rather than our view of it.
+        const existing = db.prepare("SELECT id FROM memory_anchors WHERE agentId = ? AND lower(root) = ?").get(agentId, root) as { id: number } | undefined;
+        if (existing) {
+          db.prepare(
+            `UPDATE memory_anchors SET status = 'anchored', onchainSeq = ?, totalRecords = ?, anchoredBy = ?, txHash = ?, blockNumber = ?, anchoredAt = ?, uri = CASE WHEN uri = '' THEN ? ELSE uri END WHERE id = ?`,
+          ).run(onchainSeq, num(args.totalRecords), anchoredBy, ev.txHash, ev.blockNumber, ts, str(args.uri), existing.id);
+        } else {
+          db.prepare(
+            `INSERT INTO memory_anchors (agentId, address, root, prevRoot, count, fromSeq, toSeq, uri, status, onchainSeq, totalRecords, anchoredBy, txHash, blockNumber, createdAt, anchoredAt)
+             VALUES (?, ?, ?, ?, ?, 0, 0, ?, 'anchored', ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(agentId, root) DO UPDATE SET status = 'anchored', onchainSeq = excluded.onchainSeq, totalRecords = excluded.totalRecords, anchoredBy = excluded.anchoredBy, txHash = excluded.txHash, blockNumber = excluded.blockNumber, anchoredAt = excluded.anchoredAt`,
+          ).run(agentId, agent?.owner ?? "", root, str(args.prevRoot).toLowerCase(), num(args.count), str(args.uri), onchainSeq, num(args.totalRecords), anchoredBy, ev.txHash, ev.blockNumber, ts, ts);
+        }
+        emit("memory.anchored", agent?.owner ?? anchoredBy, { kind: "agent", id: agentId }, { agentId, agentName: agent?.name ?? null, root, prevRoot: str(args.prevRoot), anchorSeq: onchainSeq, count: num(args.count), totalRecords: num(args.totalRecords), uri: str(args.uri) });
+      }
+      break;
+    }
+    case "endorsements": {
+      if (name === "Endorsed") {
+        const id = num(args.id);
+        const fromAgentId = num(args.fromAgentId);
+        const toAgentId = num(args.toAgentId);
+        const from = agentStmt.get(fromAgentId) as { owner: string; name: string } | undefined;
+        const to = agentStmt.get(toAgentId) as { owner: string; name: string } | undefined;
+        db.prepare(
+          `INSERT INTO endorsements (id, fromAgentId, toAgentId, endorser, capability, capabilityId, basis, weight, evidenceJobId, evidenceAmountWei, uri, revoked, ts, txHash, logIndex, blockNumber)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET fromAgentId=excluded.fromAgentId, toAgentId=excluded.toAgentId, capability=excluded.capability, capabilityId=excluded.capabilityId, basis=excluded.basis, weight=excluded.weight, evidenceJobId=excluded.evidenceJobId, evidenceAmountWei=excluded.evidenceAmountWei, uri=excluded.uri, txHash=excluded.txHash, logIndex=excluded.logIndex, blockNumber=excluded.blockNumber`,
+        ).run(
+          id, fromAgentId, toAgentId, from?.owner ?? "", str(args.capability), str(args.capabilityId).toLowerCase(), num(args.basis), num(args.weight),
+          num(args.evidenceJobId), str(args.evidenceAmountWei ?? "0"), str(args.uri), ts, ev.txHash, ev.logIndex, ev.blockNumber,
+        );
+        emit("endorsement.given", from?.owner ?? null, { kind: "agent", id: toAgentId }, { endorsementId: id, fromAgentId, fromName: from?.name ?? null, toAgentId, toName: to?.name ?? null, capability: str(args.capability), weight: num(args.weight), basis: num(args.basis), evidenceJobId: num(args.evidenceJobId) });
+      } else if (name === "EndorsementRevoked") {
+        const id = num(args.id);
+        db.prepare("UPDATE endorsements SET revoked = 1 WHERE id = ?").run(id);
+        emit("endorsement.revoked", null, { kind: "agent", id: num(args.toAgentId) }, { endorsementId: id, fromAgentId: num(args.fromAgentId), toAgentId: num(args.toAgentId) });
+      }
+      break;
+    }
     case "identity8004":
     case "accountImpl":
     default:

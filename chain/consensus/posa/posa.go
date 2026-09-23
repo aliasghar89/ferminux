@@ -34,27 +34,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/clique"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/aliasghar89/ferminux/chain/common"
+	"github.com/aliasghar89/ferminux/chain/consensus"
+	"github.com/aliasghar89/ferminux/chain/consensus/clique"
+	"github.com/aliasghar89/ferminux/chain/consensus/powhash"
+	"github.com/aliasghar89/ferminux/chain/core/state"
+	"github.com/aliasghar89/ferminux/chain/core/types"
+	"github.com/aliasghar89/ferminux/chain/fmxdb"
+	"github.com/aliasghar89/ferminux/chain/log"
+	"github.com/aliasghar89/ferminux/chain/params"
+	"github.com/aliasghar89/ferminux/chain/rpc"
+	"github.com/aliasghar89/ferminux/chain/trie"
 )
 
 var (
 	// errCheckpointMismatch is returned for a PosaBlock-1 header whose hash is
 	// not the pinned checkpoint, or a PosaBlock header not built on it.
-	errCheckpointMismatch = errors.New("header does not match the hardcoded Ferminux PoSA checkpoint")
+	errCheckpointMismatch = errors.New("header does not match the hardcoded Ferminux authority checkpoint")
 
-	// errNotAuthorized is returned when a PoSA block is assembled for sealing
+	// errNotAuthorized is returned when an authority block is assembled for sealing
 	// on a node that has no authorized signer.
-	errNotAuthorized = errors.New("PoSA block assembly requires an authorized signer (Authorize not called)")
+	errNotAuthorized = errors.New("authority block assembly requires an authorized signer (Authorize not called)")
 
 	big1 = big.NewInt(1)
 )
@@ -67,11 +67,11 @@ const notAuthorizedLogInterval = time.Minute
 
 var (
 
-	// Reward split of the PoSA block reward, in percent. The remainder of the
+	// Reward split of the authority block reward, in percent. The remainder of the
 	// integer division goes to the signer.
 	//
 	// CONSENSUS CONSTANTS: the split, the divisor below and the sink/treasury
-	// addresses in Config are part of the state transition of every PoSA
+	// addresses in Config are part of the state transition of every authority
 	// block and are not covered by the fork ID. Changing any of them after
 	// PosaBlock is a hard fork that needs its own *Block field in ChainConfig
 	// (so forkid picks it up) and an activation check here.
@@ -79,7 +79,8 @@ var (
 	treasuryPercent = big.NewInt(10)
 	hundred         = big.NewInt(100)
 
-	// rewardDivisor is the approved emission cut: the PoSA reward is the PoW
+	// rewardDivisor is the approved emission cut: the authority reward is the
+	// pre-authority Powhash
 	// schedule's reward divided by four.
 	rewardDivisor = big.NewInt(4)
 )
@@ -89,7 +90,7 @@ var (
 // genesis extraData holds no signer list, and the addresses below are
 // Ferminux-specific.
 type Config struct {
-	Period uint64 // Minimum seconds between PoSA blocks
+	Period uint64 // Minimum seconds between authority blocks
 	Epoch  uint64 // Checkpoint interval in blocks
 
 	InitialSigners []common.Address // Authority set seeded at PosaBlock
@@ -120,10 +121,10 @@ func FerminuxConfig() *Config {
 
 // Posa is the dispatching engine.
 type Posa struct {
-	forkBlock *big.Int // ChainConfig.PosaBlock (nil = pure Ethash, everything delegates to pow)
+	forkBlock *big.Int // ChainConfig.PosaBlock (nil = pure Powhash, everything delegates to pow)
 	config    *Config
 
-	pow consensus.Engine // Ethash, used below forkBlock
+	pow consensus.Engine // Powhash, used below forkBlock
 	poa *clique.Clique   // Clique, used at and above forkBlock
 
 	lock   sync.RWMutex
@@ -132,10 +133,10 @@ type Posa struct {
 	lastNotAuthWarn time.Time // Rate-limits the "mining but not a signer" diagnostic; guarded by lock
 }
 
-// New creates the dispatching engine around an existing Ethash engine. With
+// New creates the dispatching engine around an existing Powhash engine. With
 // chainConfig.PosaBlock == nil the engine is a transparent pass-through to
 // pow; otherwise config must be complete.
-func New(chainConfig *params.ChainConfig, config *Config, pow consensus.Engine, db ethdb.Database) (*Posa, error) {
+func New(chainConfig *params.ChainConfig, config *Config, pow consensus.Engine, db fmxdb.Database) (*Posa, error) {
 	if chainConfig == nil {
 		return nil, errors.New("posa: nil chain config")
 	}
@@ -161,7 +162,7 @@ func New(chainConfig *params.ChainConfig, config *Config, pow consensus.Engine, 
 		return nil, errors.New("posa: PosaBlock must be >= 1 (block 0 is the genesis)")
 	}
 	if config == nil {
-		return nil, errors.New("posa: PosaBlock set but no PoSA config")
+		return nil, errors.New("posa: PosaBlock set but no authority config")
 	}
 	if config.Period == 0 || config.Epoch == 0 {
 		return nil, fmt.Errorf("posa: invalid period %d / epoch %d", config.Period, config.Epoch)
@@ -173,7 +174,7 @@ func New(chainConfig *params.ChainConfig, config *Config, pow consensus.Engine, 
 		return nil, errors.New("posa: treasury address unset")
 	}
 	if config.RewardSink == (common.Address{}) {
-		// The sink is the AddBalance target of every PoSA block and is not
+		// The sink is the AddBalance target of every authority block and is not
 		// covered by the fork ID: a fleet where some nodes have it pinned
 		// and some do not computes different state roots for the same block
 		// with identical fork IDs, i.e. a silent chain split. It must
@@ -207,7 +208,7 @@ func New(chainConfig *params.ChainConfig, config *Config, pow consensus.Engine, 
 	log.Info("Ferminux proof-of-authority engine armed", "posaBlock", p.forkBlock, "period", config.Period, "epoch", config.Epoch,
 		"signers", len(config.InitialSigners), "treasury", config.Treasury, "sink", config.RewardSink, "checkpoint", config.CheckpointHash)
 	if config.CheckpointHash == (common.Hash{}) {
-		log.Warn("Ferminux PoSA checkpoint hash is unset: block PosaBlock-1 is not pinned")
+		log.Warn("Ferminux authority checkpoint hash is unset: block PosaBlock-1 is not pinned")
 	}
 	return p, nil
 }
@@ -267,7 +268,7 @@ func (p *Posa) Authorize(signer common.Address, signFn clique.SignerFn) {
 }
 
 // Author implements consensus.Engine: the coinbase for PoW headers, the
-// ecrecovered sealer for PoSA headers.
+// ecrecovered signer for authority headers.
 func (p *Posa) Author(header *types.Header) (common.Address, error) {
 	if p.isPosaHeader(header) {
 		return p.poa.Author(header)
@@ -323,8 +324,8 @@ func (p *Posa) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 // VerifyHeaders implements consensus.Engine for an ascending, contiguous
-// batch. A batch straddling PosaBlock is split: the PoW prefix goes to Ethash
-// and the PoSA suffix to Clique with the prefix supplied as ancestors (those
+// batch. A batch straddling PosaBlock is split: the PoW prefix goes to Powhash
+// and the authority suffix to Clique with the prefix supplied as ancestors (those
 // headers are not in the database yet). Results are delivered in input order.
 func (p *Posa) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
 	if len(headers) == 0 {
@@ -442,13 +443,13 @@ func (p *Posa) Prepare(chain consensus.ChainHeaderReader, header *types.Header) 
 	return p.pow.Prepare(chain, header)
 }
 
-// BlockReward is the PoSA block reward at height num: the PoW schedule
-// (ethash.FerminuxBlockReward) divided by four, the approved emission cut.
+// BlockReward is the authority block reward at height num: the pre-authority schedule
+// (powhash.FerminuxBlockReward) divided by four, the approved emission cut.
 func BlockReward(num *big.Int) *big.Int {
-	return new(big.Int).Div(ethash.FerminuxBlockReward(num), rewardDivisor)
+	return new(big.Int).Div(powhash.FerminuxBlockReward(num), rewardDivisor)
 }
 
-// SplitReward divides a PoSA block reward: 50% sink, 10% treasury, the rest
+// SplitReward divides an authority block reward: 50% sink, 10% treasury, the rest
 // (40% plus the integer-division remainder) to the signer.
 func SplitReward(total *big.Int) (signer, sink, treasury *big.Int) {
 	sink = new(big.Int).Div(new(big.Int).Mul(total, sinkPercent), hundred)
@@ -458,7 +459,7 @@ func SplitReward(total *big.Int) (signer, sink, treasury *big.Int) {
 	return signer, sink, treasury
 }
 
-// finalize pays the PoSA reward to signer, sink and treasury and seals the
+// finalize pays the authority reward to signer, sink and treasury and seals the
 // state root. The sink and treasury addresses are consensus constants
 // validated by New; there is deliberately no fallback routing.
 func (p *Posa) finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, signer common.Address) {
@@ -476,7 +477,7 @@ func (p *Posa) finalize(chain consensus.ChainHeaderReader, header *types.Header,
 	header.UncleHash = types.CalcUncleHash(nil)
 }
 
-// Finalize implements consensus.Engine. On the PoSA path (block verification)
+// Finalize implements consensus.Engine. On the authority path (block verification)
 // the reward goes to the ECRECOVERED signer, never header.Coinbase, which
 // Clique repurposes for votes.
 func (p *Posa) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
@@ -489,7 +490,7 @@ func (p *Posa) Finalize(chain consensus.ChainHeaderReader, header *types.Header,
 		// Unsealed or malformed: the reward cannot be attributed. The resulting
 		// root cannot match a correctly sealed block, so verification fails
 		// closed rather than crediting a guessed address.
-		log.Error("PoSA finalize: cannot recover block signer, paying no reward", "number", header.Number, "err", err)
+		log.Error("authority finalize: cannot recover block signer, paying no reward", "number", header.Number, "err", err)
 		header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 		header.UncleHash = types.CalcUncleHash(nil)
 		return
@@ -497,7 +498,7 @@ func (p *Posa) Finalize(chain consensus.ChainHeaderReader, header *types.Header,
 	p.finalize(chain, header, state, signer)
 }
 
-// FinalizeAndAssemble implements consensus.Engine. On the PoSA path (block
+// FinalizeAndAssemble implements consensus.Engine. On the authority path (block
 // production) the header is not sealed yet, so the reward goes to the local
 // signer that will seal it; a header that already carries a valid seal is
 // credited to its ecrecovered signer.
@@ -533,7 +534,7 @@ func (p *Posa) warnNotAuthorized(number uint64) {
 	defer p.lock.Unlock()
 	if now := time.Now(); now.Sub(p.lastNotAuthWarn) >= notAuthorizedLogInterval {
 		p.lastNotAuthWarn = now
-		log.Error("This node is mining but is NOT a PoSA signer: it will never produce a block at or after PosaBlock",
+		log.Error("This node has block production enabled but is NOT a Ferminux signer: it will never confirm a block at or after PosaBlock",
 			"number", number, "hint", "stop --mine, or set --miner.etherbase to an unlocked signer account")
 	}
 }

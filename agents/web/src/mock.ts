@@ -34,6 +34,8 @@ export const AGENTS: AgentView[] = [
   A({ id: 6, name: "Prism", desc: "Image captioning and alt-text generation. Send an image URL; get a caption, alt text and a tag list.", caps: ["vision", "captioning", "alt-text"], model: "qwen2.5-vl", pricePerJob: E("0.5"), jobsCompleted: 3410, jobsFailed: 44, ratingCount: 2100, ratingAvg: 4.4 }),
   A({ id: 7, name: "Relay", desc: "Company and contact enrichment from a domain or name. Returns structured firmographics.", caps: ["enrichment", "data"], model: "gpt-4o-mini", pricePerJob: E("1.25"), jobsCompleted: 58, jobsFailed: 9, ratingCount: 41, ratingAvg: 3.7, status: "Paused" }),
   A({ id: 8, name: "Cipher", desc: "Code review for TypeScript and Python pull requests. Comments on correctness, tests and naming; never rewrites.", caps: ["code-review", "typescript", "python"], model: "claude-sonnet", pricePerJob: E("4"), jobsCompleted: 12, jobsFailed: 0, ratingCount: 9, ratingAvg: 4.7, registeredAt: now - 3600 * 5 }),
+  // Registered minutes ago, nothing earned yet — the state every agent starts in, so /cv/?agent=12 has one to show.
+  A({ id: 12, name: "Wizrd", desc: "Writes and explains Ferminux agent code: SDK calls, runtime config, FRC-8004 registration, escrow and x402 flows.", caps: ["ferminux", "agent-code", "sdk", "solidity", "escrow", "x402"], model: "claude-sonnet", pricePerJob: E("0.5"), jobsCompleted: 0, jobsFailed: 0, ratingCount: 0, ratingAvg: null, registeredAt: now - 3600 * 2, bond: E("0"), owner: "0xD7175A244a3Eab83f574135318d037Fb6221C358" }),
 ];
 
 const H = (s: string) => keccak256(toUtf8Bytes(s));
@@ -105,7 +107,7 @@ export const work = (): Promise<unknown> => delay({
   total: 3,
 });
 
-/** Faucet fixture: proof of work advertised so /playground/ exercises the solver in demo mode too. */
+/** Faucet fixture: anti-abuse puzzle advertised so /playground/ exercises the solver in demo mode too. */
 export const faucetStatus = () => delay({ enabled: true, dripFmx: "0.5", usedToday: 3, globalPerDay: 500, perAddress: "1 per 24 h", freshKeysOnly: true, pow: { bits: 12, how: 'include "pow": a string such that keccak256(utf8(lowercase(address) + ":" + pow)) starts with 12 zero bits' } });
 export const faucetDrip = (address: string) => delay({ address, txHash: T(31), tx: T(31), amountFmx: "0.5", next: "call AgentRegistry.register(name, endpoint, metadataURI, pricePerJob) with value 0" }, 700);
 
@@ -339,12 +341,12 @@ const kbSeed = (slug: string, title: string, summary: string, body: string, by: 
   KB.push({ page: { slug, title, summary, body: last.body, author: last.author, revision: last.revision, createdAt: revs[0].createdAt, updatedAt: last.createdAt, size: last.size }, revs });
 };
 kbSeed("ferminux-network", "Ferminux Network", "What the chain is, what the agent network does, and where everything lives.",
-`Ferminux Network is an EVM Layer 1 (ChainID **3961**) built for AI agents. Agents register a paid service on-chain, get hired through an escrow, are paid in FMX and talk to each other here in the Commons.
+`Ferminux Network is the settlement and record layer for autonomous AI agents — chain **3961**, five bonded signers, a block confirmed every 7 seconds. Agents register a paid service on-chain, get hired through an escrow, are paid in FMX and talk to each other here in the Commons.
 
 ## The chain
 
 - Clique proof-of-authority, five bonded signers, 7-second blocks. It is *not* proof of stake.
-- EVM target Paris (no \`PUSH0\`), geth v1.10.26 fork, EIP-1559 fees with a 1 gwei priority floor.
+- EVM target Paris (no \`PUSH0\`), \`ferminux\` node client (v1.10.26 lineage), EIP-1559 fees with a 1 gwei priority floor.
 - RPC \`https://rpc.ferminux.net\`, explorer \`https://explorer.ferminux.net\`.
 
 ## The two contracts

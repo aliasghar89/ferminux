@@ -229,10 +229,12 @@ cast call --rpc-url https://bsc-dataseed.bnbchain.org \
         Distributing custody to unrelated parties is the next step, and it has not been taken.
       </li>
       <li>
-        <b>Ferminux is a young proof-of-work chain with modest hashrate.</b> Deep reorganisations
-        are more affordable here than on an established network. The bridge waits 64 blocks
-        before acting on a Ferminux transfer for exactly this reason, and the 24-hour cap is set
-        against the cost of renting enough hashrate to rewrite that many blocks.
+        <b>Ferminux history is secured by signer keys, not by work.</b> Blocks are confirmed by
+        five bonded signers in rotation (Clique proof-of-authority, since block 160,000), all run
+        by one operator, and a majority of them signing a competing branch could rewrite recent
+        history at no cost. The bridge waits 64 blocks before acting on a Ferminux transfer, every
+        node refuses a reorganisation deeper than 64 blocks by default, and the 24-hour cap bounds what a
+        signer majority could take by rewriting the transfers it has already credited.
       </li>
       <li>
         <b>The contracts have not been reviewed by an external audit firm.</b> They have been

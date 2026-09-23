@@ -29,7 +29,7 @@ test('every remote chain offers at least three RPC endpoints to fall back throug
 });
 
 test('the home chain has one operator, and the list does not pretend otherwise', () => {
-  // rpc.ferminux.net and ferminux.net are the same machine (<node-host>), so
+  // rpc.ferminux.net and ferminux.net are the same machine, so
   // these two URLs are a fallback against a broken vhost or path, not against an
   // operator outage. That is acceptable for a read-only app and NOT acceptable
   // for a validator: relayer/config/chains.example.json lists only one of them
@@ -55,7 +55,7 @@ test('every endpoint is an https URL, or Ferminux-local plain http', () => {
 });
 
 test('the confirmation table matches the relayer, Ferminux deepest of all', () => {
-  assert.equal(RELAYER_CONFIRMATIONS.ferminux, 64, 'Ethash PoW with no finality gadget: ~7.5 minutes');
+  assert.equal(RELAYER_CONFIRMATIONS.ferminux, 64, 'the node\'s 64-block reorg cap at 7 s blocks: ~7.5 minutes');
   assert.equal(chainByKey('ferminux').confirmations, 64);
   assert.equal(chainByKey('ethereum').confirmations, 32);
   assert.equal(chainByKey('polygon').confirmations, 128);

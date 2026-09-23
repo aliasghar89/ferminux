@@ -100,7 +100,7 @@ export const JobStatusName = [
 // are byte-accurate to the deployed bytecode's selectors, including a few
 // names SPEC.md's prose didn't spell out exactly (e.g. StreamPay's
 // getStream/getPlan/getSub instead of public mapping getters, ArbiterPool's
-// getCase, and the ERC-8004 registries' real multi-arg read shapes). Not
+// getCase, and the FRC-8004 registries' real multi-arg read shapes). Not
 // deployed yet as of this writing (deployments.3961.json has no v3 keys) —
 // see networks.ts / v3/shared.ts's NotDeployed.
 // ---------------------------------------------------------------------------
@@ -257,7 +257,7 @@ export const ARBITER_POOL_ABI = [
   "event Withdrawn(address indexed to, uint256 amount)",
 ] as const;
 
-/** C5 — IdentityRegistry8004: ERC-8004 identity view over AgentRegistry (register() always reverts — use AgentRegistry.register). */
+/** C5 — IdentityRegistry8004: FRC-8004 identity view over AgentRegistry (register() always reverts — use AgentRegistry.register). */
 export const IDENTITY_8004_ABI = [
   "function ownerOf(uint256 tokenId) view returns (address)",
   "function agentURI(uint256 agentId) view returns (string)",
@@ -347,7 +347,7 @@ export const AGENT_TOKEN_FACTORY_ABI = [
   "event Withdrawn(address indexed to, uint256 amount)",
 ] as const;
 
-/** C6 — AgentToken: ERC-20 with a magnified-dividend-per-share FMX distribution claim (mint/burn only by the factory). */
+/** C6 — AgentToken: FRC-20 with a magnified-dividend-per-share FMX distribution claim (mint/burn only by the factory). */
 export const AGENT_TOKEN_ABI = [
   "function name() view returns (string)",
   "function symbol() view returns (string)",
@@ -370,7 +370,7 @@ export const AGENT_TOKEN_ABI = [
   "event Approval(address indexed owner, address indexed spender, uint256 value)",
 ] as const;
 
-/** Ferminux Agents ERC-721 (41 one-of-one archetypes). */
+/** Ferminux Agents FRC-721 collection (41 one-of-one archetypes). */
 export const NFT_ABI = [
   "function name() view returns (string)",
   "function symbol() view returns (string)",
@@ -386,3 +386,51 @@ export const NFT_ABI = [
   "event Minted(uint256 indexed tokenId, address indexed to, uint256 paid)",
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
 ];
+
+// ---------------------------------------------------------------------------
+// The record layer — AI-CV / AI-LinkedIn (MemoryAnchor + Endorsements).
+// Generated from contracts/abi/<Name>.json the same way as the v3 fragments
+// above, and byte-identical to gateway/src/abi-v3.ts's copies.
+// ---------------------------------------------------------------------------
+
+/** FRC-100 MemoryAnchor: append-only merkle commitments over an agent's memory records. */
+export const MEMORY_ANCHOR_ABI = [
+  "function anchor(uint256 agentId, bytes32 root, bytes32 prevRoot, uint32 count, string uri) returns (uint64 seq)",
+  "function anchorFor(uint256 agentId, bytes32 root, bytes32 prevRoot, uint32 count, string uri, uint64 deadline, bytes sig) returns (uint64 seq)",
+  "function setAnchorer(uint256 agentId, address who, bool allowed)",
+  "function head(uint256 agentId) view returns (bytes32 root, uint64 seq, uint64 totalRecords, uint64 anchoredAt)",
+  "function anchorCount(uint256 agentId) view returns (uint64)",
+  "function getAnchor(uint256 agentId, uint64 seq) view returns (tuple(bytes32 root, bytes32 prevRoot, uint64 seq, uint32 count, uint64 totalRecords, uint64 ts, string uri))",
+  "function canAnchor(uint256 agentId, address who) view returns (bool)",
+  "function nonceOf(uint256 agentId) view returns (uint256)",
+  "function leafOf(bytes32 recordHash) pure returns (bytes32)",
+  "function recordLeaf(bytes record) pure returns (bytes32)",
+  "function computeRoot(bytes32[] leaves) pure returns (bytes32)",
+  "function verify(bytes32 root, bytes record, bytes32[] proof, uint256 index, uint256 count) pure returns (bool)",
+  "function verifyLeaf(bytes32 root, bytes32 leaf, bytes32[] proof, uint256 index, uint256 count) pure returns (bool)",
+  "function verifyRecord(uint256 agentId, uint64 seq, bytes record, bytes32[] proof, uint256 index) view returns (bool)",
+  "function verifyAgainstHead(uint256 agentId, bytes record, bytes32[] proof, uint256 index) view returns (bool)",
+  "function NAME() pure returns (string)",
+  "function VERSION() pure returns (string)",
+  "event MemoryAnchored(uint256 indexed agentId, uint64 indexed seq, bytes32 indexed root, bytes32 prevRoot, uint32 count, uint64 totalRecords, address anchoredBy, string uri)",
+  "event AnchorerSet(uint256 indexed agentId, address indexed who, bool allowed)",
+] as const;
+
+/** Endorsements: agent→agent capability endorsements, weighted by arm's-length paid evidence. */
+export const ENDORSEMENTS_ABI = [
+  "function endorse(uint256 fromAgentId, uint256 toAgentId, string capability, string uri, uint256 evidenceJobId) returns (uint256 id)",
+  "function endorseFor(uint256 fromAgentId, uint256 toAgentId, string capability, string uri, uint256 evidenceJobId, uint64 deadline, bytes sig) returns (uint256 id)",
+  "function revoke(uint256 id)",
+  "function summary(uint256 toAgentId) view returns (tuple(uint32 total, uint32 backed, uint32 unbacked, uint32 revoked, uint128 weight))",
+  "function capabilitySummary(uint256 toAgentId, string capability) view returns (tuple(uint32 total, uint32 backed, uint32 unbacked, uint32 revoked, uint128 weight))",
+  "function getEndorsement(uint256 id) view returns (tuple(uint64 fromAgentId, uint64 toAgentId, uint64 evidenceJobId, uint32 weight, address endorser, bool revoked, uint8 basis, uint64 ts, uint256 evidenceAmountWei, bytes32 capabilityId, string capability, string uri))",
+  "function receivedIds(uint256 toAgentId, uint256 offset, uint256 limit) view returns (uint256[])",
+  "function givenIds(uint256 fromAgentId, uint256 offset, uint256 limit) view returns (uint256[])",
+  "function quoteWeight(uint256 fromAgentId, uint256 toAgentId, uint256 evidenceJobId) view returns (uint32 weight, uint8 basis, uint256 evidenceAmountWei)",
+  "function isRelated(address a, address b) view returns (bool)",
+  "function capabilityIdOf(string capability) pure returns (bytes32)",
+  "function receivedCount(uint256 toAgentId) view returns (uint256)",
+  "function givenCount(uint256 fromAgentId) view returns (uint256)",
+  "event Endorsed(uint256 indexed id, uint256 indexed fromAgentId, uint256 indexed toAgentId, bytes32 capabilityId, string capability, uint8 basis, uint32 weight, uint64 evidenceJobId, uint256 evidenceAmountWei, string uri)",
+  "event EndorsementRevoked(uint256 indexed id, uint256 indexed fromAgentId, uint256 indexed toAgentId, uint32 weight)",
+] as const;

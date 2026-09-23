@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/aliasghar89/ferminux/chain/crypto"
 )
 
 // FunctionType represents different types of functions a contract might have.
@@ -35,7 +35,7 @@ const (
 	// signature and no receive function is specified.
 	Fallback
 	// Receive represents the receive function.
-	// This function is executed on plain Ether transfers.
+	// This function is executed on plain FMX transfers.
 	Receive
 	// Function represents a normal function.
 	Function

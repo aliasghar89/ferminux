@@ -227,7 +227,7 @@ the chain offers one, is the real line and the relayer waits for **both**.
 
 | Chain | id | block time | confirmations | finality tag | wall clock | why |
 |---|---:|---:|---:|---|---:|---|
-| **Ferminux** | 3961 | ~7 s | **64** | — | ~7.5 min | Ethash PoW with **no finality gadget** and modest hashrate. Reorg depth is bounded by economics alone. This is the **deepest** wait in the set, not the shallowest: rewriting 10 blocks here costs almost nothing, rewriting 64 costs 6.4× that. Do not lower it because the chain feels fast. |
+| **Ferminux** | 3961 | ~7 s | **64** | — | ~7.5 min | Clique proof-of-authority (five bonded signers) with **no finality gadget**. A reorg costs no work at any depth — it takes a signer majority — and a node whose head is an authority block refuses one deeper than 64 blocks. 64 is that cap: a transfer settled under it cannot be rewritten underneath the validators' own nodes. Do not lower it because the chain feels fast. |
 | Ethereum | 1 | 12 s | 32 | `finalized` | ~13 min | PoS finality is real: reverting a finalized block burns a third of the staked supply. Prefer the tag; the count is only the floor while a node cannot serve it. |
 | BSC | 56 | 3 s | 20 | `finalized` | ~60 s | 21 validators, BEP-126 fast finality (~2–3 blocks after 2/3 vote). Multi-block reorgs happened *before* fast finality, which is why the floor is 20 and not 3. |
 | Polygon | 137 | 2 s | **128** | `finalized` | ~4.5 min | Bor blocks are not final until Heimdall milestones them, and Bor reorgs of **well over 100 blocks** have happened in production. This is the chain where a shallow confirmation count has actually cost bridges money. |
@@ -264,8 +264,8 @@ So every chain now names its finality rule in `finality.mode`
 | mode | rule | for |
 |---|---|---|
 | `count` | `confirmations` + `finalityTag`, as before | chains with a real finality tag: BSC, Ethereum, the L2s |
-| `work-and-time` | accumulated difficulty above the source block ≥ `workThreshold` **and** wall clock since the block ≥ `timeFloorMs` | Ferminux today (Ethash PoW) |
-| `checkpoint` | the source block is at or below the latest multisig-attested checkpoint | Ferminux after the Clique fork, where difficulty is 1 or 2 and work means nothing |
+| `work-and-time` | accumulated difficulty above the source block ≥ `workThreshold` **and** wall clock since the block ≥ `timeFloorMs` | a proof-of-work source — Ferminux before the authority fork at block 160,000 |
+| `checkpoint` | the source block is at or below the latest multisig-attested checkpoint | Ferminux since the Clique fork at block 160,000, where difficulty is 1 or 2 and work means nothing |
 
 **Pace.** Under `work-and-time` and `checkpoint` the monitor measures the median
 of the last `pace.window` inter-block gaps and the age of the head. Median above
@@ -1218,7 +1218,8 @@ wrapper's `totalSupply()` on the other. A growing gap is stranded value, and the
   could inflate `difficulty`; they could already collude on a log, which is the
   same trust boundary.
 - **`workThreshold` is a number the operator derives from live difficulty** and
-  has to re-derive when hashrate moves materially. Too low and the time floor is
+  has to re-derive when hashrate moves materially. It applies only to
+  `work-and-time`, i.e. a proof-of-work source. Too low and the time floor is
   doing all the work; too high and the bridge waits longer than intended. The
   shipped example value is a placeholder and says so.
 - **`shared-dir` is not M-of-N.** Documented above; repeated here because it is the

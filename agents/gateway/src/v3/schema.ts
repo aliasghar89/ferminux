@@ -272,6 +272,91 @@ export function migrateV3(db: Db): void {
       txResponse TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_validations_agent ON validations(agentId, requestedAt DESC);
+
+    -- ---- The record lane (AI-CV): memory records, their merkle anchors, endorsements, probe history ----
+
+    -- One append-only header per memory write. The value never leaves the memory
+    -- table: a record carries only commitments (keyCommit is SALTED with keyNonce,
+    -- which stays private, so an anchored header can never leak a key name).
+    CREATE TABLE IF NOT EXISTS memory_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      address TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      op TEXT NOT NULL,
+      key TEXT NOT NULL,
+      keyNonce TEXT NOT NULL,
+      keyCommit TEXT NOT NULL,
+      valueHash TEXT NOT NULL,
+      size INTEGER NOT NULL DEFAULT 0,
+      prev TEXT NOT NULL,
+      recordHash TEXT NOT NULL,
+      ts INTEGER NOT NULL,
+      batchId INTEGER,
+      leafIndex INTEGER,
+      UNIQUE (address, seq)
+    );
+    CREATE INDEX IF NOT EXISTS idx_memory_records_open ON memory_records(address, batchId, seq);
+    CREATE INDEX IF NOT EXISTS idx_memory_records_batch ON memory_records(batchId, leafIndex);
+
+    -- One row per merkle batch: built by POST /api/memory/anchor, submitted by the
+    -- agent, confirmed by the indexer when MemoryAnchored lands.
+    CREATE TABLE IF NOT EXISTS memory_anchors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agentId INTEGER NOT NULL,
+      address TEXT NOT NULL,
+      root TEXT NOT NULL,
+      prevRoot TEXT NOT NULL,
+      count INTEGER NOT NULL,
+      fromSeq INTEGER NOT NULL,
+      toSeq INTEGER NOT NULL,
+      uri TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'built',
+      onchainSeq INTEGER,
+      totalRecords INTEGER,
+      anchoredBy TEXT,
+      txHash TEXT,
+      blockNumber INTEGER,
+      createdAt INTEGER NOT NULL,
+      submittedAt INTEGER,
+      anchoredAt INTEGER,
+      UNIQUE (agentId, root)
+    );
+    CREATE INDEX IF NOT EXISTS idx_memory_anchors_agent ON memory_anchors(agentId, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_memory_anchors_status ON memory_anchors(status, id);
+    CREATE INDEX IF NOT EXISTS idx_memory_anchors_tx ON memory_anchors(txHash);
+
+    CREATE TABLE IF NOT EXISTS endorsements (
+      id INTEGER PRIMARY KEY,
+      fromAgentId INTEGER NOT NULL,
+      toAgentId INTEGER NOT NULL,
+      endorser TEXT NOT NULL DEFAULT '',
+      capability TEXT NOT NULL DEFAULT '',
+      capabilityId TEXT NOT NULL DEFAULT '',
+      basis INTEGER NOT NULL DEFAULT 0,
+      weight INTEGER NOT NULL DEFAULT 0,
+      evidenceJobId INTEGER NOT NULL DEFAULT 0,
+      evidenceAmountWei TEXT NOT NULL DEFAULT '0',
+      uri TEXT NOT NULL DEFAULT '',
+      revoked INTEGER NOT NULL DEFAULT 0,
+      ts INTEGER NOT NULL DEFAULT 0,
+      txHash TEXT,
+      logIndex INTEGER,
+      blockNumber INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_endorsements_to ON endorsements(toAgentId, revoked, ts DESC);
+    CREATE INDEX IF NOT EXISTS idx_endorsements_from ON endorsements(fromAgentId, ts DESC);
+
+    -- Daily rollup of the health probe. startHealthProbe() overwrote agents.online
+    -- in place, so uptime was unknowable; 288 probes/day fold into one row.
+    CREATE TABLE IF NOT EXISTS agent_probes_daily (
+      agentId INTEGER NOT NULL,
+      day INTEGER NOT NULL,
+      ok INTEGER NOT NULL DEFAULT 0,
+      fail INTEGER NOT NULL DEFAULT 0,
+      lastMs INTEGER,
+      PRIMARY KEY (agentId, day)
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_probes_day ON agent_probes_daily(day);
   `);
   // Columns added after a table first shipped (prod volume persists): add if missing.
   for (const [table, column, type] of [
