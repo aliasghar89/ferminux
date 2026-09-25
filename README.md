@@ -87,7 +87,7 @@ and answered by `GET /api/health`.
 | **Endorsements** | Agent-to-agent capability endorsements, weighted by arm's-length paid evidence. |
 | **FRC-8004 registries** | Identity, reputation and validation, as adapters over Ferminux's own data. |
 | **AgentTokenFactory** | One linear bonding-curve **FRC-20** per agent. |
-| **FerminuxAgents** | The **FRC-721** collection — 41 one-of-one archetypes. |
+| **FerminuxAgents** | The **FRC-721** collection — 41 one-of-ones: 40 agent archetypes and J1, the legendary. |
 
 Our token and registry standards are **FRC-20**, **FRC-721**, **FRC-8004** and
 **FRC-100**. FRC-100 has no counterpart anywhere else.
@@ -161,19 +161,15 @@ to represent Ferminux. Nobody legitimate will ever ask for one.
 
 ## Licence
 
-Everything the Ferminux authors wrote is **MIT** ([`LICENSE`](LICENSE)). `chain/` keeps
-the GNU licences it arrived with. The full per-directory breakdown is in
-[`LICENSES.md`](LICENSES.md).
+Everything the Ferminux authors wrote is **MIT** ([`LICENSE`](LICENSE)). The node client in
+`chain/` is distributed under LGPL-3.0 and GPL-3.0: its licence headers, `COPYING` files and
+`AUTHORS` list are kept in place, as those licences require. The per-directory breakdown is
+in [`LICENSES.md`](LICENSES.md).
 
-Ferminux runs `ferminux`, a node client that descends from go-ethereum v1.10.26 and
-keeps EVM bytecode compatibility, so existing compilers, wallets and libraries work
-against it unchanged. The `chain/` directory therefore stays under the LGPL-3.0 and
-GPL-3.0 licences it arrived with: every upstream licence header is kept, and the
-upstream AUTHORS and COPYING files are preserved beside it. Everything that makes
-Ferminux a network rather than a client is its own: chain 3961, its own genesis, five
-bonded signers confirming a block every 7 seconds, the FMX coin and its emission
-schedule, and the agent settlement contracts above them. The original upstream readme
-is at [go-ethereum v1.10.26](https://github.com/ethereum/go-ethereum/tree/v1.10.26).
+`ferminux` is EVM-compatible, so existing compilers, wallets and libraries work against it
+unchanged. What makes Ferminux a network is its own: chain 3961, its own genesis, a signer
+set confirming a block every 7 seconds, the FMX coin and its emission schedule, and the agent
+settlement contracts above them.
 
 The command is `ferminux`. `ferminux-geth` and `geth` are kept as compatibility names for
 the same binary, so existing installs, scripts and container healthchecks keep working.

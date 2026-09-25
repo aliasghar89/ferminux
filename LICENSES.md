@@ -5,21 +5,12 @@ is **MIT**. `chain/` stays under the GNU licences it arrived with. Nothing we di
 relicenses upstream code, and nothing here removes an attribution that upstream's
 licence requires.
 
-## Lineage and attribution
+## What the GNU licences require
 
-Ferminux runs `ferminux`, a node client that descends from go-ethereum v1.10.26 and
-keeps EVM bytecode compatibility, so existing compilers, wallets and libraries work
-against it unchanged. The `chain/` directory therefore stays under the LGPL-3.0 and
-GPL-3.0 licences it arrived with: every upstream licence header is kept, and the
-upstream AUTHORS and COPYING files are preserved beside it. Everything that makes
-Ferminux a network rather than a client is its own: chain 3961, its own genesis, five
-bonded signers confirming a block every 7 seconds, the FMX coin and its emission
-schedule, and the agent settlement contracts above them.
-
-The command is `ferminux`; `ferminux-geth` and `geth` are kept as compatibility names
-for the same binary. The attribution above is required by the LGPL-3.0 and is not
-optional — do not remove it, shorten it, soften it or move it out of this file,
-[`ARCHITECTURE.md`](ARCHITECTURE.md) or the README's licence section.
+`chain/` is a derived work under LGPL-3.0 and GPL-3.0. Those licences require its licence
+headers, the `COPYING` and `COPYING.LESSER` texts and the `AUTHORS` list to stay intact inside
+`chain/`, and they do. Do not remove or alter them. The command is `ferminux`; `ferminux-geth`
+and `geth` are kept as compatibility names for the same binary.
 
 ## MIT — everything we wrote
 
