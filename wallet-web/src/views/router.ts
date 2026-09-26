@@ -11,6 +11,7 @@ export type Route =
   | { name: 'connect' }
   | { name: 'settings' }
   | { name: 'send' }
+  | { name: 'swap' }
   | { name: 'asset'; chainId: number; address: string | null };
 
 export type TopRoute = 'home' | 'nfts' | 'activity' | 'connect' | 'settings';
@@ -34,6 +35,7 @@ export function parseHash(hash: string): Route {
     case 'connect':
     case 'settings':
     case 'send':
+    case 'swap':
       return { name: parts[0] };
     case 'asset': {
       const chainId = Number(parts[1]);
@@ -50,7 +52,7 @@ export function parseHash(hash: string): Route {
 
 /** The tab a route belongs to (for the active marker). */
 export function topOf(r: Route): TopRoute {
-  if (r.name === 'asset' || r.name === 'send') return 'home';
+  if (r.name === 'asset' || r.name === 'send' || r.name === 'swap') return 'home';
   return r.name;
 }
 

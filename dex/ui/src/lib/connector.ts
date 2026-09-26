@@ -16,7 +16,7 @@ export const connector = createWalletConnector({
   walletUrl: import.meta.env.VITE_FXWALLET_URL || undefined,
   // BSC for the bridge panel's return leg; everything else reads Ferminux.
   rpcUrls: { 3961: RPC_URLS, 56: BSC.rpcUrls },
-  theme: 'light',
+  theme: 'dark',
   walletConnect: WC_PROJECT_ID
     ? {
         projectId: WC_PROJECT_ID,

@@ -1,21 +1,30 @@
 // ---------------------------------------------------------------------------
 // Route finding: which pools a swap should go through.
 //
-// Pure functions over a PairIndex — no network, no clock — so the choice a
-// user sees can be reproduced exactly in a test.
+// Pure functions over a PairIndex (no network, no clock), so the choice a user
+// sees can be reproduced exactly in a test.
 //
-// Scope, stated plainly: the router considers the direct pool and every
-// two-hop route through a configured base token (WFMX, AZNT, and anything the
-// caller adds). It does NOT search three or more hops and it does NOT split an
-// order across pools. A three-hop route costs ~0.90% in fees before impact, so
-// on a network this size it is nearly always worse than the two-hop it would
-// replace; when that stops being true, `MAX_HOPS` is the knob.
+// The search: every seeded pool is an edge between its two tokens. Every
+// SIMPLE path (no token visited twice) from the token sold to the token bought,
+// up to `maxHops` pools, is priced with the same integer math the router runs
+// (lib/math.ts), and the one that pays out the most wins. Ties go to the
+// shorter path, then to the lexically smaller path, so the answer is
+// deterministic. Nothing is split across routes: one order, one path, which is
+// what the router's `swapExact…` entry points execute.
+//
+// The number of simple paths grows fast on a dense graph, so enumeration stops
+// at `maxPaths` candidates (shortest first, because the walk is breadth-first
+// by length). On a network of tens of pools that limit is never reached.
 // ---------------------------------------------------------------------------
 
+import { MAX_HOPS } from '../config.ts';
 import { getAmountsOut, midOutput, priceImpactPpm, type HopReserves } from './math.ts';
 import { hopReserves, type PairIndex } from './pairs.ts';
 
-export const MAX_HOPS = 2;
+export { MAX_HOPS };
+
+/** Upper bound on candidate paths priced per quote. */
+export const MAX_PATHS = 400;
 
 export interface Route {
   /** Token addresses, `path[0]` sold, `path[path.length - 1]` bought. */
@@ -30,39 +39,94 @@ export interface Route {
   priceImpactPpm: bigint;
 }
 
+export interface RouteOptions {
+  /** Longest path considered, in pools (default MAX_HOPS). */
+  maxHops?: number;
+  /** Stop enumerating after this many candidate paths (default MAX_PATHS). */
+  maxPaths?: number;
+}
+
+/** Token → every token it shares a SEEDED pool with. Keys and values are lowercase. */
+export type TokenGraph = Map<string, Set<string>>;
+
+export function buildGraph(index: PairIndex): TokenGraph {
+  const graph: TokenGraph = new Map();
+  const link = (a: string, b: string) => {
+    let set = graph.get(a);
+    if (!set) graph.set(a, (set = new Set()));
+    set.add(b);
+  };
+  for (const p of index.values()) {
+    if (p.reserve0 <= 0n || p.reserve1 <= 0n) continue;
+    const a = p.token0.address.toLowerCase();
+    const b = p.token1.address.toLowerCase();
+    if (a === b) continue;
+    link(a, b);
+    link(b, a);
+  }
+  return graph;
+}
+
 /**
- * Candidate paths from `tokenIn` to `tokenOut`: the direct pool first, then one
- * hop through each base token. Paths whose pools do not exist (or have never
- * been seeded) are dropped here, so every returned path is priceable.
+ * Every simple path from `tokenIn` to `tokenOut` over seeded pools, shortest
+ * first. Paths are returned in the caller's address spelling for the ends and
+ * in the index's checksummed spelling in between.
  */
-export function candidatePaths(
+export function enumeratePaths(
   index: PairIndex,
   tokenIn: string,
   tokenOut: string,
-  bases: string[],
+  options: RouteOptions = {},
 ): string[][] {
+  const maxHops = Math.max(1, Math.min(options.maxHops ?? MAX_HOPS, 6));
+  const maxPaths = Math.max(1, options.maxPaths ?? MAX_PATHS);
   const from = tokenIn.toLowerCase();
   const to = tokenOut.toLowerCase();
   if (from === to) return [];
+  const graph = buildGraph(index);
+  if (!graph.has(from) || !graph.has(to)) return [];
 
-  const paths: string[][] = [];
-  if (hopReserves(index, tokenIn, tokenOut)) paths.push([tokenIn, tokenOut]);
-
-  const seen = new Set<string>();
-  for (const base of bases) {
-    const mid = base.toLowerCase();
-    if (mid === from || mid === to || seen.has(mid)) continue;
-    seen.add(mid);
-    if (hopReserves(index, tokenIn, base) && hopReserves(index, base, tokenOut)) {
-      paths.push([tokenIn, base, tokenOut]);
-    }
+  // Checksummed spelling for every token the index knows.
+  const spelled = new Map<string, string>();
+  for (const p of index.values()) {
+    spelled.set(p.token0.address.toLowerCase(), p.token0.address);
+    spelled.set(p.token1.address.toLowerCase(), p.token1.address);
   }
-  return paths;
+
+  const found: string[][] = [];
+  // Breadth-first by path length: every 1-hop path before any 2-hop path, so
+  // the cap drops the longest (most expensive) candidates first.
+  let frontier: string[][] = [[from]];
+  for (let depth = 1; depth <= maxHops && frontier.length > 0; depth++) {
+    const next: string[][] = [];
+    for (const path of frontier) {
+      const last = path[path.length - 1];
+      const neighbours = [...(graph.get(last) ?? [])].sort();
+      for (const n of neighbours) {
+        if (path.includes(n)) continue; // simple paths only: a cycle can only lose fees
+        const extended = [...path, n];
+        if (n === to) {
+          found.push(extended);
+          if (found.length >= maxPaths) return found.map((p) => respell(p, tokenIn, tokenOut, spelled));
+        } else if (depth < maxHops) {
+          next.push(extended);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return found.map((p) => respell(p, tokenIn, tokenOut, spelled));
+}
+
+function respell(path: string[], tokenIn: string, tokenOut: string, spelled: Map<string, string>): string[] {
+  return path.map((t, i) =>
+    i === 0 ? tokenIn : i === path.length - 1 ? tokenOut : (spelled.get(t) ?? t),
+  );
 }
 
 /** Price one path locally. Returns null when a hop has no liquidity. */
 export function priceRoute(index: PairIndex, path: string[], amountIn: bigint): Route | null {
-  if (path.length < 2 || path.length > MAX_HOPS + 1) return null;
+  if (path.length < 2) return null;
   if (amountIn <= 0n) return null;
   const hops: HopReserves[] = [];
   for (let i = 0; i < path.length - 1; i++) {
@@ -87,34 +151,52 @@ export function priceRoute(index: PairIndex, path: string[], amountIn: bigint): 
   };
 }
 
+/** Better route first: more output, then fewer hops, then the lexically smaller path. */
+export function compareRoutes(a: Route, b: Route): number {
+  if (a.amountOut !== b.amountOut) return a.amountOut > b.amountOut ? -1 : 1;
+  if (a.path.length !== b.path.length) return a.path.length - b.path.length;
+  const ka = a.path.join(',').toLowerCase();
+  const kb = b.path.join(',').toLowerCase();
+  return ka < kb ? -1 : ka > kb ? 1 : 0;
+}
+
+/** Every priceable route for this size, best first. */
+export function rankRoutes(
+  index: PairIndex,
+  tokenIn: string,
+  tokenOut: string,
+  amountIn: bigint,
+  options: RouteOptions = {},
+): Route[] {
+  const routes: Route[] = [];
+  for (const path of enumeratePaths(index, tokenIn, tokenOut, options)) {
+    const route = priceRoute(index, path, amountIn);
+    if (route) routes.push(route);
+  }
+  return routes.sort(compareRoutes);
+}
+
 /**
  * The best route for this size: whichever candidate pays out the most.
- * Ties go to the shorter path (fewer approvals to grief, fewer pools to fail).
+ * Ties go to the shorter path (fewer pools to fail, less gas).
  */
 export function bestRoute(
   index: PairIndex,
   tokenIn: string,
   tokenOut: string,
   amountIn: bigint,
-  bases: string[],
+  options: RouteOptions = {},
 ): Route | null {
-  let best: Route | null = null;
-  for (const path of candidatePaths(index, tokenIn, tokenOut, bases)) {
-    const route = priceRoute(index, path, amountIn);
-    if (!route) continue;
-    if (
-      !best ||
-      route.amountOut > best.amountOut ||
-      (route.amountOut === best.amountOut && route.path.length < best.path.length)
-    ) {
-      best = route;
-    }
-  }
-  return best;
+  return rankRoutes(index, tokenIn, tokenOut, amountIn, options)[0] ?? null;
+}
+
+/** Whether any route exists between two tokens at all (no amount needed). */
+export function hasRoute(index: PairIndex, tokenIn: string, tokenOut: string, options: RouteOptions = {}): boolean {
+  return enumeratePaths(index, tokenIn, tokenOut, { ...options, maxPaths: 1 }).length > 0;
 }
 
 /**
- * The zero-fee, zero-impact reference output for a route — the number the
+ * The zero-fee, zero-impact reference output for a route: the number the
  * displayed price impact is measured against.
  */
 export function routeMidOutput(route: Route, amountIn: bigint): bigint {

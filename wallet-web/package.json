@@ -13,7 +13,8 @@
     "live": "node scripts/live-activity.mjs",
     "ui": "node scripts/ui-check.mjs",
     "smoke": "node scripts/multichain-smoke.mjs",
-    "mint-smoke": "node scripts/mint-smoke.mjs"
+    "mint-smoke": "node scripts/mint-smoke.mjs",
+    "swap-smoke": "node scripts/swap-smoke.mjs"
   },
   "dependencies": {
     "@capacitor-community/privacy-screen": "^8.0.0",

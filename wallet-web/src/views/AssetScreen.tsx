@@ -6,7 +6,7 @@ import { formatAmount, formatAmountExact, shortAddress } from '../lib/validate.t
 import { ageLabel } from '../lib/time.ts';
 import { AssetGlyph, ChainBadge } from '../components/ChainBadge.tsx';
 import { CopyButton, Spinner } from '../components/ui.tsx';
-import { IconExternal, IconReceive, IconRefresh, IconSend } from '../components/icons.tsx';
+import { IconExternal, IconReceive, IconRefresh, IconSend, IconSwap } from '../components/icons.tsx';
 import { BackButton } from './ScreenHead.tsx';
 import { fitClass } from './HomeScreen.tsx';
 
@@ -17,6 +17,7 @@ export function AssetScreen({
   address,
   onBack,
   onSend,
+  onSwap,
   onReceive,
   onRemoved,
   onRefresh,
@@ -26,6 +27,8 @@ export function AssetScreen({
   address: string | null;
   onBack: () => void;
   onSend: (a: AssetRef) => void;
+  /** Ferminux assets only: open Swap with this asset as the one sold. */
+  onSwap: (a: AssetRef) => void;
   onReceive: () => void;
   onRemoved: () => void;
   onRefresh: () => void;
@@ -55,6 +58,8 @@ export function AssetScreen({
 
   const home = chain.id === FERMINUX_CHAIN.id;
   const balance = balanceFor(portfolio.lastGood, chain.id, asset.address);
+  // The Ferminux DEX exists on chain 3961 only; no other network's asset is offered a swap.
+  const swappable = chain.id === FERMINUX_CHAIN.id;
   const native = balanceFor(portfolio.lastGood, chain.id, null);
   const reading = portfolio.latest.get(chain.id);
   const good = portfolio.lastGood.get(chain.id);
@@ -95,13 +100,18 @@ export function AssetScreen({
             )}
           </div>
         </div>
-        <div className="hero-actions" style={{ gridTemplateColumns: 'repeat(2,minmax(0,1fr))', maxWidth: 360 }}>
+        <div className={'hero-actions ' + (swappable ? 'hero-actions-3' : 'hero-actions-2')}>
           <button className="btn btn-primary" data-testid="asset-send" onClick={() => onSend(asset)} disabled={balance === 0n}>
             <IconSend /> Send
           </button>
           <button className="btn" onClick={onReceive}>
             <IconReceive /> Receive
           </button>
+          {swappable && (
+            <button className="btn" data-testid="asset-swap" onClick={() => onSwap(asset)}>
+              <IconSwap /> Swap
+            </button>
+          )}
         </div>
       </section>
 

@@ -149,6 +149,37 @@ export const MAX_DEADLINE_MINUTES = 180;
 export const PRICE_IMPACT_WARN_BPS = 300;
 export const PRICE_IMPACT_CONFIRM_BPS = 1000;
 
+/**
+ * Longest route the swap router searches, in pools. Every simple path over
+ * every seeded pool up to this length is priced and the best output wins
+ * (lib/route.ts); each extra hop costs another 0.30% fee, so on a network this
+ * size three is the useful ceiling.
+ */
+export const MAX_HOPS = 3;
+
+/**
+ * The official FMX price in USD, 1e18 fixed-point: $0.52, the price the
+ * pay-in (ferminux.net/buy-fmx) sells FMX at, set by the operator. It is the
+ * basis every USD figure on this site uses for FMX and WFMX: pool TVL, your
+ * position's value, volume on the FMX side of a trade. It is NOT read from a
+ * pool; the pools' own prices are shown next to it wherever they differ.
+ */
+export const FMX_USD_E18: bigint = (() => {
+  const raw = env.VITE_FMX_USD?.trim();
+  if (raw && /^\d+(\.\d{1,18})?$/.test(raw)) {
+    const [w, f = ''] = raw.split('.');
+    return BigInt(w) * 10n ** 18n + BigInt((f + '0'.repeat(18)).slice(0, 18));
+  }
+  return 520_000_000_000_000_000n;
+})();
+
+/**
+ * First block worth scanning for pool events: the block that deployed the
+ * factory on chain 3961 (dex/contracts/broadcast/DeployDex.s.sol, 2026-08-20).
+ * A devnet build sets VITE_DEX_START_BLOCK=0.
+ */
+export const DEX_START_BLOCK: number = Number(env.VITE_DEX_START_BLOCK ?? 13_420) || 0;
+
 /** Pool list page size (FerminuxFactory.pairsPage). */
 export const PAIRS_PAGE_SIZE = 25;
 

@@ -10,8 +10,8 @@ if (keystorePropsFile.exists()) {
 }
 
 // App version: package.json "version" is the web wallet's; the app keeps its own here.
-def appVersionName = "1.1.0"
-def appVersionCode = 2
+def appVersionName = "1.2.0"
+def appVersionCode = 3
 
 android {
     namespace = "net.ferminux.wallet"

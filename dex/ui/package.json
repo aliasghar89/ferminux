@@ -3,13 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Ferminux DEX web app — swap, liquidity and pools for the Ferminux AMM (chain 3961)",
+  "description": "Ferminux DEX web app: swap with best-route search, pools, liquidity, charts, analytics and account history for the Ferminux AMM (chain 3961)",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/check-dist.mjs",
     "preview": "vite preview",
     "test": "node --test \"tests/*.test.mjs\"",
     "e2e": "node scripts/e2e.mjs",
+    "e2e:fork": "node scripts/e2e-fork.mjs",
     "ui": "node scripts/ui-check.mjs"
   },
   "dependencies": {

@@ -1,71 +1,70 @@
 #!/usr/bin/env node
 // ---------------------------------------------------------------------------
-// Browser check for the Ferminux DEX UI.
+// Browser check of the built DEX against an anvil FORK of chain 3961.
 //
-// Builds the REAL bundle against a local anvil that has the AMM deployed and
-// two pools seeded (one of them with 60% of its LP time-locked), serves it, and
-// drives it in headless Chromium:
+// The fork carries the live contracts and pool; scripts/fork.mjs adds the
+// $0.52 USDF market. The REAL production bundle is built against the fork
+// (only the RPC URL differs from the shipped build), served, and driven in
+// Chrome with a minimal injected EIP-1193 provider that forwards to anvil,
+// whose dev accounts are unlocked, so the page really signs and anvil really
+// confirms. Checked:
 //
-//   • the shell renders and the footer reports a live block height
-//   • Pools lists both pools with reserves, price and the LOCKED badge, and
-//     expands to the individual locks
-//   • Swap quotes live through the router: amount out, price impact, minimum
-//     received, and the slippage/deadline settings change the numbers
-//   • a large trade raises the >3% warning and the >10% typed confirmation
-//   • the token selector filters and switches tokens
-//   • an injected wallet connects and a REAL swap is signed and mined — the
-//     on-chain balance is checked afterwards
-//   • Liquidity shows the connected account's positions
-//   • the page is checked at 390 px wide for horizontal overflow
-//   • the SHIPPED default (no addresses configured) renders the "Not
-//     configured" screen naming all four missing addresses
-//   • the Bridge tab (built with VITE_ENABLE_BRIDGE=1) mounts across the
-//     @bridge alias, shows its direction, offers no send until a wallet is
-//     connected, and says bridging is unavailable when the relayer report
-//     (served here as a fixture) has the source chain's signing paused
+//   • shell, live block height, the five pages and the pool detail render
+//   • Pools: every pool with TVL at the $0.52 basis, LOCKED / Not locked
+//   • Charts: the official $0.52 and a line per FMX pool; Analytics KPIs
+//   • Swap: live quote, route, impact, minimum received, settings; a large
+//     FMX → USDF order routes through AZNT; token picker search
+//   • wallet: connect through the chooser; a swap signed in the page settles
+//     on chain; a USDF → FMX swap walks the approve-then-swap flow
+//   • a wallet that moved off chain 3961 mid-review is refused before signing
+//   • Liquidity: add at the pool ratio, the position appears, remove 50%
+//   • Activity: the account's swaps and deposits, read from the chain
+//   • at 320, 390 and 1440 px every page fits: no horizontal scroll
+//   • no console errors; a build with blanked addresses says "Not configured"
 //
-// Screenshots are written next to the temporary build and the path is printed.
+//   npm run ui       PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs (or PLAYWRIGHT_DIR)
 //
-//   node scripts/ui-check.mjs        (or: npm run ui)
-//
-// Requirements — ALL optional; the script skips cleanly (exit 0) without them:
-//   • anvil (foundry) on PATH
-//   • playwright-core:  PLAYWRIGHT_DIR=/dir/containing/node_modules/playwright-core
-//   • a Chromium build: CHROME_PATH=/path/to/binary
-//     (both are auto-detected from the usual caches on this workstation)
-//
-// Ports: anvil on 8602 (this component's assigned port); the static server
-// takes an OS-assigned ephemeral port so it cannot collide with anything.
+// Skips cleanly (exit 0) without anvil or Playwright. Nothing leaves 127.0.0.1
+// except the fork's own reads of rpc.ferminux.net.
 // ---------------------------------------------------------------------------
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { readFile, mkdtemp, readdir } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
-import { join, extname } from 'node:path';
-import { tmpdir, homedir } from 'node:os';
+import { existsSync } from 'node:fs';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { extname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import net from 'node:net';
-import { Contract, ContractFactory, Wallet, formatEther, parseEther, parseUnits } from 'ethers';
+import { formatUnits } from 'ethers';
 
-import { CHAIN_ID } from '../src/config.ts';
-import { connectRpc, probeRpc } from '../src/lib/rpc.ts';
-import { approveToken, fetchBalance, nativeToken } from '../src/lib/tokens.ts';
-import { addLiquidity, quoteAddLiquidity } from '../src/lib/liquidity.ts';
-import { TokenMetaCache, approveLp, fetchLpBalance, findPair } from '../src/lib/pairs.ts';
+import { DEX_ADDRESSES } from '../src/config.ts';
+import { fetchBalance, fetchAllowance } from '../src/lib/tokens.ts';
+import { USDF, forkProvider, haveAnvil, seedMarket, startFork } from './fork.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-// DEX_TEST_PORT moves it when 8602 is taken (another run, or the dev server).
-const RPC_PORT = Number(process.env.DEX_TEST_PORT) || 8602;
-const RPC = `http://127.0.0.1:${RPC_PORT}`;
-const KEY0 = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-// Deliberately dead: exercises the "explorer link never fetched" path.
+const PORT = Number(process.env.DEX_TEST_PORT) || 8602;
 const DEAD_EXPLORER = 'http://127.0.0.1:9';
+const ME = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'; // anvil dev account #1: unlocked on the fork
+const WIDTHS = [320, 390, 1440];
 
-const DEX_OUT = (name, contract = name) =>
-  fileURLToPath(new URL(`../../contracts/out/${name}.sol/${contract}.json`, import.meta.url));
-const CORE_OUT = (name) => fileURLToPath(new URL(`../../../contracts/out/${name}.sol/${name}.json`, import.meta.url));
+let step = 0;
+const ok = (msg) => console.log(`  ✓ ${String(++step).padStart(2)}. ${msg}`);
+const skip = (why) => {
+  console.log(`ui-check SKIPPED: ${why}`);
+  process.exit(0);
+};
+
+async function loadPlaywright() {
+  const candidates = [
+    process.env.PLAYWRIGHT_MODULE,
+    process.env.PLAYWRIGHT_DIR && join(process.env.PLAYWRIGHT_DIR, 'node_modules/playwright/index.mjs'),
+    process.env.PLAYWRIGHT_DIR && join(process.env.PLAYWRIGHT_DIR, 'node_modules/playwright-core/index.mjs'),
+    join(ROOT, 'node_modules/playwright/index.mjs'),
+  ].filter(Boolean);
+  for (const c of candidates) if (existsSync(c)) return import(c);
+  return null;
+}
 
 const PAUSED_STATUS = (now) => ({
   generatedAt: now,
@@ -77,7 +76,7 @@ const PAUSED_STATUS = (now) => ({
       finality: {
         mode: 'work-and-time',
         pace: { state: 'ok', targetBlockTimeMs: 7000, medianGapMs: 7000, samples: 32, headNumber: 1, headAgeMs: 1000, reason: null },
-        checkpoint: { state: 'unreadable', number: null, hash: null, attestedAt: null, ageMs: null, maxAgeMs: 21600000, lagBlocks: null, hashVerified: false, reason: 'fixture: registry unreadable' },
+        checkpoint: { state: 'unreadable', number: null, hash: null, attestedAt: null, ageMs: null, maxAgeMs: 21600000, lagBlocks: null, hashVerified: false, reason: 'fixture' },
         signing: { paused: true, reason: 'fixture: checkpoint unreadable' },
       },
     },
@@ -85,192 +84,43 @@ const PAUSED_STATUS = (now) => ({
   ],
 });
 
-let step = 0;
-const ok = (msg) => console.log(`  ✓ ${String(++step).padStart(2)}. ${msg}`);
-const skip = (why) => {
-  console.log(`ui-check SKIPPED: ${why}`);
-  process.exit(0);
-};
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.json': 'application/json' };
 
-// ------------------------------------------------------------ discovery ----
-
-async function findPlaywright() {
-  const candidates = [process.env.PLAYWRIGHT_DIR].filter(Boolean);
-  for (const dir of candidates) {
-    const entry = join(dir, 'node_modules', 'playwright-core', 'index.js');
-    if (existsSync(entry)) return (await import(`file://${entry}`)).default ?? (await import(`file://${entry}`));
-  }
-  return null;
-}
-
-async function findChrome() {
-  if (process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
-  const roots = [join(homedir(), 'Library/Caches/ms-playwright'), join(homedir(), '.cache/puppeteer/chrome')];
-  for (const root of roots) {
-    if (!existsSync(root)) continue;
-    for (const dir of (await readdir(root)).sort().reverse()) {
-      for (const suffix of [
-        'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-        'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
-        'chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium',
-      ]) {
-        const candidate = join(root, dir, suffix);
-        if (existsSync(candidate)) return candidate;
-      }
-    }
-  }
-  return null;
-}
-
-function portFree(port) {
-  return new Promise((resolve) => {
-    const sock = net.connect({ port, host: '127.0.0.1' });
-    const done = (free) => {
-      sock.destroy();
-      resolve(free);
-    };
-    sock.once('connect', () => done(false));
-    sock.once('error', () => done(true));
-    setTimeout(() => done(true), 1500);
+function build(outDir, env) {
+  const r = spawnSync('node', [join(ROOT, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', outDir, '--emptyOutDir'], {
+    cwd: ROOT,
+    env: { ...process.env, ...env },
+    encoding: 'utf8',
   });
+  if (r.status !== 0) throw new Error(`vite build failed:\n${r.stdout}\n${r.stderr}`);
 }
-
-async function deploy(artifactPath, signer, args = []) {
-  const artifact = JSON.parse(readFileSync(artifactPath, 'utf8'));
-  const factory = new ContractFactory(artifact.abi, artifact.bytecode.object, signer);
-  const contract = await factory.deploy(...args);
-  await contract.waitForDeployment();
-  return { address: await contract.getAddress(), abi: artifact.abi };
-}
-
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json',
-  '.svg': 'image/svg+xml',
-};
-
-// ----------------------------------------------------------------- main ----
 
 async function main() {
-  if (spawnSync('anvil', ['--version']).error) skip('anvil is not on PATH');
-  const playwright = await findPlaywright();
-  if (!playwright?.chromium) skip('playwright-core not found (set PLAYWRIGHT_DIR)');
-  const chromePath = await findChrome();
-  if (!chromePath) skip('no Chromium build found (set CHROME_PATH)');
-  if (!(await portFree(RPC_PORT))) skip(`port ${RPC_PORT} is busy — stop the dev server or the e2e first`);
+  if (!haveAnvil()) skip('anvil is not on PATH');
+  const pw = await loadPlaywright();
+  if (!pw?.chromium) skip('Playwright not found (set PLAYWRIGHT_MODULE or PLAYWRIGHT_DIR)');
 
-  const workDir = await mkdtemp(join(tmpdir(), 'ferminux-dex-ui-'));
-  const distDir = join(workDir, 'dist');
-  // The static server serves whatever this points at, so the same page URL can
-  // be re-used for the second, deliberately unconfigured build.
-  let distRoot = distDir;
-
-  const anvil = spawn(
-    'anvil',
-    ['--port', String(RPC_PORT), '--chain-id', String(CHAIN_ID), '--balance', '100000', '--silent'],
-    { stdio: ['ignore', 'ignore', 'pipe'] },
-  );
-  const anvilExit = new Promise((resolve) => anvil.once('exit', resolve));
+  const work = await mkdtemp(join(tmpdir(), 'ferminux-dex-ui-'));
+  const fork = await startFork(PORT);
   let server = null;
   let browser = null;
-
+  let provider = null;
+  let page = null;
   try {
-    for (let i = 0; i < 60 && !(await probeRpc(RPC, CHAIN_ID, 1000)); i++) {
-      await new Promise((r) => setTimeout(r, 250));
-    }
-    ok(`anvil up on :${RPC_PORT}`);
+    provider = await forkProvider(fork.rpc);
+    const m = await seedMarket(provider);
+    ok(`fork of chain 3961 on :${PORT} with the $0.52 market (WFMX/USDF, WFMX/AZNT moved to $0.52, AZNT/USDF)`);
 
-    // --- devnet: deploy the AMM, seed two pools, lock most of one pool's LP --
-    const { provider } = await connectRpc([RPC], CHAIN_ID, 3000);
-    const deployer = new Wallet(KEY0, provider);
-    const wfmx = await deploy(DEX_OUT('WFMX'), deployer);
-    const factory = await deploy(DEX_OUT('FerminuxFactory'), deployer, [deployer.address]);
-    const router = await deploy(DEX_OUT('FerminuxRouter'), deployer, [factory.address, wfmx.address]);
-    const locker = await deploy(DEX_OUT('LiquidityLocker'), deployer);
-    const addresses = { factory: factory.address, router: router.address, wfmx: wfmx.address, locker: locker.address };
+    let distRoot = join(work, 'dist');
+    build(distRoot, { VITE_RPC_URLS: fork.rpc, VITE_EXPLORER_URL: DEAD_EXPLORER, VITE_ENABLE_BRIDGE: '1', VITE_RELAYER_STATUS_URL: './status.json' });
+    ok('built the production bundle against the fork (shipped contract addresses, local RPC)');
 
-    const seed = await deploy(DEX_OUT('SeedPool.s', 'SeedDemoToken'), deployer, [
-      deployer.address,
-      parseEther('1000000'),
-    ]);
-    const aznt = await deploy(CORE_OUT('AZNT'), deployer, [deployer.address]);
-    const azntAdmin = new Contract(aznt.address, aznt.abi, deployer);
-    await (await azntAdmin.grantRole(await azntAdmin.MINTER(), deployer.address)).wait();
-    await (await azntAdmin.mint(deployer.address, parseUnits('500000', 6))).wait();
-
-    const cache = new TokenMetaCache(addresses.wfmx);
-    const seedToken = await cache.get(provider, seed.address);
-    const azntToken = await cache.get(provider, aznt.address);
-    const fmx = nativeToken(addresses.wfmx);
-
-    await (await approveToken(deployer, seedToken, addresses.router, parseEther('100000'))).wait();
-    await (await approveToken(deployer, azntToken, addresses.router, parseUnits('100000', 6))).wait();
-    await (
-      await addLiquidity(
-        deployer,
-        addresses,
-        quoteAddLiquidity(null, seedToken, fmx, 'A', parseEther('10000'), 50, parseEther('5000')),
-        deployer.address,
-        20,
-      )
-    ).wait();
-    await (
-      await addLiquidity(
-        deployer,
-        addresses,
-        quoteAddLiquidity(null, azntToken, fmx, 'A', parseUnits('20000', 6), 50, parseEther('10000')),
-        deployer.address,
-        20,
-      )
-    ).wait();
-
-    const seedPair = await findPair(provider, addresses, seedToken.address, addresses.wfmx);
-    const lp = await fetchLpBalance(provider, seedPair, deployer.address);
-    const lockAmount = (lp * 60n) / 100n;
-    await (await approveLp(deployer, seedPair, addresses.locker, lockAmount)).wait();
-    const lockerWrite = new Contract(addresses.locker, locker.abi, deployer);
-    const unlockAt = (await provider.getBlock('latest')).timestamp + 365 * 24 * 3600;
-    await (await lockerWrite.lock(seedPair, lockAmount, unlockAt)).wait();
-    ok('devnet ready: 2 pools seeded, 60% of the SEED/FMX LP locked for a year');
-
-    // --- build the real bundle against this devnet ---------------------------
-    const build = spawnSync('node', [join(ROOT, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', distDir], {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        VITE_RPC_URLS: RPC,
-        VITE_EXPLORER_URL: DEAD_EXPLORER,
-        VITE_FACTORY_ADDRESS: addresses.factory,
-        VITE_ROUTER_ADDRESS: addresses.router,
-        VITE_WFMX_ADDRESS: addresses.wfmx,
-        VITE_LOCKER_ADDRESS: addresses.locker,
-        // The tab ships off; this run opts in so it can be checked, and points
-        // the liveness report at the fixture the static server answers below.
-        VITE_ENABLE_BRIDGE: '1',
-        VITE_RELAYER_STATUS_URL: './status.json',
-      },
-      encoding: 'utf8',
-    });
-    if (build.status !== 0) throw new Error(`vite build failed:\n${build.stdout}\n${build.stderr}`);
-    ok('built the production bundle against the devnet addresses');
-
-    // --- serve it -----------------------------------------------------------
     server = createServer(async (req, res) => {
       const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
-      // The app ships no favicon; answer the browser's automatic request so the
-      // console-error assertion below only ever sees real application errors.
-      if (path === '/favicon.ico') {
-        res.writeHead(204).end();
-        return;
-      }
-      // Relayer liveness report, in the shape fmx-publish-status writes, with
-      // Ferminux signing paused — what the live report said on 2026-09-24.
+      if (path === '/favicon.ico') return void res.writeHead(204).end();
       if (path === '/status.json') {
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(PAUSED_STATUS(Date.now())));
-        return;
+        return void res.end(JSON.stringify(PAUSED_STATUS(Date.now())));
       }
       const file = join(distRoot, path === '/' ? 'index.html' : path);
       try {
@@ -281,282 +131,282 @@ async function main() {
         res.writeHead(404).end('not found');
       }
     });
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const webPort = server.address().port;
-    const pageUrl = `http://127.0.0.1:${webPort}/`;
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const url = `http://127.0.0.1:${server.address().port}/`;
 
-    // --- browser ------------------------------------------------------------
-    browser = await playwright.chromium.launch({ executablePath: chromePath, headless: true });
-    const context = await browser.newContext({ viewport: { width: 1280, height: 950 } });
-
-    // A minimal EIP-1193 provider that forwards to anvil, whose dev accounts
-    // are unlocked — so the page really signs and really mines.
-    await context.addInitScript((rpcUrl) => {
-      let id = 0;
-      window.ethereum = {
-        isFerminuxTestShim: true,
-        async request({ method, params }) {
-          const call = method === 'eth_requestAccounts' ? 'eth_accounts' : method;
-          const res = await fetch(rpcUrl, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: call, params: params ?? [] }),
-          });
-          const json = await res.json();
-          if (json.error) {
-            const err = new Error(json.error.message);
-            err.code = json.error.code;
-            throw err;
-          }
-          return json.result;
-        },
-        on() {},
-        removeListener() {},
-      };
-    }, RPC);
-
-    const page = await context.newPage();
-    const consoleErrors = [];
-    page.on('console', (m) => {
-      if (m.type() === 'error') consoleErrors.push(m.text());
-    });
-    page.on('pageerror', (e) => consoleErrors.push(String(e)));
-    await page.goto(pageUrl, { waitUntil: 'networkidle' });
-
-    await page.waitForSelector('.brand');
-    assert.match(await page.textContent('.brand'), /Ferminux/);
-    await page.waitForFunction(() => /Block [1-9]/.test(document.querySelector('.app-footer')?.textContent ?? ''), {
-      timeout: 15000,
-    });
-    ok('shell rendered; footer reports a live block height from the devnet');
-
-    // --- Bridge tab -------------------------------------------------------
-    // The panel reads two live chains, so nothing here asserts on registry
-    // content — that belongs to the bridge app's own e2e against two anvils.
-    // What this pins is that the tab exists, mounts without throwing, and knows
-    // its direction. The mount is the part that regressed: the panel imports
-    // across package boundaries via the @bridge alias, and a broken alias fails
-    // at runtime with a blank tab, not at build time.
-    await page.click('.tab:has-text("Bridge")');
-    await page.waitForSelector('.panel');
-    const bridgeText = await page.textContent('.panel');
-    assert.match(bridgeText, /Ferminux\s*→\s*BSC/, 'the Bridge tab must render its direction control');
-    assert.doesNotMatch(bridgeText, /not configured/i, 'the deployed addresses are tracked defaults, so it must be configured');
-    // The relayer fixture has Ferminux signing paused: the panel must say so
-    // before (and regardless of) the two live registry reads.
-    await page.waitForSelector('[data-testid=bridge-gate]', { timeout: 15000 });
-    assert.match(
-      await page.textContent('[data-testid=bridge-gate]'),
-      /Bridging is unavailable from Ferminux.*paused/is,
-      'a paused source chain must be stated, not left to a silent deposit',
-    );
-    // No wallet is connected at this point in the run.
-    const bridgeBtn = page.locator('.panel button.btn-primary');
-    assert.equal(await bridgeBtn.textContent(), 'Connect a wallet', 'no send may be offered without a wallet');
-    assert.equal(await bridgeBtn.isDisabled(), true, 'and it must be disabled');
-    await page.screenshot({ path: join(workDir, '00-bridge.png'), fullPage: true });
-    ok('Bridge tab mounts across the @bridge alias, shows Ferminux → BSC, gates on a wallet and on relayer liveness');
-
-    // --- Pools --------------------------------------------------------------
-    await page.click('.tab:has-text("Pools")');
-    await page.waitForSelector('.pool-head');
-    const poolCount = await page.locator('.pool-head').count();
-    assert.equal(poolCount, 2, `expected 2 pools, saw ${poolCount}`);
-    const lockedBadges = await page.locator('.tag-lock').count();
-    assert.ok(lockedBadges >= 1, 'the SEED/FMX pool must show a LOCKED badge');
-    const lockedRow = page.locator('.pool', { has: page.locator('.tag-lock') }).first();
-    assert.match(await lockedRow.textContent(), /of LP/, 'the badge states what share of LP supply is locked');
-    assert.match(await lockedRow.textContent(), /unlocks in \d+ (year|month|day)/, 'and when it unlocks');
-    const notLocked = await page.locator('.tag-open').count();
-    assert.equal(notLocked, 1, 'the unlocked pool must be labelled NOT LOCKED');
-    await lockedRow.locator('.pool-head').click();
-    await page.waitForSelector('.pool-body');
-    assert.match(await page.textContent('.pool-body'), /Lock #0/, 'the lock breakdown lists the individual lock');
-    await page.screenshot({ path: join(workDir, '01-pools.png'), fullPage: true });
-    ok(`Pools: 2 pools, LOCKED badge with share + unlock date, lock breakdown expanded`);
-
-    // --- Swap: live quote ---------------------------------------------------
-    await page.click('.tab:has-text("Swap")');
-    await page.waitForSelector('.amount-input');
-    await page.fill('.amount-input', '5');
-    await page.waitForSelector('.quote-box', { timeout: 15000 });
-    const quoteText = await page.textContent('.quote-box');
-    assert.match(quoteText, /Price impact/);
-    assert.match(quoteText, /Minimum received/);
-    assert.match(quoteText, /Liquidity provider fee/);
-    assert.match(quoteText, /0\.30%/, 'one hop = 0.30%');
-    const outText = await page.textContent('.amount-output');
-    assert.match(outText, /^9\.96/, `expected ~9.96 SEED out, saw "${outText}"`);
-    assert.match(quoteText, /0\.39%/, 'the published 39 bps impact for this trade size');
-    await page.screenshot({ path: join(workDir, '02-swap-quote.png'), fullPage: true });
-    ok(`Swap: 5 FMX quoted live through the router → ${outText.trim()} SEED, impact 0.39%`);
-
-    // --- Swap: settings change the bound ------------------------------------
-    const minBefore = await page.locator('.stat-row', { hasText: 'Minimum received' }).textContent();
-    await page.click('.panel-head .btn-ghost');
-    await page.waitForSelector('.settings-box');
-    await page.click('.seg:has-text("1%")');
-    await page.waitForTimeout(400);
-    const minAfter = await page.locator('.stat-row', { hasText: 'Minimum received' }).textContent();
-    assert.notEqual(minBefore, minAfter, 'a wider slippage tolerance must lower the minimum received');
-    assert.match(minAfter, /1%/);
-    await page.fill('#swap-deadline', '5');
-    assert.match(await page.textContent('.panel-head .btn-ghost'), /1% slippage · 5m/);
-    await page.click('.seg:has-text("0.5%")');
-    await page.click('.panel-head .btn-ghost');
-    ok('Swap settings: slippage presets and the deadline update the quote and the header');
-
-    // --- Swap: impact warnings ----------------------------------------------
-    await page.fill('.amount-input', '200');
-    await page.waitForFunction(
-      () => document.body.textContent.includes('This pool is shallow relative to your trade'),
-      { timeout: 15000 },
-    );
-    ok('a 200 FMX trade raises the >3% price-impact warning');
-
-    await page.fill('.amount-input', '1200');
-    await page.waitForFunction(() => document.body.textContent.includes('needs a typed confirmation'), {
-      timeout: 15000,
-    });
-    await page.screenshot({ path: join(workDir, '03-swap-severe.png'), fullPage: true });
-    ok('a 1200 FMX trade raises the >10% danger notice');
-
-    // --- connect the injected wallet ---------------------------------------
-    await page.click('.app-header .btn:has-text("Connect")');
-    // The chooser lists Ferminux Wallet first; the test shim is the injected entry.
-    await page.click('[data-testid=choice-injected]');
-    await page.waitForFunction(() => /0x[0-9a-fA-F]{4}…/.test(document.querySelector('.app-header')?.textContent ?? ''), {
-      timeout: 15000,
-    });
-    ok('connected the injected wallet; the header shows the account');
-
-    // The severe-impact swap must demand a typed confirmation.
-    await page.click('.action-stack .btn-primary:has-text("Swap")');
-    await page.waitForSelector('.modal:has-text("High price impact")');
-    const confirmButton = page.locator('.modal .btn-primary:has-text("Swap anyway")');
-    assert.equal(await confirmButton.isDisabled(), true, 'the confirm button starts disabled');
-    await page.fill('#impact-confirm', 'I understand');
-    assert.equal(await confirmButton.isDisabled(), false);
-    await page.screenshot({ path: join(workDir, '04-impact-confirm.png') });
-    await page.click('.modal .btn:has-text("Cancel")');
-    ok('the >10% confirmation modal really blocks until "I understand" is typed');
-
-    // --- token selector ------------------------------------------------------
-    await page.locator('.amount-box').nth(1).locator('.token-button').click();
-    await page.waitForSelector('.token-list');
-    await page.fill('.modal .input', 'AZNT');
-    await page.waitForSelector('.token-row:has-text("AZNT")');
-    await page.screenshot({ path: join(workDir, '05-token-select.png') });
-    await page.click('.token-row:has-text("AZNT")');
-    await page.waitForFunction(
-      () => document.querySelectorAll('.token-button')[1]?.textContent.includes('AZNT'),
-      { timeout: 10000 },
-    );
-    ok('token selector filtered to AZNT and switched the output token');
-
-    // --- a REAL swap, signed in the page ------------------------------------
-    await page.locator('.amount-box').nth(1).locator('.token-button').click();
-    await page.waitForSelector('.token-list');
-    await page.fill('.modal .input', 'SEED');
-    await page.click('.token-row:has-text("SEED")');
-    await page.fill('.amount-input', '5');
-    await page.waitForSelector('.quote-box', { timeout: 15000 });
-
-    const traderBefore = await fetchBalance(provider, seedToken, deployer.address);
-    await page.click('.action-stack .btn-primary:has-text("Swap")');
-    await page.waitForFunction(() => document.body.textContent.includes('Swapped'), { timeout: 30000 });
-    const traderAfter = await fetchBalance(provider, seedToken, deployer.address);
-    assert.ok(traderAfter > traderBefore, 'the SEED balance must actually have grown on chain');
-    await page.screenshot({ path: join(workDir, '06-swap-done.png'), fullPage: true });
-    ok(`swapped 5 FMX in the browser: +${formatEther(traderAfter - traderBefore).slice(0, 8)} SEED confirmed on chain`);
-
-    // --- Liquidity ----------------------------------------------------------
-    await page.click('.tab:has-text("Liquidity")');
-    await page.waitForSelector('.position-head', { timeout: 20000 });
-    const positionCount = await page.locator('.position-head').count();
-    assert.equal(positionCount, 2, `expected 2 LP positions, saw ${positionCount}`);
-    assert.match(await page.textContent('.position-head'), /of pool/);
-    await page.locator('.position-head').first().click();
-    await page.waitForSelector('.slider');
-    assert.match(await page.textContent('.position-body'), /You receive/);
-    // The locked LP section must show the year-long lock.
-    assert.match(await page.textContent('body'), /Your locked LP/);
-    await page.screenshot({ path: join(workDir, '07-liquidity.png'), fullPage: true });
-    ok('Liquidity: 2 positions with share of pool, remove-slider quote, and the locked-LP list');
-
-    // --- new-pair explainer --------------------------------------------------
-    // The B side already defaults to SEED (the pooled counterpart), so switching
-    // A to the devnet AZNT asks for a SEED/AZNT pool, which does not exist.
-    await page.locator('.amount-box').first().locator('.token-button').click();
-    await page.waitForSelector('.token-list');
-    await page.fill('.modal .input', 'AZNT');
-    await page.locator('.token-row:has-text("AZNT")').last().click();
-    await page.waitForSelector('.new-pool-box', { timeout: 10000 });
-    const newPoolText = await page.textContent('.new-pool-box');
-    assert.match(newPoolText, /The ratio you deposit becomes the price/);
-    assert.match(newPoolText, /arbitrage/);
-    await page.screenshot({ path: join(workDir, '08-new-pool.png'), fullPage: true });
-    ok('picking a pair with no pool shows the first-depositor explanation and the acknowledgement');
-
-    // --- responsive ---------------------------------------------------------
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.click('.tab:has-text("Pools")');
-    await page.waitForSelector('.pool-head');
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    assert.ok(overflow <= 1, `page scrolls sideways by ${overflow}px at 390px wide`);
-    await page.screenshot({ path: join(workDir, '09-mobile-pools.png'), fullPage: true });
-    ok('at 390px wide the page does not scroll horizontally');
-
-    assert.deepEqual(consoleErrors, [], `console errors: ${consoleErrors.join(' | ')}`);
-    ok('no console errors or unhandled page exceptions during the whole run');
-
-    // --- an unconfigured build renders the "Not configured" screen ----------
-    // The shipped defaults carry the live mainnet addresses since the 2026-08-20
-    // deployment, so the unconfigured state is now produced explicitly: blank
-    // VITE_ addresses ('' is not nullish, so it overrides the defaults and
-    // fails the 0x… validation) — exactly what a devnet operator building
-    // against not-yet-deployed contracts sees.
-    const plainDist = join(workDir, 'dist-unconfigured');
-    const plainBuild = spawnSync(
-      'node',
-      [join(ROOT, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', plainDist],
-      {
-        cwd: ROOT,
-        env: {
-          ...process.env,
-          VITE_RPC_URLS: RPC,
-          VITE_FACTORY_ADDRESS: '',
-          VITE_ROUTER_ADDRESS: '',
-          VITE_WFMX_ADDRESS: '',
-          VITE_LOCKER_ADDRESS: '',
-        },
-        encoding: 'utf8',
+    browser = await pw.chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 950 } });
+    await context.addInitScript(
+      ([rpcUrl, account]) => {
+        let id = 0;
+        const listeners = {};
+        window.ethereum = {
+          isFerminuxTestShim: true,
+          async request({ method, params }) {
+            if (method === 'eth_requestAccounts' || method === 'eth_accounts') return [account];
+            // A wallet that has moved to another chain before the page heard about it.
+            if (method === 'eth_chainId' && window.__chainOverride) return window.__chainOverride;
+            const res = await fetch(rpcUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params: params ?? [] }) });
+            const json = await res.json();
+            if (json.error) {
+              const err = new Error(json.error.message);
+              err.code = json.error.code;
+              err.data = json.error.data;
+              throw err;
+            }
+            return json.result;
+          },
+          on(ev, fn) {
+            (listeners[ev] ??= []).push(fn);
+          },
+          removeListener() {},
+        };
       },
+      [fork.rpc, ME],
     );
-    if (plainBuild.status !== 0) throw new Error(`unconfigured build failed:\n${plainBuild.stderr}`);
-    distRoot = plainDist; // the static server reads this on the next request
-    await page.setViewportSize({ width: 1280, height: 950 });
-    await page.goto(pageUrl, { waitUntil: 'networkidle' });
-    await page.waitForSelector('.panel-head:has-text("Not configured")');
-    const missingRows = await page.locator('.row-title').count();
-    assert.equal(missingRows, 4, 'all four unset addresses must be named');
-    assert.equal(await page.locator('.tabs').count(), 0, 'no tabs are offered with nothing to read');
-    await page.screenshot({ path: join(workDir, '10-not-configured.png'), fullPage: true });
-    ok('a build with blanked addresses renders the "Not configured" screen naming all four');
+    page = await context.newPage();
+    const errors = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && !/bsc|bnbchain|publicnode|ERR_NAME_NOT_RESOLVED|Failed to load resource/i.test(msg.text())) errors.push(msg.text());
+    });
+    page.on('pageerror', (e) => errors.push(String(e)));
+    const shot = (name) => page.screenshot({ path: join(work, `${name}.png`), fullPage: true });
+    const go = async (search) => {
+      await page.goto(url + search, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('.topbar');
+    };
 
-    console.log(`\nScreenshots: ${workDir}`);
-    provider.destroy();
+    // ---- shell ------------------------------------------------------------
+    await go('');
+    await page.waitForFunction(() => /Block [1-9]/.test(document.querySelector('[data-testid=foot-block]')?.textContent ?? ''), null, { timeout: 30000 });
+    assert.match(await page.textContent('.topnav'), /Swap.*Pools.*Liquidity.*Charts.*Activity/s);
+    ok('shell: one-bar header with the five pages, live block height in the footer');
+
+    // ---- Pools --------------------------------------------------------------
+    await go('?tab=pools');
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid=pool-row]').length >= 3, null, { timeout: 30000 });
+    await page.waitForFunction(() => !/lock unknown/.test(document.querySelector('[data-testid=pools-table]')?.textContent ?? ''), null, { timeout: 30000 });
+    const rows = await page.locator('[data-testid=pool-row]').allTextContents();
+    if (process.env.DEBUG_UI) console.log(rows);
+    assert.ok(rows.some((r) => /FMX \/ AZNT/.test(r) && /Locked 99\.9/.test(r)), 'the live pool shows LOCKED 99.9%');
+    assert.ok(rows.some((r) => /FMX \/ USDF/.test(r) && /Not locked/.test(r)), 'the fork pool shows Not locked');
+    assert.ok(rows.some((r) => /USDF \/ AZNT|AZNT \/ USDF/.test(r)), 'AZNT/USDF is listed');
+    const usdfRow = rows.find((r) => /FMX \/ USDF/.test(r));
+    assert.match(usdfRow, /\$52\.0K/, 'WFMX/USDF TVL = 50,000 FMX × $0.52 + 26,000 USDF');
+    await shot('01-pools');
+    ok(`Pools: ${rows.length} pools, TVL at the $0.52 basis ($52.0K for WFMX/USDF), LOCKED 99.9% on the live pool`);
+
+    await go(`?tab=pools&pool=${m.usdfPair}`);
+    await page.waitForSelector('[data-testid=pool-detail]');
+    await page.waitForSelector('[data-testid=pool-chart] svg', { timeout: 30000 });
+    const detail = await page.textContent('[data-testid=pool-detail]');
+    assert.match(detail, /Reserves/);
+    assert.match(detail, /Official \$0\.5200/, 'the USD view of FMX carries the official reference');
+    assert.match(detail, /Recent trades/);
+    await shot('02-pool-detail');
+    ok('pool detail: price chart from the pool’s Sync history with the official $0.52 line, reserves, trades, locks');
+
+    // ---- Charts / Analytics --------------------------------------------------
+    await go('?tab=charts');
+    await page.waitForSelector('[data-testid=fmx-chart] svg', { timeout: 30000 });
+    assert.equal((await page.textContent('[data-testid=official-price]')).trim(), '$0.5200');
+    const lines = await page.locator('[data-testid=fmx-chart] path.chart-line').count();
+    assert.ok(lines >= 2, `one line per FMX pool against a peg, saw ${lines}`);
+    await shot('03-charts');
+    await go('?tab=analytics');
+    await page.waitForSelector('[data-testid=tvl-chart]');
+    await page.waitForFunction(() => /\$[\d,]+\.\d\d/.test(document.querySelector('[data-testid=kpi-tvl]')?.textContent ?? ''), null, { timeout: 30000 });
+    const kpi = await page.textContent('[data-testid=kpi-tvl]');
+    assert.match(kpi, /\$[\d,]+\.\d\d/);
+    await page.waitForSelector('[data-testid=volume-chart] svg');
+    await shot('04-analytics');
+    ok(`Charts: official $0.5200 with ${lines} pool lines; Analytics: TVL ${kpi.replace(/[^$\d,.]/g, '')}, TVL and volume charts`);
+
+    // ---- Swap: quotes --------------------------------------------------------
+    await go('');
+    await page.waitForFunction(() => /USDF/.test(document.querySelector('[data-testid=field-out]')?.textContent ?? ''), null, { timeout: 30000 });
+    await page.fill('[data-testid=field-in] input', '100');
+    await page.waitForSelector('[data-testid=quote]', { timeout: 30000 });
+    assert.match(await page.textContent('[data-testid=route]'), /FMX.*USDF/s);
+    assert.equal(await page.locator('[data-testid=route] .route-node').count(), 2, '100 FMX goes direct');
+    const out100 = Number((await page.textContent('[data-testid=field-out] output')).replace(/,/g, ''));
+    assert.ok(out100 > 51 && out100 < 52, `≈ 51.7 USDF for 100 FMX at $0.52, saw ${out100}`);
+    const min1 = await page.textContent('[data-testid=row-min]');
+    await page.click('[data-testid=settings-btn]');
+    await page.click('.modal .seg button:text-is("1%")');
+    await page.click('.modal [aria-label=Close]');
+    await page.waitForFunction((before) => document.querySelector('[data-testid=row-min]')?.textContent !== before, min1, { timeout: 15000 });
+    assert.match(await page.textContent('[data-testid=row-min]'), /1%/);
+    await page.click('[data-testid=settings-btn]');
+    await page.click('.modal .seg button:text-is("0.5%")');
+    await page.click('.modal [aria-label=Close]');
+    ok(`Swap: 100 FMX quoted live → ${out100} USDF direct; slippage setting moves the minimum received`);
+
+    await page.fill('[data-testid=field-in] input', '3000');
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid=route] .route-node').length === 3, null, { timeout: 30000 });
+    assert.match(await page.textContent('[data-testid=route]'), /FMX.*AZNT.*USDF/s);
+    await shot('05-swap-multihop');
+    ok('a 3,000 FMX order routes FMX → AZNT → USDF, as the router prices it best');
+
+    await page.click('[data-testid=field-out] .token-btn');
+    await page.fill('[data-testid=token-search]', 'AZNT');
+    await page.click('.token-row[data-symbol=AZNT]');
+    await page.waitForFunction(() => /AZNT/.test(document.querySelector('[data-testid=field-out] .token-btn')?.textContent ?? ''));
+    await page.click('[data-testid=field-out] .token-btn');
+    await page.fill('[data-testid=token-search]', 'USDF');
+    await page.click('.token-row[data-symbol=USDF]');
+    ok('token picker: search filters, selection switches the output token');
+
+    // ---- wallet and a real swap ---------------------------------------------
+    await page.click('[data-testid=header-connect]');
+    await page.click('[data-testid=choice-injected]');
+    await page.waitForSelector('[data-testid=acct-trigger]', { timeout: 20000 });
+    ok('connected through the chooser (Ferminux Wallet listed first, the injected wallet used)');
+
+    await page.fill('[data-testid=field-in] input', '100');
+    await page.waitForFunction(() => /Review swap/.test(document.querySelector('[data-testid=swap-action]')?.textContent ?? ''), null, { timeout: 30000 });
+    const usdf = { kind: 'erc20', address: USDF, symbol: 'USDF', name: 'USDF', decimals: 6 };
+    const before = await fetchBalance(provider, usdf, ME);
+    await page.click('[data-testid=swap-action]');
+    await page.waitForSelector('.modal:has-text("Review swap")');
+    await shot('06-review');
+    await page.click('[data-testid=confirm-swap]');
+    await page.waitForSelector('[data-testid=tx-done]', { timeout: 60000 });
+    const gained = (await fetchBalance(provider, usdf, ME)) - before;
+    assert.ok(gained > 51_000_000n, `USDF arrived on chain: ${formatUnits(gained, 6)}`);
+    ok(`swapped 100 FMX in the page: +${formatUnits(gained, 6)} USDF on chain`);
+
+    // The wallet switches to chain 56 while the review is open, and the page has not heard yet:
+    // the send asks the wallet first and refuses, so nothing is signed on the wrong chain.
+    await page.fill('[data-testid=field-in] input', '10');
+    await page.waitForFunction(() => /Review swap/.test(document.querySelector('[data-testid=swap-action]')?.textContent ?? ''), null, { timeout: 30000 });
+    const nonceBefore = await provider.getTransactionCount(ME);
+    await page.click('[data-testid=swap-action]');
+    await page.waitForSelector('[data-testid=confirm-swap]');
+    await page.evaluate(() => {
+      window.__chainOverride = '0x38';
+    });
+    await page.click('[data-testid=confirm-swap]');
+    await page.waitForFunction(() => /not Ferminux/.test(document.querySelector('[data-testid=tx-error]')?.textContent ?? ''), null, { timeout: 15000 });
+    await page.evaluate(() => {
+      window.__chainOverride = null;
+    });
+    assert.equal(await provider.getTransactionCount(ME), nonceBefore, 'nothing was sent while the wallet was on another chain');
+    ok('a wallet that left Ferminux while the review was open is refused before anything is signed');
+
+    // USDF → FMX needs an approval first: exact amount by default.
+    await page.click('[data-testid=flip]');
+    await page.fill('[data-testid=field-in] input', '20');
+    await page.waitForFunction(() => /Approve USDF/.test(document.querySelector('[data-testid=swap-action]')?.textContent ?? ''), null, { timeout: 30000 });
+    assert.match(await page.textContent('[data-testid=approve-steps]'), /exactly 20 USDF/);
+    await page.click('[data-testid=swap-action]');
+    await page.waitForFunction(() => /Review swap/.test(document.querySelector('[data-testid=swap-action]')?.textContent ?? ''), null, { timeout: 60000 });
+    assert.equal(await fetchAllowance(provider, usdf, ME, DEX_ADDRESSES.router), 20_000_000n, 'the router may move exactly 20 USDF');
+    const fmxBefore = await provider.getBalance(ME);
+    await page.click('[data-testid=swap-action]');
+    await page.click('[data-testid=confirm-swap]');
+    await page.waitForFunction(() => /Swapped 20 USDF/.test(document.querySelector('[data-testid=tx-done]')?.textContent ?? ''), null, { timeout: 60000 });
+    assert.ok((await provider.getBalance(ME)) > fmxBefore, 'native FMX arrived');
+    assert.equal(await fetchAllowance(provider, usdf, ME, DEX_ADDRESSES.router), 0n, 'the exact approval was used up');
+    ok('USDF → FMX: approve exactly 20 USDF, then swap; native FMX received, allowance back to 0');
+
+    // ---- Liquidity ----------------------------------------------------------
+    await go('?tab=liquidity');
+    await page.waitForFunction(() => /USDF/.test(document.querySelector('[data-testid=liq-b] .token-btn')?.textContent ?? ''), null, { timeout: 30000 });
+    await page.fill('[data-testid=liq-a] input', '50');
+    await page.waitForFunction(() => Number(document.querySelector('[data-testid=liq-b] input')?.value) > 25, null, { timeout: 15000 });
+    const derived = Number(await page.inputValue('[data-testid=liq-b] input'));
+    assert.ok(Math.abs(derived - 26) < 0.5, `50 FMX pairs with ≈ 26 USDF at the pool ratio, saw ${derived}`);
+    await page.click('[data-testid=liq-action]'); // Approve USDF
+    await page.waitForFunction(() => /Add liquidity/.test(document.querySelector('[data-testid=liq-action]')?.textContent ?? ''), null, { timeout: 60000 });
+    await page.click('[data-testid=liq-action]');
+    await page.waitForFunction(() => /Added 50 FMX/.test(document.body.textContent ?? ''), null, { timeout: 60000 });
+    await page.waitForSelector('[data-testid=position]', { timeout: 30000 });
+    await page.locator('[data-testid=position] .position-head').first().click();
+    await page.click('.position-body .seg button:text-is("50%")');
+    assert.match(await page.textContent('[data-testid=remove-receive]'), /FMX.*USDF/s);
+    await shot('07-liquidity');
+    await page.locator('.position-body .btn-primary').first().click(); // approve LP
+    await page.waitForSelector('[data-testid=remove-action]', { timeout: 60000 });
+    await page.click('[data-testid=remove-action]');
+    await page.waitForFunction(() => /Removed 50%/.test(document.body.textContent ?? ''), null, { timeout: 60000 });
+    ok(`Liquidity: 50 FMX + ${derived} USDF added at the ratio, position listed, 50% removed`);
+
+    // ---- Activity -----------------------------------------------------------
+    await go('?tab=activity');
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid=activity-swap]').length >= 2, null, { timeout: 60000 });
+    const act = await page.textContent('[data-testid=activity]');
+    assert.match(act, /Swapped FMX for USDF/);
+    assert.match(act, /Swapped USDF for FMX/);
+    assert.match(act, /Added liquidity/);
+    assert.match(act, /Removed liquidity/);
+    assert.match(act, /Approved USDF for the router/);
+    await shot('08-activity');
+    ok('Activity: both swaps, the deposit, the withdrawal and the approvals, read from the chain');
+
+    // ---- Bridge tab (opt-in build) -------------------------------------------
+    await go('?tab=bridge');
+    await page.waitForSelector('[data-testid=bridge-gate]', { timeout: 30000 });
+    assert.match(await page.textContent('[data-testid=bridge-gate]'), /unavailable from Ferminux.*paused/is);
+    ok('Bridge tab (VITE_ENABLE_BRIDGE=1) mounts and gates on the relayer report');
+
+    // ---- every page at 320 / 390 / 1440 --------------------------------------
+    const pages = ['', '?tab=pools', `?tab=pools&pool=${m.usdfPair}`, '?tab=liquidity', '?tab=charts', '?tab=analytics', '?tab=activity'];
+    const overflowed = [];
+    for (const w of WIDTHS) {
+      await page.setViewportSize({ width: w, height: w < 800 ? 740 : 950 });
+      for (const p of pages) {
+        await go(p);
+        await page.waitForTimeout(1500);
+        const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        if (over > 1) overflowed.push(`${w}px ${p || 'swap'}: ${over}px`);
+        await page.screenshot({ path: join(work, `w${w}-${(p || 'swap').replace(/[^a-z0-9]+/gi, '_')}.png`), fullPage: true });
+      }
+    }
+    assert.deepEqual(overflowed, [], `horizontal scroll: ${overflowed.join('; ')}`);
+    ok(`no horizontal scroll on ${pages.length} pages × ${WIDTHS.join('/')} px`);
+
+    assert.deepEqual(errors, [], `console errors: ${errors.join(' | ')}`);
+    ok('no console errors or page exceptions');
+
+    // ---- a build with blanked addresses ---------------------------------------
+    distRoot = join(work, 'dist-unconfigured');
+    build(distRoot, { VITE_RPC_URLS: fork.rpc, VITE_FACTORY_ADDRESS: '', VITE_ROUTER_ADDRESS: '', VITE_WFMX_ADDRESS: '', VITE_LOCKER_ADDRESS: '' });
+    await page.setViewportSize({ width: 1440, height: 950 });
+    await go('');
+    await page.waitForSelector('[data-testid=not-configured]');
+    assert.equal(await page.locator('[data-testid=not-configured] .row').count(), 4);
+    ok('a build with blanked addresses says "Not configured" and names all four');
+
+    console.log(`\nScreenshots: ${work}`);
+  } catch (err) {
+    if (page) {
+      await page.screenshot({ path: join(work, 'FAILED.png'), fullPage: true }).catch(() => {});
+      console.error(`\nState at failure: ${join(work, 'FAILED.png')}`);
+    }
+    // Any transaction that reverted on the fork, with the reason the trace gives.
+    if (provider) {
+      const head = await provider.getBlockNumber().catch(() => 0);
+      for (let b = head; b > head - 12 && b > 0; b--) {
+        const block = await provider.getBlock(b).catch(() => null);
+        for (const h of block?.transactions ?? []) {
+          const r = await provider.getTransactionReceipt(h).catch(() => null);
+          if (r && r.status === 0) {
+            const t = await provider.getTransaction(h);
+            const trace = await provider.send('debug_traceTransaction', [h, { tracer: 'callTracer' }]).catch((e) => ({ error: String(e) }));
+            console.error(`reverted ${h} to ${t.to} gas ${r.gasUsed}/${t.gasLimit} error ${trace.error ?? ''} ${trace.revertReason ?? ''} output ${String(trace.output ?? '').slice(0, 200)}`);
+            console.error(JSON.stringify(trace).slice(0, 1500));
+          }
+        }
+      }
+    }
+    throw err;
   } finally {
     if (browser) await browser.close().catch(() => {});
     if (server) await new Promise((r) => server.close(r));
-    anvil.kill('SIGTERM');
-    await Promise.race([anvilExit, new Promise((r) => setTimeout(r, 5000))]);
-    if (anvil.exitCode === null) anvil.kill('SIGKILL');
-    await anvilExit;
+    provider?.destroy();
+    await fork.stop();
   }
-
   console.log('\nUI check: all assertions passed.');
 }
 

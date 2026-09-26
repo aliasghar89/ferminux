@@ -9,7 +9,7 @@ import { formatAmount, formatAmountExact, shortAddress } from '../lib/validate.t
 import type { AssetRef } from '../lib/portfolio.ts';
 import { loadViewPrefs, saveViewPrefs, type ViewPrefs } from '../state/storage.ts';
 import { CopyButton, QrCanvas } from '../components/ui.tsx';
-import { IconExternal, IconReceive, IconScan, IconSend, IconShield, IconAlert, IconUsers } from '../components/icons.tsx';
+import { IconExternal, IconReceive, IconScan, IconSend, IconShield, IconAlert, IconSwap, IconUsers } from '../components/icons.tsx';
 import { fmxMark } from '../components/Brand.tsx';
 import { AssetsPanel } from './AssetsPanel.tsx';
 import { useLockMs } from './prefs.ts';
@@ -26,6 +26,7 @@ export function HomeScreen({
   portfolio,
   onSend,
   onReceive,
+  onSwap,
   onScan,
   onOpenAsset,
   onManageAccounts,
@@ -35,6 +36,7 @@ export function HomeScreen({
   portfolio: PortfolioApi;
   onSend: () => void;
   onReceive: () => void;
+  onSwap: () => void;
   onScan: () => void;
   onOpenAsset: (a: AssetRef) => void;
   onManageAccounts: () => void;
@@ -136,6 +138,9 @@ export function HomeScreen({
             </button>
             <button className="btn" data-testid="receive-open" onClick={onReceive}>
               <IconReceive /> Receive
+            </button>
+            <button className="btn" data-testid="swap-open" onClick={onSwap}>
+              <IconSwap /> Swap
             </button>
             <button className="btn" data-testid="home-scan" onClick={onScan}>
               <IconScan /> Scan

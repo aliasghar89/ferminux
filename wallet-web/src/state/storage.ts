@@ -10,7 +10,8 @@
 //      (hashes, addresses, amounts) — public on-chain data, but it names the
 //      wallet's own address, so it is written only while the vault is
 //      remembered and removed with it
-//   4. view preferences (hide zero balances, chain filter)
+//   4. view preferences (hide zero balances, chain filter) and the swap
+//      settings (slippage, deadline, approval mode) — no address, no amount
 // WalletConnect keeps its own store (IndexedDB): session metadata and the
 // per-session relay encryption keys. It never sees a wallet key.
 // Plaintext keys, mnemonics and passwords are NEVER written anywhere.
@@ -39,6 +40,8 @@ import {
   serializeLocalActivity,
   type LocalTx,
 } from '../lib/localActivity.ts';
+
+import { SWAP_SETTINGS_KEY, parseSwapSettings, serializeSwapSettings, type SwapSettings } from '../lib/swap.ts';
 
 import { vaultMirror } from '../platform/index.ts';
 
@@ -186,6 +189,15 @@ export function loadViewPrefs(): ViewPrefs {
 
 export function saveViewPrefs(prefs: ViewPrefs): void {
   safeSet(PREFS_KEY, JSON.stringify(prefs));
+}
+
+/** Swap settings: slippage, deadline and approval mode. Defaults when unset or unreadable. */
+export function loadSwapSettings(): SwapSettings {
+  return parseSwapSettings(safeGet(SWAP_SETTINGS_KEY));
+}
+
+export function saveSwapSettings(settings: SwapSettings): void {
+  safeSet(SWAP_SETTINGS_KEY, serializeSwapSettings(settings));
 }
 
 /** Set once WalletConnect has been used here, so a later unlock reconnects saved sessions. */

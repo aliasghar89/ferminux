@@ -188,3 +188,10 @@ export const IconAlert = (p: P) => (
     <path d="M12 10v4.5M12 17h.01" />
   </Svg>
 );
+/** Two opposed arrows: Swap. */
+export const IconSwap = (p: P) => (
+  <Svg {...p}>
+    <path d="M7 4v14M3.5 7.5 7 4l3.5 3.5" />
+    <path d="M17 20V6M20.5 16.5 17 20l-3.5-3.5" />
+  </Svg>
+);

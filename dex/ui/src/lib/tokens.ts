@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// The token model, and every ERC-20 read/write the app performs.
+// The token model, and every FRC-20 read/write the app performs.
 //
 // Native FMX is modelled as a token with `kind: 'native'` whose `address` is
 // the WFMX contract — because that IS the token the pools hold. Routing can
@@ -41,7 +41,7 @@ export function nativeToken(wfmxAddress: string): TokenInfo {
   };
 }
 
-/** Wrapped FMX as a plain ERC-20 (what a pool actually holds). */
+/** Wrapped FMX as a plain FRC-20 (what a pool actually holds). */
 export function wfmxToken(wfmxAddress: string): TokenInfo {
   return {
     kind: 'erc20',
@@ -76,7 +76,7 @@ export function erc20(address: string, runner: ContractRunner): Contract {
 
 /**
  * Read a token's metadata from chain. Throws with a readable message if the
- * address has no code or does not answer the ERC-20 interface.
+ * address has no code or does not answer the FRC-20 interface.
  */
 export async function fetchTokenMeta(runner: ContractRunner, address: string): Promise<TokenInfo> {
   const checksummed = toChecksum(address);
@@ -97,7 +97,7 @@ export async function fetchTokenMeta(runner: ContractRunner, address: string): P
   }
 }
 
-/** Balance of `owner` in `token`, native or ERC-20. */
+/** Balance of `owner` in `token`, native or FRC-20. */
 export async function fetchBalance(runner: ContractRunner, token: TokenInfo, owner: string): Promise<bigint> {
   if (token.kind === 'native') {
     const provider = runner.provider;
@@ -121,10 +121,21 @@ export async function fetchAllowance(
   return (await erc20(token.address, runner).allowance(toChecksum(owner), toChecksum(spender))) as bigint;
 }
 
+/** The largest uint256: what an "unlimited" approval grants. */
+export const MAX_UINT256 = 2n ** 256n - 1n;
+
+/** Allowances this large are shown as "unlimited" rather than as a 78-digit number. */
+export function isUnlimitedAllowance(value: bigint): boolean {
+  return value >= 2n ** 255n;
+}
+
 /**
- * Approve exactly `amount` — not an unbounded allowance. Costs one approval
- * per trade and in exchange the router can never move more than the trade
- * the user actually signed for.
+ * Approve `amount` for `spender`. The app passes the exact trade amount by
+ * default: one approval per trade, and the router can never move more than the
+ * trade the user signed for. An unlimited approval (MAX_UINT256) is only sent
+ * when the user has switched it on in the settings, with the warning that it
+ * lets the router contract move every unit of that token the wallet will ever
+ * hold.
  */
 export async function approveToken(
   signer: ContractRunner,
@@ -139,7 +150,7 @@ export async function approveToken(
   )) as ContractTransactionResponse;
 }
 
-/** Total supply of an ERC-20 (used for LP tokens). */
+/** Total supply of an FRC-20 (used for LP tokens). */
 export async function fetchTotalSupply(runner: ContractRunner, address: string): Promise<bigint> {
   return (await erc20(address, runner).totalSupply()) as bigint;
 }

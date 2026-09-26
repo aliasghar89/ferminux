@@ -11,6 +11,7 @@ import type { AssetRef } from '../lib/portfolio.ts';
 import { usePortfolio } from '../state/usePortfolio.ts';
 import { useLocalActivity } from '../state/useLocalActivity.ts';
 import { SendPanel, type SendSelection } from './SendPanel.tsx';
+import { SwapPanel } from './SwapPanel.tsx';
 import { ActivityPanel } from './ActivityPanel.tsx';
 import { LocalActivity } from './LocalActivity.tsx';
 import { NftsPanel } from './NftsPanel.tsx';
@@ -58,6 +59,7 @@ const TITLES: Record<Route['name'], string | null> = {
   home: null,
   asset: 'Asset',
   send: 'Send',
+  swap: 'Swap',
   nfts: 'NFTs',
   activity: 'Activity',
   connect: 'Connect',
@@ -87,6 +89,8 @@ export function WalletHome({
   const [pendingScan, setPendingScan] = useState<QrTarget | null>(null);
   const [pendingWc, setPendingWc] = useState<string | null>(null);
   const [sendSel, setSendSel] = useState<SendSelection>({ chainId: CHAIN_ID, asset: null });
+  // The token an asset screen's Swap button chose to sell ("native" or its address).
+  const [swapFrom, setSwapFrom] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activityChain, setActivityChain] = useState<number>(CHAIN_ID);
   const [siteCount, setSiteCount] = useState(() => loadSites().length);
@@ -131,6 +135,10 @@ export function WalletHome({
     go({ name: 'send' });
   };
   const openAsset = (a: AssetRef) => go({ name: 'asset', chainId: a.chainId, address: a.address });
+  const openSwap = (fromKey: string | null) => {
+    setSwapFrom(fromKey);
+    go({ name: 'swap' });
+  };
 
   let screen: JSX.Element;
   switch (route.name) {
@@ -142,6 +150,7 @@ export function WalletHome({
           portfolio={portfolio}
           onSend={() => openSend({ chainId: CHAIN_ID, asset: null })}
           onReceive={() => setReceiveOpen(true)}
+          onSwap={() => openSwap(null)}
           onScan={() => setScanOpen(true)}
           onOpenAsset={openAsset}
           onManageAccounts={() => onManageAccounts('list')}
@@ -156,6 +165,7 @@ export function WalletHome({
           address={route.address}
           onBack={back}
           onSend={(a) => openSend({ chainId: a.chainId, asset: a.address })}
+          onSwap={(a) => openSwap(a.address ? a.address.toLowerCase() : 'native')}
           onReceive={() => setReceiveOpen(true)}
           onRemoved={() => go({ name: 'home' }, { replace: true })}
           onRefresh={balances.refresh}
@@ -181,6 +191,24 @@ export function WalletHome({
             onStatus={local.setStatus}
             initialScan={pendingScan}
             onScanUsed={() => setPendingScan(null)}
+          />
+        </>
+      );
+      break;
+    case 'swap':
+      screen = (
+        <>
+          <BackButton onClick={back} label="Back" />
+          <ScreenHead title="Swap" />
+          <SwapPanel
+            // A new account or starting token starts a clean form.
+            key={`${active.id}:${swapFrom ?? ''}`}
+            api={api}
+            chain={chain}
+            portfolio={portfolio}
+            from={swapFrom}
+            onSent={afterSend}
+            onAddFunds={() => setReceiveOpen(true)}
           />
         </>
       );
@@ -261,7 +289,7 @@ export function WalletHome({
       title={TITLES[route.name]}
       banner={banner}
     >
-      <div key={route.name + (route.name === 'asset' ? `${route.chainId}${route.address}` : '')} className={'page view-enter' + (route.name === 'home' || route.name === 'nfts' ? ' page-wide' : '')}>
+      <div key={route.name + (route.name === 'asset' ? `${route.chainId}${route.address}` : '')} className={'page view-enter' + (route.name === 'home' || route.name === 'nfts' || route.name === 'swap' ? ' page-wide' : '')}>
         {screen}
       </div>
 

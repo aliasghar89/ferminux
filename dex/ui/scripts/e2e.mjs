@@ -251,7 +251,7 @@ async function main() {
     const fiveFmx = parseEther('5');
     const q1 = await quoteSwap(provider, addresses, index, fmx, seedToken, fiveFmx, {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     assert.deepEqual(q1.route.path, [addresses.wfmx, seedToken.address]);
     assert.equal(q1.localMatchesChain, true, 'the locally chosen route must price identically on chain');
@@ -291,7 +291,7 @@ async function main() {
     const beforeSeed = await fetchBalance(provider, seedToken, trader.address);
     const swapQuote = await quoteSwap(provider, addresses, index, fmx, seedToken, parseEther('10'), {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     const plan = planSwap(swapQuote, 20);
     assert.equal(plan.method, 'swapExactFMXForTokens');
@@ -314,7 +314,7 @@ async function main() {
 
     const hopQuote = await quoteSwap(provider, addresses, index, seedToken, azntToken, hopIn, {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     assert.deepEqual(hopQuote.route.path, [seedToken.address, addresses.wfmx, azntToken.address]);
     assert.equal(hopQuote.totalFeeBps, 60, 'two hops cost 0.60%');
@@ -332,7 +332,7 @@ async function main() {
     await (await approveToken(trader, seedToken, addresses.router, sellSeed)).wait();
     const sellQuote = await quoteSwap(provider, addresses, index, seedToken, fmx, sellSeed, {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     assert.equal(planSwap(sellQuote, 20).method, 'swapExactTokensForFMX');
     const fmxBefore = await provider.getBalance(trader.address);
@@ -347,7 +347,7 @@ async function main() {
     index = buildPairIndex(pairs);
     const boundQuote = await quoteSwap(provider, addresses, index, fmx, seedToken, parseEther('1'), {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     const impossible = { ...boundQuote, minimumReceived: boundQuote.amountOut * 2n };
     await assert.rejects(
@@ -366,18 +366,18 @@ async function main() {
     // --- 12. price-impact thresholds ---
     const smallQuote = await quoteSwap(provider, addresses, index, fmx, seedToken, parseEther('1'), {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     const bigQuote = await quoteSwap(provider, addresses, index, fmx, seedToken, parseEther('1200'), {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     assert.equal(impactLevel(smallQuote.priceImpactBps), 'ok');
     assert.equal(impactLevel(bigQuote.priceImpactBps), 'severe');
     assert.ok(bigQuote.priceImpactBps >= 1000, `expected ≥10% impact, got ${bigQuote.priceImpactBps} bps`);
     const warnQuote = await quoteSwap(provider, addresses, index, fmx, seedToken, parseEther('200'), {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     assert.equal(impactLevel(warnQuote.priceImpactBps), 'warn');
     ok(`impact thresholds: 1 FMX = ${formatPpmPercent(smallQuote.priceImpactPpm)} (ok), 200 FMX = ${formatPpmPercent(warnQuote.priceImpactPpm)} (warn), 1200 FMX = ${formatPpmPercent(bigQuote.priceImpactPpm)} (severe)`);
@@ -529,11 +529,11 @@ async function main() {
     // The router now prefers the direct pool for a small SEED → AZNT trade.
     pairs = await loadAllPairs(provider, addresses, cache);
     index = buildPairIndex(pairs);
-    const directRoute = bestRoute(index, seedToken.address, azntToken.address, parseEther('1'), [addresses.wfmx]);
+    const directRoute = bestRoute(index, seedToken.address, azntToken.address, parseEther('1'));
     assert.deepEqual(directRoute.path, [seedToken.address, azntToken.address]);
     const directQuote = await quoteSwap(provider, addresses, index, seedToken, azntToken, parseEther('1'), {
       slippageBps: 50,
-      bases: [addresses.wfmx],
+      maxHops: 3,
     });
     assert.equal(directQuote.route.path.length, 2);
     assert.equal(directQuote.localMatchesChain, true);

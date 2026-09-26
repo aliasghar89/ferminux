@@ -19,7 +19,7 @@ import { ROUTER_ABI, WFMX_ABI } from './abi.ts';
 import { toChecksum } from './amounts.ts';
 import { FEE_BPS, deadlineFromNow, minimumReceived, priceImpactPpm } from './math.ts';
 import type { PairIndex } from './pairs.ts';
-import { bestRoute, type Route } from './route.ts';
+import { rankRoutes, type Route } from './route.ts';
 import { fetchAllowance, isWrapPair, type TokenInfo } from './tokens.ts';
 import { PRICE_IMPACT_CONFIRM_BPS, PRICE_IMPACT_WARN_BPS, type DexAddresses } from '../config.ts';
 
@@ -35,11 +35,18 @@ export interface SwapQuote {
   tokenIn: TokenInfo;
   tokenOut: TokenInfo;
   amountIn: bigint;
-  /** Authoritative output — straight from the router's own getAmountsOut. */
+  /** Authoritative output: straight from the router's own getAmountsOut. */
   amountOut: bigint;
   /** Every intermediate amount the router reported, one per path entry. */
   amounts: bigint[];
   route: Route;
+  /**
+   * The other routes that were checked against the router, best first, each
+   * with the router's own output for this size. Empty for a single-path pair.
+   */
+  alternatives: Array<{ route: Route; amountOut: bigint }>;
+  /** How many candidate paths the local search priced. */
+  routesConsidered: number;
   /** False when the on-chain quote differs from the locally priced one. */
   localMatchesChain: boolean;
   priceImpactPpm: bigint;
@@ -47,7 +54,7 @@ export interface SwapQuote {
   /** `amountOutMin` that will be sent to the router. */
   minimumReceived: bigint;
   slippageBps: number;
-  /** 30 bps per hop — the pool fee, not a protocol fee. */
+  /** 30 bps per hop: the pool fee, not a protocol fee. */
   totalFeeBps: number;
 }
 
@@ -62,14 +69,23 @@ export function impactLevel(bps: number): ImpactLevel {
 
 export class NoRouteError extends Error {
   constructor(symbolIn: string, symbolOut: string) {
-    super(`No pool route from ${symbolIn} to ${symbolOut}. Someone has to seed that pool first.`);
+    super(`No pool route from ${symbolIn} to ${symbolOut}. Someone has to seed a pool that connects them first.`);
     this.name = 'NoRouteError';
   }
 }
 
+/** How many of the locally best routes are re-priced by the router per quote. */
+export const ROUTER_CHECKED_ROUTES = 3;
+
 /**
- * Price a swap. `index` supplies the reserves for route selection; the router
- * supplies the amounts that get displayed and signed for.
+ * Price a swap.
+ *
+ * The local search (lib/route.ts) prices every path over every seeded pool and
+ * ranks them. The best few are then priced again by the router itself
+ * (`getAmountsOut`, one call each, in parallel) and the route the ROUTER says
+ * pays the most is the one displayed and signed for. If reserves moved between
+ * the pool read and the quote, the router's numbers win and the quote is
+ * flagged so the UI can say so.
  */
 export async function quoteSwap(
   runner: ContractRunner,
@@ -78,35 +94,54 @@ export async function quoteSwap(
   tokenIn: TokenInfo,
   tokenOut: TokenInfo,
   amountIn: bigint,
-  options: { slippageBps: number; bases: string[] },
+  options: { slippageBps: number; maxHops?: number },
 ): Promise<SwapQuote> {
   if (amountIn <= 0n) throw new Error('Enter an amount to swap.');
-  const local = bestRoute(index, tokenIn.address, tokenOut.address, amountIn, options.bases);
-  if (!local) throw new NoRouteError(tokenIn.symbol, tokenOut.symbol);
+  const ranked = rankRoutes(index, tokenIn.address, tokenOut.address, amountIn, { maxHops: options.maxHops });
+  if (ranked.length === 0) throw new NoRouteError(tokenIn.symbol, tokenOut.symbol);
 
-  const onChain = (await routerContract(addresses, runner).getAmountsOut(amountIn, local.path)) as bigint[];
-  const amounts = onChain.map((a) => BigInt(a));
-  const amountOut = amounts[amounts.length - 1];
-  if (amountOut <= 0n) throw new Error('This pool is too shallow to fill that trade.');
+  const router = routerContract(addresses, runner);
+  const checked = ranked.slice(0, ROUTER_CHECKED_ROUTES);
+  const results = await Promise.all(
+    checked.map(async (route) => {
+      try {
+        const onChain = (await router.getAmountsOut(amountIn, route.path)) as bigint[];
+        return { route, amounts: onChain.map((a) => BigInt(a)) };
+      } catch {
+        return null; // a pool drained since the index was read: skip that path
+      }
+    }),
+  );
+  const priced = results
+    .filter((r): r is { route: Route; amounts: bigint[] } => r !== null)
+    .map((r) => ({ ...r, amountOut: r.amounts[r.amounts.length - 1] }))
+    .filter((r) => r.amountOut > 0n)
+    .sort((a, b) =>
+      a.amountOut !== b.amountOut ? (a.amountOut > b.amountOut ? -1 : 1) : a.route.path.length - b.route.path.length,
+    );
+  if (priced.length === 0) throw new Error('These pools are too shallow to fill that trade.');
 
-  const localMatchesChain = amountOut === local.amountOut;
+  const best = priced[0];
+  const localMatchesChain = best.amountOut === best.route.amountOut;
   // Impact is recomputed from the on-chain output so the percentage always
   // describes the number on the screen, not the one we guessed.
-  const ppm = priceImpactPpm(amountIn, amountOut, local.hops);
+  const ppm = priceImpactPpm(amountIn, best.amountOut, best.route.hops);
 
   return {
     tokenIn,
     tokenOut,
     amountIn,
-    amountOut,
-    amounts,
-    route: local,
+    amountOut: best.amountOut,
+    amounts: best.amounts,
+    route: best.route,
+    alternatives: priced.slice(1).map((p) => ({ route: p.route, amountOut: p.amountOut })),
+    routesConsidered: ranked.length,
     localMatchesChain,
     priceImpactPpm: ppm,
     priceImpactBps: Number(ppm / 100n),
-    minimumReceived: minimumReceived(amountOut, options.slippageBps),
+    minimumReceived: minimumReceived(best.amountOut, options.slippageBps),
     slippageBps: options.slippageBps,
-    totalFeeBps: FEE_BPS * local.hops.length,
+    totalFeeBps: FEE_BPS * best.route.hops.length,
   };
 }
 

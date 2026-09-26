@@ -85,6 +85,50 @@ contract; only chain id, address and that metadata are stored).
   an id another wallet took says so, a changed price asks for a new review, and
   a mint that loses the race inside a block is reported as reverted with only
   the fee spent. `npm run mint-smoke` drives all of it on an anvil fork.
+- **Swap** (Home → Swap, or Swap on a Ferminux asset; `src/lib/swap.ts`,
+  `src/views/SwapPanel.tsx`): any two tokens on the Ferminux Network through the
+  Ferminux DEX (factory `0x2034…7040`, router `0x018C…BA9f`, WFMX `0x8a9A…77Ae`,
+  checked against the deployment record in `tests/swap.test.mjs`), from the
+  active account, on chain 3961 only — the screen says so, and no swap is
+  offered on the other seven networks. What the wallet does:
+  - **Tokens**: FMX, WFMX, USDF and AZNT always, plus any FRC-20 the user added
+    under Assets once it sits in a pool with liquidity. FMX trades as WFMX
+    inside the pools; FMX ⇄ WFMX is a 1 : 1 wrap/unwrap on WFMX
+    (`deposit()` / `withdraw(amount)`), never a trade.
+  - **Route**: the pools between those tokens are read in two JSON-RPC batches
+    (`getPair` from the factory registry, then `getReserves`); every path of up
+    to three pools is priced locally with the pool's own math
+    (`FerminuxLibrary.sol` in bigint, same rounding) and the one that pays the
+    most wins, a tie going to the shorter. Only WFMX and the first-party tokens
+    (`shared/tokens.ts`) may sit in the middle of a route, so an arbitrary
+    token's code never runs as a hop.
+  - **Quote**: as the user types, from pools read at most a few seconds before;
+    at Review, from the router's own `getAmountsOut` on the chosen path — the
+    number on the confirm screen and the one the minimum is taken from. Price
+    impact is shown apart from the 0.30%-per-pool fee: a warning from 3%, and
+    from 10% Review stays locked until the user ticks that they accept it.
+  - **Bounds**: minimum received = quote × (1 − slippage), rounded down;
+    slippage 0.1 / 0.5 (default) / 1% or custom up to 50%, with a caution
+    outside 0.05–5%; the deadline (20 min by default) is counted from the
+    chain's latest block, not the phone's clock. The router enforces both. The
+    recipient is always the signing account.
+  - **Approval**: a token sold for the first time is approved to the router
+    first, as its own step on the wallet's confirm screen — **exactly the
+    swap's amount by default** (unlimited only when chosen in the swap settings,
+    with a danger notice). The swap itself is prepared once the approval is in
+    a block.
+  - **Confirm screen**: the same one as Send and Mint — network banner,
+    contract, method signature, amounts in and out, minimum, route, price
+    impact, pool fees, deadline, worst-case network fee, what was checked, and
+    the nonce, gas, fee fields, path and calldata under Transaction details.
+  - **Before signing**: balances, allowance, the router's quote and the
+    deadline are read once more in one batch; a swap that would now pay less
+    than its minimum, or could not pay its fee, is refused with nothing signed
+    ("The price moved: …"). After it: the amount received is read from the last
+    pool's `Swap` event; a revert says only the fee was spent.
+  - Settings (slippage, deadline, approval mode) are the only thing stored:
+    `ferminux.wallet.swap.v1`, no address, no amount.
+  `npm run swap-smoke` drives it on an anvil fork (below).
 
 ## WalletConnect
 
@@ -192,6 +236,8 @@ is the submission, with its icons in `docs/walletconnect-listing/`.
   remove. A pre-multi-chain token list (`ferminux.wallet.tokens.v1`, bare
   Ferminux addresses) is resolved into the new list on first load.
 - **NFTs** and **Connect** (WalletConnect) — see the sections above.
+- **Swap** — the Ferminux DEX from Home, chain 3961 only, with the wallet's own
+  approval and confirm steps — see *Swap* above.
 - **Activity** — for Ferminux, one chronological feed merging **Sent**,
   **Received** and **Signed** block-reward rows from the Blockscout v2 API, with
   a graceful "history unavailable" fallback; the wallet is fully functional
@@ -417,6 +463,7 @@ npm run e2e          # full data-layer e2e against a local anvil (see below)
 npm run ui           # headless-browser check of the multi-account UI (see below)
 npm run smoke        # multi-chain browser smoke on anvil forks of 3961 + BSC (see below)
 npm run mint-smoke   # NFTs → Mint at 390 and 1440 px on an anvil fork of 3961 (both collections, races, short balance)
+npm run swap-smoke   # Home → Swap at 390 and 1440 px on an anvil fork of 3961 (approvals, multi-pool routes, price moves)
 npm run live         # READ-ONLY check against the real chain-3961 explorer
 npm run build        # tsc --noEmit + vite build + external-URL guard on dist/
 npm run preview      # serve the production build locally
@@ -548,7 +595,23 @@ decoded with `createImageBitmap`, which needs no URL at all; `blob:` in
   node --test tests/nft.test.mjs       # ownerOf scan, tokenURI metadata, explorer parse, image policy
   node --test tests/storage-lists.test.mjs # added tokens, sent-tx log, text hygiene
   node --test tests/walletconnect.test.mjs # pairing codes, proposals, every request, fake-WalletKit controller
+  node --test tests/swap.test.mjs      # DEX math vs Solidity, routes (1–3 pools), impact, calls, pre-check, settings
   ```
+- `npm run swap-smoke` (`scripts/swap-smoke.mjs`) forks **Ferminux (3961)** into
+  a local anvil (port 28591) and, on the fork only, seeds a WFMX/USDF pool at the
+  official **$0.52 per FMX** from the treasury (impersonated) unless the chain
+  already has one. At **390×844 touch**: FMX → USDF, USDF → AZNT (exact
+  approval as step 1, then the route through WFMX) and AZNT → FMX (Max), each
+  quote checked against the router's `getAmountsOut`, each confirm screen
+  (contract, method, amounts), each receipt, balance and allowance on the fork;
+  then a 20,000 FMX trade lands between the confirm screen and Sign and the
+  swap is refused with nothing broadcast; no sideways scroll at 320–430 px. It
+  then seeds a USDF/AZNT pool at the gateway's basis (1 USD = 1.70 AZN) and at
+  **1440×900**: FMX → AZNT takes the best of every candidate route on the
+  router, a 100,000 FMX trade is flagged as severe impact and Review waits for
+  the acknowledgement, FMX → WFMX is `deposit()`, and an asset's Swap button
+  starts the form from that asset (none on another network).
+  `PLAYWRIGHT_MODULE=…/playwright/index.mjs npm run swap-smoke`.
 - `npm run smoke` (`scripts/multichain-smoke.mjs`) forks **Ferminux (3961)** and
   **BSC (56)** into two local anvils (ports 8561/8562), builds the bundle with
   those two networks pointed at the forks (the other six keep their public RPCs,

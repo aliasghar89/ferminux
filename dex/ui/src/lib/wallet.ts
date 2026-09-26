@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import { BrowserProvider, type JsonRpcSigner } from 'ethers';
+import { CHAIN_ID } from '../config.ts';
 import {
   ChainSetupError,
   FERMINUX_ADD_CHAIN_PARAMS,
@@ -52,6 +53,29 @@ export async function connectWallet(eth: Eip1193Provider | undefined = injected(
   const network = await provider.getNetwork();
   const signer = await provider.getSigner();
   return { provider, signer, address: await signer.getAddress(), chainId: Number(network.chainId) };
+}
+
+/**
+ * The signer, but only while the wallet is on chain 3961 right now.
+ *
+ * `wrongChain` is the page's view of the wallet, and a chain switch reaches it
+ * asynchronously: a review dialog can stay open across a switch, and the
+ * rebuild after a chainChanged event lands some time later. eth_sendTransaction
+ * carries no chain id, so a wallet that moved to another network would sign
+ * the call there, sending value to whatever lives at the router or WFMX
+ * address on that chain. Every DEX transaction asks the wallet first.
+ */
+export async function ferminuxSigner(state: WalletState): Promise<JsonRpcSigner> {
+  let chainId: number;
+  try {
+    chainId = Number(BigInt((await state.provider.send('eth_chainId', [])) as string));
+  } catch {
+    throw new Error('Could not read which network your wallet is on. Try again.');
+  }
+  if (chainId !== CHAIN_ID) {
+    throw new Error(`Your wallet is on chain ${chainId}, not Ferminux (${CHAIN_ID}). Switch to Ferminux, then try again.`);
+  }
+  return state.signer;
 }
 
 /** One-click "Add Ferminux Network" via wallet_addEthereumChain. */
