@@ -27,3 +27,101 @@
 <<< step jail-early done (block 16653, fails so far 1)
 
 >>> step timelock-apply (2026-09-26T02:03:56Z, block 16653)
+  seat 4 duty starts at checkpoint index 68; the 124-checkpoint window is covered from block 38451
+
+## jail: seat 4 attested 0 of the last 124 checkpoints (2026-09-26T08:18:55Z, block 39152)
+  ok: jail(5), a seat that attests every checkpoint refused: REVERTED: NotJailable()
+  participation(5, 124) = 124
+  jail(4) by an outsider: tx=0x91e323049f6689fd5defcafb1468a5783ef6c87fe2b9558d28a8e4cdffeeb749 block=39154 status=1 gas=40072
+{
+ "id": 4,
+ "state": "JAILED",
+ "owner": "owner-v04",
+ "attester": "att-v04",
+ "deposit": "2000.0",
+ "claimable": "0.0",
+ "activationBlock": 13464,
+ "eligibleFrom": 99864,
+ "countedSince": 0,
+ "lastAttestedHeight": 13600,
+ "dutyStartCp": 68,
+ "unjailBlock": 51497,
+ "unbondEndBlock": 0,
+ "slash": "NONE"
+}
+  ok: seat 4 JAILED, deposit untouched
+  ok: unjail inside the 24 h refused: REVERTED: TooEarly()
+  ok: jail(4) twice refused: REVERTED: NotJailable()
+
+## the operator switches v04 back on while it is jailed: it catches up and shows why it does not sign (2026-09-26T08:18:58Z, block 39155)
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Paused for low participation
+                 The owner wallet can resume it (unjail) from block 51,497 (in
+                 about 24 h). The seat attested too few recent checkpoints and
+                 earns nothing while paused. No deposit is lost for downtime.
+      attester   att-v04(0x3A367E..)
+      hub        HUB(0x7cEE96..)
+      node       head 39194, 1 s old, 15 peers, ready to sign
+      process    running=yes pid=24 restarts=0
+      seat       #4 paused (jailed), counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0000 FMX
+      attested   0 of the last 62 checkpoints (24 h), 2 of 432 (7 days)
+      gas        0.9998 FMX
+      next       checkpoint 39200, signing opens at block 39264
+          39000  waiting   seat is paused for low participation; the owner can unjail it from block 51497
+          32400  missed    node not ready: node is still syncing; latest block is 1h50m51s old (limit 1m0s)
+          20800  missed    node not ready: node is still syncing; latest block is 5h4m21s old (limit 1m0s)
+          11200  missed    node not ready: node is still syncing; latest block is 7h44m41s old (limit 1m0s)
+            800  missed    node not ready: node is still syncing; latest block is 10h35m37s old (limit 1m0s)
+  dashboard of v04: evidence/dashboards/v04-jailed-desktop.png, -phone.png, .txt, -api-status.json
+<<< step jail done (block 39206, fails so far 1)
+
+>>> step unjail (2026-09-26T08:19:49Z, block 39206)
+
+## unjail after 24 h (from 51497), machine switched back on (2026-09-26T11:44:41Z, block 51498)
+  ok: unjail by someone other than the owner refused: REVERTED: NotSeatOwner()
+  unjail(4) by its owner: tx=0xf446d374cd75c05cf44db7eb740f8379a0f66f0d68fbf91b7db40bead03439ff block=51500 status=1 gas=34259
+{
+ "id": 4,
+ "state": "ACTIVE",
+ "owner": "owner-v04",
+ "attester": "att-v04",
+ "deposit": "2000.0",
+ "claimable": "0.0",
+ "activationBlock": 13464,
+ "eligibleFrom": 99864,
+ "countedSince": 0,
+ "lastAttestedHeight": 13600,
+ "dutyStartCp": 258,
+ "unjailBlock": 0,
+ "unbondEndBlock": 0,
+ "slash": "NONE"
+}
+h 51600 seat 4 included 51666 (h+66) reward 0.025 tx 0x0a9af68519a06b848dd53e7b58a5fdf9b9bc4aec9860d3ff12d5f74a6d69f393
+h 51800 seat 4 included 51866 (h+66) reward 0.025 tx 0x41fe4be25fa88ea885afc67a7a77d19bef8f18cdd4c165b41e3d09bc5e2548cd
+  ok: seat 4 attests again after unjail
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Attesting
+                 Last included checkpoint: 51,800. Counts toward certification
+                 after 7 days active.
+      attester   att-v04(0x3A367E..)
+      hub        HUB(0x7cEE96..)
+      node       head 52050, 1 s old, 15 peers, ready to sign
+      process    running=yes pid=24 restarts=0
+      seat       #4 active, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0750 FMX
+      attested   2 of the last 62 checkpoints (24 h), 4 of 432 (7 days)
+      gas        0.9996 FMX
+      next       checkpoint 52000, signing opens at block 52064
+          51800  included  
+          51600  included  
+          51400  included  
+          51200  missed    seat is paused for low participation; the owner can unjail it from block 51497
+          51000  missed    seat is paused for low participation; the owner can unjail it from block 51497
+          50800  missed    seat is paused for low participation; the owner can unjail it from block 51497
+          50600  missed    seat is paused for low participation; the owner can unjail it from block 51497
+          50400  missed    seat is paused for low participation; the owner can unjail it from block 51497
+  dashboard of v04: evidence/dashboards/v04-attesting-after-unjail-desktop.png, -phone.png, .txt, -api-status.json
+<<< step unjail done (block 52060, fails so far 1)
+
+>>> step elig1 (2026-09-26T11:54:03Z, block 52060)

@@ -14,6 +14,7 @@ jq '[.abi[] | select(
         "keyInfo", "attested", "checkpoint", "currentRewardPerAttest", "rewardPool",
         "eligibleCount", "occupiedSeats", "maxSeats", "attestationsPaused",
         "participation", "lastClosedCheckpoint", "extsload", "attest", "openSeat",
-        "SEAT_DEPOSIT", "seatCount", "deployBlock")))
+        "SEAT_DEPOSIT", "seatCount", "deployBlock",
+        "allowlistOnly", "allowlisted", "denied", "seatsPaused")))
     )]' out/ValidatorHub.sol/ValidatorHub.json > ../../internal/hub/abi.json
 echo "internal/hub/abi.json: $(jq length ../../internal/hub/abi.json) entries"

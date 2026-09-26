@@ -1,10 +1,11 @@
 // Copyright 2026 The Ferminux Network Authors
 // This file is part of ferminux-geth, a fork of go-ethereum v1.10.26.
 //
-// Release A (v1.1.0-posa) — the binary that carries the authority fork.
-// These assertions pin the exact compiled constants of release A so a build
-// that drifts from the approved values fails to compile-and-test rather than
-// shipping silently. See infra/RELEASE-posa.md.
+// Release A (v1.1.0-posa) carried the authority fork; release B
+// (1.10.26-ferminux-b) is release A plus the pinned PosaBlock-1 checkpoint and
+// non-consensus fixes. These assertions pin the exact compiled constants so a
+// build that drifts from the approved values fails to compile-and-test rather
+// than shipping silently. See infra/RELEASE-posa.md and infra/RELEASE-B.md.
 
 package params
 
@@ -55,13 +56,25 @@ func TestReleaseARewardSink(t *testing.T) {
 	}
 }
 
-// TestReleaseACheckpointUnset asserts the PosaBlock-1 checkpoint hash stays ZERO
-// in release A. Release B pins hash(F-1) after the fork; hash(F-1) cannot exist
-// at release-A cut time. A binary with a non-zero checkpoint here would be
-// release B, not release A.
-func TestReleaseACheckpointUnset(t *testing.T) {
-	if FerminuxPosaCheckpointHash != (common.Hash{}) {
-		t.Fatalf("release A: FerminuxPosaCheckpointHash = %s, want zero (release B pins hash(F-1))", FerminuxPosaCheckpointHash.Hex())
+// TestReleaseBCheckpointPinned asserts the PosaBlock-1 checkpoint hash is
+// pinned to hash(159999), the last proof-of-work block of mainnet (release B).
+// Release A shipped it as zero because hash(F-1) could not exist at release-A
+// cut time.
+func TestReleaseBCheckpointPinned(t *testing.T) {
+	want := common.HexToHash("0xfa62e740b3cb3aaa60206476288e2e14d9a9f355a051dda896d87b576fa5af08")
+	if FerminuxPosaCheckpointHash != want {
+		t.Fatalf("release B: FerminuxPosaCheckpointHash = %s, want %s", FerminuxPosaCheckpointHash.Hex(), want.Hex())
+	}
+}
+
+// TestReleaseBVersion asserts the version string names release B, so a
+// running node identifies itself (web3_clientVersion, the devp2p Hello).
+func TestReleaseBVersion(t *testing.T) {
+	if VersionMeta != "ferminux-b" {
+		t.Fatalf("VersionMeta = %q, want %q", VersionMeta, "ferminux-b")
+	}
+	if VersionWithMeta != "1.10.26-ferminux-b" {
+		t.Fatalf("VersionWithMeta = %q, want %q", VersionWithMeta, "1.10.26-ferminux-b")
 	}
 }
 

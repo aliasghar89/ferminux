@@ -72,8 +72,8 @@ function render(s) {
   text("per-cp", fmx(r.rewardPerAttestWei));
   text("claimable", fmx(r.claimableWei));
   text("pool", fmx(r.rewardPoolWei, 0));
-  text("seats", r.maxSeats ? num(r.occupiedSeats) + " / " + num(r.maxSeats) : "–");
-  $("seats").title = r.maxSeats ? num(r.eligibleSeats) + " counted for certification" : "";
+  text("seats", r.maxSeats ? num(r.occupiedSeats) + " / " + num(r.maxSeats) + (r.inviteOnly ? " · invite-only pilot" : "") : "–");
+  $("seats").title = r.maxSeats ? num(r.eligibleSeats) + " counted for certification" + (r.inviteOnly ? "; only invited owner wallets can open a seat" : "") : "";
   const pn = $("pool-note");
   pn.textContent = r.poolEmpty ? "The reward pool is empty: attestations still count toward certification but earn nothing until it is refilled." : "";
   pn.className = "note" + (r.poolEmpty ? " warn" : "");

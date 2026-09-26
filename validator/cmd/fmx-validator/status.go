@@ -185,6 +185,13 @@ func printStatus(out io.Writer, addr string, s status.Snapshot) {
 		fmt.Fprintf(out, "  watching   %d checkpoint(s) before signing\n", s.WatchLeft)
 	}
 	rw := s.Rewards
+	if rw.MaxSeats > 0 {
+		pilot := ""
+		if rw.InviteOnly {
+			pilot = " (invite-only pilot: only invited owner wallets can open a seat)"
+		}
+		fmt.Fprintf(out, "  seats      %d of %d taken%s\n", rw.OccupiedSeats, rw.MaxSeats, pilot)
+	}
 	if rw.RewardPerAttest != nil {
 		fmt.Fprintf(out, "  rewards    about %s a day at %s per checkpoint; claimable %s\n", fmx(rw.ExpectedPerDay, 2), fmx(rw.RewardPerAttest, 4), fmx(rw.Claimable, 4))
 		if rw.PoolEmpty {

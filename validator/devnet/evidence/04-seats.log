@@ -31,3 +31,106 @@ id  state      owner         attester      activation  eligibleFrom counted  las
 <<< step seats-b1 done (block 1146, fails so far 0)
 
 >>> step exit-x (2026-09-25T21:45:29Z, block 1146)
+
+## batch A: 16 seats (v11, v12, h1 x 11, h2 x 3) in one day bucket (2026-09-26T04:18:56Z, block 24753)
+  seat 11  machine v11  owner owner-v11(0x579c6d..)  attester att-v11(0x45682a..)  enode 0x43f7a9e1b0d84ea9..  openSeat tx=0x6772a5b55e4591a3232cc1553509631391027d1cb5fee5def6d226031786f027 block=24759 status=1 gas=213106
+  seat 12  machine v12  owner owner-v12(0xeB14F4..)  attester att-v12(0x53117f..)  enode 0xdc2ffab3e537ef99..  openSeat tx=0xf0abff1bb4532713bd5628aecdab3400efabcdd0108cbabe53ba547448d300c0 block=24764 status=1 gas=212442
+  seat 13  machine h1/s1  owner owner-h1-s1(0x6D6285..)  attester att-h1-s1(0x80befb..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0x35fb85bb636f083962d7f3b581b668c2e3f9837c8fc6282a7a26abf9e14439b0 block=24768 status=1 gas=212430
+  seat 14  machine h1/s2  owner owner-h1-s2(0x670521..)  attester att-h1-s2(0x425f89..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0xd05d4dbf5a1895129781649a120a960a7c9d6f2e0d6428ee34854cff87562b1c block=24772 status=1 gas=212410
+  seat 15  machine h1/s3  owner owner-h1-s3(0xa641aa..)  attester att-h1-s3(0x8c0591..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0x39242fff8e9ac51a8d87410362fb2763c36bbeeb66b2429a4894d9cc0ad718fe block=24776 status=1 gas=212410
+  seat 16  machine h1/s4  owner owner-h1-s4(0xb7b2B7..)  attester att-h1-s4(0xa417e3..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0xb367e1e64a2f235c641ba1618084c7ec5a7fab39ea44b2d3e2971ed557c6aa25 block=24780 status=1 gas=212430
+  seat 17  machine h1/s5  owner owner-h1-s5(0x9e8537..)  attester att-h1-s5(0x2b79be..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0xaaa0f1349ef6a35c077760b23211000f593dbdcbe0996d5530b7ef6622a5df35 block=24784 status=1 gas=212462
+  seat 18  machine h1/s6  owner owner-h1-s6(0x02939e..)  attester att-h1-s6(0x52c6f4..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0xc9a51c9278b9293218231c25d830d6c0c44ef180c88bac5820c944a5d71b4f8f block=24789 status=1 gas=212410
+  seat 19  machine h1/s7  owner owner-h1-s7(0x121c50..)  attester att-h1-s7(0x12a32f..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0xd9b0ddf144f44dd880ff0fa14b9bb424e886b17af1c67a4b4d10b91d81a079c4 block=24793 status=1 gas=212462
+  seat 20  machine h1/s8  owner owner-h1-s8(0xe50af6..)  attester att-h1-s8(0x0d1242..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0x078a5535571ddcd0b3b9b2f463e42973dfdbcea07fdc9c6d551aef15c9fc7a33 block=24797 status=1 gas=212450
+  seat 21  machine h1/s9  owner owner-h1-s9(0x9C3875..)  attester att-h1-s9(0xe8a924..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0xea2cf6e506190b1da27cf9cb0c021beaca1af8549375cb9b2f72fe7ad31adeda block=24801 status=1 gas=212422
+  seat 22  machine h1/s10  owner owner-h1-s10(0x085339..)  attester att-h1-s10(0xf85dfd..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0x1081b6f27c0ae14b6cf5fb489f0d0b2d8603c861b152d0aa5b36bc0a3f7fd78c block=24805 status=1 gas=212442
+  seat 23  machine h1/s11  owner owner-h1-s11(0xaAA97d..)  attester att-h1-s11(0x88b05a..)  enode 0x1c0b73b418c1bf6a..  openSeat tx=0xa3cdd43fb9b3cb15689809952b0b8c034760d2953c85e2bbf41aaf65adba31d3 block=24809 status=1 gas=212398
+  seat 24  machine h2/s1  owner owner-h2-s1(0x32B8C3..)  attester att-h2-s1(0x828f56..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x5e9395ecfbd59bd5b2d191d148c9a8a21e38cb85b506f03297714662ed799565 block=24813 status=1 gas=212374
+  seat 25  machine h2/s2  owner owner-h2-s2(0xb6FFD4..)  attester att-h2-s2(0x757335..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x9b4815981f050ae74baf0b203adab73a09ac4a3425e025cc79600b28bc59dfb5 block=24817 status=1 gas=212398
+  seat 26  machine h2/s3  owner owner-h2-s3(0x80d365..)  attester att-h2-s3(0x7f54a7..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x6bab990c09020a9c48d50a62755536eab0dc102cb6e09c5f8d9abb9dc680e038 block=24821 status=1 gas=212426
+head 24821  seats 26  occupied 22  eligible 0  pool 19993.285 FMX  rate 0.025 FMX
+id  state      owner         attester      activation  eligibleFrom counted  lastAttested  claimable   deposit  unjail  unbondEnd slash
+1   EXITING    owner-v01     att-v01       13452       99852        0        0             0.0         2000.0   0       173948    NONE
+2   EXITING    owner-v02     att-v02       13456       99856        0        14200         0.05        2000.0   0       187255    PENDING
+3   EXITING    owner-v03     att-v03       13460       99860        0        14200         0.05        2000.0   0       187260    NONE
+4   ACTIVE     owner-v04     att-v04       13464       99864        0        13600         0.0         2000.0   0       0         NONE
+5   ACTIVE     owner-v05     att-v05       13468       99868        0        24600         1.325       2000.0   0       0         NONE
+6   EXITING    owner-v06     att-v06       13472       99872        0        14400         0.0         2000.0   0       187330    NONE
+7   ACTIVE     owner-v07     att-v07       13476       99876        0        24600         1.05        2000.0   0       0         NONE
+8   ACTIVE     owner-v08     att-v08       13480       99880        0        24600         1.325       2000.0   0       0         NONE
+9   ACTIVE     owner-v09     att-v09       13484       99884        0        24600         1.35        2000.0   0       0         NONE
+10  ACTIVE     owner-v10     att-v10       13488       99888        0        24600         1.35        2000.0   0       0         NONE
+11  PENDING    owner-v11     att-v11       37102       123502       0        0             0.0         2000.0   0       0         NONE
+12  PENDING    owner-v12     att-v12       37107       123507       0        0             0.0         2000.0   0       0         NONE
+13  PENDING    owner-h1-s1   att-h1-s1     37111       123511       0        0             0.0         2000.0   0       0         NONE
+14  PENDING    owner-h1-s2   att-h1-s2     37115       123515       0        0             0.0         2000.0   0       0         NONE
+15  PENDING    owner-h1-s3   att-h1-s3     37119       123519       0        0             0.0         2000.0   0       0         NONE
+16  PENDING    owner-h1-s4   att-h1-s4     37123       123523       0        0             0.0         2000.0   0       0         NONE
+17  PENDING    owner-h1-s5   att-h1-s5     37127       123527       0        0             0.0         2000.0   0       0         NONE
+18  PENDING    owner-h1-s6   att-h1-s6     37132       123532       0        0             0.0         2000.0   0       0         NONE
+19  PENDING    owner-h1-s7   att-h1-s7     37136       123536       0        0             0.0         2000.0   0       0         NONE
+20  PENDING    owner-h1-s8   att-h1-s8     37140       123540       0        0             0.0         2000.0   0       0         NONE
+21  PENDING    owner-h1-s9   att-h1-s9     37144       123544       0        0             0.0         2000.0   0       0         NONE
+22  PENDING    owner-h1-s10  att-h1-s10    37148       123548       0        0             0.0         2000.0   0       0         NONE
+23  PENDING    owner-h1-s11  att-h1-s11    37152       123552       0        0             0.0         2000.0   0       0         NONE
+24  PENDING    owner-h2-s1   att-h2-s1     37156       123556       0        0             0.0         2000.0   0       0         NONE
+25  PENDING    owner-h2-s2   att-h2-s2     37160       123560       0        0             0.0         2000.0   0       0         NONE
+26  PENDING    owner-h2-s3   att-h2-s3     37164       123564       0        0             0.0         2000.0   0       0         NONE
+<<< step batch-a done (block 24821, fails so far 1)
+
+>>> step batch-b (2026-09-26T04:20:04Z, block 24821)
+
+## batch B: 10 seats (h2 x 10), about 1,200 blocks after batch A (2026-09-26T04:40:05Z, block 26022)
+  seat 27  machine h2/s4  owner owner-h2-s4(0x59Ca60..)  attester att-h2-s4(0x354c3b..)  enode 0x8b9565313dbeadaf..  openSeat tx=0xb0bcb7afee6cd4825add7ff45c51c44596f48423ae5cd5cb3047fcbcb38c596f block=26027 status=1 gas=212430
+  seat 28  machine h2/s5  owner owner-h2-s5(0x4D51Cb..)  attester att-h2-s5(0x50f7f9..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x724cb792c03aa821de8beb99cf4d1c8dd238f4303dd89cba7730d18a9c3daf43 block=26031 status=1 gas=212438
+  seat 29  machine h2/s6  owner owner-h2-s6(0x5A6A38..)  attester att-h2-s6(0xf97cd1..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x557f3333dd918b00c81f8c6cff9911307e70b8f648e334bbb37e3c326109b021 block=26035 status=1 gas=212410
+  seat 30  machine h2/s7  owner owner-h2-s7(0x9c58Ce..)  attester att-h2-s7(0x4f4f54..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x4202fbeb3beec1715fc4fc73fd396e3247fbcc88580075e6f5ef68def4ec44fb block=26039 status=1 gas=212410
+  seat 31  machine h2/s8  owner owner-h2-s8(0x56843E..)  attester att-h2-s8(0xb7ee54..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x8e03121993ebae122833c1edb81583b1a731e8674e00682f816a41c39ebdf43f block=26043 status=1 gas=212450
+  seat 32  machine h2/s9  owner owner-h2-s9(0xAC8073..)  attester att-h2-s9(0x7877b7..)  enode 0x8b9565313dbeadaf..  openSeat tx=0xbf50e062fbbdfc0eaaa9a731006e9b197c1392d6bd057975d40c71d3acd59b02 block=26047 status=1 gas=212430
+  seat 33  machine h2/s10  owner owner-h2-s10(0xAcE5FB..)  attester att-h2-s10(0x53d1be..)  enode 0x8b9565313dbeadaf..  openSeat tx=0x5ea29fb724c91803d9c1f052b837f6a8a90b8e748c943a309be81ec73f0e5416 block=26051 status=1 gas=212438
+  seat 34  machine h2/s11  owner owner-h2-s11(0x9c264E..)  attester att-h2-s11(0xadcd94..)  enode 0x8b9565313dbeadaf..  openSeat tx=0xd2178a9cdab0cbfe4028a0556bfb828364088a100bdab89e73786c28eb3c9093 block=26055 status=1 gas=212438
+  seat 35  machine h2/s12  owner owner-h2-s12(0x36A830..)  attester att-h2-s12(0x26183d..)  enode 0x8b9565313dbeadaf..  openSeat tx=0xc8ed06631c27ff7aa90cc5775bac696affcfc379fe198855448c7f38b025aac5 block=26059 status=1 gas=212430
+  seat 36  machine h2/s13  owner owner-h2-s13(0x4fD24A..)  attester att-h2-s13(0x22d883..)  enode 0x8b9565313dbeadaf..  openSeat tx=0xfccf6db855c9ac29e4ee6b5b2ca4af0931684d2153d9e433210c664f52de3e7d block=26063 status=1 gas=212418
+head 26063  seats 36  occupied 32  eligible 0  pool 19992.535 FMX  rate 0.025 FMX
+id  state      owner         attester      activation  eligibleFrom counted  lastAttested  claimable   deposit  unjail  unbondEnd slash
+1   EXITING    owner-v01     att-v01       13452       99852        0        0             0.0         2000.0   0       173948    NONE
+2   EXITING    owner-v02     att-v02       13456       99856        0        14200         0.05        2000.0   0       187255    PENDING
+3   EXITING    owner-v03     att-v03       13460       99860        0        14200         0.05        2000.0   0       187260    NONE
+4   ACTIVE     owner-v04     att-v04       13464       99864        0        13600         0.0         2000.0   0       0         NONE
+5   ACTIVE     owner-v05     att-v05       13468       99868        0        25800         1.475       2000.0   0       0         NONE
+6   EXITING    owner-v06     att-v06       13472       99872        0        14400         0.0         2000.0   0       187330    NONE
+7   ACTIVE     owner-v07     att-v07       13476       99876        0        25800         1.2         2000.0   0       0         NONE
+8   ACTIVE     owner-v08     att-v08       13480       99880        0        25800         1.475       2000.0   0       0         NONE
+9   ACTIVE     owner-v09     att-v09       13484       99884        0        25800         1.5         2000.0   0       0         NONE
+10  ACTIVE     owner-v10     att-v10       13488       99888        0        25800         1.5         2000.0   0       0         NONE
+11  PENDING    owner-v11     att-v11       37102       123502       0        0             0.0         2000.0   0       0         NONE
+12  PENDING    owner-v12     att-v12       37107       123507       0        0             0.0         2000.0   0       0         NONE
+13  PENDING    owner-h1-s1   att-h1-s1     37111       123511       0        0             0.0         2000.0   0       0         NONE
+14  PENDING    owner-h1-s2   att-h1-s2     37115       123515       0        0             0.0         2000.0   0       0         NONE
+15  PENDING    owner-h1-s3   att-h1-s3     37119       123519       0        0             0.0         2000.0   0       0         NONE
+16  PENDING    owner-h1-s4   att-h1-s4     37123       123523       0        0             0.0         2000.0   0       0         NONE
+17  PENDING    owner-h1-s5   att-h1-s5     37127       123527       0        0             0.0         2000.0   0       0         NONE
+18  PENDING    owner-h1-s6   att-h1-s6     37132       123532       0        0             0.0         2000.0   0       0         NONE
+19  PENDING    owner-h1-s7   att-h1-s7     37136       123536       0        0             0.0         2000.0   0       0         NONE
+20  PENDING    owner-h1-s8   att-h1-s8     37140       123540       0        0             0.0         2000.0   0       0         NONE
+21  PENDING    owner-h1-s9   att-h1-s9     37144       123544       0        0             0.0         2000.0   0       0         NONE
+22  PENDING    owner-h1-s10  att-h1-s10    37148       123548       0        0             0.0         2000.0   0       0         NONE
+23  PENDING    owner-h1-s11  att-h1-s11    37152       123552       0        0             0.0         2000.0   0       0         NONE
+24  PENDING    owner-h2-s1   att-h2-s1     37156       123556       0        0             0.0         2000.0   0       0         NONE
+25  PENDING    owner-h2-s2   att-h2-s2     37160       123560       0        0             0.0         2000.0   0       0         NONE
+26  PENDING    owner-h2-s3   att-h2-s3     37164       123564       0        0             0.0         2000.0   0       0         NONE
+27  PENDING    owner-h2-s4   att-h2-s4     38370       124770       0        0             0.0         2000.0   0       0         NONE
+28  PENDING    owner-h2-s5   att-h2-s5     38374       124774       0        0             0.0         2000.0   0       0         NONE
+29  PENDING    owner-h2-s6   att-h2-s6     38378       124778       0        0             0.0         2000.0   0       0         NONE
+30  PENDING    owner-h2-s7   att-h2-s7     38382       124782       0        0             0.0         2000.0   0       0         NONE
+31  PENDING    owner-h2-s8   att-h2-s8     38386       124786       0        0             0.0         2000.0   0       0         NONE
+32  PENDING    owner-h2-s9   att-h2-s9     38390       124790       0        0             0.0         2000.0   0       0         NONE
+33  PENDING    owner-h2-s10  att-h2-s10    38394       124794       0        0             0.0         2000.0   0       0         NONE
+34  PENDING    owner-h2-s11  att-h2-s11    38398       124798       0        0             0.0         2000.0   0       0         NONE
+35  PENDING    owner-h2-s12  att-h2-s12    38402       124802       0        0             0.0         2000.0   0       0         NONE
+36  PENDING    owner-h2-s13  att-h2-s13    38406       124806       0        0             0.0         2000.0   0       0         NONE
+  ok: 36 seats opened, 32 occupied (2 exited, 2 slashed/unbonding)
+<<< step batch-b done (block 26063, fails so far 1)
+
+>>> step slash-exec (2026-09-26T04:40:46Z, block 26063)

@@ -182,7 +182,13 @@ send() {  # to value calldata gaslimit -> sets TX_HASH, TX_GAS; dies unless stat
 }
 
 check_deployed() {  # name address codehash
-  [ "$(state "$2" "$3")" = deployed ] || die "$1: code at $2 does not match codehash $3 after deployment"
+  # rpc.ferminux.net balances several nodes; one may answer from the block before the receipt's.
+  local try
+  for try in 1 2 3 4 5 6; do
+    [ "$(state "$2" "$3")" = deployed ] && return 0
+    sleep 4
+  done
+  die "$1: code at $2 does not match codehash $3 after deployment"
 }
 
 say ""

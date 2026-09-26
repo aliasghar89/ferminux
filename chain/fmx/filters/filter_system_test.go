@@ -18,6 +18,7 @@ package filters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -47,6 +48,7 @@ type testBackend struct {
 	rmLogsFeed      event.Feed
 	pendingLogsFeed event.Feed
 	chainFeed       event.Feed
+	safe            *types.Header // answered for the "safe" tag when set
 }
 
 func (b *testBackend) ChainDb() fmxdb.Database {
@@ -58,14 +60,24 @@ func (b *testBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumbe
 		hash common.Hash
 		num  uint64
 	)
-	if blockNr == rpc.LatestBlockNumber {
-		hash = rawdb.ReadHeadBlockHash(b.db)
+	switch blockNr {
+	case rpc.LatestBlockNumber, rpc.FinalizedBlockNumber:
+		if blockNr == rpc.LatestBlockNumber {
+			hash = rawdb.ReadHeadBlockHash(b.db)
+		} else {
+			hash = rawdb.ReadFinalizedBlockHash(b.db)
+		}
 		number := rawdb.ReadHeaderNumber(b.db, hash)
 		if number == nil {
 			return nil, nil
 		}
 		num = *number
-	} else {
+	case rpc.SafeBlockNumber:
+		if b.safe == nil {
+			return nil, errors.New("safe block not found")
+		}
+		return b.safe, nil
+	default:
 		num = uint64(blockNr)
 		hash = rawdb.ReadCanonicalHash(b.db, num)
 	}

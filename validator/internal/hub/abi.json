@@ -14,6 +14,38 @@
   },
   {
     "type": "function",
+    "name": "allowlistOnly",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "allowlisted",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "attest",
     "inputs": [
       {
@@ -186,6 +218,25 @@
         "name": "r",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "denied",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -432,6 +483,19 @@
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "seatsPaused",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
     "type": "event",
     "name": "Attested",
     "inputs": [
@@ -587,6 +651,11 @@
   {
     "type": "error",
     "name": "KeyUsed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAllowlisted",
     "inputs": []
   },
   {

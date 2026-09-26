@@ -295,6 +295,9 @@ func WriteFastTxLookupLimit(db fmxdb.KeyValueWriter, number uint64) {
 	}
 }
 
+// maxHeaderRangeBytes bounds the freezer read of ReadHeaderRange.
+const maxHeaderRangeBytes = 2 * 1024 * 1024
+
 // ReadHeaderRange returns the rlp-encoded headers, starting at 'number', and going
 // backwards towards genesis. This method assumes that the caller already has
 // placed a cap on count, to prevent DoS issues.
@@ -333,14 +336,20 @@ func ReadHeaderRange(db fmxdb.Reader, number uint64, count uint64) []rlp.RawValu
 	if count == 0 {
 		return rlpHeaders
 	}
-	// read remaining from ancients
-	max := count * 700
-	data, err := db.AncientRange(chainFreezerHeaderTable, i+1-count, count, max)
-	if err == nil && uint64(len(data)) == count {
-		// the data is on the order [h, h+1, .., n] -- reordering needed
-		for i := range data {
-			rlpHeaders = append(rlpHeaders, data[len(data)-1-i])
-		}
+	// read remaining from ancients, capped at 2 MiB whatever count says
+	// (upstream #29534, CVE-2024-32972: count*700 used to overflow)
+	data, err := db.AncientRange(chainFreezerHeaderTable, i+1-count, count, maxHeaderRangeBytes)
+	if err != nil {
+		log.Error("Failed to read headers from freezer", "err", err)
+		return rlpHeaders
+	}
+	if uint64(len(data)) != count {
+		log.Warn("Incomplete read of headers from freezer", "wanted", count, "read", len(data))
+		return rlpHeaders
+	}
+	// the data is on the order [h, h+1, .., n] -- reordering needed
+	for i := range data {
+		rlpHeaders = append(rlpHeaders, data[len(data)-1-i])
 	}
 	return rlpHeaders
 }

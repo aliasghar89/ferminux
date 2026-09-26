@@ -61,6 +61,13 @@ func (bc *BlockChain) CurrentSafeBlock() *types.Block {
 	return bc.currentSafeBlock.Load().(*types.Block)
 }
 
+// FerminuxMaxReorgDepth returns the reorg-depth cap this chain enforces while
+// its head is an authority block (CacheConfig.FerminuxMaxReorgDepth); 0 means
+// the cap is off (--ferminux.allowdeepreorg, or a library chain without one).
+func (bc *BlockChain) FerminuxMaxReorgDepth() int {
+	return bc.cacheConfig.FerminuxMaxReorgDepth
+}
+
 // HasHeader checks if a block header is present in the database or not, caching
 // it if present.
 func (bc *BlockChain) HasHeader(hash common.Hash, number uint64) bool {

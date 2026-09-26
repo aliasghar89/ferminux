@@ -1,0 +1,626 @@
+{
+  "version": "pre-module-rename-155-g6a6b7be",
+  "network": "devnet",
+  "chainId": 39619,
+  "hub": "0x7cee961a2c903ce8a17f690ae966e30e4d973254",
+  "attester": "0x3a367e6ba1c5b094e8eb750c8ceb05fd6cc4da3f",
+  "started": "2026-09-26T08:18:58.552316623Z",
+  "sync": {
+    "ready": true,
+    "chainId": 39619,
+    "head": 52060,
+    "headHash": "0x53fcebaf075afbf673ea26bbe0f923b5777969de5afcfd299cc1e8d03585c071",
+    "headAgeSeconds": 0.597183188,
+    "peers": 15,
+    "syncing": false,
+    "checked": "2026-09-26T11:54:03.597183188Z"
+  },
+  "seat": {
+    "id": 4,
+    "status": 2,
+    "statusText": "active",
+    "owner": "0x5b7b2c8782b8b1513e31a6c74b11e37090be8621",
+    "attester": "0x3a367e6ba1c5b094e8eb750c8ceb05fd6cc4da3f",
+    "pendingAttester": "0x0000000000000000000000000000000000000000",
+    "claimableWei": 75000000000000000,
+    "depositWei": 2000000000000000000000,
+    "lastAttestedHeight": 51800,
+    "activationBlock": 13464,
+    "countedSince": 0,
+    "jailed": false,
+    "slashState": 0
+  },
+  "attestationsPaused": false,
+  "watchCheckpointsLeft": 0,
+  "nextCheckpoint": 52000,
+  "nextOpensAt": 52064,
+  "attestations": [
+    {
+      "height": 51800,
+      "blockHash": "0x796bcceb9ffe83b5b1620606697cf27f0fa5cd7103612dd6dc8c12ce27e34f27",
+      "state": "included",
+      "tx": "0x41fe4be25fa88ea885afc67a7a77d19bef8f18cdd4c165b41e3d09bc5e2548cd",
+      "includedIn": 51866,
+      "updated": "2026-09-26T11:50:49.601917757Z"
+    },
+    {
+      "height": 51600,
+      "blockHash": "0x90433e9efbab933e1ed7977eec2e3998e41fd1dac5393e65a42a3030425ed973",
+      "state": "included",
+      "tx": "0x0a9af68519a06b848dd53e7b58a5fdf9b9bc4aec9860d3ff12d5f74a6d69f393",
+      "includedIn": 51666,
+      "updated": "2026-09-26T11:47:29.600959337Z"
+    },
+    {
+      "height": 51400,
+      "blockHash": "0x42e99f502c8832e3fb7ed3f2bc2188d6d4a1ec5b789d869e2db4a48b55356dd5",
+      "state": "included",
+      "tx": "0x05df5b897836b96a171e3c9310dabe86a0f547d3406f352dfb6b8d7599645258",
+      "includedIn": 51532,
+      "updated": "2026-09-26T11:45:15.601063834Z"
+    },
+    {
+      "height": 51200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:43:53.598782424Z"
+    },
+    {
+      "height": 51000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:40:33.600496194Z"
+    },
+    {
+      "height": 50800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:37:13.597661077Z"
+    },
+    {
+      "height": 50600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:33:53.598987096Z"
+    },
+    {
+      "height": 50400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:30:33.598511496Z"
+    },
+    {
+      "height": 50200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:27:13.598215462Z"
+    },
+    {
+      "height": 50000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:23:53.597656629Z"
+    },
+    {
+      "height": 49800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:20:33.598216308Z"
+    },
+    {
+      "height": 49600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:17:13.597944067Z"
+    },
+    {
+      "height": 49400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:13:53.59939553Z"
+    },
+    {
+      "height": 49200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:10:33.602298422Z"
+    },
+    {
+      "height": 49000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:07:13.598404494Z"
+    },
+    {
+      "height": 48800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:03:53.598849002Z"
+    },
+    {
+      "height": 48600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T11:00:33.601985139Z"
+    },
+    {
+      "height": 48400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:57:13.601837099Z"
+    },
+    {
+      "height": 48200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:53:53.597857207Z"
+    },
+    {
+      "height": 48000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:50:33.59774961Z"
+    },
+    {
+      "height": 47800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:47:13.599770267Z"
+    },
+    {
+      "height": 47600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:43:53.598283391Z"
+    },
+    {
+      "height": 47400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:40:33.598691879Z"
+    },
+    {
+      "height": 47200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:37:13.599223722Z"
+    },
+    {
+      "height": 47000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:33:53.598112502Z"
+    },
+    {
+      "height": 46800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:30:33.598015524Z"
+    },
+    {
+      "height": 46600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:27:13.598015271Z"
+    },
+    {
+      "height": 46400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:23:53.598584998Z"
+    },
+    {
+      "height": 46200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:20:33.597439728Z"
+    },
+    {
+      "height": 46000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:17:13.598943385Z"
+    },
+    {
+      "height": 45800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:13:53.598361831Z"
+    },
+    {
+      "height": 45600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:10:33.598807524Z"
+    },
+    {
+      "height": 45400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:07:13.599297354Z"
+    },
+    {
+      "height": 45200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:03:53.598165535Z"
+    },
+    {
+      "height": 45000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T10:00:33.598668757Z"
+    },
+    {
+      "height": 44800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:57:13.598955747Z"
+    },
+    {
+      "height": 44600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:53:53.597847732Z"
+    },
+    {
+      "height": 44400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:50:33.597705304Z"
+    },
+    {
+      "height": 44200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:47:13.59832077Z"
+    },
+    {
+      "height": 44000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:43:53.598029355Z"
+    },
+    {
+      "height": 43800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:40:33.598933746Z"
+    },
+    {
+      "height": 43600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:37:13.597929078Z"
+    },
+    {
+      "height": 43400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:33:53.597608112Z"
+    },
+    {
+      "height": 43200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:30:33.598608369Z"
+    },
+    {
+      "height": 43000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:27:13.597929439Z"
+    },
+    {
+      "height": 42800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:23:53.598401905Z"
+    },
+    {
+      "height": 42600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:20:33.599317081Z"
+    },
+    {
+      "height": 42400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:17:13.598388108Z"
+    },
+    {
+      "height": 42200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:13:53.599392236Z"
+    },
+    {
+      "height": 42000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:10:33.601458813Z"
+    },
+    {
+      "height": 41800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:07:13.597930196Z"
+    },
+    {
+      "height": 41600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:03:53.597720753Z"
+    },
+    {
+      "height": 41400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T09:00:33.599039623Z"
+    },
+    {
+      "height": 41200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:57:13.598063834Z"
+    },
+    {
+      "height": 41000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:53:53.598357517Z"
+    },
+    {
+      "height": 40800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:50:33.598551196Z"
+    },
+    {
+      "height": 40600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:47:13.599070346Z"
+    },
+    {
+      "height": 40400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:43:53.598982284Z"
+    },
+    {
+      "height": 40200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:40:33.598694446Z"
+    },
+    {
+      "height": 40000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:37:13.602184424Z"
+    },
+    {
+      "height": 39800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:33:53.598986964Z"
+    },
+    {
+      "height": 39600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:30:33.598712398Z"
+    },
+    {
+      "height": 39400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:27:13.59780077Z"
+    },
+    {
+      "height": 39200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:23:53.598654134Z"
+    },
+    {
+      "height": 39000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:20:33.598546265Z"
+    },
+    {
+      "height": 32400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 1h50m51s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:09.599108434Z"
+    },
+    {
+      "height": 20800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 5h4m21s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:07.598090854Z"
+    },
+    {
+      "height": 11200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 7h44m41s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:05.597993311Z"
+    },
+    {
+      "height": 800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 10h35m37s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:03.603465666Z"
+    }
+  ],
+  "rewards": {
+    "rewardPerAttestWei": 25000000000000000,
+    "expectedPerDayWei": 1542857142857142857,
+    "rewardPoolWei": 19928960000000000000000,
+    "poolEmpty": false,
+    "occupiedSeats": 32,
+    "eligibleSeats": 0,
+    "maxSeats": 100,
+    "claimableWei": 75000000000000000
+  },
+  "gas": {
+    "balanceWei": 999569208996984463,
+    "low": false
+  },
+  "node": {
+    "supervised": true,
+    "running": true,
+    "pid": 24,
+    "restarts": 0,
+    "since": "2026-09-26T08:18:58.599428251Z"
+  },
+  "participation24h": {
+    "window": 62,
+    "included": 2
+  },
+  "participation7d": {
+    "window": 432,
+    "included": 4
+  },
+  "phase": {
+    "state": "attesting",
+    "tone": "ok",
+    "title": "Attesting",
+    "detail": "Last included checkpoint: 51,800. Counts toward certification after 7 days active."
+  }
+}

@@ -171,6 +171,16 @@ type BreakGlassOverride struct {
 	Signatures [][]byte         `json:"signatures"`
 }
 
+// SignersAt returns the authorised signer set in the snapshot at header. It
+// is read-only and used by the RPC layer to resolve the "safe" block tag.
+func (c *Clique) SignersAt(chain consensus.ChainHeaderReader, header *types.Header) ([]common.Address, error) {
+	snap, err := c.snapshot(chain, header.Number.Uint64(), header.Hash(), nil)
+	if err != nil {
+		return nil, err
+	}
+	return snap.signers(), nil
+}
+
 // SetBootstrap makes the engine seed its first snapshot at anchor from the
 // given signers and refuse to look below it. Must be called before use.
 func (c *Clique) SetBootstrap(anchor uint64, signers []common.Address) error {

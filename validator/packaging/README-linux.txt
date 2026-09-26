@@ -14,7 +14,7 @@ Ferminux uses proof-of-authority consensus. Blocks are confirmed every 7
 seconds by a set of authorised signers run by the Ferminux foundation, and
 that does not change here. A validator node in Step 1:
   - does NOT produce or order blocks
-  - does NOT make the chain proof of stake
+  - does NOT change consensus, which stays proof-of-authority
   - CANNOT stop or overrule the signers
 
 The installer moves no FMX and needs no wallet key. The seat is opened
@@ -42,19 +42,23 @@ about 1 FMX for transaction fees and never holds your deposit.
 
 Requirements
 ------------
-  - 64-bit Linux (amd64) with systemd 247 or later (Debian 11+, Ubuntu
-    22.04+, RHEL 9+). On older systemd the installer still works: it keeps
-    a copy of the password in the service's own data directory instead.
+  - 64-bit Linux, amd64 (x86-64) or arm64, with systemd 247 or later
+    (Debian 11+, Ubuntu 22.04+, RHEL 9+). On older systemd the installer
+    still works: it keeps a copy of the password in the service's own data
+    directory instead.
   - 2 CPU cores, 2 GB free RAM, 5 GB free disk space
   - A connection that is up most of the time (you earn less, never lose
     your deposit, when the server is offline)
 
 Installing
 ----------
-1. Extract the release and go into it:
+1. Extract the release for your server's CPU (`uname -m` prints x86_64
+   for amd64, aarch64 for arm64) and go into it:
 
        tar xzf ferminux-validator-linux-amd64.tar.gz
        cd ferminux-validator-linux-amd64   # or wherever you extracted it
+
+   On an arm64 server, the same with ferminux-validator-linux-arm64.
 
 2. Run the installer as root:
 

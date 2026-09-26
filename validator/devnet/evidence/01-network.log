@@ -160,3 +160,22 @@ fmxd-v09 99.97MiB / 7.737GiB
 fmxd-v10 103.9MiB / 7.737GiB
 fmxd-v11 104.6MiB / 7.737GiB
 fmxd-v12 102.5MiB / 7.737GiB
+
+## memory housekeeping (2026-09-26T13:52:43Z, block 59180)
+  The VM's used memory grew from 4.2 GB (block 38k) to 5.3 GB (block 59k): every node's heap grows slowly
+  (supervised validator node 100 MB at start -> 210-250 MB now; signers 170 -> 290 MB; rpc archive 180 -> 460 MB).
+  v02, v03 and v06 are stopped (docker stop, clean): their seats are slashed/vetoed/exited and unbonding,
+  they sign nothing more and their evidence is recorded. v01 stays up to show the seat closing at the end.
+
+## the devnet VM was stopped from outside (2026-09-26T14:17:44Z, block about 60,700)
+  Both colima VMs on this Mac (the default profile and fmxdev) received SIGINT within two seconds
+  of each other and shut down (lima host agent log: "Received SIGINT, shutting down the host agent").
+  Nothing in this devnet did that. The chain stood still while the VM was down (no signer, no block).
+  14:24Z: the fmxdev profile was started again (the default profile was left as it was). The docker
+  daemon brought the signers, the rpc node and the two hosts back; the twelve single-seat machines
+  were stopped at once and started again 20 s apart (v04, v05, v07-v12, v01) to keep the start-up
+  memory in bounds (v02, v03, v06 stay stopped, see above). The signers came back at the same head
+  (block 60,706, same hash on sig1-3 and rpc: they had shut down cleanly) and resumed; every
+  sidecar was back to "Attesting" (or "Unbonding" for v01) by block 60,956. The windows are counted
+  in blocks, and no block was made while the VM was down, so nothing was missed: checkpoints
+  60,200 to 60,800 each carry all 32 bonded seats' attestations (node hub.mjs cps 60200 60800).

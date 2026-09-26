@@ -22,6 +22,9 @@ import {FMXRewardSink} from "../test/validators/utils/FMXRewardSink.sol";
 ///   RESERVE           router's non-validator share        (default: OWNER)
 ///   DENY              comma-separated seat owners refused (default: none)
 ///   TRANCHE           wei sent to hub.fund() at deploy    (default: 0)
+///   MAX_SEATS         seats at launch, 1..100             (default: 100; the mainnet pilot uses 20)
+///   ALLOWLIST_ONLY    true starts the invite-only pilot   (default: false)
+///   ALLOWLIST         comma-separated invited seat owners (pilot only; needs OWNER = the broadcaster)
 ///   WRITE_DEPLOYMENTS true to write ../deployments-validators.<chainid>.json (".lab.json" on the lab)
 ///   LAB               true only on the lab (chain id 3961, network id 39610)
 ///
@@ -44,19 +47,10 @@ contract DeployValidatorsTestnet is Script {
             require(owner != address(0) && owner != MAINNET_MULTISIG, "LAB needs OWNER set to a lab key");
             console.log("LAB deploy on chain id 3961: make sure the RPC is the lab, not mainnet");
         }
-        address sinkAddr = vm.envOr("SINK", address(0));
-        address reserve = vm.envOr("RESERVE", address(0));
-        uint256 tranche = vm.envOr("TRANCHE", uint256(0));
-        address[] memory deny = vm.envOr("DENY", ",", new address[](0));
-
         uint256 deployBlock = block.number;
-        vm.startBroadcast();
-        address deployer = msg.sender;
-        if (owner == address(0)) owner = deployer;
-        if (reserve == address(0)) reserve = owner;
-        Out memory o = deployAll(owner, sinkAddr, reserve, deny);
-        if (tranche != 0) o.hub.fund{value: tranche}();
-        vm.stopBroadcast();
+        address deployer;
+        Out memory o;
+        (o, deployer, owner) = _broadcast(owner);
 
         require(o.hub.owner() == owner && o.router.owner() == owner, "owner");
         require(o.hub.rewardSink() == o.sink, "sink");
@@ -70,6 +64,8 @@ contract DeployValidatorsTestnet is Script {
         console.log("Lens          ", address(o.lens));
         console.log("SinkRouter    ", address(o.router));
         console.log("rewardPool    ", o.hub.rewardPool());
+        console.log("maxSeats      ", o.hub.maxSeats());
+        console.log("allowlistOnly ", o.hub.allowlistOnly());
 
         if (vm.envOr("WRITE_DEPLOYMENTS", false)) {
             string memory json = string.concat(
@@ -97,16 +93,53 @@ contract DeployValidatorsTestnet is Script {
         }
     }
 
-    /// @notice Everything the broadcast deploys, as one function the tests exercise.
+    /// The broadcast itself, reading the rest of the environment (kept apart from run() for the stack).
+    function _broadcast(address owner) internal returns (Out memory o, address deployer, address) {
+        address sinkAddr = vm.envOr("SINK", address(0));
+        address reserve = vm.envOr("RESERVE", address(0));
+        uint256 tranche = vm.envOr("TRANCHE", uint256(0));
+        address[] memory deny = vm.envOr("DENY", ",", new address[](0));
+        address[] memory allow = vm.envOr("ALLOWLIST", ",", new address[](0));
+
+        vm.startBroadcast();
+        deployer = msg.sender;
+        if (owner == address(0)) owner = deployer;
+        if (reserve == address(0)) reserve = owner;
+        o = deployAll(
+            owner, sinkAddr, reserve, deny, vm.envOr("MAX_SEATS", uint256(100)), vm.envOr("ALLOWLIST_ONLY", false)
+        );
+        if (tranche != 0) o.hub.fund{value: tranche}();
+        if (allow.length != 0) {
+            require(owner == deployer, "ALLOWLIST needs OWNER = the broadcaster (else the owner calls setAllowlist)");
+            o.hub.setAllowlist(allow, true);
+        }
+        vm.stopBroadcast();
+        return (o, deployer, owner);
+    }
+
+    /// @notice Everything the broadcast deploys, as one function the tests exercise: an open hub
+    ///         with 100 seats (the Step 1 public-launch shape).
     function deployAll(address owner, address sinkAddr, address reserve, address[] memory deny)
         public
         returns (Out memory o)
     {
+        return deployAll(owner, sinkAddr, reserve, deny, 100, false);
+    }
+
+    /// @notice The same, with the launch seat cap and the invite-only pilot switch.
+    function deployAll(
+        address owner,
+        address sinkAddr,
+        address reserve,
+        address[] memory deny,
+        uint256 maxSeats,
+        bool allowlistOnly
+    ) public returns (Out memory o) {
         if (sinkAddr == address(0)) sinkAddr = address(new FMXRewardSink(owner));
         o.sink = sinkAddr;
         o.hub = block.chainid == 3961
-            ? new LabHubDeployer(owner, sinkAddr, deny).hub()
-            : new ValidatorHub(owner, sinkAddr, deny);
+            ? new LabHubDeployer(owner, sinkAddr, deny, maxSeats, allowlistOnly).hub()
+            : new ValidatorHub(owner, sinkAddr, deny, maxSeats, allowlistOnly);
         o.lens = new ValidatorHubLens(o.hub);
         o.router = new SinkRouter(owner, sinkAddr, address(o.hub), reserve);
     }
@@ -118,7 +151,7 @@ contract DeployValidatorsTestnet is Script {
 contract LabHubDeployer {
     ValidatorHub public immutable hub;
 
-    constructor(address owner, address sink, address[] memory deny) {
-        hub = new ValidatorHub(owner, sink, deny);
+    constructor(address owner, address sink, address[] memory deny, uint256 maxSeats, bool allowlistOnly) {
+        hub = new ValidatorHub(owner, sink, deny, maxSeats, allowlistOnly);
     }
 }

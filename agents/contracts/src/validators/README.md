@@ -13,11 +13,33 @@ not produce or order blocks. The source of truth for every rule below is the own
 |---|---|
 | `ValidatorHub.sol` | Seats, deposits, keys, attestations, certification, rewards, jail, exit, slashing, the Step 2 storage slots. Holds all the FMX. |
 | `SinkRouter.sol` | Takes ownership of FMXRewardSink and forwards 40% of its inflow to the hub (plan 5.2). |
-| `ValidatorHubLens.sol` | Read-only views decoded from the hub's storage (seat, slash, enode, totals, Step 2 slots, election preview, runway). Holds nothing; nothing trusts it. |
+| `ValidatorHubLens.sol` | Read-only views decoded from the hub's storage (seat, slash, enode, totals, Step 2 slots, election preview, runway, `seatAccess` for the pilot). Holds nothing; nothing trusts it. |
 | `HeaderRLP.sol` | `HeaderRLP` (reads parentHash and number from a header RLP) and `SealEvidence`, a stateless checker the hub deploys in its own constructor. |
 
 All four are solc 0.8.24, `evm_version = paris` (no PUSH0), optimizer 200, no OpenZeppelin, no
 upgradeability, no delegatecall, no selfdestruct (plan 5).
+
+## The invite-only pilot (mainnet, owner decision 2026-09-26)
+
+Mainnet starts as a pilot: invite-only, at most **20 seats** of exactly 2,000 FMX, owned by the
+foundation multisig, with a 20,000 FMX reward tranche from FMXRewardSink. Opening to everyone comes
+only after an external audit.
+
+| Rule | How the hub enforces it |
+|---|---|
+| Invite-only | `allowlistOnly` is a constructor argument (true on mainnet). While it is true, `openSeat` refuses any wallet not on the allowlist with `NotAllowlisted()`. The deny list is checked first, so a denied wallet stays denied even if invited. |
+| The allowlist | `setAllowlist(address[] accounts, bool allowed)`, owner only, instant, in batches, one `AllowlistSet(account, allowed)` event per entry that actually changes. It only decides who may open a new seat: an un-invited wallet keeps its open seats, deposits and rewards, and can still exit, withdraw and claim. An invitee may open more than one seat; the cap is `maxSeats`. Refused (`BadStatus`) once the hub is open to all. |
+| 20 seats | `maxSeats` is a constructor argument (1..100), fixed in the deploy transaction. Every later change goes through the 48 h timelock (`P_MAX_SEATS`), with the 100-seat launch ceiling for the first 30 days. |
+| Open to all | `queueParam(7, 1)`, then 48 h later `applyParam(7, 1)` (`P_OPEN_TO_ALL`) clears `allowlistOnly` and emits `OpenedToAll()`. It can be cancelled while queued. Once applied it can never be queued or applied again (`BadParam`), and no function sets `allowlistOnly` back to true. |
+| Certification | Needs at least 30 eligible seats, so a 20-seat pilot never certifies a checkpoint; the explorer shows "attested by N". |
+| Reward reserve | `returnExcess()` (permissionless) keeps 180 days of maximum spend at the current `maxSeats`: 20 x 0.025 x 11,109 = 5,554.5 FMX. Anything above that in the unallocated pool can be sent back to FMXRewardSink by anyone. |
+
+`ValidatorHubLens.seatAccess(wallet)` answers "can this wallet open a seat now, and if not why"
+(open, paused, denied, not invited, full) in the order `openSeat` checks, plus the pilot fields.
+
+`allowlistOnly` shares storage slot 12 with the two pause flags (byte 2) and the allowlist is the
+mapping at slot 47, after every earlier variable: no slot the lens, the sidecar or the Step 2 engine
+reads has moved (`ValidatorHubPilot.t.sol` pins both).
 
 ## Parameters
 
@@ -29,7 +51,8 @@ halted (a veto window, for example, does not expire during an outage).
 | Parameter | Value | Enforced by | Plan |
 |---|---|---|---|
 | Seat deposit | exactly 2,000 FMX (`msg.value == 2000 ether`) | `openSeat` | 3.1 |
-| Seats at launch | `maxSeats = 100` | constructor | 3.1, 13.4 |
+| Seats at launch | `maxSeats`: 100 for a public launch, **20 for the mainnet pilot** (constructor argument, 1..100) | constructor | 3.1, 13.4, pilot |
+| Invite-only pilot | only allowlisted owners open seats while `allowlistOnly`; one-way switch off | `openSeat`, `setAllowlist`, timelock | pilot |
 | Seats cap during the first 30 days | at most 100 until deploy + 370,286 blocks | `queueParam`/`applyParam` | 3.1 ("300 after 30 clean days") |
 | Seats after that | raised by timelock (300 planned); never below seats in use | timelock | 3.1 |
 | Hard ceiling | 1,000 seats | timelock | 3.1 |
@@ -66,6 +89,7 @@ halted (a veto window, for example, does not expire during an outage).
 | Step 2 candidates | at most 1,000 signing keys in slot 0 | `qualify` | 4.4, 5.1 |
 | V (`openSeatsBlock`) | set once by timelock, a multiple of 30,000 in the future | timelock | 4.7, 6.2 |
 | Community-seat switch | clearing is instant; setting needs the 48 h timelock | `closeCommunitySeats`, timelock | 4.7, 5.1 |
+| Open to all (`P_OPEN_TO_ALL` = 7) | value 1, once, by the 48 h timelock; never reversible | `queueParam`/`applyParam` | pilot |
 
 Maximum value held: 200,000 FMX at 100 seats, 600,000 at 300, 2,000,000 at the 1,000 ceiling
 (plan 5.1).
@@ -144,14 +168,16 @@ totalSlashed   = reporter credits (paid or not) + totalBurned + pendingBurn
 
 ## What the owner (the multisig) can and cannot do
 
-Can, at once: pause new seats (`setSeatsPaused`); pause attestations in an emergency
+Can, at once: invite or un-invite pilot seat owners (`setAllowlist`, while invite-only); pause new seats (`setSeatsPaused`); pause attestations in an emergency
 (`setAttestationsPaused`: nobody can be jailed, or disqualified by anyone but its owner, while paused, and participation is measured afresh
 from the next checkpoint for every seat on resume); clear the community-seat switch; veto a slash
 inside its window until the sunset. Can, by 48 h timelock and within the hard caps: maxSeats,
-rewardPerAttest, activations per day, the deny list, V (once), setting the community-seat switch.
+rewardPerAttest, activations per day, the deny list, V (once), setting the community-seat switch,
+opening the pilot to everyone (once).
 
 Cannot: move or freeze a deposit, pause exits, withdrawals, claims, evidence or slash execution,
-start or enlarge a slash, change the slash size, the unbond or any window, or upgrade the code.
+start or enlarge a slash, change the slash size, the unbond or any window, turn the allowlist back
+on after opening to all, or upgrade the code.
 
 ## Step 2 storage (read by the node engine from block V)
 
@@ -182,7 +208,9 @@ above V. `electablePreview(n)` in the lens mirrors the engine's `Elect` (plan 4.
    would split money logic across two contracts and put a cross-contract call in the
    attestation loop), the read-only views moved to `ValidatorHubLens` (through a raw
    `extsload`) and the RLP parser to `SealEvidence`, which the hub deploys itself. All FMX and all
-   state-changing logic stay in one 23,673-byte contract.
+   state-changing logic stay in one contract (24,209 bytes with the pilot allowlist). To make room for
+   the allowlist, four more views moved to the lens: `communitySeatsOpen`, `halvingActive`,
+   `evidenceUsed` and `signingKeyDigest` (same values; the hub uses them internally).
 3. **Halving is automatic.** The plan says the rate "drops by timelock" at V or 4.5M; the hub
    halves the effective rate and the budget itself at that block, so nobody has to remember. The
    owner can still lower the base rate by timelock.
@@ -219,7 +247,7 @@ above V. `electablePreview(n)` in the lens mirrors the engine's `Elect` (plan 4.
 
 ```sh
 cd agents/contracts
-forge build --sizes                  # ValidatorHub 23,673 B, lens 7,062, router 3,732, SealEvidence 1,601
+forge build --sizes                  # ValidatorHub 24,209 B (limit 24,576), lens 8,821, router 3,732, SealEvidence 1,601
 forge test --match-path "test/validators/*"
 forge test --match-path "test/validators/ValidatorHubGas.t.sol" -vv    # prints the gas table
 
@@ -237,10 +265,19 @@ the tests and the testnet script run against the real sink.
   unless `LAB=true` and `OWNER` is a lab key (the lab shares mainnet's chain id); on the lab it
   creates the hub through `LabHubDeployer` (see "Replay-safe" above) and writes
   `deployments-validators.lab.json`, never a 3961 file.
-- **Mainnet**: `script/DeployValidatorsMainnet.s.sol`, run by the operator by hand only (never by
-  CI, tooling or an agent), after the plan 9 gates: phase 0 exit criteria, the 10.1 lab checklist,
-  the testnet run, the external audit and the 7-day notice. It needs `CONFIRM_MAINNET`, deploys
-  the hub with the multisig as owner, FMXRewardSink as sink and the deny list, then prints the
-  multisig's next step (`sink.withdraw(hub, 20000 ether)` after checking the sink balance). After
-  30 clean days, `ROUTER=true HUB=<hub>` deploys SinkRouter; the multisig then calls
-  `sink.transferOwnership(router)` and `router.acceptSinkOwnership()`.
+- **Mainnet (the pilot)**: `script/DeployValidatorsMainnet.s.sol`, run by the operator by hand only
+  (never by CI, tooling or an agent) through `infra/ops/validators/pilot.sh`, which plans first
+  (read-only), then applies with `CONFIRM=validator-pilot-3961` and keystore signing:
+  1. the script deploys the hub (owner = the multisig 0x910B...fEfe, sink = FMXRewardSink, the deny
+     list, `maxSeats` 20, `allowlistOnly` true), the lens and SinkRouter (owner and reserve = the
+     multisig; it does nothing until it is handed the sink);
+  2. the multisig (2-of-3: submit, confirm, execute) withdraws the 20,000 FMX tranche from the sink
+     into the hub after checking the sink's balance;
+  3. the multisig invites the wallets in `infra/ops/validators/pilot-allowlist.txt` (up to 20; later
+     additions with `pilot.sh allowlist`, removals with `pilot.sh unlist`);
+  4. after 30 clean days (PLAN 5.2), `pilot.sh router-wire`: `sink.transferOwnership(router)`, then
+     `router.acceptSinkOwnership()`;
+  5. after the external audit, `pilot.sh open-queue`, and 48 h later `pilot.sh open-apply`.
+
+  `infra/ops/validators/rehearse-pilot.sh` runs all of it on an anvil fork of mainnet (London rules)
+  with the multisig owners impersonated.

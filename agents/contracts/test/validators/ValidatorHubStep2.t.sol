@@ -30,7 +30,7 @@ contract ValidatorHubStep2Test is ValidatorTestBase {
         uint256 pk = _freshPk();
         key = vm.addr(pk);
         address owner = _seat(seatId).owner;
-        bytes memory pop = _sign(pk, hub.signingKeyDigest(seatId, key, owner));
+        bytes memory pop = _sign(pk, lens.signingKeyDigest(seatId, key, owner));
         vm.prank(owner);
         hub.setSigningKey(seatId, key, pop);
         signPk[seatId] = pk;
@@ -67,15 +67,15 @@ contract ValidatorHubStep2Test is ValidatorTestBase {
         uint256 pk = _freshPk();
         address key = vm.addr(pk);
         uint256 seatId = ids[0];
-        _expectPopRejected(seatId, key, _sign(pk, hub.signingKeyDigest(seatId + 1, key, alice)));
-        _expectPopRejected(seatId, key, _sign(pk, hub.signingKeyDigest(seatId, key, bob)));
+        _expectPopRejected(seatId, key, _sign(pk, lens.signingKeyDigest(seatId + 1, key, alice)));
+        _expectPopRejected(seatId, key, _sign(pk, lens.signingKeyDigest(seatId, key, bob)));
         uint256 cid = block.chainid;
         vm.chainId(39610);
-        bytes32 otherNet = hub.signingKeyDigest(seatId, key, alice);
+        bytes32 otherNet = lens.signingKeyDigest(seatId, key, alice);
         vm.chainId(cid);
         _expectPopRejected(seatId, key, _sign(pk, otherNet));
 
-        bytes memory good = _sign(pk, hub.signingKeyDigest(seatId, key, alice));
+        bytes memory good = _sign(pk, lens.signingKeyDigest(seatId, key, alice));
         vm.prank(bob);
         vm.expectRevert(ValidatorHub.NotSeatOwner.selector);
         hub.setSigningKey(seatId, key, good);
@@ -138,7 +138,7 @@ contract ValidatorHubStep2Test is ValidatorTestBase {
         assertEq(uint256(vm.load(address(hub), bytes32(uint256(5)))), 0);
         _setParam(4, 1);
         assertEq(uint256(vm.load(address(hub), bytes32(uint256(5)))), 1);
-        assertTrue(hub.communitySeatsOpen());
+        assertTrue(lens.communitySeatsOpen());
 
         // the lens reads the same values
         address[] memory keys = lens.signingKeys();
@@ -275,7 +275,7 @@ contract ValidatorHubStep2Test is ValidatorTestBase {
     // ================================================================= community seats switch
 
     function test_CommunitySeats_OpenByTimelockCloseAtOnce() public {
-        assertFalse(hub.communitySeatsOpen());
+        assertFalse(lens.communitySeatsOpen());
         vm.prank(bob);
         vm.expectRevert(ValidatorHub.NotOwner.selector);
         hub.closeCommunitySeats();
@@ -283,10 +283,10 @@ contract ValidatorHubStep2Test is ValidatorTestBase {
         vm.expectRevert(ValidatorHub.BadParam.selector);
         hub.queueParam(4, 2);
         _setParam(4, 1);
-        assertTrue(hub.communitySeatsOpen());
+        assertTrue(lens.communitySeatsOpen());
         vm.prank(msig);
         hub.closeCommunitySeats();
-        assertFalse(hub.communitySeatsOpen());
+        assertFalse(lens.communitySeatsOpen());
     }
 
     // ================================================================= election preview

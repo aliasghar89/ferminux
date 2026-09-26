@@ -58,6 +58,21 @@ var (
 
 const defaultErrorCode = -32000
 
+const (
+	errcodeResponseTooLarge = -32003
+
+	errMsgResponseTooLarge = "response too large"
+	errMsgBatchTooLarge    = "batch too large"
+)
+
+// responseTooLargeError answers the calls of a batch left after its responses
+// reached the server's batch response size limit.
+type responseTooLargeError struct{}
+
+func (e *responseTooLargeError) ErrorCode() int { return errcodeResponseTooLarge }
+
+func (e *responseTooLargeError) Error() string { return errMsgResponseTooLarge }
+
 type methodNotFoundError struct{ method string }
 
 func (e *methodNotFoundError) ErrorCode() int { return -32601 }

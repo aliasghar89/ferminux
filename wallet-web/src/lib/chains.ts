@@ -43,7 +43,7 @@ export interface ChainDef {
   /** Ordered fallback list. */
   rpcUrls: string[];
   explorer: { url: string; name: string };
-  /** Multicall3 is deployed at MULTICALL3_ADDRESS (it is NOT on Ferminux). */
+  /** Multicall3 is deployed at MULTICALL3_ADDRESS (on Ferminux since 2026-09-26, block ~418,850). */
   multicall3: boolean;
   /**
    * OP-stack chain: every transaction also pays an L1 data fee on top of
@@ -81,7 +81,7 @@ export const FERMINUX_CHAIN: ChainDef = {
   native: { symbol: NATIVE_SYMBOL, name: 'Ferminux', decimals: NATIVE_DECIMALS },
   rpcUrls: RPC_URLS,
   explorer: { url: EXPLORER_URL, name: 'Ferminux Explorer' },
-  multicall3: false,
+  multicall3: true,
   opStackL1Fee: false,
   tokens: DEFAULT_TOKENS.map((t) => ({ ...t })),
 };

@@ -286,6 +286,13 @@ func DecodePubkey(curve elliptic.Curve, e Pubkey) (*ecdsa.PublicKey, error) {
 	half := len(e) / 2
 	p.X.SetBytes(e[:half])
 	p.Y.SetBytes(e[half:])
+	// Reject coordinates outside the field before the curve check. The
+	// CGO_ENABLED=0 curve (btcec) reduces mod P like the old cgo one did, and a
+	// key with X >= P passed here and then panicked in enode.NewV4 inside the
+	// discovery loop (CVE-2026-26314). This covers both builds.
+	if P := curve.Params().P; p.X.Cmp(P) >= 0 || p.Y.Cmp(P) >= 0 {
+		return nil, ErrBadPoint
+	}
 	if !p.Curve.IsOnCurve(p.X, p.Y) {
 		return nil, ErrBadPoint
 	}

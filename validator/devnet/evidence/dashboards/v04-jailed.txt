@@ -1,0 +1,68 @@
+Ferminux Validator
+devnet · chain 39619
+Attester 0x3a367e…da3f
+Hub 0x7cee96…3254
+Paused for low participation
+The owner wallet can resume it (unjail) from block 51,497 (in about 24 h). The seat attested too few recent checkpoints and earns nothing while paused. No deposit is lost for downtime.
+NODE
+Latest block
+39,198
+Block age
+1 s
+Peers
+15
+Sync
+in sync
+Process
+running · pid 24
+SEAT
+Seat
+#4
+State
+paused (jailed)
+Deposit
+2,000 FMX
+Active from block
+13,464
+Counts for certification
+after 7 days active
+Owner
+0x5b7b…8621
+
+Paused for low participation. The owner can resume it from block 51,497. No deposit is lost for downtime.
+
+REWARDS
+Expected per day
+about 1.54 FMX
+Per checkpoint
+0.025 FMX
+Claimable
+0 FMX
+Reward pool
+19,979 FMX
+Seats taken
+32 / 100
+Attested, last 24 h
+0 / 62
+Attested, last 7 days
+2 / 432
+NEXT CHECKPOINT
+Height
+39,200
+Signing opens at block
+39,264
+In about
+8 min
+Gas balance
+0.9998 FMX
+CHECKPOINTS
+Height	State	Block hash	Transaction	Included in	Detail
+39,000	waiting	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+32,400	missed	–	–	–	node not ready: node is still syncing; latest block is 1h50m51s old (limit 1m0s)
+20,800	missed	–	–	–	node not ready: node is still syncing; latest block is 5h4m21s old (limit 1m0s)
+11,200	missed	–	–	–	node not ready: node is still syncing; latest block is 7h44m41s old (limit 1m0s)
+800	missed	–	–	–	node not ready: node is still syncing; latest block is 10h35m37s old (limit 1m0s)
+
+Ferminux uses proof-of-authority consensus. This validator node keeps its own copy of the chain, checks every block and signs a statement naming the block it sees at each checkpoint. It does not produce or order blocks.
+
+This page is served only to this computer and cannot change anything. fmx-validator pre-module-rename-155-g6a6b7be

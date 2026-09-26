@@ -14,7 +14,7 @@ Ferminux uses proof-of-authority consensus. Blocks are confirmed every 7
 seconds by a set of authorised signers run by the Ferminux foundation, and
 that does not change here. A validator node in Step 1:
   - does NOT produce or order blocks
-  - does NOT make the chain proof of stake
+  - does NOT change consensus, which stays proof-of-authority
   - CANNOT stop or overrule the signers
 
 The installer moves no FMX and needs no wallet key. The seat is opened

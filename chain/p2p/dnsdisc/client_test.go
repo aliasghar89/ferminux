@@ -20,12 +20,15 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"io"
+	"math/big"
 	"math/rand"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/aliasghar89/ferminux/chain/common/math"
 	"github.com/aliasghar89/ferminux/chain/common/mclock"
 	"github.com/aliasghar89/ferminux/chain/crypto"
 	"github.com/aliasghar89/ferminux/chain/internal/testlog"
@@ -392,11 +395,26 @@ func makeTestTree(domain string, nodes []*enode.Node, links []string) (*Tree, st
 }
 
 // testKeys creates deterministic private keys for testing.
+//
+// It derives each key the way ecdsa.GenerateKey did up to Go 1.19: read
+// N.BitLen()/8+8 bytes and take k = b mod (N-1) + 1. From Go 1.20
+// GenerateKey may consume one extra byte (randutil.MaybeReadByte), so keys
+// drawn from a seeded source stopped being deterministic, the hardcoded trees
+// in these tests stopped matching, and the iterator tests waited forever.
 func testKeys(seed int64, n int) []*ecdsa.PrivateKey {
 	rand := rand.New(rand.NewSource(seed))
+	N := crypto.S256().Params().N
+	nMinus1 := new(big.Int).Sub(N, big.NewInt(1))
 	keys := make([]*ecdsa.PrivateKey, n)
 	for i := 0; i < n; i++ {
-		key, err := ecdsa.GenerateKey(crypto.S256(), rand)
+		b := make([]byte, N.BitLen()/8+8)
+		if _, err := io.ReadFull(rand, b); err != nil {
+			panic("can't read key material: " + err.Error())
+		}
+		k := new(big.Int).SetBytes(b)
+		k.Mod(k, nMinus1)
+		k.Add(k, big.NewInt(1))
+		key, err := crypto.ToECDSA(math.PaddedBigBytes(k, 32))
 		if err != nil {
 			panic("can't generate key: " + err.Error())
 		}

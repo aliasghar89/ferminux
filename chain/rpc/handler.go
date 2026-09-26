@@ -62,6 +62,10 @@ type handler struct {
 	log            log.Logger
 	allowSubscribe bool
 
+	// Server-side batch limits (upstream #26681); zero means unlimited.
+	batchRequestLimit    int // maximum number of messages in a batch
+	batchResponseMaxSize int // maximum total result bytes of a batch
+
 	subLock    sync.Mutex
 	serverSubs map[ID]*Subscription
 }
@@ -102,6 +106,14 @@ func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
 		return
 	}
 
+	// Apply the limit on the number of messages before doing any work.
+	if h.batchRequestLimit != 0 && len(msgs) > h.batchRequestLimit {
+		h.startCallProc(func(cp *callProc) {
+			h.respondWithBatchTooLarge(cp, msgs)
+		})
+		return
+	}
+
 	// Handle non-call messages first:
 	calls := make([]*jsonrpcMessage, 0, len(msgs))
 	for _, msg := range msgs {
@@ -115,9 +127,26 @@ func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
 	// Process calls on a goroutine because they may block indefinitely:
 	h.startCallProc(func(cp *callProc) {
 		answers := make([]*jsonrpcMessage, 0, len(msgs))
-		for _, msg := range calls {
-			if answer := h.handleCallMsg(cp, msg); answer != nil {
-				answers = append(answers, answer)
+		responseBytes := 0
+		for i, msg := range calls {
+			answer := h.handleCallMsg(cp, msg)
+			if answer == nil {
+				continue
+			}
+			answers = append(answers, answer)
+			if h.batchResponseMaxSize == 0 {
+				continue
+			}
+			responseBytes += len(answer.Result)
+			if responseBytes > h.batchResponseMaxSize {
+				// Stop executing and answer every remaining call with
+				// an error, so the client still gets one reply per id.
+				for _, rest := range calls[i+1:] {
+					if !rest.isNotification() {
+						answers = append(answers, rest.errorResponse(&responseTooLargeError{}))
+					}
+				}
+				break
 			}
 		}
 		h.addSubscriptions(cp.notifiers)
@@ -128,6 +157,20 @@ func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
 			n.activate()
 		}
 	})
+}
+
+// respondWithBatchTooLarge answers a batch over the item limit with a single
+// error. JSON-RPC has no way to report an error for a whole batch, so the
+// error carries the id of the first call in it (null if there is none).
+func (h *handler) respondWithBatchTooLarge(cp *callProc, batch []*jsonrpcMessage) {
+	resp := errorMessage(&invalidRequestError{errMsgBatchTooLarge})
+	for _, msg := range batch {
+		if msg.isCall() {
+			resp.ID = msg.ID
+			break
+		}
+	}
+	h.conn.writeJSON(cp.ctx, []*jsonrpcMessage{resp})
 }
 
 // handleMsg handles a single message.

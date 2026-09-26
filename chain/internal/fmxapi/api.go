@@ -821,6 +821,37 @@ func (s *BlockChainAPI) GetCode(ctx context.Context, address common.Address, blo
 // GetStorageAt returns the storage from the state at the given address, key and
 // block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta block
 // numbers are also allowed.
+// GetBlockReceipts returns the receipts of every transaction in the block given
+// by number, hash or tag, in block order, each shaped exactly like the result of
+// eth_getTransactionReceipt (upstream #27702). A block that does not exist
+// gives JSON null; a block without transactions gives an empty list.
+func (s *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]map[string]interface{}, error) {
+	block, err := s.b.BlockByNumberOrHash(ctx, blockNrOrHash)
+	if block == nil || err != nil {
+		// When the block doesn't exist, the RPC method should return JSON null
+		// as per specification.
+		return nil, nil
+	}
+	receipts, err := s.b.GetReceipts(ctx, block.Hash())
+	if err != nil {
+		return nil, err
+	}
+	txs := block.Transactions()
+	if len(txs) != len(receipts) {
+		return nil, fmt.Errorf("receipts length mismatch: %d vs %d", len(txs), len(receipts))
+	}
+	signer := types.MakeSigner(s.b.ChainConfig(), block.Number())
+	var baseFee *big.Int
+	if s.b.ChainConfig().IsLondon(block.Number()) {
+		baseFee = block.BaseFee()
+	}
+	result := make([]map[string]interface{}, len(receipts))
+	for i, receipt := range receipts {
+		result[i] = marshalReceipt(receipt, block.Hash(), block.NumberU64(), signer, txs[i], i, baseFee)
+	}
+	return result, nil
+}
+
 func (s *BlockChainAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
@@ -1593,13 +1624,30 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 	// Derive the sender.
 	bigblock := new(big.Int).SetUint64(blockNumber)
 	signer := types.MakeSigner(s.b.ChainConfig(), bigblock)
+
+	// The effective gas price needs the block's base fee from London on.
+	var baseFee *big.Int
+	if s.b.ChainConfig().IsLondon(bigblock) {
+		header, err := s.b.HeaderByHash(ctx, blockHash)
+		if err != nil {
+			return nil, err
+		}
+		baseFee = header.BaseFee
+	}
+	return marshalReceipt(receipt, blockHash, blockNumber, signer, tx, int(index), baseFee), nil
+}
+
+// marshalReceipt marshals a transaction receipt into a JSON object, shared by
+// eth_getTransactionReceipt and eth_getBlockReceipts (upstream #27702). baseFee
+// is the block's base fee, nil before London.
+func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber uint64, signer types.Signer, tx *types.Transaction, txIndex int, baseFee *big.Int) map[string]interface{} {
 	from, _ := types.Sender(signer, tx)
 
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockNumber":       hexutil.Uint64(blockNumber),
-		"transactionHash":   hash,
-		"transactionIndex":  hexutil.Uint64(index),
+		"transactionHash":   tx.Hash(),
+		"transactionIndex":  hexutil.Uint64(txIndex),
 		"from":              from,
 		"to":                tx.To(),
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
@@ -1610,14 +1658,10 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		"type":              hexutil.Uint(tx.Type()),
 	}
 	// Assign the effective gas price paid
-	if !s.b.ChainConfig().IsLondon(bigblock) {
+	if baseFee == nil {
 		fields["effectiveGasPrice"] = hexutil.Uint64(tx.GasPrice().Uint64())
 	} else {
-		header, err := s.b.HeaderByHash(ctx, blockHash)
-		if err != nil {
-			return nil, err
-		}
-		gasPrice := new(big.Int).Add(header.BaseFee, tx.EffectiveGasTipValue(header.BaseFee))
+		gasPrice := new(big.Int).Add(baseFee, tx.EffectiveGasTipValue(baseFee))
 		fields["effectiveGasPrice"] = hexutil.Uint64(gasPrice.Uint64())
 	}
 	// Assign receipt status or post state.
@@ -1633,7 +1677,7 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}
-	return fields, nil
+	return fields
 }
 
 // sign is a helper function that signs a transaction with the private key of the given address.

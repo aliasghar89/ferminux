@@ -7,7 +7,7 @@ salted Foundry deploys, Safe multisigs and smart-account wallets all fail or
 fall back. This directory puts them there, at their canonical addresses, with
 their canonical bytecode.
 
-**Status: rehearsed, not broadcast.** Nothing here has been sent to mainnet.
+**Status: DEPLOYED on chain 3961 on 2026-09-26** (blocks 418,8xx; `verify.sh`: 44 passed, 0 failed). Gas account `0xBFFE58596Cc30B6e41eaBaf7462FfeA048d2FeDe`.
 The mainnet run needs the owner's go-ahead and a funded gas account.
 
 | Contract | Address | Route | Gas used |

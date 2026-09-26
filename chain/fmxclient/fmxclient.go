@@ -101,6 +101,17 @@ func (ec *Client) PeerCount(ctx context.Context) (uint64, error) {
 	return uint64(result), err
 }
 
+// BlockReceipts returns the receipts of every transaction in the block given by
+// number, hash or tag (eth_getBlockReceipts). A missing block is NotFound.
+func (ec *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]*types.Receipt, error) {
+	var r []*types.Receipt
+	err := ec.c.CallContext(ctx, &r, "eth_getBlockReceipts", blockNrOrHash)
+	if err == nil && r == nil {
+		return nil, ferminux.NotFound
+	}
+	return r, err
+}
+
 type rpcBlock struct {
 	Hash         common.Hash      `json:"hash"`
 	Transactions []rpcTransaction `json:"transactions"`

@@ -119,6 +119,29 @@ func FerminuxConfig() *Config {
 	}
 }
 
+// ConfigFor returns FerminuxConfig for the chain the engine will run. The
+// PosaBlock-1 checkpoint is a fact about one chain: hash(F-1) of the network
+// whose chain id and PosaBlock are the compiled ones (mainnet: 3961 and
+// 160000). On any other chain config (a devnet or lab genesis with its own
+// posaBlock, or a lab build that moved PosaBlock without re-pinning) the
+// checkpoint is left unset instead of refusing that chain's block F.
+func ConfigFor(chainConfig *params.ChainConfig) *Config {
+	cfg := FerminuxConfig()
+	if cfg.CheckpointHash == (common.Hash{}) || chainConfig == nil {
+		return cfg
+	}
+	home := params.FerminuxChainConfig
+	sameChain := chainConfig.ChainID != nil && home.ChainID != nil && chainConfig.ChainID.Cmp(home.ChainID) == 0
+	sameFork := chainConfig.PosaBlock != nil && home.PosaBlock != nil && chainConfig.PosaBlock.Cmp(home.PosaBlock) == 0
+	if !sameChain || !sameFork {
+		log.Warn("Ferminux authority checkpoint not applied: it pins another chain",
+			"chainid", chainConfig.ChainID, "posaBlock", chainConfig.PosaBlock,
+			"pinnedChainid", home.ChainID, "pinnedPosaBlock", home.PosaBlock)
+		cfg.CheckpointHash = common.Hash{}
+	}
+	return cfg
+}
+
 // Posa is the dispatching engine.
 type Posa struct {
 	forkBlock *big.Int // ChainConfig.PosaBlock (nil = pure Powhash, everything delegates to pow)

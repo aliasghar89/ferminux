@@ -85,8 +85,10 @@ test('multicall chain: ONE request carrying eth_chainId + one eth_call, exact 25
   assert.equal(r.rpcUrl, BSC.rpcUrls[0]);
 });
 
-test('no-multicall chain (Ferminux): one JSON-RPC batch of eth_getBalance + balanceOf calls, matched by id', async () => {
-  const assets = chainAssets(FERMINUX_CHAIN, []);
+test('no-multicall chain: one JSON-RPC batch of eth_getBalance + balanceOf calls, matched by id', async () => {
+  // Ferminux has Multicall3 since 2026-09-26; this keeps the batch path covered for a chain without it.
+  const NO_MC = { ...FERMINUX_CHAIN, multicall3: false };
+  const assets = chainAssets(NO_MC, []);
   const seen = [];
   const transportFor = () => async (calls) => {
     seen.push(calls);
@@ -101,7 +103,7 @@ test('no-multicall chain (Ferminux): one JSON-RPC batch of eth_getBalance + bala
       return c.id === 3 ? { id: c.id, error: { code: -32000, message: 'execution reverted' } } : { id: c.id, result: word(BigInt(c.id)) };
     });
   };
-  const r = await readChainBalances(FERMINUX_CHAIN, HOLDER, assets, { transportFor });
+  const r = await readChainBalances(NO_MC, HOLDER, assets, { transportFor });
   assert.equal(r.ok, true);
   assert.equal(seen.length, 1);
   assert.equal(seen[0].length, assets.length + 1);

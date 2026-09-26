@@ -66,7 +66,7 @@ test('Ferminux is first, uses the configured RPC/explorer, and lists the shared 
   assert.equal(CHAINS[0], FERMINUX_CHAIN);
   assert.equal(FERMINUX_CHAIN.id, 3961);
   assert.equal(FERMINUX_CHAIN.native.symbol, 'FMX');
-  assert.equal(FERMINUX_CHAIN.multicall3, false, 'Multicall3 is not deployed on 3961');
+  assert.equal(FERMINUX_CHAIN.multicall3, true, 'Multicall3 is deployed on 3961 at the canonical address');
   assert.deepEqual(
     FERMINUX_CHAIN.tokens.map((t) => t.symbol),
     DEFAULT_TOKENS.map((t) => t.symbol),

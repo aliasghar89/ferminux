@@ -3,60 +3,131 @@
 <head>
 <!-- @head -->
 <!--
-  The validator programme, before it exists. Wording follows the approved plan (§12.1) with one change: the
-  signer count is never written here, it is read live (clique_getSigners), because the set changes.
-  Rules for this page: rewards in FMX per day only (never a yearly percentage or a dollar figure); never
-  "proof of stake"; never "mining"; step 1 validators check blocks and sign checkpoints, they do not produce
-  blocks. No deposit button until the deposit contract exists and its address is published here.
+  The validator programme: an invite-only pilot on chain 3961 (owner decision 2026-09-26): at most 20 seats of
+  exactly 2,000 FMX, the foundation multisig owns the ValidatorHub, and seats open to everyone only after an
+  external audit. Until the hub's address is set (agents/deployments-validators.3961.json, or VITE_VALIDATOR_HUB
+  in a test build) this page says the pilot opens soon and offers the signed waitlist; there is no deposit
+  button. With an address, an invited wallet opens its seat here (src/pages/validators.ts).
+  Rules for this page: the signer count is read live (clique_getSigners), never written here; rewards in FMX per
+  day only (never a yearly percentage or a dollar figure); Ferminux is proof-of-authority, and step 1 validators
+  check blocks and sign checkpoints, they do not produce blocks.
 -->
 <title>Become a Ferminux validator — Ferminux Network</title>
-<meta name="description" content="Run a Ferminux validator node on a Windows PC or a Linux server: check every block and sign a checkpoint about every 23 minutes, 2,000 FMX deposit per seat, about 1.5 FMX a day per seat. In development: join the waitlist.">
+<meta name="description" content="Run a Ferminux validator node on a Windows PC or a Linux server: check every block and sign a checkpoint about every 23 minutes. Pilot: invite-only, up to 20 seats, 2,000 FMX each; opening to everyone after an external audit.">
 <link rel="canonical" href="https://ferminux.net/validators/">
 <meta property="og:title" content="Become a Ferminux validator">
-<meta property="og:description" content="Check every block and sign checkpoints from a Windows PC or a Linux server. 2,000 FMX per seat, about 1.5 FMX a day. In development: join the waitlist.">
+<meta property="og:description" content="Check every block and sign checkpoints from a Windows PC or a Linux server. Pilot: invite-only, up to 20 seats, 2,000 FMX each. Everyone else: join the waitlist.">
 <link rel="stylesheet" href="/src/styles.css">
+<link rel="stylesheet" href="/src/validators.css">
 </head>
 <body>
 <!-- @header -->
 <main id="main">
   <div class="container">
     <section class="hero-sm val-hero">
-      <p class="kicker">Chain 3961 · validator programme</p>
+      <p class="kicker">Chain 3961 · validator pilot</p>
       <div class="page-title">
         <div>
           <h1>Become a Ferminux validator</h1>
-          <p>Run a full Ferminux node on a Windows PC or a Linux server, check every block, and sign a checkpoint about every 23 minutes. As planned, each seat will be a 2,000 FMX deposit and earn about 1.5 FMX a day while it is online.</p>
+          <p>Run a full Ferminux node on a Windows PC or a Linux server, check every block, and sign a checkpoint about every 23 minutes. Each seat is a 2,000 FMX deposit and earns about 1.5 FMX a day while it is online.</p>
         </div>
-        <div class="hero-actions val-actions"><a class="btn btn-primary" href="#join">Join the waitlist</a><a class="btn btn-secondary" href="/consensus.html">How blocks are confirmed</a></div>
+        <div class="hero-actions val-actions"><a class="btn btn-primary" href="#join" id="hero-join">Join the pilot</a><a class="btn btn-secondary" href="/consensus.html">How blocks are confirmed</a></div>
       </div>
     </section>
 
     <div class="val-banner" id="status">
-      <span class="pill accent">In development</span>
-      <p><strong>Not available yet — join the waitlist.</strong> There is no deposit contract yet, so no FMX can be deposited for a seat today. Anyone who asks you to send FMX for a validator seat before this page publishes the contract address is not us.</p>
+      <span class="pill accent" id="status-pill">Opens soon</span>
+      <p><strong id="status-strong">Pilot: invite-only, up to 20 seats, 2,000 FMX each; opening to everyone after an external audit.</strong> <span id="status-line">Its contract is not on chain yet, so no FMX can be deposited for a seat today. Anyone who asks you to send FMX for a validator seat before this page publishes the contract address is not us.</span></p>
     </div>
 
-    <div class="statgrid val-terms" aria-label="Planned terms and the live waitlist">
+    <div class="statgrid val-terms" aria-label="The pilot's terms and live figures">
+      <div><div class="l">Pilot seats</div><div class="v num" id="v-seats">up to 20</div></div>
       <div><div class="l">Deposit per seat</div><div class="v num">2,000 FMX</div></div>
       <div><div class="l">When online</div><div class="v num">≈1.5 FMX a day</div></div>
-      <div><div class="l">Checkpoint</div><div class="v num">every ≈23 min</div></div>
       <div><div class="l">Waitlist</div><div class="v num" id="v-count">—</div></div>
     </div>
-    <p class="small faint val-terms-note">Planned terms for the first step, tested on the public test network before anything goes live. The waitlist figure is live.</p>
+    <p class="small faint val-terms-note" id="terms-note">The waitlist figure is live. The seat count is read from the contract once it is on chain.</p>
+
+    <section class="panel vp" id="join" aria-labelledby="join-h" tabindex="-1">
+      <div class="panel-head vp-head"><h2 class="panel-h" id="join-h">Join the pilot</h2><span class="pill" id="join-pill">Opens soon</span></div>
+      <div class="vp-grid">
+        <div class="vp-side">
+          <dl class="vp-facts" aria-label="The pilot">
+            <div><dt>Seats</dt><dd id="f-seats">Up to 20</dd></div>
+            <div><dt>Deposit</dt><dd>2,000 FMX a seat</dd></div>
+            <div><dt>Who</dt><dd id="f-who">Invited wallets</dd></div>
+            <div><dt>Next</dt><dd id="f-next">Open to everyone after an external audit</dd></div>
+          </dl>
+          <div class="vp-wallet" id="vp-wallet" aria-live="polite"></div>
+          <ol class="vp-steps" id="vp-steps" aria-label="Opening a seat" hidden></ol>
+        </div>
+        <div class="vp-main">
+          <div class="vp-view" id="vp-view"></div>
+          <div class="vp-wl" id="wl-box" hidden>
+            <h3 class="vp-h" id="wl-h">Join the waitlist</h3>
+            <form class="val-form wl-form" id="wl-form" novalidate aria-labelledby="wl-h">
+              <p class="small muted" id="wl-lead">Pilot seats are by invitation. Join the waitlist to hear when seats open to more wallets. It does not reserve a seat, and there is nothing to pay.</p>
+              <div class="field">
+                <span class="label" id="wl-wallet-l">Your wallet</span>
+                <div class="wl-wallet" id="wl-wallet" aria-labelledby="wl-wallet-l"></div>
+                <span class="hint" id="wl-address-hint">The entry is signed by the wallet it lists, so nobody else can put your address on the list. Signing is free and sends no transaction.</span>
+                <span class="err" id="wl-address-err" hidden></span>
+              </div>
+              <fieldset class="field" aria-describedby="wl-platform-err">
+                <legend>Platform</legend>
+                <div class="wl-radios">
+                  <label class="wl-radio"><input type="radio" name="platform" value="windows"><span>Windows</span></label>
+                  <label class="wl-radio"><input type="radio" name="platform" value="linux"><span>Linux</span></label>
+                  <label class="wl-radio"><input type="radio" name="platform" value="both"><span>Both</span></label>
+                </div>
+                <span class="err" id="wl-platform-err" hidden></span>
+              </fieldset>
+              <div class="field">
+                <label for="wl-seats">Seats you plan</label>
+                <select id="wl-seats" name="seats" aria-describedby="wl-seats-hint wl-seats-err">
+                  <option value="1">1 seat · 2,000 FMX</option><option value="2">2 seats · 4,000 FMX</option><option value="3">3 seats · 6,000 FMX</option><option value="4">4 seats · 8,000 FMX</option><option value="5">5 seats · 10,000 FMX</option>
+                  <option value="6">6 seats · 12,000 FMX</option><option value="7">7 seats · 14,000 FMX</option><option value="8">8 seats · 16,000 FMX</option><option value="9">9 seats · 18,000 FMX</option><option value="10">10 seats · 20,000 FMX</option>
+                </select>
+                <span class="hint" id="wl-seats-hint">Deposited only when you open a seat.</span>
+                <span class="err" id="wl-seats-err" hidden></span>
+              </div>
+              <div class="field">
+                <label for="wl-contact">E-mail or Telegram <span class="opt">optional</span></label>
+                <input id="wl-contact" name="contact" type="text" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com or @handle" maxlength="254" aria-describedby="wl-contact-err">
+                <span class="err" id="wl-contact-err" hidden></span>
+              </div>
+              <div class="field">
+                <label class="wl-check"><input type="checkbox" id="wl-consent" name="consent" aria-describedby="wl-consent-err"><span>You may contact me about validator seats at this e-mail or Telegram handle.</span></label>
+                <span class="err" id="wl-consent-err" hidden></span>
+              </div>
+              <button class="btn btn-primary btn-block" type="submit" id="wl-submit">Sign and join the waitlist</button>
+              <p class="wl-status" id="wl-status" role="status" aria-live="polite"></p>
+              <p class="small faint wl-privacy">We store the address, platform, seats and signature, and your contact only if you tick the box, and use them only to tell you about validator seats. The public count shows totals only. <a class="link-inline" href="https://ferminux.com/legal/privacy.html#validators" rel="noopener">Privacy</a></p>
+            </form>
+            <div class="wl-done" id="wl-done" hidden tabindex="-1">
+              <p class="wl-done-h"><span class="status-dot ok" aria-hidden="true"></span><span id="wl-done-t">You are on the waitlist</span></p>
+              <p class="small muted" id="wl-done-p"></p>
+              <button type="button" class="btn btn-secondary btn-sm" id="wl-again">Sign up another wallet</button>
+            </div>
+            <p class="wl-split small faint" id="wl-split"></p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <div class="detail val-detail">
       <div class="detail-main">
         <div class="doc">
           <section id="what" aria-labelledby="what-h">
             <h2 id="what-h">What a validator does</h2>
-            <p>Ferminux uses Clique proof-of-authority: a set of authorised signers (<span id="v-signers">read live on the <a class="link-inline" href="/consensus.html#now">consensus page</a></span>) confirms a block every 7 seconds. The foundation operates the signer set today, and an open validator programme is being built. This page is that programme.</p>
+            <p>Ferminux uses Clique proof-of-authority: a set of authorised signers (<span id="v-signers">read live on the <a class="link-inline" href="/consensus.html#now">consensus page</a></span>) confirms a block every 7 seconds. The foundation operates the signer set today. The validator programme adds independent seats that check the chain, starting with this invite-only pilot.</p>
             <p>In the first step, a validator node:</p>
             <ul>
               <li>runs a full Ferminux node on Windows 10/11 or Linux, with its own copy of the chain;</li>
               <li>checks every block as it arrives;</li>
               <li>about every 23 minutes (every 200 blocks) signs a checkpoint: a short statement naming the block it sees at that height.</li>
             </ul>
-            <p>Checkpoints are recorded on-chain. When two-thirds of the eligible validator seats sign the same block, the explorer marks that checkpoint as <strong>certified</strong>: public proof that nobody rewrote the history before it.</p>
+            <p>Checkpoints are recorded on-chain. When at least 30 seats count and two-thirds of them sign the same block, the explorer marks that checkpoint as <strong>certified</strong>: public proof that nobody rewrote the history before it. With 20 seats the pilot never reaches 30, so during the pilot the explorer shows how many seats signed each checkpoint instead.</p>
           </section>
 
           <section id="not" aria-labelledby="not-h">
@@ -64,7 +135,7 @@
             <div class="callout">
               <ul>
                 <li><strong>Step 1 validators do not produce blocks.</strong> The authorised signers still confirm every block. Community block-signing seats come in step 2, as a separately announced network upgrade.</li>
-                <li><strong>This is not proof of stake.</strong> Ferminux stays proof-of-authority. The deposit makes a seat accountable for what its key signs; it does not decide who confirms blocks.</li>
+                <li><strong>Ferminux stays proof-of-authority.</strong> The deposit makes a seat accountable for what its key signs; it does not decide who confirms blocks.</li>
                 <li><strong>Validators cannot stop the signers,</strong> and the signers could leave checkpoints out of blocks. The on-chain record is what would show it.</li>
               </ul>
             </div>
@@ -73,28 +144,30 @@
           <section id="requirements" aria-labelledby="req-h">
             <h2 id="req-h">What you need</h2>
             <dl class="kv">
-              <div class="kv-row"><dt>Deposit</dt><dd><strong>2,000 FMX per seat.</strong> Each seat has its own key; for more seats, deposit 2,000 FMX for each.</dd></div>
+              <div class="kv-row"><dt>Invitation</dt><dd><strong>An invited wallet.</strong> During the pilot only wallets the foundation multisig has invited can open a seat. Everyone else can join the waitlist.</dd></div>
+              <div class="kv-row"><dt>Deposit</dt><dd><strong>2,000 FMX per seat,</strong> sent from the invited wallet. Each seat has its own key; for more seats, deposit 2,000 FMX for each.</dd></div>
               <div class="kv-row"><dt>Computer</dt><dd>A PC or a server that stays on, running Windows 10, Windows 11 or Linux.</dd></div>
               <div class="kv-row"><dt>Hardware</dt><dd>2 CPU cores, 2 GB of RAM, 5 GB of SSD space.</dd></div>
               <div class="kv-row"><dt>Network</dt><dd>An ordinary internet connection. No open port is needed: the node only makes outgoing connections.</dd></div>
-              <div class="kv-row"><dt>Your wallet</dt><dd>The address that owns the seat stays in your wallet. It never has to be on the validator computer.</dd></div>
+              <div class="kv-row"><dt>Your wallet</dt><dd>The wallet that owns the seat stays with you. Its key never has to be on the validator computer.</dd></div>
             </dl>
           </section>
 
           <section id="rewards" aria-labelledby="rew-h">
             <h2 id="rew-h">Rewards</h2>
             <p>About <strong>1.5 FMX a day</strong> for a seat that is online all day: 0.025 FMX for each checkpoint signed on time, about 62 checkpoints a day. A PC that sleeps 8 hours a night earns about 1 FMX a day.</p>
-            <p>Rewards come from the network reward pool, which already receives half of every block reward. No new FMX is created for validators. If the pool is empty, seats earn nothing until it refills.</p>
+            <p>For the pilot, the foundation multisig moves 20,000 FMX from the network reward pool (which receives half of every block reward) into the contract. No new FMX is created for validators. If the contract's pool runs out, seats earn nothing until it is refilled.</p>
             <p>Rewards are paid in FMX and carry no promise of any value. FMX trades in a very small market today.</p>
           </section>
 
           <section id="rules" aria-labelledby="rules-h">
             <h2 id="rules-h">Rules and risks</h2>
             <ul>
-              <li><strong>Downtime never costs your deposit.</strong> Being offline only costs the rewards you miss. A seat that is offline for about 2 days (below half of its checkpoints) is paused, and you resume it with one click after a 24-hour wait.</li>
+              <li><strong>Downtime never costs your deposit.</strong> Being offline only costs the rewards you miss. A seat that signs fewer than half of its last 124 checkpoints (about 2 days) is paused, and the owner wallet can resume it after 24 hours.</li>
               <li><strong>Run each key on one machine.</strong> A key running on two machines at once can sign two different blocks for the same checkpoint, and that costs 10% of the deposit (200 FMX). The validator app refuses to start a key that is already running.</li>
               <li><strong>Leaving takes 14 days.</strong> Rewards stop when you ask to leave; after the 14-day unbonding period you withdraw the 2,000 FMX, minus any penalty.</li>
-              <li><strong>Seats are limited:</strong> 100 at launch, and at most 10 new seats start each day.</li>
+              <li><strong>Seats are limited:</strong> 20 in the pilot, and at most 10 new seats start each day. A seat starts about 24 hours after its deposit.</li>
+              <li><strong>What the foundation can and cannot do.</strong> The multisig that owns the contract can invite wallets, pause new seats and change parameters behind a 48-hour delay. It cannot move or freeze a deposit, and the contract cannot be upgraded.</li>
               <li><strong>The foundation holds most of the FMX supply today,</strong> so many early deposits will use FMX the foundation hands out. The explorer will label seats whose deposit came from foundation wallets.</li>
             </ul>
           </section>
@@ -102,65 +175,28 @@
           <section id="timeline" aria-labelledby="tl-h">
             <h2 id="tl-h">Timeline</h2>
             <ol class="val-steps">
-              <li class="on"><span class="pill accent">In development</span><h3>Build</h3><p>The Ferminux Validator app for Windows 10/11, a one-command Linux install, the deposit contract, and checkpoint pages on the explorer.</p></li>
-              <li><span class="pill">Next</span><h3>Public test network</h3><p>A separate test chain with test FMX: community validators on real Windows PCs and Linux servers, and an external review of the deposit contract.</p></li>
-              <li><span class="pill">Target: about 9 weeks</span><h3>Mainnet, step 1</h3><p>Deposits open on chain 3961. A seat starts a day after its deposit, and checkpoints are certified on the explorer.</p></li>
-              <li><span class="pill">Later</span><h3>Step 2: community block-signing seats</h3><p>Validators with a clean 30-day record also take turns confirming blocks. It is a network upgrade, tested on the test network first and announced with public notice.</p></li>
+              <li class="on"><span class="pill ok">Built</span><h3>Build</h3><p>The Ferminux Validator app for Windows 10/11 and Linux, the ValidatorHub contract, and checkpoint pages on the explorer, rehearsed on a copy of the chain.</p></li>
+              <li class="on" id="tl-pilot"><span class="pill accent" id="tl-pilot-pill">Opens soon</span><h3>Pilot on chain 3961</h3><p>Invite-only: up to 20 seats of 2,000 FMX, opened from invited wallets on this page. Everyone else can join the waitlist.</p></li>
+              <li><span class="pill">Next</span><h3>External audit</h3><p>An outside review of the ValidatorHub contract while the pilot runs.</p></li>
+              <li><span class="pill">After the audit</span><h3>Open to everyone</h3><p>The multisig lifts the invitation rule. The switch has a 48-hour delay, works only once and cannot be turned back.</p></li>
+              <li><span class="pill">Later</span><h3>Step 2: community block-signing seats</h3><p>Validators with a clean 30-day record also take turns confirming blocks. It is a network upgrade, tested first and announced with public notice.</p></li>
             </ol>
-            <p class="small faint">Targets, not promises: each phase starts only when the one before it has passed its checks. The contract address and the downloads will be published on this page when they exist.</p>
+            <p class="small faint">Each phase starts only when the one before it has passed its checks. The contract address and the downloads appear on this page when they are published.</p>
           </section>
         </div>
       </div>
 
-      <aside class="detail-side" aria-labelledby="join-h">
-        <div class="panel val-join" id="join">
-          <div class="panel-head"><h2 class="panel-h" id="join-h">Join the waitlist</h2><span class="pill">Nothing to pay</span></div>
-          <form class="panel-body val-form" id="wl-form" novalidate>
-            <p class="small muted">We will tell you when the public test network opens. There is nothing to pay or deposit now.</p>
-            <div class="field">
-              <label for="wl-address">FMX address</label>
-              <input id="wl-address" name="address" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="0x…" maxlength="64" required aria-describedby="wl-address-hint wl-address-err">
-              <span class="hint" id="wl-address-hint">The wallet that will own the seat.</span>
-              <span class="err" id="wl-address-err" hidden></span>
-              <button type="button" class="btn btn-ghost btn-sm wl-use" id="wl-use-wallet" hidden>Use my connected wallet</button>
-            </div>
-            <fieldset class="field" aria-describedby="wl-platform-err">
-              <legend>Platform</legend>
-              <div class="wl-radios">
-                <label class="wl-radio"><input type="radio" name="platform" value="windows"><span>Windows</span></label>
-                <label class="wl-radio"><input type="radio" name="platform" value="linux"><span>Linux</span></label>
-                <label class="wl-radio"><input type="radio" name="platform" value="both"><span>Both</span></label>
-              </div>
-              <span class="err" id="wl-platform-err" hidden></span>
-            </fieldset>
-            <div class="field">
-              <label for="wl-seats">Seats you plan</label>
-              <select id="wl-seats" name="seats" aria-describedby="wl-seats-hint wl-seats-err">
-                <option value="1">1 seat · 2,000 FMX</option><option value="2">2 seats · 4,000 FMX</option><option value="3">3 seats · 6,000 FMX</option><option value="4">4 seats · 8,000 FMX</option><option value="5">5 seats · 10,000 FMX</option>
-                <option value="6">6 seats · 12,000 FMX</option><option value="7">7 seats · 14,000 FMX</option><option value="8">8 seats · 16,000 FMX</option><option value="9">9 seats · 18,000 FMX</option><option value="10">10 seats · 20,000 FMX</option>
-              </select>
-              <span class="hint" id="wl-seats-hint">Deposited only when seats open.</span>
-              <span class="err" id="wl-seats-err" hidden></span>
-            </div>
-            <div class="field">
-              <label for="wl-contact">E-mail or Telegram <span class="opt">optional</span></label>
-              <input id="wl-contact" name="contact" type="text" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com or @handle" maxlength="254" aria-describedby="wl-contact-err">
-              <span class="err" id="wl-contact-err" hidden></span>
-            </div>
-            <div class="field">
-              <label class="wl-check"><input type="checkbox" id="wl-consent" name="consent" aria-describedby="wl-consent-err"><span>You may contact me about validator seats at this e-mail or Telegram handle.</span></label>
-              <span class="err" id="wl-consent-err" hidden></span>
-            </div>
-            <button class="btn btn-primary btn-block" type="submit" id="wl-submit">Join the waitlist</button>
-            <p class="wl-status" id="wl-status" role="status" aria-live="polite"></p>
-            <p class="small faint wl-privacy">We store the address, platform and seats, and your contact only if you tick the box, and use them only to tell you about validator seats. The public count shows totals only. <a class="link-inline" href="https://ferminux.com/legal/privacy.html#validators" rel="noopener">Privacy</a></p>
-          </form>
-          <div class="panel-body wl-done" id="wl-done" hidden tabindex="-1">
-            <p class="wl-done-h"><span class="status-dot ok" aria-hidden="true"></span><span id="wl-done-t">You are on the waitlist</span></p>
-            <p class="small muted" id="wl-done-p"></p>
-            <button type="button" class="btn btn-secondary btn-sm" id="wl-again">Add another address</button>
+      <aside class="detail-side" aria-labelledby="c-h">
+        <div class="panel val-contract" id="contract">
+          <div class="panel-head"><h2 class="panel-h" id="c-h">The contract</h2><span class="pill" id="c-pill">Not on chain yet</span></div>
+          <div class="panel-body" id="c-body">
+            <p class="small muted">The ValidatorHub is not on chain yet. Its address will be published here and on the explorer, and only there. Until then no FMX can be deposited for a seat.</p>
+            <dl class="vp-kv">
+              <div><dt>Owner</dt><dd>Foundation multisig, 2 of 3</dd></div>
+              <div><dt>Seats</dt><dd>Up to 20, invite-only</dd></div>
+              <div><dt>Rewards</dt><dd>20,000 FMX from the network reward pool</dd></div>
+            </dl>
           </div>
-          <p class="wl-split small faint" id="wl-split"></p>
         </div>
       </aside>
     </div>

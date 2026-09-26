@@ -59,6 +59,11 @@ var DefaultConfig = Config{
 	WSPort:              DefaultWSPort,
 	WSModules:           []string{"net", "web3"},
 	GraphQLVirtualHosts: []string{"localhost"},
+
+	// Server-side JSON-RPC batch limits (upstream #26681 defaults).
+	BatchRequestLimit:    1000,
+	BatchResponseMaxSize: 25 * 1000 * 1000,
+
 	P2P: p2p.Config{
 		ListenAddr: ":30303",
 		MaxPeers:   50,

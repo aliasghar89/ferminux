@@ -12,3 +12,12 @@
 <<< step timelock done (block 64, fails so far 0)
 
 >>> step fund (2026-09-25T21:26:52Z, block 64)
+
+## apply activationsPerDay = 50 after the timelock (eta 24746) (2026-09-26T04:18:50Z, block 24747)
+    msig submit #4 by OWNER1: tx=0x5b17a7bcc116ec4c7f8dfd454c9ad1fdfa95f96a52744dc4bd7a2fed143aab54 block=24749 status=1 gas=196468
+    msig confirm #4 by OWNER2: tx=0x02c3a013b04062a85c8c6f14795b1d038d83ca0abee977df441e00a88cf1f3bc block=24751 status=1 gas=57582
+  tx=0x7e606c33ae873b48be2f0b0441fdc3d2546fa392ce130fdbdeac84b25d6a5ed8 block=24753 status=1 gas=77929
+  ok: activationsPerDay = 50
+<<< step timelock-apply done (block 24753, fails so far 1)
+
+>>> step batch-a (2026-09-26T04:18:56Z, block 24753)

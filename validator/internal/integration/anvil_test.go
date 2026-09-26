@@ -79,7 +79,9 @@ func freePort(t *testing.T) int {
 func startAnvil(t *testing.T) *chainT {
 	port := freePort(t)
 	args := []string{"--host", "127.0.0.1", "--port", fmt.Sprint(port), "--chain-id", fmt.Sprint(chainID),
-		"--hardfork", "paris", "--silent"}
+		// --prune-history: nothing persisted under ~/.foundry/anvil/tmp, which a killed anvil
+		// never cleans up (without it every run left about 3 GB behind)
+		"--hardfork", "paris", "--prune-history", "--silent"}
 	if u := os.Getenv("FMX_FORK_URL"); u != "" {
 		args = append(args, "--fork-url", u)
 	}
@@ -217,7 +219,10 @@ func deployHub(t *testing.T, c *chainT) common.Address {
 	code := hubArtifact(t)
 	addrT, _ := abiType("address")
 	arrT, _ := abiType("address[]")
-	args, err := abiArgs(addrT, addrT, arrT).Pack(common.HexToAddress(multisig), common.HexToAddress(sink), []common.Address{})
+	uintT, _ := abiType("uint256")
+	boolT, _ := abiType("bool")
+	// an open hub with the 100-seat launch cap (the pilot's invite-only mode is not what this test covers)
+	args, err := abiArgs(addrT, addrT, arrT, uintT, boolT).Pack(common.HexToAddress(multisig), common.HexToAddress(sink), []common.Address{}, big.NewInt(100), false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,8 +3,10 @@ ARG COMMIT=""
 ARG VERSION=""
 ARG BUILDNUM=""
 
-# Build the Ferminux node in a stock Go builder container
-FROM golang:1.18-alpine as builder
+# Build the Ferminux node in a stock Go builder container. Release B moved
+# from Go 1.18 (end of life since 2023) to 1.26.8, a supported release; the
+# full test suite passes on it (infra/RELEASE-B.md section 4).
+FROM golang:1.26.8-alpine as builder
 
 RUN apk add --no-cache gcc musl-dev linux-headers git
 

@@ -57,8 +57,15 @@ out="$(fmx-validator status --data-dir "$DATA_DIR" --network devnet)"
 echo "$out"
 grep -q 'state ' <<<"$out" || fail "status has no state line"
 if [ "${SKIP_CREDENTIAL_CHECK:-0}" != 1 ]; then
-  grep -q 'attester key opened .*password="systemd credential attester-password"' "$DATA_DIR/devnet/logs/fmx-validator.log" ||
-    fail "the key was not opened with the systemd credential"
+  # opening the key runs its scrypt KDF, which takes a while on a slow or emulated CPU
+  opened=0
+  for _ in $(seq 1 90); do
+    if grep -q 'attester key opened .*password="systemd credential attester-password"' "$DATA_DIR/devnet/logs/fmx-validator.log" 2>/dev/null; then
+      opened=1; break
+    fi
+    sleep 1
+  done
+  [ "$opened" = 1 ] || fail "the key was not opened with the systemd credential"
   ok "password delivered by LoadCredential="
 fi
 ok "devnet service running"

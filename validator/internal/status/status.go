@@ -44,11 +44,14 @@ type Rewards struct {
 	ExpectedPerDay *big.Int `json:"expectedPerDayWei"`
 	RewardPool     *big.Int `json:"rewardPoolWei"`
 	// PoolEmpty: attestations still count toward certification but earn 0.
-	PoolEmpty     bool     `json:"poolEmpty"`
-	OccupiedSeats uint64   `json:"occupiedSeats"`
-	EligibleSeats uint64   `json:"eligibleSeats"`
-	MaxSeats      uint64   `json:"maxSeats"`
-	Claimable     *big.Int `json:"claimableWei"`
+	PoolEmpty     bool   `json:"poolEmpty"`
+	OccupiedSeats uint64 `json:"occupiedSeats"`
+	EligibleSeats uint64 `json:"eligibleSeats"`
+	MaxSeats      uint64 `json:"maxSeats"`
+	// InviteOnly: the hub's invite-only pilot, where only allowlisted owner
+	// wallets can open a seat.
+	InviteOnly bool     `json:"inviteOnly"`
+	Claimable  *big.Int `json:"claimableWei"`
 }
 
 // Gas is the attester key's balance for transaction fees.

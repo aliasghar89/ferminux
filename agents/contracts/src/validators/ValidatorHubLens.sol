@@ -5,7 +5,8 @@ import {ValidatorHub} from "./ValidatorHub.sol";
 
 /// @title ValidatorHubLens: read-only views over ValidatorHub
 /// @notice Decodes the hub's storage (read through ValidatorHub.extsload) into seats, slashes,
-///         enodes, running totals and the Step 2 slots, and previews the engine's election. It
+///         enodes, running totals and the Step 2 slots, previews the engine's election, and says
+///         whether a wallet can open a seat right now (the invite-only pilot included). It
 ///         holds nothing, changes nothing and nothing trusts it; it exists so the hub's own
 ///         runtime stays under the 24 KB code limit. The slot numbers below are the hub's
 ///         storage layout, which never changes (the hub is not upgradeable); the lens tests
@@ -17,10 +18,12 @@ contract ValidatorHubLens {
     uint256 internal constant SLOT_QUALIFIED_AT = 2;
     uint256 internal constant SLOT_REWARD_TO = 3;
     uint256 internal constant SLOT_JAIL = 4;
+    uint256 internal constant SLOT_FLAGS = 5; // bit 0 = communitySeatsOpen
     uint256 internal constant SLOT_ACCOUNTING = 22; // 11 consecutive slots
     uint256 internal constant SLOT_SEATS = 33; // Seat: 6 slots
     uint256 internal constant SLOT_ENODE = 35; // bytes32[2]
     uint256 internal constant SLOT_SLASHES = 39; // Slash: 2 slots
+    uint256 internal constant SLOT_EVIDENCE_USED = 41; // mapping(bytes32 => bool)
     uint256 internal constant SLOT_RETIRED_AT = 46; // mapping(address => uint256)
 
     uint256 internal constant SEAT_DEPOSIT = 2_000 ether;
@@ -30,6 +33,25 @@ contract ValidatorHubLens {
     uint256 internal constant ROTATION_INTERVAL = 600;
     uint256 internal constant CHECKPOINT_INTERVAL = 200;
     uint256 internal constant BLOCKS_PER_DAY = 12_343;
+    uint256 internal constant HALVING_BLOCK = 4_500_000;
+
+    /// seatAccess().reason, in the order openSeat() checks them (after the exact 2,000 FMX value).
+    uint8 public constant ACCESS_OPEN = 0; // this wallet can open a seat now
+    uint8 public constant ACCESS_PAUSED = 1; // new seats are paused
+    uint8 public constant ACCESS_DENIED = 2; // the wallet is on the deny list (premine, foundation)
+    uint8 public constant ACCESS_NOT_INVITED = 3; // invite-only pilot, and the wallet is not on the allowlist
+    uint8 public constant ACCESS_FULL = 4; // every seat up to maxSeats is taken
+
+    /// Whether `wallet` can open a seat right now, and why not.
+    struct SeatAccess {
+        uint8 reason; // ACCESS_*
+        bool allowlistOnly; // the hub is in its invite-only pilot
+        bool allowlisted; // the wallet is on the pilot allowlist
+        bool denied;
+        bool seatsPaused;
+        uint256 occupiedSeats;
+        uint256 maxSeats;
+    }
 
     ValidatorHub public immutable hub;
 
@@ -112,6 +134,48 @@ contract ValidatorHubLens {
         return hub.rewardPool() / perCp * CHECKPOINT_INTERVAL / BLOCKS_PER_DAY;
     }
 
+    // ------------------------------------------------------------------ pilot and seat access
+
+    /// @notice Can `wallet` open a seat right now? Mirrors openSeat()'s checks in its order
+    ///         (paused, denied, not invited, full); the deposit must still be exactly 2,000 FMX and
+    ///         the attester and node proofs valid.
+    function seatAccess(address wallet) external view returns (SeatAccess memory a) {
+        a.allowlistOnly = hub.allowlistOnly();
+        a.allowlisted = hub.allowlisted(wallet);
+        a.denied = hub.denied(wallet);
+        a.seatsPaused = hub.seatsPaused();
+        a.occupiedSeats = hub.occupiedSeats();
+        a.maxSeats = hub.maxSeats();
+        if (a.seatsPaused) a.reason = ACCESS_PAUSED;
+        else if (a.denied) a.reason = ACCESS_DENIED;
+        else if (a.allowlistOnly && !a.allowlisted) a.reason = ACCESS_NOT_INVITED;
+        else if (a.occupiedSeats >= a.maxSeats) a.reason = ACCESS_FULL;
+    }
+
+    // ------------------------------------------------------------------ views moved out of the hub
+
+    /// @notice Step 2 switch (slot 5, bit 0).
+    function communitySeatsOpen() public view returns (bool) {
+        return uint256(_one(bytes32(SLOT_FLAGS))) & 1 == 1;
+    }
+
+    /// @notice The reward and the budget guard are halved from block 4,500,000 or from V.
+    function halvingActive() external view returns (bool) {
+        uint256 v = hub.openSeatsBlock();
+        return block.number >= HALVING_BLOCK || (v != 0 && block.number >= v);
+    }
+
+    /// @notice Evidence already used for a slash: keccak256(abi.encode(kind, seatId, height)).
+    function evidenceUsed(bytes32 evidence) external view returns (bool) {
+        return uint256(_one(_mapSlot(evidence, SLOT_EVIDENCE_USED))) != 0;
+    }
+
+    /// @notice Raw digest a Step 2 signing key signs to prove possession (PLAN 5.1), exactly as
+    ///         ValidatorHub.setSigningKey checks it.
+    function signingKeyDigest(uint256 seatId, address key, address seatOwner) external view returns (bytes32) {
+        return keccak256(abi.encodePacked("FERMINUX-SIGNKEY-V1", block.chainid, address(hub), seatId, key, seatOwner));
+    }
+
     // ------------------------------------------------------------------ Step 2 slots, decoded
 
     function signingKeys() public view returns (address[] memory keys) {
@@ -145,7 +209,7 @@ contract ValidatorHubLens {
     /// @notice Mirror of the engine's Elect(state) at rotation block `n` (PLAN 4.4), sorted
     ///         ascending. It cannot apply the "key not in F" rule, which needs the header chain.
     function electablePreview(uint256 n) external view returns (address[] memory c) {
-        if (!hub.communitySeatsOpen()) return c;
+        if (!communitySeatsOpen()) return c;
         address[] memory keys = signingKeys();
         uint256 len = keys.length;
         if (len > MAX_SIGNING_CANDIDATES) len = MAX_SIGNING_CANDIDATES;

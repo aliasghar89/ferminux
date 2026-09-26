@@ -68,7 +68,7 @@ seat activates about 24 h after the deposit and counts toward certification afte
 | `init` | Writes `<data-dir>/<network>/config.json`. `--node-path` supervises a node binary; `--node-ipc` attaches to a running node (IPC path, or `http://127.0.0.1:port`); `--hub` sets the hub address. |
 | `keys new` / `keys import` / `keys show` | One attester key per network, stored as scrypt keystore JSON. `--store-password` (Windows) keeps the password DPAPI-protected for the service. |
 | `keys store-password` | Windows: DPAPI-protect (machine scope, file readable by SYSTEM and Administrators only) the keystore password so the service starts unattended. |
-| `seat-proof --owner 0x…` | Prints the `openSeat` possession proofs and ready-made calldata for the owner wallet. |
+| `seat-proof --owner 0x…` | Prints the `openSeat` possession proofs and ready-made calldata for the owner wallet and, when the node answers, whether the hub lets that wallet open a seat now: during the invite-only pilot only invited owner wallets can (anyone else is refused with `NotAllowlisted`), a premine or foundation wallet is denied, and no wallet can while every seat is taken. |
 | `run` | Runs until stopped. Also the service entry point. |
 | `status [--json]` | What a running sidecar is doing, or what is on disk if it is not running. |
 | `install` / `uninstall` | Registers the Windows service `FerminuxValidator` (Automatic, delayed start, restarted on failure, its own event log source), or writes a hardened systemd unit (`fmx-validator.service`). `--start` waits until the service is running and otherwise says why it is not. `--allow-inbound` lets the node map its P2P port on the router. Data is never deleted. |

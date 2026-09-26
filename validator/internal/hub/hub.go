@@ -142,6 +142,43 @@ type Pool struct {
 	EligibleSeats   uint64   `json:"eligibleSeats"`
 	MaxSeats        uint64   `json:"maxSeats"`
 	Paused          bool     `json:"attestationsPaused"`
+	// InviteOnly: the hub is in its invite-only pilot, so only owner wallets on its
+	// allowlist can open a seat. False on a hub built before the pilot.
+	InviteOnly bool `json:"inviteOnly"`
+}
+
+// Access is whether one owner wallet can open a seat right now, decided in the
+// order ValidatorHub.openSeat checks (and ValidatorHubLens.seatAccess reports):
+// new seats paused, a denied wallet, the invite-only pilot, every seat taken.
+type Access struct {
+	InviteOnly bool   `json:"inviteOnly"`
+	Invited    bool   `json:"invited"`
+	Denied     bool   `json:"denied"`
+	Paused     bool   `json:"seatsPaused"`
+	Occupied   uint64 `json:"occupiedSeats"`
+	Max        uint64 `json:"maxSeats"`
+	// Reason is "" when the wallet can open a seat, else "paused", "denied",
+	// "not-invited" or "full".
+	Reason string `json:"reason"`
+}
+
+// Explain says in one or two sentences what Access means for the owner wallet.
+func (a Access) Explain(owner common.Address) string {
+	taken := fmt.Sprintf("%d of %d seats are taken", a.Occupied, a.Max)
+	switch a.Reason {
+	case "paused":
+		return "New seats are paused at the hub right now: openSeat is refused (Paused) from every wallet until they resume."
+	case "denied":
+		return owner.Hex() + " is on the hub's deny list (premine and foundation wallets): openSeat from it is refused (Denied). Use another wallet as the seat owner."
+	case "not-invited":
+		return "The hub is in its invite-only pilot and " + owner.Hex() + " is not invited: openSeat from this wallet would be refused (NotAllowlisted). Ask the foundation to invite this wallet first, or use one that is invited."
+	case "full":
+		return "All " + fmt.Sprint(a.Max) + " seats are taken: openSeat is refused (SeatsFull) until a seat exits."
+	}
+	if a.InviteOnly {
+		return owner.Hex() + " is invited to the pilot; " + taken + "."
+	}
+	return taken + "; this wallet can open one."
 }
 
 // Reader is everything the sidecar reads from the hub.
@@ -381,7 +418,53 @@ func (b *Binding) Pool(ctx context.Context) (Pool, error) {
 		return p, err
 	}
 	p.Paused = r[0].(bool)
+	// allowlistOnly exists from the pilot hub on. A hub built before it reverts
+	// the call, which means what false means: anyone not denied may open a seat.
+	if r, err := b.call(ctx, "allowlistOnly"); err == nil {
+		p.InviteOnly = r[0].(bool)
+	}
 	return p, nil
+}
+
+// SeatAccess reads whether owner can open a seat right now.
+func (b *Binding) SeatAccess(ctx context.Context, owner common.Address) (Access, error) {
+	var a Access
+	flag := func(method string, args ...interface{}) (bool, error) {
+		r, err := b.call(ctx, method, args...)
+		if err != nil {
+			return false, err
+		}
+		return r[0].(bool), nil
+	}
+	var err error
+	if a.Paused, err = flag("seatsPaused"); err != nil {
+		return a, err
+	}
+	if a.Denied, err = flag("denied", owner); err != nil {
+		return a, err
+	}
+	if a.InviteOnly, err = flag("allowlistOnly"); err == nil && a.InviteOnly {
+		if a.Invited, err = flag("allowlisted", owner); err != nil {
+			return a, err
+		}
+	}
+	if a.Occupied, err = b.u64(ctx, "occupiedSeats"); err != nil {
+		return a, err
+	}
+	if a.Max, err = b.u64(ctx, "maxSeats"); err != nil {
+		return a, err
+	}
+	switch {
+	case a.Paused:
+		a.Reason = "paused"
+	case a.Denied:
+		a.Reason = "denied"
+	case a.InviteOnly && !a.Invited:
+		a.Reason = "not-invited"
+	case a.Occupied >= a.Max:
+		a.Reason = "full"
+	}
+	return a, nil
 }
 
 // AttesterSince looks for the AttesterRotated event that made key the seat's attester.
@@ -440,6 +523,9 @@ func DecodeRevert(data []byte) string {
 	}
 	for name, e := range ABI.Errors {
 		if string(e.ID[:4]) == string(data[:4]) {
+			if hint, ok := seatErrorHints[name]; ok {
+				return name + " (" + hint + ")"
+			}
 			vals, err := e.Inputs.Unpack(data[4:])
 			if err != nil || len(vals) == 0 {
 				return name
@@ -453,6 +539,14 @@ func DecodeRevert(data []byte) string {
 		}
 	}
 	return ""
+}
+
+// seatErrorHints explains the openSeat refusals an owner wallet can meet.
+var seatErrorHints = map[string]string{
+	"NotAllowlisted": "the owner wallet is not invited: the hub is in its invite-only pilot",
+	"SeatsFull":      "every seat is taken until one exits",
+	"Denied":         "the owner wallet is on the hub's deny list",
+	"WrongDeposit":   "a seat takes exactly 2,000 FMX",
 }
 
 func rejectReason(code uint64) string {

@@ -1,0 +1,129 @@
+Ferminux Validator
+devnet · chain 39619
+Attester 0x3a367e…da3f
+Hub 0x7cee96…3254
+Attesting
+Last included checkpoint: 51,800. Counts toward certification after 7 days active.
+NODE
+Latest block
+52,052
+Block age
+1 s
+Peers
+15
+Sync
+in sync
+Process
+running · pid 24
+SEAT
+Seat
+#4
+State
+active
+Deposit
+2,000 FMX
+Active from block
+13,464
+Counts for certification
+after 7 days active
+Owner
+0x5b7b…8621
+REWARDS
+Expected per day
+about 1.54 FMX
+Per checkpoint
+0.025 FMX
+Claimable
+0.075 FMX
+Reward pool
+19,929 FMX
+Seats taken
+32 / 100
+Attested, last 24 h
+2 / 62
+Attested, last 7 days
+4 / 432
+NEXT CHECKPOINT
+Height
+52,000
+Signing opens at block
+52,064
+In about
+84 s
+Gas balance
+0.9996 FMX
+CHECKPOINTS
+Height	State	Block hash	Transaction	Included in	Detail
+51,800	included	0x796bcceb…4f27	0x41fe4be2…48cd	51,866	
+51,600	included	0x90433e9e…d973	0x0a9af685…f393	51,666	
+51,400	included	0x42e99f50…6dd5	0x05df5b89…5258	51,532	
+51,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+51,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+50,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+50,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+50,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+50,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+50,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+49,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+49,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+49,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+49,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+49,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+48,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+48,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+48,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+48,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+48,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+47,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+47,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+47,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+47,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+47,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+46,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+46,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+46,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+46,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+46,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+45,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+45,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+45,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+45,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+45,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+44,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+44,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+44,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+44,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+44,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+43,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+43,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+43,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+43,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+43,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+42,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+42,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+42,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+42,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+42,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+41,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+41,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+41,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+41,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+41,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+40,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+40,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+40,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+40,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+40,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+39,800	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+39,600	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+39,400	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+39,200	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+39,000	missed	–	–	–	seat is paused for low participation; the owner can unjail it from block 51497
+32,400	missed	–	–	–	node not ready: node is still syncing; latest block is 1h50m51s old (limit 1m0s)
+20,800	missed	–	–	–	node not ready: node is still syncing; latest block is 5h4m21s old (limit 1m0s)
+11,200	missed	–	–	–	node not ready: node is still syncing; latest block is 7h44m41s old (limit 1m0s)
+800	missed	–	–	–	node not ready: node is still syncing; latest block is 10h35m37s old (limit 1m0s)
+
+Ferminux uses proof-of-authority consensus. This validator node keeps its own copy of the chain, checks every block and signs a statement naming the block it sees at each checkpoint. It does not produce or order blocks.
+
+This page is served only to this computer and cannot change anything. fmx-validator pre-module-rename-155-g6a6b7be

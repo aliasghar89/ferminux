@@ -36,7 +36,7 @@ contract VectorsTest is Test {
         // chain 3961 only accepts the foundation multisig and the reward sink
         address own = chainId == 3961 ? MULTISIG : address(this);
         address sink = chainId == 3961 ? SINK : address(0xBEEF);
-        deployCodeTo("ValidatorHub.sol:ValidatorHub", abi.encode(own, sink, none), at);
+        deployCodeTo("ValidatorHub.sol:ValidatorHub", abi.encode(own, sink, none, uint256(100), false), at);
         hub = ValidatorHub(payable(at));
     }
 

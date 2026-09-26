@@ -121,3 +121,40 @@ export async function readAttested(id: number, heights: number[], signal?: Abort
 /** ValidatorHub.sol participation(seatId, n): checkpoints attested among the last n closed ones (n ≤ 511). */
 export const readParticipationCount = (id: number, n: number, signal?: AbortSignal) =>
   readHub<bigint>("participation", [id, Math.min(n, MAX_PARTICIPATION_WINDOW)], signal);
+
+/* ---------------------------------------------------------------- the invite-only pilot */
+
+export interface PilotRead { inviteOnly: boolean; occupied: number; max: number }
+/** ValidatorHub.allowlistOnly / occupiedSeats / maxSeats (batched). A hub built before the pilot does not
+ *  answer allowlistOnly(): that is read as open (anyone not on the deny list may open a seat), not as a
+ *  failure; a chain that does not answer still throws. */
+export async function readPilot(signal?: AbortSignal): Promise<PilotRead> {
+  const [occupied, max, inviteOnly] = await Promise.all([
+    readHub<bigint>("occupiedSeats", [], signal),
+    readHub<bigint>("maxSeats", [], signal),
+    readHub<boolean>("allowlistOnly", [], signal).catch((e: unknown) => {
+      if (e instanceof HubReadError && !e.down) return false;
+      throw e;
+    }),
+  ]);
+  return { inviteOnly, occupied: Number(occupied), max: Number(max) };
+}
+
+/** ValidatorHubLens.seatAccess reasons, by their on-chain number. */
+export const SEAT_ACCESS_REASONS = ["open", "paused", "denied", "not-invited", "full"] as const;
+export interface SeatAccessRead {
+  reason: (typeof SEAT_ACCESS_REASONS)[number]; inviteOnly: boolean; invited: boolean; denied: boolean; seatsPaused: boolean;
+  occupied: number; max: number;
+}
+/** Can `wallet` open a seat right now (ValidatorHubLens.seatAccess, the same checks in openSeat's order)? */
+export async function readSeatAccess(wallet: string, signal?: AbortSignal): Promise<SeatAccessRead> {
+  const a = await readLens<{
+    reason: bigint; allowlistOnly: boolean; allowlisted: boolean; denied: boolean; seatsPaused: boolean; occupiedSeats: bigint; maxSeats: bigint;
+  }>("seatAccess", [wallet], signal);
+  const reason = SEAT_ACCESS_REASONS[Number(a.reason)];
+  if (!reason) throw new HubReadError(`seatAccess returned an unknown reason ${a.reason}`, false);
+  return {
+    reason, inviteOnly: a.allowlistOnly, invited: a.allowlisted, denied: a.denied, seatsPaused: a.seatsPaused,
+    occupied: Number(a.occupiedSeats), max: Number(a.maxSeats),
+  };
+}

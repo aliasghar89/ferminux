@@ -1,0 +1,115 @@
+{
+  "version": "pre-module-rename-155-g6a6b7be",
+  "network": "devnet",
+  "chainId": 39619,
+  "hub": "0x7cee961a2c903ce8a17f690ae966e30e4d973254",
+  "attester": "0x3a367e6ba1c5b094e8eb750c8ceb05fd6cc4da3f",
+  "started": "2026-09-26T08:18:58.552316623Z",
+  "sync": {
+    "ready": true,
+    "chainId": 39619,
+    "head": 39204,
+    "headHash": "0x1a3f051aaf0874d2a71f170274351d20d410a14703c13b3d8ebeabea070806ea",
+    "headAgeSeconds": 0.600192072,
+    "peers": 15,
+    "syncing": false,
+    "checked": "2026-09-26T08:19:47.600192072Z"
+  },
+  "seat": {
+    "id": 4,
+    "status": 3,
+    "statusText": "paused (jailed)",
+    "owner": "0x5b7b2c8782b8b1513e31a6c74b11e37090be8621",
+    "attester": "0x3a367e6ba1c5b094e8eb750c8ceb05fd6cc4da3f",
+    "pendingAttester": "0x0000000000000000000000000000000000000000",
+    "claimableWei": 0,
+    "depositWei": 2000000000000000000000,
+    "lastAttestedHeight": 13600,
+    "activationBlock": 13464,
+    "countedSince": 0,
+    "jailed": true,
+    "unjailBlock": 51497,
+    "slashState": 0
+  },
+  "attestationsPaused": false,
+  "watchCheckpointsLeft": 0,
+  "nextCheckpoint": 39200,
+  "nextOpensAt": 39264,
+  "attestations": [
+    {
+      "height": 39000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "waiting",
+      "reason": "seat is paused for low participation; the owner can unjail it from block 51497",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:47.601997083Z"
+    },
+    {
+      "height": 32400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 1h50m51s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:09.599108434Z"
+    },
+    {
+      "height": 20800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 5h4m21s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:07.598090854Z"
+    },
+    {
+      "height": 11200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 7h44m41s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:05.597993311Z"
+    },
+    {
+      "height": 800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 10h35m37s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-26T08:19:03.603465666Z"
+    }
+  ],
+  "rewards": {
+    "rewardPerAttestWei": 25000000000000000,
+    "expectedPerDayWei": 1542857142857142857,
+    "rewardPoolWei": 19978635000000000000000,
+    "poolEmpty": false,
+    "occupiedSeats": 32,
+    "eligibleSeats": 0,
+    "maxSeats": 100,
+    "claimableWei": 0
+  },
+  "gas": {
+    "balanceWei": 999841646998891529,
+    "low": false
+  },
+  "node": {
+    "supervised": true,
+    "running": true,
+    "pid": 24,
+    "restarts": 0,
+    "since": "2026-09-26T08:18:58.599428251Z"
+  },
+  "participation24h": {
+    "window": 62,
+    "included": 0
+  },
+  "participation7d": {
+    "window": 432,
+    "included": 2
+  },
+  "phase": {
+    "state": "jailed",
+    "tone": "bad",
+    "title": "Paused for low participation",
+    "detail": "The owner wallet can resume it (unjail) from block 51,497 (in about 24 h). The seat attested too few recent checkpoints and earns nothing while paused. No deposit is lost for downtime."
+  }
+}

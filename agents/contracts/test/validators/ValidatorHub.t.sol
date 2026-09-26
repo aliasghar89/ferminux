@@ -322,7 +322,7 @@ contract ValidatorHubSeatsTest is ValidatorTestBase {
         _enterWindow(h);
         bytes32 hash = _hashOf(h);
 
-        ValidatorHub other = new ValidatorHub(msig, address(sink), new address[](0));
+        ValidatorHub other = new ValidatorHub(msig, address(sink), new address[](0), 100, false);
         bytes memory otherHub = _sign(attPk[id], other.attestationDigest(uint64(h), hash));
         vm.expectRevert(abi.encodeWithSelector(ValidatorHub.AttestationRejected.selector, 2));
         hub.attest(uint64(h), hash, otherHub);
@@ -564,9 +564,9 @@ contract ValidatorHubSeatsTest is ValidatorTestBase {
 
     function test_Halving_AtBlock4500000() public {
         assertEq(hub.currentRewardPerAttest(), RATE);
-        assertFalse(hub.halvingActive());
+        assertFalse(lens.halvingActive());
         vm.roll(4_500_000);
-        assertTrue(hub.halvingActive());
+        assertTrue(lens.halvingActive());
         assertEq(hub.currentRewardPerAttest(), RATE / 2);
     }
 
@@ -660,9 +660,9 @@ contract ValidatorHubSeatsTest is ValidatorTestBase {
 
     function test_Constructor_RejectsZeroAddresses() public {
         vm.expectRevert(ValidatorHub.ZeroAddress.selector);
-        new ValidatorHub(address(0), address(sink), new address[](0));
+        new ValidatorHub(address(0), address(sink), new address[](0), 100, false);
         vm.expectRevert(ValidatorHub.ZeroAddress.selector);
-        new ValidatorHub(msig, address(0), new address[](0));
+        new ValidatorHub(msig, address(0), new address[](0), 100, false);
         assertEq(hub.owner(), msig);
         assertEq(hub.rewardSink(), address(sink));
         assertEq(hub.deployBlock(), START);

@@ -335,8 +335,28 @@ html[data-motion="off"] .xtabs .ind{transition:none}
 .xfoot .bf-small .fact{display:flex;align-items:center;gap:4px;font:400 13px/1.4 var(--mono);color:var(--muted)}
 .xfoot .footer-bottom{align-items:center}
 .xfoot .footer-bottom .motion-toggle{margin:0;min-height:44px}
-.xfoot .wordmark{margin-top:40px;margin-bottom:-.18em;font-size:clamp(48px,14vw,200px)}
-.xfoot .wm-crop{overflow:hidden}
+/* the whole word shows: line-height .8 plus a negative bottom margin inside the
+   overflow:hidden crop used to slice the letters off at the page's last pixel */
+.xfoot .wordmark{margin-top:40px;margin-bottom:0;line-height:1.25;font-size:clamp(48px,14vw,200px)}
+.xfoot .wm-crop{overflow:hidden;padding-bottom:40px}
+@media(max-width:699px){.xfoot .wordmark{text-align:center}.xfoot .wm-crop{padding-bottom:20px}}
+/* the sign-off, as on ferminux.net (agents/web styles.css §4J): a light sweeps through the letters every
+   4 s; multiply shows it only inside the glyphs. The padding sits on .wm-crop, not on the word, so the
+   wave's box is exactly the glyph box. It pauses off screen ([data-play="off"]) and with Pause motion. */
+.xfoot .wm{position:relative;isolation:isolate}
+.wm-wave{position:absolute;inset:0;z-index:-1;overflow:hidden;background:#18211d}
+.wm-wave i{position:absolute;top:-20%;bottom:-20%;left:0;width:32%;opacity:0;
+  background:radial-gradient(50% 60% at 50% 50%,#d4ffee 0%,#01fcc9 26%,#05ee93 50%,#02d576 70%,rgba(2,213,118,0) 100%);
+  animation:wm-sweep var(--loop-ring) linear infinite}
+.wm-t{display:block;color:#fff;background:#000;mix-blend-mode:multiply}
+@keyframes wm-sweep{
+  0%{transform:translateX(-110%);opacity:0}
+  9.75%{opacity:1}
+  55.25%{opacity:1}
+  65%{transform:translateX(320%);opacity:0}
+  100%{transform:translateX(320%);opacity:0}}
+html[data-motion="off"] .wm-wave i{animation:none!important}
+@media(prefers-reduced-motion:reduce){html:not([data-motion]) .wm-wave i{animation:none!important}}
 /* a product footer: the giant wordmark only on home; inner pages end at the © row */
 body:not([data-page="home"]) .xfoot .wm-crop{display:none}
 body:not([data-page="home"]) .xfoot .footer-bottom{padding-bottom:32px}

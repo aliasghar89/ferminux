@@ -106,3 +106,73 @@
 <<< step slash done (block 14476, fails so far 0)
 
 >>> step bad (2026-09-26T01:27:39Z, block 14476)
+
+## slash 1 after its 48 h window (executable from 39141) (2026-09-26T08:18:45Z, block 39142)
+    msig submit #5 by OWNER1: tx=0x5e6c4977f728ac18e31a88894a1b86f98aab8daf982f23733b82dc8cd28f400a block=39144 status=1 gas=173875
+    msig confirm #5 by OWNER2: tx=0x6822a4b02d2707cbb86130745782eb3f2667668e4f0e0e493b03b494df020ab0 block=39146 status=1 gas=57582
+  a late veto through the multisig:     msig submit #5 by OWNER1: tx=0x5e6c4977f728ac18e31a88894a1b86f98aab8daf982f23733b82dc8cd28f400a block=39144 status=1 gas=173875
+    msig confirm #5 by OWNER2: tx=0x6822a4b02d2707cbb86130745782eb3f2667668e4f0e0e493b03b494df020ab0 block=39146 status=1 gas=57582
+REVERTED: execution reverted: MSIG: call failed, data: "0x08c379a00000000000000000000000000000000000000000000000000000000000000020 (the hub's reason, simulated from the multisig: VetoClosed())
+  ok: slash 1 still pending after the late veto attempt
+  executeSlash(1) by an outsider: tx=0x0942a28d2b72aa28ac6d275867edf2364c7386a5913adc23183a0a45025d4e2f block=39148 status=1 gas=173054
+{
+ "slashId": 1,
+ "seatId": 2,
+ "kind": "DOUBLE_ATTESTATION",
+ "status": "EXECUTED",
+ "executableBlock": 39141,
+ "vetoSunsetBlock": 2221765,
+ "amount": "200.0",
+ "reporter": "REPORTER",
+ "height": 14200
+}
+{
+ "id": 2,
+ "state": "EXITING",
+ "owner": "owner-v02",
+ "attester": "att-v02",
+ "deposit": "1800.0",
+ "claimable": "0.05",
+ "activationBlock": 13456,
+ "eligibleFrom": 99856,
+ "countedSince": 0,
+ "lastAttestedHeight": 14200,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 187255,
+ "slash": "EXECUTED"
+}
+  ok: seat 2 deposit 2,000 -> 1,800
+  ok: 180 FMX burned to 0x...dEaD
+  ok: reporter credit 20 FMX
+  withdrawCredit: tx=0x1f427a4cc0a7e999c4bf0f4948cbb72e47294561a7a70381874273e92ef8dacf block=39151 status=1 gas=36882
+  reporter balance change: 19.999963117999741826 FMX (20 minus gas)
+  ok: executing slash 1 twice refused: REVERTED: SlashNotPending()
+{
+ "head": 39151,
+ "totalDeposited": "72000.0",
+ "totalWithdrawn": "0.0",
+ "totalSlashed": "200.0",
+ "totalBurned": "180.0",
+ "pendingBurn": "0.0",
+ "totalCredits": "0.0",
+ "totalFunded": "20000.11",
+ "totalAllocated": "21.475",
+ "totalClaimable": "21.15",
+ "totalClaimed": "0.325",
+ "totalReturned": "0.0",
+ "rewardPool": "19978.635",
+ "bondedTotal": "71800.0",
+ "hubBalance": "91799.785",
+ "burnAddressBalance": "180.0",
+ "checks": {
+  "balance == bonded + pool + claimable + credits + pendingBurn": true,
+  "funded == pool + claimable + claimed + returned": true,
+  "deposited == bonded + withdrawn + slashed": true,
+  "allocated <= funded": true,
+  "allocated == claimable + claimed": true
+ }
+}
+<<< step slash-exec done (block 39151, fails so far 1)
+
+>>> step jail (2026-09-26T08:18:54Z, block 39151)

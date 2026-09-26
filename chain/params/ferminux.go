@@ -122,15 +122,21 @@ var (
 	//
 	// RELEASE A (v1.1.0-posa): pinned to the deployed FMXRewardSink contract
 	// (owner = the Ferminux multisig) in the same release that sets PosaBlock.
-	// FerminuxPosaCheckpointHash stays zero here; release B pins hash(F-1)
-	// after the fork is final.
+	// Release A left FerminuxPosaCheckpointHash zero; release B pins hash(F-1)
+	// below, after the fork is final.
 	FerminuxRewardSink = common.HexToAddress("0x691E5275BF346FfFa0B30174dDBeDfCC078dd8D6")
 
 	// FerminuxPosaCheckpointHash is the required hash of block PosaBlock-1 (the
-	// last Powhash block). Zero disables the check; once the operator pins it
-	// at release time, a header at PosaBlock-1 with any other hash (and a
-	// PosaBlock header with any other parent) is rejected.
-	FerminuxPosaCheckpointHash = common.Hash{}
+	// last Powhash block). Zero disables the check; once it is pinned, a header
+	// at PosaBlock-1 with any other hash (and a PosaBlock header with any other
+	// parent) is rejected, during sync and import alike.
+	//
+	// RELEASE B: hash(159999), the last proof-of-work block of mainnet. Read
+	// 2026-09-26 at head 420789 (260k blocks after the fork) and recomputed
+	// from the header fields; block 160000 (sealed by signer 0x1538249E…bB0f)
+	// names it as parent. This is a params var, not a ChainConfig field, so the
+	// fork ID is unchanged and release A and B nodes peer with each other.
+	FerminuxPosaCheckpointHash = common.HexToHash("0xfa62e740b3cb3aaa60206476288e2e14d9a9f355a051dda896d87b576fa5af08")
 
 	// FerminuxBreakGlassAddress is the Ferminux multisig. A contract cannot
 	// produce an ECDSA signature, so the break-glass override is authorised by

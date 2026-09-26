@@ -36,7 +36,7 @@ abstract contract ValidatorTestBase is Test {
         sink = new FMXRewardSink(msig);
         address[] memory deny = new address[](1);
         deny[0] = premine;
-        hub = new ValidatorHub(msig, address(sink), deny);
+        hub = new ValidatorHub(msig, address(sink), deny, 100, false);
         lens = new ValidatorHubLens(hub);
     }
 

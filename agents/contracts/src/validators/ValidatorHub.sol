@@ -28,6 +28,11 @@ import {SealEvidence} from "./HeaderRLP.sol";
 ///             0 and attestations still count;
 ///           - maxSeats x rewardPerAttest <= 7.5 FMX per checkpoint (3.75 after the halving).
 ///
+///         Invite-only pilot: a hub deployed with allowlistOnly = true accepts new seats only from
+///         owner wallets the owner has put on the allowlist (setAllowlist). Opening to everyone is
+///         one-way, through the 48 h timelock (P_OPEN_TO_ALL); nothing can switch the allowlist back
+///         on. The allowlist only gates openSeat: it never touches an open seat, a deposit or a reward.
+///
 ///         Durations are counted in blocks at the chain's 7-second period (12,343 blocks = 24 h).
 ///         The signers never confirm blocks faster than the period, so a block window is never
 ///         shorter in wall time than the day count it stands for, and it does not run out during a
@@ -230,6 +235,7 @@ contract ValidatorHub {
     uint8 internal constant P_OPEN_COMMUNITY_SEATS = 4;
     uint8 internal constant P_DENY = 5;
     uint8 internal constant P_ALLOW = 6;
+    uint8 internal constant P_OPEN_TO_ALL = 7; // one-way: ends the invite-only pilot
 
     // =====================================================================================
     // Immutables
@@ -259,6 +265,10 @@ contract ValidatorHub {
 
     bool public seatsPaused; // openSeat() only
     bool public attestationsPaused; // attest()/attestBatch()/jail()
+    /// Invite-only pilot: while true, openSeat() accepts only allowlisted owners. Set at deploy and
+    /// cleared once, for good, by P_OPEN_TO_ALL through the timelock; no code path sets it again.
+    /// (Packed into the pause flags' slot, so no later slot moves.)
+    bool public allowlistOnly;
     uint256 public globalDutyStartCp; // participation is measured from here after an attestation pause
 
     uint256 public seatCount; // seat ids run 1..seatCount
@@ -281,7 +291,7 @@ contract ValidatorHub {
     mapping(address => uint256) internal _signingIndex; // index in _signingKeys + 1
     mapping(uint256 => Slash) internal _slashes;
     uint256 public slashCount;
-    mapping(bytes32 => bool) public evidenceUsed;
+    mapping(bytes32 => bool) internal evidenceUsed; // ValidatorHubLens.evidenceUsed (slot 41)
     mapping(address => uint256) public credits;
     mapping(address => bool) public denied;
     mapping(bytes32 => uint256) public timelockEta; // keccak(param, value) => executable block
@@ -294,6 +304,9 @@ contract ValidatorHub {
     /// old key can no longer slash the seat. Keys deactivated by exit or slash are bounded by the
     /// seat's own unbond instead and never get an entry. (ValidatorHubLens.keyRetiredAt, slot 46.)
     mapping(address => uint256) internal _retiredAt;
+
+    /// Seat owners invited to the pilot (slot 47). Only read by openSeat() while allowlistOnly.
+    mapping(address => bool) public allowlisted;
 
     // =====================================================================================
     // Events
@@ -346,6 +359,8 @@ contract ValidatorHub {
     event AttestationsPausedSet(bool paused, uint256 dutyStartCheckpoint);
     event CommunitySeatsSet(bool open);
     event DenySet(address indexed account, bool denied);
+    event AllowlistSet(address indexed account, bool allowed);
+    event OpenedToAll();
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
@@ -359,6 +374,7 @@ contract ValidatorHub {
     error Reentrancy();
     error WrongDeposit();
     error Denied();
+    error NotAllowlisted();
     error SeatsFull();
     error Paused();
     error BadKey();
@@ -415,13 +431,19 @@ contract ValidatorHub {
     ///                 owner. DeployValidatorsMainnet pins the owner and sink and checks them after deploy.
     /// @param sink_    FMXRewardSink; returnExcess() pays back into it
     /// @param denied_  seat owners refused as policy (premine and foundation wallets)
-    constructor(address owner_, address sink_, address[] memory denied_) {
+    /// @param maxSeats_ seats at launch, 1..100 (100 for a public launch, 20 for the invite-only
+    ///                 pilot). It is fixed in the deploy transaction; every later change goes through
+    ///                 the 48 h timelock (P_MAX_SEATS), so no seat cap ever changes without notice.
+    /// @param allowlistOnly_ true starts the invite-only pilot (only allowlisted owners open seats)
+    constructor(address owner_, address sink_, address[] memory denied_, uint256 maxSeats_, bool allowlistOnly_) {
         if (owner_ == address(0) || sink_ == address(0)) revert ZeroAddress();
+        if (maxSeats_ == 0 || maxSeats_ > LAUNCH_MAX_SEATS) revert BadParam();
         owner = owner_;
         rewardSink = sink_;
         deployBlock = block.number;
         vetoSunsetBlock = block.number + VETO_SUNSET_PERIOD;
-        maxSeats = LAUNCH_MAX_SEATS;
+        maxSeats = maxSeats_;
+        allowlistOnly = allowlistOnly_;
         rewardPerAttest = INITIAL_REWARD_PER_ATTEST;
         activationsPerDay = DEFAULT_ACTIVATIONS_PER_DAY;
         _eligCursor = 1;
@@ -487,6 +509,7 @@ contract ValidatorHub {
         if (seatsPaused) revert Paused();
         if (msg.value != SEAT_DEPOSIT) revert WrongDeposit();
         if (denied[msg.sender]) revert Denied();
+        if (allowlistOnly && !allowlisted[msg.sender]) revert NotAllowlisted();
         if (occupiedSeats >= maxSeats) revert SeatsFull();
         _checkAttester(msg.sender, attester, attesterSig);
 
@@ -765,7 +788,7 @@ contract ValidatorHub {
         if (s.status != BONDED || s.qualified) revert BadStatus();
         if (key == address(0) || key == s.owner) revert BadKey();
         if (_keys[key].seatId != 0) revert KeyUsed();
-        if (Sig.recover(signingKeyDigest(seatId, key, s.owner), pop) != key) revert BadPossession();
+        if (Sig.recover(_signingKeyDigest(seatId, key, s.owner), pop) != key) revert BadPossession();
         address old = s.signingKey;
         if (old != address(0)) {
             _keys[old].active = false;
@@ -1027,6 +1050,22 @@ contract ValidatorHub {
         emit CommunitySeatsSet(false);
     }
 
+    /// @notice Invite (allowed = true) or un-invite pilot seat owners, in a batch. Instant, like the
+    ///         pauses: the list only decides who may open a new seat while allowlistOnly is true,
+    ///         and never touches an open seat, its deposit or its rewards. One AllowlistSet event per
+    ///         address whose entry actually changes. Refused once the hub is open to all.
+    function setAllowlist(address[] calldata accounts, bool allowed) external onlyOwner {
+        if (!allowlistOnly) revert BadStatus();
+        for (uint256 i; i < accounts.length; ++i) {
+            address a = accounts[i];
+            if (a == address(0)) revert ZeroAddress();
+            if (allowlisted[a] != allowed) {
+                allowlisted[a] = allowed;
+                emit AllowlistSet(a, allowed);
+            }
+        }
+    }
+
     function queueParam(uint8 param, uint256 value) external onlyOwner {
         uint256 eta = block.number + TIMELOCK;
         _validateParam(param, value, eta);
@@ -1061,6 +1100,9 @@ contract ValidatorHub {
         } else if (param == P_OPEN_COMMUNITY_SEATS) {
             _flags |= 1;
             emit CommunitySeatsSet(true);
+        } else if (param == P_OPEN_TO_ALL) {
+            allowlistOnly = false;
+            emit OpenedToAll();
         } else {
             address a = address(uint160(value));
             bool d = param == P_DENY;
@@ -1087,6 +1129,9 @@ contract ValidatorHub {
             }
         } else if (param == P_OPEN_COMMUNITY_SEATS) {
             if (value != 1) revert BadParam();
+        } else if (param == P_OPEN_TO_ALL) {
+            // one-way: refused once the hub is open (checked when queued and again when applied)
+            if (value != 1 || !allowlistOnly) revert BadParam();
         } else if (param == P_DENY || param == P_ALLOW) {
             if (value == 0 || value > type(uint160).max) revert BadParam();
         } else {
@@ -1117,7 +1162,7 @@ contract ValidatorHub {
     function currentRewardPerAttest() public view returns (uint256 r) {
         r = rewardPerAttest;
         uint256 cap = BUDGET_PER_CHECKPOINT;
-        if (halvingActive()) {
+        if (_halvingActive()) {
             r >>= 1;
             cap >>= 1;
         }
@@ -1125,7 +1170,8 @@ contract ValidatorHub {
         if (r > perSeat) r = perSeat;
     }
 
-    function halvingActive() public view returns (bool) {
+    /// ValidatorHubLens.halvingActive() exposes this.
+    function _halvingActive() internal view returns (bool) {
         uint256 v = openSeatsBlock;
         return block.number >= HALVING_BLOCK || (v != 0 && block.number >= v);
     }
@@ -1184,10 +1230,6 @@ contract ValidatorHub {
         }
     }
 
-    function communitySeatsOpen() public view returns (bool) {
-        return _flags & 1 == 1;
-    }
-
     // ---- digests ----
 
     function domainSeparator() public view returns (bytes32) {
@@ -1207,8 +1249,8 @@ contract ValidatorHub {
         return keccak256(abi.encodePacked("FMX_VALIDATOR_NODE_V1", block.chainid, address(this), seatOwner, attester));
     }
 
-    /// Raw digest the Step 2 signing key signs (PLAN 5.1).
-    function signingKeyDigest(uint256 seatId, address key, address seatOwner) public view returns (bytes32) {
+    /// Raw digest the Step 2 signing key signs (PLAN 5.1); ValidatorHubLens.signingKeyDigest exposes it.
+    function _signingKeyDigest(uint256 seatId, address key, address seatOwner) internal view returns (bytes32) {
         return keccak256(abi.encodePacked("FERMINUX-SIGNKEY-V1", block.chainid, address(this), seatId, key, seatOwner));
     }
 

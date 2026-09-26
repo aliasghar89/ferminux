@@ -22,7 +22,7 @@ H="${FMX_DEPLOY_HOST:?set FMX_DEPLOY_HOST=user@host}"
 SSH="ssh -i ${FMX_DEPLOY_KEY:-$HOME/.ssh/id_ed25519}"
 DIR="${FMX_DEPLOY_DIR:-/opt/ferminux/infra/compose}"
 RSYNC_RSH="$SSH" rsync -az "$ENV" $H:$DIR/secrets/agent-$SLUG.env
-$SSH $H "cd $DIR && chmod 600 secrets/agent-$SLUG.env && docker compose -f docker-compose.prod.yml -f docker-compose.servernet.yml -f docker-compose.mesh.yml -f docker-compose.agents.yml up -d --force-recreate agent-$SLUG >/dev/null 2>&1 && docker logs fmxp-agent-$SLUG --tail 1"
+$SSH $H "cd $DIR && chmod 600 secrets/agent-$SLUG.env && docker compose -f docker-compose.prod.yml -f docker-compose.servernet.yml -f docker-compose.mesh.yml -f docker-compose.agents.yml -f docker-compose.archive.yml up -d --no-deps --force-recreate agent-$SLUG >/dev/null 2>&1 && docker logs fmxp-agent-$SLUG --tail 1"
 REGISTRY="${FMX_REGISTRY:-0xa94f27F18267d09349809f3e2AeF8e7767033e8F}"
 cast send "$REGISTRY" "setStatus(uint256,uint8)" "$ID" 1 --private-key "$PK" --rpc-url "${FMX_RPC_URL:-https://rpc.ferminux.net}" --gas-price 2gwei --priority-gas-price 1gwei >/dev/null
 echo "$SLUG (agent #$ID) is ACTIVE with a live key"

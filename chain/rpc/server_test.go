@@ -70,6 +70,7 @@ func TestServer(t *testing.T) {
 
 func runTestScript(t *testing.T, file string) {
 	server := newTestServer()
+	server.SetBatchLimits(4, 100000)
 	content, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)

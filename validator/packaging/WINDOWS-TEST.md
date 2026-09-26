@@ -16,7 +16,7 @@ statements; it does not produce blocks, and nothing on this page changes that.
 
 | # | What | Why only a real PC shows it | Step |
 |---|---|---|---|
-| W1 | The Windows node `ferminux.exe` (built natively with cgo) starts, has the Ferminux genesis and follows chain 3961 past block 1,000 | The devnet ran Linux arm64 builds; the Windows binary is a different build | 3, 6 |
+| W1 | The Windows node `ferminux.exe` (built with cgo, mingw-w64) starts, has the Ferminux genesis and follows chain 3961 past block 1,000 | The devnet ran Linux arm64 builds; the Windows binary is a different build, and until now it has only run under Wine | 3, 6 |
 | W2 | `install.ps1` from an administrator PowerShell: programs in `C:\Program Files\Ferminux`, a Windows service, folders only SYSTEM and Administrators can change | Windows services, ACLs and PowerShell exist only on Windows | 2 |
 | W3 | The attester key is created and its password kept with DPAPI (machine scope), so the service starts with nobody typing it | DPAPI is Windows-only | 2, 4 |
 | W4 | The dashboard opens on this PC only (127.0.0.1) and `status` says what the validator is doing | Loopback binding and the browser on the PC | 5 |
@@ -31,14 +31,32 @@ statements; it does not produce blocks, and nothing on this page changes that.
 Not on this page, because it needs a hub that exists: opening a seat, attesting and earning on
 Windows. That is covered on the public testnet (plan step 1c) with the same package.
 
+### About the pilot build
+
+The zip is the pilot release from `https://ferminux.net/downloads/validator-pilot/`. That
+folder holds the Windows zip, the Linux packages (amd64 and arm64), `SHA256SUMS` and
+`BUILDINFO.txt` (the source commit, how each program was built, and the SHA-256 of each
+program inside the packages). It is made with `validator/packaging/release/build.sh`, the
+same package the `validator-release` workflow stages, built on the build Mac instead of a
+Windows runner:
+
+- `ferminux.exe` is built with cgo by the mingw-w64 gcc cross-compiler, the compiler family
+  the workflow installs on its Windows runner. It needs only DLLs that every Windows 10 and 11
+  has.
+- `fmx-validator.exe` is pure Go, as the workflow builds it.
+- On the build Mac both were run under Wine (`validator/packaging/release/smoke-docker.sh`):
+  `ferminux.exe` printed its version, showed the Ferminux genesis offline, and confirmed and
+  re-imported blocks on a throwaway `--dev` network; `fmx-validator.exe` printed its version.
+  Wine is not Windows: the service, DPAPI, the folder permissions and the installer have
+  never run on Windows. This page is where they do.
+
 ## Before you start
 
 - A Windows 10 or 11 PC, 64-bit, with 2 CPU cores, 2 GB of free RAM, 5 GB of free disk and an
   internet connection. A spare PC or a virtual machine is best; nothing here harms a normal PC.
 - An administrator account on it.
-- The release zip `ferminux-validator-windows-amd64.zip`. It is built by the
-  `validator-release` workflow on GitHub (Actions > validator-release > the latest run on
-  `main` > Artifacts). Ask the developer for the link if you do not see it.
+- The SHA-256 of `ferminux-validator-windows-amd64.zip` that the developer sent you with
+  this page, in the same message as the link. Step 1 checks the download against it.
 - Write down, for every step below: **pass** or **fail**, and for a fail, what you saw
   (a photo of the screen is fine).
 
@@ -47,16 +65,59 @@ Throughout, "admin PowerShell" means: Start menu, type `PowerShell`, right-click
 
 ---
 
-## Step 1. Unpack the zip (W11)
+## Step 1. Download, check and unpack the zip (W11)
 
-1. Download `ferminux-validator-windows-amd64.zip` to your Downloads folder.
-2. Right-click it, **Properties**. If there is an **Unblock** box at the bottom, tick it, **OK**.
-3. Right-click the zip, **Extract All...**, to `C:\Users\<you>\Downloads\ferminux-validator`.
-4. Open that folder.
+1. Open a **normal** PowerShell (Start menu, type `PowerShell`, Enter) and download the zip
+   and the list of checksums into your Downloads folder:
+
+   ```powershell
+   cd $env:USERPROFILE\Downloads
+   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+   $ProgressPreference = 'SilentlyContinue'
+   Invoke-WebRequest -UseBasicParsing https://ferminux.net/downloads/validator-pilot/ferminux-validator-windows-amd64.zip -OutFile ferminux-validator-windows-amd64.zip
+   Invoke-WebRequest -UseBasicParsing https://ferminux.net/downloads/validator-pilot/SHA256SUMS -OutFile SHA256SUMS.txt
+   ```
+
+   (Opening `https://ferminux.net/downloads/validator-pilot/ferminux-validator-windows-amd64.zip`
+   in Edge or Chrome and saving it to Downloads works too.)
+
+2. Check the zip's SHA-256. First type this one line and press Enter. At the
+   `SHA-256 you were sent:` prompt, paste the SHA-256 the developer sent you (right-click
+   pastes) and press Enter:
+
+   ```powershell
+   $sent = (Read-Host 'SHA-256 you were sent').Trim()
+   ```
+
+   Then run the check:
+
+   ```powershell
+   $list = (Select-String -Path .\SHA256SUMS.txt -Pattern 'ferminux-validator-windows-amd64\.zip').Line.Split(' ')[0]
+   $got = (Get-FileHash -Algorithm SHA256 .\ferminux-validator-windows-amd64.zip).Hash
+   if ($got -eq $sent -and $got -eq $list) { "MATCH $got" } else { "DIFFERENT: the zip is $got, SHA256SUMS says $list, you were sent $sent" }
+   ```
+
+   **Expected:** one line starting `MATCH`. It appears only when the zip, the `SHA256SUMS`
+   list on the site and the value you were sent all agree (capital or small letters do not
+   matter). If it says `DIFFERENT`, or shows a red error, **stop here**: delete the zip and
+   tell the developer. Do not run anything from it.
+
+3. Unpack the zip into a folder named `ferminux-validator` and open it, in the same window:
+
+   ```powershell
+   Unblock-File .\ferminux-validator-windows-amd64.zip
+   Expand-Archive .\ferminux-validator-windows-amd64.zip -DestinationPath .\ferminux-validator -Force
+   explorer .\ferminux-validator
+   ```
+
+   (With the mouse instead: right-click the zip, **Properties**, tick **Unblock** if it is at
+   the bottom, **OK**; then right-click the zip, **Extract All...**, and **change the folder in
+   the box** to `C:\Users\<you>\Downloads\ferminux-validator` before you click **Extract**.
+   Windows suggests `...\ferminux-validator-windows-amd64`, which Step 2 below would not find.)
 
 **Expected:** the folder holds `ferminux.exe`, `fmx-validator.exe`, `install.ps1`,
-`uninstall.ps1` and `README-windows.txt`. Microsoft Defender does not delete or quarantine
-either program. Write down any Defender message exactly as it appears.
+`uninstall.ps1` and `README.txt`. Microsoft Defender does not delete or quarantine either
+program. Write down any Defender message exactly as it appears.
 
 ## Step 2. Install (W2, W3)
 
@@ -107,8 +168,12 @@ In the admin PowerShell:
 & 'C:\Program Files\Ferminux\fmx-validator.exe' version
 ```
 
-**Expected:** the first prints `Ferminux Node`, `Architecture: amd64`, `Go Version: go1.20.14`.
-The second prints `fmx-validator` and a version.
+**Expected:** the first prints `Ferminux Node`, `Version: 1.10.26-stable`, a `Git Commit` equal
+to the `source` commit in
+https://ferminux.net/downloads/validator-pilot/BUILDINFO.txt, `Architecture: amd64`,
+`Go Version: go1.20.14` and `Operating System: windows`. The second prints `fmx-validator`
+and then the same version that follows `Ferminux Validator` on the first line of
+`BUILDINFO.txt` (it ends in `+` and the first 7 characters of that `source` commit).
 
 Then (after the service has run for a minute):
 
@@ -116,9 +181,9 @@ Then (after the service has run for a minute):
 & 'C:\Program Files\Ferminux\ferminux.exe' attach --exec "eth.getBlock(0).hash + ' chain ' + eth.chainId()" \\.\pipe\fmx-validator-mainnet.ipc
 ```
 
-**Expected:** `0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf chain 0xf79`
-(0xf79 is 3961). If it says it cannot connect, write down the message; step 6 checks the same
-thing another way.
+**Expected:** `"0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf chain 0xf79"`,
+quotes included (0xf79 is 3961). If it says it cannot connect, write down the message; step 6
+checks the same thing another way.
 
 ## Step 4. The key is locked down (W3)
 
@@ -212,12 +277,22 @@ node. The service keeps running (`Get-Service FerminuxValidator` is still `Runni
 1. Note the block number from `status`.
 2. Restart the PC (Start > Power > Restart). At the sign-in screen, **do not sign in**. Wait 5
    minutes.
-3. Sign in, open an admin PowerShell and run `status` again.
+3. Sign in, note the time, open an admin PowerShell and run:
 
-**Expected:** the service is `Running`, and the `process` line shows it started about 2 minutes
-after boot (delayed start), before you signed in: the node's block number is well past the one
-you noted, and `logs\fmx-validator.log` in `C:\ProgramData\FerminuxValidator\mainnet\` has
-lines from before your sign-in time.
+   ```powershell
+   & 'C:\Program Files\Ferminux\fmx-validator.exe' status
+   sc.exe qc FerminuxValidator | Select-String START_TYPE
+   Get-CimInstance Win32_OperatingSystem | Format-List LastBootUpTime
+   Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'Service Control Manager'; Id = 7036 } -MaxEvents 500 |
+     Where-Object { $_.Message -like '*Ferminux Validator*' } | Select-Object -First 1 TimeCreated, Message | Format-List
+   ```
+
+**Expected:** `status` is back to the step 5 state with the node's block number well past the
+one you noted. `START_TYPE` says `AUTO_START  (DELAYED)`. The last block shows the message
+`The Ferminux Validator service entered the running state.` (in your Windows language) with a
+`TimeCreated` about 2 minutes after `LastBootUpTime` and before the time you signed in. (These
+times are this PC's local time. The lines in `logs\fmx-validator.log` are in UTC, so do not
+compare those with the clock.)
 
 ## Step 10. Sleep and resume (W7)
 
@@ -337,8 +412,11 @@ exact wording. That warning goes away only with a code-signing certificate (plan
 | 13 | Uninstall keeps data; `-RemoveData` removes it | | |
 | 14 | Defender scan; any SmartScreen wording | | |
 
-Also send: Windows edition and version (Settings > System > About), and the zip's name and
-date.
+Also send: Windows edition and version (Settings > System > About), and the `MATCH` line from
+step 1 (the zip's SHA-256), so the results are tied to this exact build.
 
-A plan gate stays in force whatever these results are: no Windows download is published until
-this exact binary has passed on real Windows 10 and Windows 11, and until it is code-signed.
+The pilot folder is not linked from any page. Invited pilot operators get its link only after
+this exact zip (the same SHA-256) has passed here; a new build means a new SHA-256 and this
+page again. The plan's gate for the public Windows download, linked from ferminux.net, stays
+in force whatever these results are: it waits until the binary has passed on real Windows 10
+and Windows 11, and until it is code-signed.

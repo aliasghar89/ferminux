@@ -309,9 +309,17 @@ func (e *Engine) refresh(ctx context.Context, now time.Time, head uint64) {
 	}
 	if !k.IsAttester() {
 		e.seatID, e.seat = 0, nil
+		msg := "no seat uses this attester key yet: open a seat from the owner wallet with " + e.Addr.Hex() + " as its attester (`fmx-validator seat-proof` prints what the wallet needs)"
+		pool, perr := e.Hub.Pool(ctx)
+		if perr == nil {
+			msg += NoSeatNote(pool)
+		}
 		e.Status.Update(func(s *status.Snapshot) {
 			s.Seat = nil
-			s.SeatError = "no seat uses this attester key yet: open a seat from the owner wallet with " + e.Addr.Hex() + " as its attester (`fmx-validator seat-proof` prints what the wallet needs)"
+			s.SeatError = msg
+			if perr == nil {
+				s.Rewards.OccupiedSeats, s.Rewards.MaxSeats, s.Rewards.InviteOnly = pool.OccupiedSeats, pool.MaxSeats, pool.InviteOnly
+			}
 		})
 		return
 	}
@@ -360,6 +368,7 @@ func (e *Engine) refresh(ctx context.Context, now time.Time, head uint64) {
 			OccupiedSeats:   pool.OccupiedSeats,
 			EligibleSeats:   pool.EligibleSeats,
 			MaxSeats:        pool.MaxSeats,
+			InviteOnly:      pool.InviteOnly,
 			Claimable:       seat.Claimable,
 		}
 		s.Paused = pool.Paused
@@ -368,6 +377,20 @@ func (e *Engine) refresh(ctx context.Context, now time.Time, head uint64) {
 			s.Gas = status.Gas{Balance: bal, Low: bal.Cmp(LowGasBalance) < 0}
 		}
 	})
+}
+
+// NoSeatNote adds what the hub's seat rules mean for a node that has no seat
+// yet: during the invite-only pilot only invited owner wallets can open one, and
+// no wallet can while every seat is taken.
+func NoSeatNote(p hub.Pool) string {
+	note := ""
+	if p.InviteOnly {
+		note += ". The hub is in its invite-only pilot: only owner wallets the foundation has invited can open a seat, and any other wallet is refused (NotAllowlisted); `fmx-validator seat-proof --owner <wallet>` checks the wallet first"
+	}
+	if p.MaxSeats > 0 && p.OccupiedSeats >= p.MaxSeats {
+		note += fmt.Sprintf(". All %d seats are taken right now: a seat opens only when one exits", p.MaxSeats)
+	}
+	return note
 }
 
 // canSign reports whether this key is the seat's active attester right now.

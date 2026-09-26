@@ -202,6 +202,8 @@ var (
 		utils.RPCGlobalEVMTimeoutFlag,
 		utils.RPCGlobalTxFeeCapFlag,
 		utils.AllowUnprotectedTxs,
+		utils.BatchRequestLimit,
+		utils.BatchResponseMaxSize,
 	}
 
 	metricsFlags = []cli.Flag{
@@ -376,8 +378,6 @@ func ferminux(ctx *cli.Context) error {
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
 func startNode(ctx *cli.Context, stack *node.Node, backend fmxapi.Backend, isConsole bool) {
-	debug.Memsize.Add("node", stack)
-
 	// Start up the node itself
 	utils.StartNode(ctx, stack, isConsole)
 

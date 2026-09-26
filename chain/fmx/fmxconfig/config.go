@@ -254,7 +254,7 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		// set; wrap Powhash in the dispatching proof-of-authority engine. With
 		// PosaBlock unset the stock Powhash engine is used untouched.
 		if chainConfig.PosaBlock != nil {
-			wrapped, err := posa.New(chainConfig, posa.FerminuxConfig(), engine, db)
+			wrapped, err := posa.New(chainConfig, posa.ConfigFor(chainConfig), engine, db)
 			if err != nil {
 				log.Crit("Invalid Ferminux proof-of-authority configuration", "err", err)
 			}

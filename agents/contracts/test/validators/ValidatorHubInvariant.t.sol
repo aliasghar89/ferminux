@@ -120,7 +120,7 @@ contract HubHandler is Test {
         }
         if (blob.length == 0) return;
         uint256 allocatedBefore = lens.accounting().totalAllocated;
-        uint256 cap = hub.halvingActive() ? 3.75 ether : 7.5 ether;
+        uint256 cap = lens.halvingActive() ? 3.75 ether : 7.5 ether;
         try hub.attestBatch(uint64(h), hash, blob) returns (uint256 accepted) {
             nAttested += accepted;
             uint256 paid = lens.accounting().totalAllocated - allocatedBefore;
@@ -305,7 +305,7 @@ contract ValidatorHubInvariantTest is Test {
     function setUp() public {
         vm.roll(1_000_000);
         sink = new FMXRewardSink(msig);
-        hub = new ValidatorHub(msig, address(sink), new address[](0));
+        hub = new ValidatorHub(msig, address(sink), new address[](0), 100, false);
         lens = new ValidatorHubLens(hub);
         handler = new HubHandler(hub, lens, msig, address(sink));
         targetContract(address(handler));

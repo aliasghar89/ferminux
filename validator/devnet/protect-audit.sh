@@ -6,13 +6,14 @@ set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd); export HERE
 . "$HERE/lib.sh"
 TMP=$(mktemp)
-for c in $(docker ps --format '{{.Names}}' | grep -E '^fmxd-(v[0-9]+|h[0-9]+)$' | sort); do
+# every validator machine, running or stopped (a stopped machine's files are read with docker cp)
+for c in $(docker ps -a --format '{{.Names}}' | grep -E '^fmxd-(v[0-9]+|h[0-9]+)$' | sort); do
   m=${c#fmxd-}
   case $m in
     h*) for d in $(docker exec "$c" sh -c 'ls -d /var/lib/fmx-validator/s*'); do
           docker exec "$c" sh -c "cat $d/devnet/protection.log 2>/dev/null" | awk -v m="$m/${d##*/}" '$1=="A1"{print m, $4, $5, $6}' >> "$TMP"
         done ;;
-    *) docker exec "$c" sh -c 'cat /var/lib/fmx-validator/devnet/protection.log 2>/dev/null' | awk -v m="$m" '$1=="A1"{print m, $4, $5, $6}' >> "$TMP" ;;
+    *) docker cp "$c:/var/lib/fmx-validator/devnet/protection.log" - 2>/dev/null | tar -xO 2>/dev/null | awk -v m="$m" '$1=="A1"{print m, $4, $5, $6}' >> "$TMP" ;;
   esac
 done
 node - "$TMP" <<'EOF'

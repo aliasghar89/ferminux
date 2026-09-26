@@ -28,6 +28,13 @@ export const VALIDATOR_HUB_ABI = [
   "function certifies(uint256 count, uint256 eligible) pure returns (bool)",
   "function attested(uint256 seatId, uint256 height) view returns (bool)",
   "function participation(uint256 seatId, uint256 n) view returns (uint256)",
+  // The invite-only pilot (owner decision 2026-09-26): maxSeats is 20 from the deploy, and allowlistOnly is
+  // cleared once, for good, through the 48 h timelock. A hub built before the pilot has neither
+  // allowlistOnly() nor allowlisted(): client.ts reads that as open, never as an error.
+  "function maxSeats() view returns (uint256)",
+  "function occupiedSeats() view returns (uint256)",
+  "function allowlistOnly() view returns (bool)",
+  "function allowlisted(address wallet) view returns (bool)",
 ] as const;
 
 export const VALIDATOR_HUB_LENS_ABI = [
@@ -38,6 +45,9 @@ export const VALIDATOR_HUB_LENS_ABI = [
   // attesterRotateBlock, signingKey (Step 2), rewardTo (Step 2).
   "function seat(uint256 seatId) view returns (tuple(uint96 claimable, uint32 lastAttestedCp, uint32 dutyStartCp, uint40 activationBlock, uint40 countedSince, uint8 status, bool jailed, address owner, uint40 unjailBlock, uint40 unbondEndBlock, uint8 slashState, bool qualified, address attester, uint96 deposit, address pendingAttester, uint40 attesterRotateBlock, address signingKey, address rewardTo))",
   "function runwayDays() view returns (uint256)",
+  // SeatAccess (ValidatorHubLens.sol): can `wallet` open a seat now, in openSeat's own order. reason: 0 open,
+  // 1 new seats paused, 2 on the deny list, 3 not invited (the pilot), 4 every seat taken.
+  "function seatAccess(address wallet) view returns (tuple(uint8 reason, bool allowlistOnly, bool allowlisted, bool denied, bool seatsPaused, uint256 occupiedSeats, uint256 maxSeats))",
 ] as const;
 
 export const hub = new Interface(VALIDATOR_HUB_ABI);
