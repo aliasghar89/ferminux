@@ -3,11 +3,23 @@ import type { JsonRpcProvider } from 'ethers';
 import { DEX_ADDRESSES } from '../config.ts';
 import { Modal, Notice, Spinner } from '../components/ui.tsx';
 import { TokenLogo } from '../components/TokenLogo.tsx';
-import { IconSearch } from '../components/icons.tsx';
+import { IconArrowDown, IconSearch } from '../components/icons.tsx';
 import { formatAmount, isAddress, shortAddress } from '../lib/amounts.ts';
 import { formatUsd, valueUsdE18, type PriceTable } from '../lib/prices.ts';
 import { isListed, listedTokens, searchTokens, sortForPicker } from '../lib/tokenlist.ts';
 import { fetchTokenMeta, tokenKey, type TokenInfo } from '../lib/tokens.ts';
+import type { PayBalances, PayChainKey, PaySelection } from '../lib/payin.ts';
+import type { PayAssetsState } from '../state/usePayin.ts';
+import { PayNetworks } from './PayNetworks.tsx';
+
+/** The "You pay" picker's extra section: coins on other networks, bought through the pay-in. */
+export interface PickerPayOptions {
+  assets: PayAssetsState;
+  balances: Partial<Record<PayChainKey, PayBalances>>;
+  connected: boolean;
+  selected: PaySelection | null;
+  onSelect: (s: PaySelection) => void;
+}
 
 /**
  * Token picker. Listed tokens (FMX and the registry's first-party tokens) head
@@ -27,6 +39,7 @@ export function TokenPicker({
   onSelect,
   onImport,
   onClose,
+  pay,
 }: {
   tokens: TokenInfo[];
   balances: Map<string, bigint>;
@@ -39,6 +52,8 @@ export function TokenPicker({
   onSelect: (token: TokenInfo) => void;
   onImport: (token: TokenInfo) => void;
   onClose: () => void;
+  /** Only for "You pay": also offer coins on other networks. */
+  pay?: PickerPayOptions;
 }) {
   const [query, setQuery] = useState('');
   const [importing, setImporting] = useState(false);
@@ -108,6 +123,16 @@ export function TokenPicker({
               {t.symbol}
             </button>
           ))}
+          {pay && (
+            <button
+              className="chip chip-jump"
+              onClick={() => document.querySelector('[data-testid=pay-networks]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              data-testid="jump-networks"
+            >
+              USDT, USDC &amp; more on 7 networks
+              <IconArrowDown />
+            </button>
+          )}
         </div>
       )}
 
@@ -153,10 +178,15 @@ export function TokenPicker({
 
       {filtered.length === 0 && !found && !canLookUp && (
         <p className="muted small picker-empty">
-          {query.trim() === '' ? 'No tokens yet: no pools exist on this network.' : 'Nothing matches. Paste a contract address to import a token.'}
+          {query.trim() === ''
+            ? 'No tokens yet: no pools exist on this network.'
+            : pay
+              ? 'No token on Ferminux matches. Paste a contract address to import one.'
+              : 'Nothing matches. Paste a contract address to import a token.'}
         </p>
       )}
 
+      {pay && filtered.length > 0 && <div className="picker-section-head picker-section-first"><h3 className="picker-section-title">On Ferminux</h3></div>}
       <ul className="token-list" data-testid="token-list">
         {filtered.map((token) => {
           const balance = balances.get(tokenKey(token));
@@ -190,6 +220,8 @@ export function TokenPicker({
           );
         })}
       </ul>
+
+      {pay && <PayNetworks query={query} {...pay} />}
     </Modal>
   );
 }

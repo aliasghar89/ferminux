@@ -12,6 +12,11 @@
 //      remembered and removed with it
 //   4. view preferences (hide zero balances, chain filter) and the swap
 //      settings (slippage, deadline, approval mode) — no address, no amount
+//   5. the FMX purchases made through the pay-in (quote ids, the exact amount,
+//      the deposit and recipient addresses, transaction hashes) — public data,
+//      but it names the wallet's address: kept in localStorage only while the
+//      vault is remembered, otherwise in sessionStorage (this tab only, so a
+//      reload still finds an open purchase), and removed with the vault
 // WalletConnect keeps its own store (IndexedDB): session metadata and the
 // per-session relay encryption keys. It never sees a wallet key.
 // Plaintext keys, mnemonics and passwords are NEVER written anywhere.
@@ -42,6 +47,7 @@ import {
 } from '../lib/localActivity.ts';
 
 import { SWAP_SETTINGS_KEY, parseSwapSettings, serializeSwapSettings, type SwapSettings } from '../lib/swap.ts';
+import { PAYIN_RECORDS_KEY, parsePayinRecords, serializePayinRecords, type PayinRecord } from '../lib/payin.ts';
 
 import { vaultMirror } from '../platform/index.ts';
 
@@ -124,6 +130,7 @@ export function clearVault(): void {
   safeRemove(VAULT_KEY);
   safeRemove(LEGACY_KEYSTORE_KEY);
   safeRemove(LOCAL_ACTIVITY_KEY);
+  clearPayinRecords();
 }
 
 export function loadTokenAddresses(): string[] {
@@ -210,4 +217,46 @@ export function wcWasUsed(): boolean {
 export function markWcUsed(used: boolean): void {
   if (used) safeSet(WC_USED_KEY, '1');
   else safeRemove(WC_USED_KEY);
+}
+
+/* ---- pay-in purchases (category 5 above) ---- */
+
+function sessionGet(key: string): string | null {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function sessionSet(key: string, value: string | null): void {
+  try {
+    if (value === null) window.sessionStorage.removeItem(key);
+    else window.sessionStorage.setItem(key, value);
+  } catch {
+    /* blocked: the purchase still lives for this page */
+  }
+}
+
+/** Purchases this device knows about: the remembered list, else this tab's. */
+export function loadPayinRecords(): PayinRecord[] {
+  const kept = parsePayinRecords(safeGet(PAYIN_RECORDS_KEY));
+  return kept.length > 0 ? kept : parsePayinRecords(sessionGet(PAYIN_RECORDS_KEY));
+}
+
+/** `persist` is the vault's "remember on this device": nothing address-shaped outlives the tab without it. */
+export function savePayinRecords(list: PayinRecord[], persist: boolean): void {
+  const raw = serializePayinRecords(list);
+  if (persist) {
+    safeSet(PAYIN_RECORDS_KEY, raw);
+    sessionSet(PAYIN_RECORDS_KEY, null);
+  } else {
+    sessionSet(PAYIN_RECORDS_KEY, raw);
+    safeRemove(PAYIN_RECORDS_KEY);
+  }
+}
+
+export function clearPayinRecords(): void {
+  safeRemove(PAYIN_RECORDS_KEY);
+  sessionSet(PAYIN_RECORDS_KEY, null);
 }

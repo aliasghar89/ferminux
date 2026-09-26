@@ -1191,3 +1191,61 @@ a.handoff-open{margin-bottom:12px}
 .slip-custom{flex:1 1 120px;padding:2px 12px 2px 14px}
 .slip-custom .amount-input{font-size:16px;padding:10px 0}
 @media (prefers-reduced-motion:reduce){.swap-flip:active:not(:disabled){transform:none}}
+
+/* ================================================================= */
+/* Buy FMX with a coin on another network (the pay-in)                */
+/* ================================================================= */
+
+.token-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:14px 10px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.token-section-head:first-child{padding-top:2px}
+.token-section-head .faint{font-weight:400;letter-spacing:0;text-transform:none;text-align:right}
+.token-net-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 10px 4px;border-top:1px solid var(--hairline);margin-top:4px}
+.token-net-note{font-size:12px;color:var(--faint);min-width:0;overflow-wrap:anywhere}
+.token-net-head[data-available="false"] .token-net-note{color:var(--warn)}
+.token-row:disabled{cursor:not-allowed;opacity:.45}
+.token-row:disabled:hover{background:transparent}
+
+.token-btn-net{font:600 10px/1 var(--mono);letter-spacing:.04em;color:var(--faint);border:1px solid var(--border);border-radius:var(--r-xs);padding:3px 5px;margin-left:-2px}
+.confirm-amount .v.is-long{font-size:clamp(17px,5.1vw,26px)}
+.confirm-amount .v.is-long .u{white-space:nowrap}
+.token-btn-locked{cursor:default;border-color:var(--border);background:var(--surface)}
+.token-btn-locked>.ic{width:13px;height:13px;color:var(--faint)}
+.buy-lock-note{margin:8px 0 0;font-size:12.5px;color:var(--faint);line-height:1.45}
+.buy-exchange{margin:14px 0 0;font-size:13px;line-height:1.5}
+.buy-recipient{margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:var(--r-card);background:var(--bg)}
+
+.payin-expiry{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;margin:-4px 0 12px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-2);font-size:12.5px;color:var(--muted);min-width:0}
+.payin-expiry .mono{color:var(--ink);font-size:12px;overflow-wrap:anywhere}
+.payin-expiry strong{font-family:var(--mono);font-weight:500;color:var(--ink);white-space:nowrap}
+.payin-expiry .ic{width:15px;height:15px;flex:none}
+.payin-expiry.is-short{border-color:var(--warn-border);background:var(--warn-soft)}
+.payin-expiry.is-short strong{color:var(--warn)}
+
+.track-steps{list-style:none;margin:6px 0 18px;padding:14px;border:1px solid var(--border);border-radius:var(--r-card);background:var(--bg);display:grid;gap:4px}
+.track-steps li{display:flex;align-items:center;gap:12px;min-height:40px;font-size:14px;min-width:0}
+.track-dot{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--border-strong);color:var(--muted);font:600 11.5px/1 var(--mono);background:var(--surface)}
+.track-dot .ic{width:13px;height:13px}
+.track-dot.done{border-color:var(--ok-border);background:var(--ok-soft);color:var(--ok)}
+.track-dot.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.track-dot.bad{border-color:var(--warn-border);background:var(--warn-soft);color:var(--warn)}
+.track-label{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-width:0;color:var(--ink)}
+.track-label.faint{color:var(--faint)}
+.track-link{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;min-height:28px}
+.track-link .mono{font-size:12px}
+.track-link .ic{width:13px;height:13px}
+.track-clock{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink)}
+.track-foot{text-align:center;margin:12px 4px 0}
+
+.buy-purchases{margin-top:16px}
+.buy-purchases .row-list>li{padding:0}
+.purchase-row{appearance:none;width:100%;display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 16px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.purchase-row:hover,.purchase-row:focus-visible{background:var(--surface-2)}
+.purchase-row>.ic{width:16px;height:16px;color:var(--faint);flex:none}
+.purchase-row .row-title{font-weight:500;gap:6px}
+.purchase-row .dir-badge{max-width:40%;overflow:hidden;text-overflow:ellipsis}
+
+.howto-steps{list-style:none;margin:0;padding:16px 20px 4px;display:grid;gap:14px}
+.howto-steps li{display:flex;gap:12px;align-items:flex-start;font-size:13.5px;color:var(--muted);line-height:1.5}
+.howto-steps .track-dot{margin-top:-2px}
+.howto-foot{padding:4px 20px 18px;margin:0;line-height:1.5}
+@media (max-width:480px){.howto-steps{padding:14px 16px 4px}.howto-foot{padding:4px 16px 16px}}

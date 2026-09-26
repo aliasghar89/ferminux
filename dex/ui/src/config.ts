@@ -186,6 +186,35 @@ export const PAIRS_PAGE_SIZE = 25;
 /** Poll cadence for reserves/quotes. */
 export const REFRESH_MS = 12_000;
 
+// ---------------------------------------------------------------------------
+// PAY WITH ANY COIN — the Swap page's "Other networks" (src/lib/payin.ts).
+//
+// FMX bought with USDC, USDT or a network's own coin on seven other networks,
+// through the project's pay-in at ferminux.net/api/payin (the service behind
+// ferminux.net/buy-fmx). The DEX only asks for a quote, has the wallet send
+// exactly the quoted amount on that network, and follows the quote until the
+// FMX lands on Ferminux. No pool on chain 3961 is involved.
+// ---------------------------------------------------------------------------
+
+/** On by default; VITE_PAYIN=0 builds the DEX without the "Other networks" section. */
+export const PAYIN_ENABLED: boolean = !/^(0|false|no|off)$/i.test((env.VITE_PAYIN ?? '').trim());
+
+/** The pay-in API: GET /assets, POST /quote, GET /{quoteId}. Absolute: the DEX is also served from dex.ferminux.net. */
+export const PAYIN_API_URL: string = (env.VITE_PAYIN_API_URL ?? 'https://ferminux.net/api/payin').trim().replace(/\/+$/, '');
+
+/**
+ * Where every pay-in quote asks to be paid, on all seven networks: the
+ * pay-in's deposit wallet. Pinned in source, like the token contracts in
+ * lib/payin.ts, so a quote naming any other address is refused before the
+ * wallet is asked to send anything. If the operator moves the deposit wallet,
+ * this constant moves with it (or VITE_PAYIN_DEPOSIT_ADDRESS at build time);
+ * until then the DEX refuses to pay, which is the safe way to be out of date.
+ */
+export const PAYIN_DEPOSIT_ADDRESS: string = (env.VITE_PAYIN_DEPOSIT_ADDRESS ?? '0xc2a7B343a8a9ef2eC5D15c31225A64AC9FDC05Fa').trim();
+
+/** How often an open pay-in quote's status is re-read, in ms. */
+export const PAYIN_POLL_MS: number = Math.max(1000, Number(env.VITE_PAYIN_POLL_MS ?? 8000) || 8000);
+
 // wallet_addEthereumChain parameters live in shared/fxwallet/network.ts
 // (FERMINUX_ADD_CHAIN_PARAMS): one definition for every Ferminux dApp.
 

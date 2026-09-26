@@ -6,9 +6,10 @@ Network, chain **3961**, native coin **FMX**.
 Vite + React 18 + TypeScript + ethers v6, in the ferminux.net dark design
 system (`.ui-craft/brief.md`, `tokens.md`; the Ferminux Wallet is the reference
 for app screens), phone first. One bundle, fonts included, no CDNs, no
-analytics, no backend: every number on the page is read from the chain over
-JSON-RPC (`rpc.ferminux.net`), and the build fails if an unexpected external
-URL gets into `dist/`. `base` is `./`, so the same `dist/` serves from
+analytics, no backend of its own: every pool number on the page is read from
+the chain over JSON-RPC (`rpc.ferminux.net`), buying with coins on other
+networks goes through the project's pay-in (`ferminux.net/api/payin`), and the
+build fails if an unexpected external URL gets into `dist/`. `base` is `./`, so the same `dist/` serves from
 `https://dex.ferminux.net` and from `https://ferminux.net/dex/`.
 
 ## Pages
@@ -20,6 +21,7 @@ URL gets into `dist/`. `base` is `./`, so the same `dist/` serves from
 | **Liquidity** | Add at the pool's ratio (the second amount is derived, never typed), or open a pool as the first depositor after an explanation; your positions with value and share; remove with a percentage slider and presets, optionally unwrapping to native FMX; your LiquidityLocker locks |
 | **Charts** | *FMX price*: FMX in USD as each pool against a pegged token prices it, against the official $0.52. *Analytics*: TVL, volume and fees (24 h, 7 d, all time), TVL over time, volume by day, the pool table and recent trades across all pools |
 | **Activity** | The connected account's swaps, deposits, withdrawals, wraps and approvals, read from the chain and grouped by day |
+| **Swap: other networks** | The "You pay" picker also lists USDT, USDC and the network's own coin on BNB Smart Chain, Base, Arbitrum One, Polygon, Optimism, Avalanche C-Chain and Ethereum, with the wallet's balance on each. Picking one turns Swap into "Buy FMX with <coin> on <network>" through the pay-in (below). FMX pool swaps are unchanged |
 
 On a phone the five pages are a bottom tab bar; from 900 px they are a
 one-bar header with the ferminux.net green dot under the active page. The
@@ -105,6 +107,60 @@ Tokens off the Ferminux list are named, with their address, in the review.
 "now" being the chain's block time; a matured lock is not a lock, and the pool
 page says so when the locker holds more than is still locked.
 
+## Pay with any coin (`src/lib/payin.ts`, `payWallet.ts`, `views/PayCard.tsx`)
+
+The pools hold FMX, USDF and AZNT only, so "swap USDT for FMX" is not a pool
+trade. It is the pay-in behind ferminux.net/buy-fmx: a quote at the official
+$0.52 plus a 2% spread ($1 to $10,000, valid 15 minutes), a transfer of
+**exactly** the quoted amount to the pay-in's deposit address on the paying
+network, and FMX sent to the quote's recipient on Ferminux once that network
+has confirmed it (6 to 60 confirmations). One way only: selling FMX into those
+coins is not offered, and the card says so.
+
+- **The deposit is matched by its exact amount and sender.** The wallet is
+  only ever asked to send `sendExactly` (which may be a few units under what was
+  typed), from the account that asked for the quote: a token `transfer(deposit,
+  sendExactly)` sent to the pinned contract, or `sendExactly` of the native
+  coin as value. Never the typed amount, never twice for one quote.
+- **Everything the wallet acts on is pinned.** Chain ids, token contracts and
+  decimals (BNB Smart Chain's USDT and USDC have 18, everywhere else 6) are in
+  `lib/payin.ts`; `tests/payin.test.mjs` reads `agents/gateway/src/v3/payin.ts`
+  and fails if the two differ. The deposit address is `PAYIN_DEPOSIT_ADDRESS`
+  in `config.ts`. A quote naming anything else, or whose FMX does not recompute
+  to the wei from its own USD value, price and spread, is refused; so is a
+  network the asset list shows differently.
+- **The wallet is put on the paying network** (`wallet_switchEthereumChain`,
+  then `wallet_addEthereumChain` when it does not know it), and **asked again
+  right before sending** which chain and account it is on: a wallet that moved
+  is refused before anything is signed. After paying, the card offers the
+  switch back to Ferminux.
+- **Refused before the wallet is asked:** under a minute left on the quote
+  (get a new one), a network the pay-in has paused, an amount outside $1 to
+  $10,000, not enough of the coin, or not enough of the network's coin for the
+  fee (read from the network's public endpoints).
+- **The pay-in is asked again right before the wallet is.** A fresh
+  `GET /assets` must still show the network taking payments (a payment made
+  while its deposit scanner is behind can outlive the quote and land
+  unmatched), and a fresh `GET /{quoteId}` must show the quote still open for
+  exactly the stored amount, recipient, payer, contract and deposit address. A
+  quote a reload brought back from storage, or one another tab or device has
+  replaced, is never paid from this page's copy alone.
+- **A re-quote never reuses an amount.** The pay-in matches a deposit to the
+  oldest open *or replaced* quote with that amount and sender, for ten minutes
+  after it closes, and its unique-amount rule only steps around open quotes.
+  So a new quote asks for one unit under the lowest amount this wallet's
+  recent quotes for that coin still hold, and its payment can only match it.
+- **The tracker survives a reload.** Open quotes are kept in this browser
+  (`ferminux-dex.payin.v1`) and followed at `GET /api/payin/{id}`: sent, seen
+  on the network, confirmations, FMX delivered, with explorer links on both
+  sides. A send that started and never reported back (the page closed in the
+  wallet dialog) is flagged, and a second send asks you to check the wallet's
+  activity first. "Your FMX purchases" under the card lists them.
+- The "Do not send from an exchange" note is on the form and the review: the
+  deposit must come from this wallet, and the FMX goes to the recipient, not
+  the sender. The recipient is the connected address; another one takes a
+  warning and a confirmation.
+
 ## Why FMX trades here first, and PancakeSwap second
 
 FMX is the native coin of chain 3961, and this DEX runs on chain 3961. A swap
@@ -151,13 +207,14 @@ dex/ui/
 │   ├── state/                hooks: chain, wallet, pools, market, positions, activity, route, settings
 │   ├── components/           Shell, Chart (SVG line/bar), TradeParts, TokenLogo, icons, ui, ConnectChooser, MobileHandoff
 │   └── views/                SwapView, PoolsView, LiquidityView, ChartsView, ActivityView, TokenPicker, SettingsModal, …
-├── tests/                    102 unit tests (node:test, no chain)
+├── tests/                    126 unit tests (node:test, no chain)
 └── scripts/
     ├── check-dist.mjs        build guard: no unexpected external URL in dist/
     ├── e2e.mjs               fresh AMM on a local anvil, driven through src/lib
     ├── fork.mjs              anvil fork of chain 3961 + the $0.52 market, by impersonation
     ├── e2e-fork.mjs          the live contracts on a fork, driven through src/lib
-    └── ui-check.mjs          the built page in Chrome against the fork, 320 / 390 / 1440 px
+    ├── ui-check.mjs          the built page in Chrome against the fork, 320 / 390 / 1440 px
+    └── payin-check.mjs       pay with any coin in Chrome, everything mocked
 ```
 
 ## Configure
@@ -175,6 +232,10 @@ the app renders a "Not configured" screen naming what is missing.
 | `VITE_DEX_START_BLOCK` | first block scanned for pool events (default 13420; `0` on a devnet) |
 | `VITE_WC_PROJECT_ID` | adds WalletConnect to the wallet choice; unset = not bundled |
 | `VITE_ENABLE_BRIDGE` | adds the Bridge page (off by default) |
+| `VITE_PAYIN` | `0` builds without "Other networks" (on by default) |
+| `VITE_PAYIN_API_URL` | default `https://ferminux.net/api/payin` |
+| `VITE_PAYIN_DEPOSIT_ADDRESS` | the pay-in's deposit address the app will pay (default the live one, `0xc2a7…05Fa`) |
+| `VITE_PAYIN_POLL_MS` | how often an open quote is re-read (default 8000) |
 
 ## Commands
 
@@ -183,10 +244,11 @@ cd <repo>/dex/ui
 npm install
 npm run dev          # http://127.0.0.1:8602
 npm run build        # tsc --noEmit && vite build && node scripts/check-dist.mjs
-npm test             # 102 unit tests, no chain
+npm test             # 126 unit tests, no chain
 npm run e2e          # fresh AMM on anvil :8602
 npm run e2e:fork     # anvil FORK of chain 3961 on :8602 (reads rpc.ferminux.net)
 npm run ui           # the built page in Chrome against the fork; PLAYWRIGHT_MODULE=…/playwright/index.mjs
+npm run ui:payin     # pay with any coin in Chrome: mocked pay-in, networks and wallet; no anvil
 ```
 
 Port 8602 is this component's and is shared by the dev server and the three
@@ -211,7 +273,38 @@ fonts: Inter 48 kB, JetBrains Mono 31 kB, Sora 15 kB (woff2, self-hosted)
 check-dist: no unexpected external URLs in dist/.
 ```
 
-### `npm test`: 102 tests, 0 failures
+### `npm run ui:payin`: 12 browser checks, all passing (2026-09-26)
+
+Nothing real is touched: the pay-in API is a mock that quotes, supersedes and
+attributes like the gateway; the seven networks answer from fixed balances;
+the wallet is a scripted injected provider that records what it is asked to send.
+
+```
+  ✓  1. built the production bundle (shipped pay-in URL and network endpoints, local chain 3961)
+  ✓  2. picker: "Other networks" lists USDT / USDC / native on 7 networks with the wallet’s balances; Polygon paused and not pickable; search filters
+  ✓  3. pay mode: FMX locked on the output, one-line "not offered yet", rate $0.5306 with the 2%, $1–$10,000, 12 confirmations; bounds and balance refused before any quote
+  ✓  4. review: exactly 9.999999999999999997 USDT (18 decimals, 3 units of dust), deposit address, BNB Smart Chain · 56, recipient, 15-minute clock, exchange warning
+  ✓  5. sent: switched the wallet to 56, then transfer(deposit, 9999999999999999997) to BSC USDT from the quoting account, attributed by amount
+  ✓  6. tracker: seen → confirmed → paid, BscScan and explorer.ferminux.net links; "Switch back to Ferminux" put the wallet home
+  ✓  7. reload kept the open Base quote; the wallet did not know Base, so it was added (chain 8453, mainnet.base.org), then exactly 24.999997 USDC was sent
+  ✓  8. native: 0.499999999999999997 AVAX as value straight to the deposit address on 43114, no data
+  ✓  9. a quote with under a minute left cannot be sent; "Get a new quote" replaced it, one unit under the old amount so the payment can only match the new one
+  ✓ 10. a wallet that reported BNB Smart Chain and then moved to chain 1 before the send was refused: nothing signed
+  ✓ 11. a network paused after the quote was issued: the pre-send check with the pay-in refused, nothing signed
+  ✓ 12. after the drift, a retry sent exactly 4.999999999999999996 USDT, credited to the new quote; USDC with a zero balance is refused before quoting
+  ✓ 13. back to the pool swap card unchanged; 4 payments, all matched; no horizontal scroll at 320/390/1440 px; no console errors
+```
+
+### `npm test`: 127 tests, 0 failures
+
+Pay with any coin (`payin.test.mjs`, 25): the networks, contracts, decimals and
+confirmations equal the gateway's table; exact units at 6 and 18 decimals;
+FMX out equal to the gateway's to the wei; every field of a quote checked;
+the transfer built from `sendExactly` only; balance and fee checks; the
+tracker never going backwards or paying twice; re-quotes that cannot collide;
+the stored quotes surviving a reload and dropping anything tampered; the
+pay-in's live record of the quote confirmed before the send; the wallet
+switched, added, and checked again before the send.
 
 Routing (`route.test.mjs`): paths over every pool, not a base list; three-pool
 routes found and chosen when they pay more; no cycles; the candidate cap keeps
@@ -274,6 +367,17 @@ search. Plus the math, amounts, deep link, hand-off and bridge-gate suites.
 passes unchanged apart from the routing options.
 
 ## Not done / known limits
+
+- **`npm run ui` predates the live FMX/USDF pool.** Since 2026-09-26 chain
+  3961 has a seeded FMX/USDF pool with 90.5% of its LP locked, so the fork no
+  longer matches the check's fixtures and it stops at step 4 ("the fork pool
+  shows Not locked"). The figures further on (the $52.0K TVL, 100 FMX →
+  51.74 USDF) assume the old market too. The check needs its expectations
+  moved to the new market; `npm run ui:payin` does not use the fork.
+- **Pay with any coin is one way.** FMX cannot be sold into USDT, USDC or
+  another network's coin here. A wallet that cannot switch networks from a
+  page is pointed to ferminux.net/buy-fmx, where the transfer can be made by
+  hand.
 
 - **Split orders.** One order takes one path. Splitting a large order across
   two routes would fill better on shallow pools; the router has no entry point

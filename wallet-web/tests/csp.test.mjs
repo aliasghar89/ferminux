@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CHAINS } from '../src/lib/chains.ts';
-import { EXPLORER_URL, RPC_URLS, WALLET_CONNECT_URLS } from '../src/config.ts';
+import { EXPLORER_URL, PAYIN_API_URL, RPC_URLS, WALLET_CONNECT_URLS } from '../src/config.ts';
 import { KNOWN_COLLECTIONS } from '../src/lib/nft.ts';
 
 const NGINX = readFileSync(new URL('../../infra/compose/nginx/nginx.conf', import.meta.url), 'utf8');
@@ -42,6 +42,8 @@ test('connect-src holds every endpoint the wallet uses', () => {
     ...CHAINS.flatMap((c) => c.rpcUrls.map(origin)),
     // FRC-721 tokenURI documents of the scanned collections (baseURI on chain: https://ferminux.net/nft/…)
     'https://ferminux.net',
+    // the pay-in (Swap → Other networks: buy FMX with USDT/USDC/native coins), on that same host
+    origin(PAYIN_API_URL),
     // WalletConnect (lazy chunk): relay socket and the Verify API it trusts
     'wss://relay.walletconnect.org',
     'https://verify.walletconnect.org',

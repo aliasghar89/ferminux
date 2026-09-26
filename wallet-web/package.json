@@ -14,7 +14,8 @@
     "ui": "node scripts/ui-check.mjs",
     "smoke": "node scripts/multichain-smoke.mjs",
     "mint-smoke": "node scripts/mint-smoke.mjs",
-    "swap-smoke": "node scripts/swap-smoke.mjs"
+    "swap-smoke": "node scripts/swap-smoke.mjs",
+    "payin-smoke": "node scripts/payin-smoke.mjs"
   },
   "dependencies": {
     "@capacitor-community/privacy-screen": "^8.0.0",

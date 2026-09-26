@@ -32,6 +32,18 @@ import { Modal, Spinner } from '../components/ui.tsx';
 import { AssetGlyph } from '../components/ChainBadge.tsx';
 import { IconCheck, IconChevronDown, IconExternal } from '../components/icons.tsx';
 import { ChainBanner } from './SendPanel.tsx';
+import { PayinPickerSection, payinPickerMatches } from './PayinParts.tsx';
+import type { PayinAssets } from '../lib/payin.ts';
+
+/** The picker's Other networks section (You pay only): buying FMX through the pay-in. */
+export interface PickerPayin {
+  assets: PayinAssets | null;
+  state: 'loading' | 'ok' | 'error';
+  balanceOf: (chainId: number, address: string | null) => bigint | null;
+  /** payinCoinKey of the coin in use, when buying. */
+  selected: string | null;
+  onPick: (coinKey: string) => void;
+}
 
 export const fmt = (wei: bigint, t: { decimals: number }, digits = 6) => formatAmount(wei, t.decimals, digits);
 
@@ -88,6 +100,7 @@ export function TokenPicker({
   hiddenCount,
   onPick,
   onClose,
+  payin,
 }: {
   side: 'in' | 'out';
   tokens: AssetRef[];
@@ -98,8 +111,11 @@ export function TokenPicker({
   hiddenCount: number;
   onPick: (key: string) => void;
   onClose: () => void;
+  /** You pay only: coins on the other networks, which buy FMX through the pay-in. */
+  payin?: PickerPayin;
 }) {
   const [q, setQ] = useState('');
+  const withPayin = side === 'in' && payin !== undefined;
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return tokens;
@@ -118,12 +134,18 @@ export function TokenPicker({
           aria-label="Search tokens"
           style={{ marginBottom: 12 }}
         />
-        {shown.length === 0 ? (
+        {shown.length === 0 && !(withPayin && payinPickerMatches(q)) ? (
           <div className="empty-state" style={{ padding: '20px 8px' }}>
-            No token on the Ferminux Network matches “{q.trim()}”.
+            No token {withPayin ? '' : 'on the Ferminux Network '}matches “{q.trim()}”.
           </div>
         ) : (
           <ul className="token-list">
+            {withPayin && shown.length > 0 && (
+              <li className="token-section-head">
+                <span>Ferminux Network</span>
+                <span className="faint">swaps on the Ferminux DEX</span>
+              </li>
+            )}
             {shown.map((t) => {
               const key = tokenKey(t);
               const bal = balances.get(key) ?? null;
@@ -152,12 +174,17 @@ export function TokenPicker({
                 </li>
               );
             })}
+            {withPayin && payin && (
+              <PayinPickerSection query={q} assets={payin.assets} state={payin.state} balanceOf={payin.balanceOf} selected={payin.selected} onPick={payin.onPick} />
+            )}
           </ul>
         )}
         <p className="small faint" style={{ margin: '14px 4px 0', lineHeight: 1.55 }}>
           Tokens on the Ferminux Network with a Ferminux DEX pool. Add another token by its contract address under Assets; it is
           offered here once it has a pool.
           {hiddenCount > 0 && ` ${hiddenCount} added token${hiddenCount === 1 ? ' has' : 's have'} no pool yet.`}
+          {withPayin &&
+            ' A coin on another network buys FMX through the Ferminux pay-in and is paid on that network; selling FMX into those coins is not offered yet.'}
         </p>
       </div>
     </Modal>

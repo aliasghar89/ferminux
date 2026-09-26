@@ -129,6 +129,58 @@ contract; only chain id, address and that metadata are stored).
   - Settings (slippage, deadline, approval mode) are the only thing stored:
     `ferminux.wallet.swap.v1`, no address, no amount.
   `npm run swap-smoke` drives it on an anvil fork (below).
+- **Buy FMX with another network's coin** (Swap → You pay → *Other networks*;
+  `src/lib/payin.ts`, `src/views/BuyPanel.tsx`, `src/views/PayinParts.tsx`,
+  `src/state/usePayin.ts`): the Ferminux DEX only has FMX, WFMX, USDF and AZNT
+  pools, so a coin on one of the seven other networks buys FMX through the
+  network's own pay-in (`https://ferminux.net/api/payin/*`, the same service as
+  ferminux.net/buy-fmx). The FMX side is locked; selling FMX into those coins is
+  not offered.
+  - **Picker**: under the Ferminux tokens, every pay-in network (cheapest
+    first, Ethereum last) with USDT, USDC and its native coin (ETH, BNB, POL,
+    AVAX) and this account's balance there. A network whose deposit scanner is
+    not reaching it (`available: false` in `GET /api/payin/assets`) is listed
+    with the reason and cannot be picked.
+  - **Form**: the rate (the listed $/FMX with the 2% spread included), the USD
+    limits ($1–$10,000), the network fee note, the confirmations that network
+    needs, the quote validity and the FMX recipient — this account; another
+    address only behind a warning and an "I control this address"
+    acknowledgement. A stablecoin amount outside the limits, more than the
+    balance, or no native coin for gas on that network is refused before any
+    quote is asked for.
+  - **Quote** (`POST /api/payin/quote` with `chain`, `asset`, the exact typed
+    `amount`, `to`, and `from` = this account): checked against what was asked
+    before anything is shown — network, chain id, coin, token contract and
+    decimals against the wallet's own chain list (BNB Smart Chain USDT/USDC:
+    18 decimals), recipient, sender, the deposit address against the listed
+    one, the amount (the gateway only steps a few units of dust down), the USD
+    value and FMX figure recomputed from the quote's own price and spread. Any
+    mismatch refuses it; nothing is sent.
+  - **Review** — one screen, the wallet's confirm screen: the network banner,
+    the quote id and a live expiry countdown, **send exactly** (the quote's
+    `sendExactly`, to the last unit), the deposit address, token contract, FMX
+    out and recipient, rate, confirmations, worst-case fee and total debit, the
+    *Do not send from an exchange* note (the deposit is matched by exact amount
+    and sender; the FMX goes to the recipient in the quote), and the nonce, gas,
+    fee fields and calldata. With under 60 s left (or expired) it cannot be
+    signed: *Get a new quote* replaces it.
+  - **Sign**: expiry, the network's availability and deposit address, the
+    quote's own status (still `quoted`), fresh balances against the fee, and
+    the prepared transaction itself (exactly `transfer(deposit, sendExactly)`
+    on the coin's contract, or `sendExactly` of the native coin to the deposit,
+    on that chain id) are checked once more; then it is signed offline through
+    the same pipeline as Send. The hash is stored before the broadcast, so a
+    wallet closed mid-send finds the transfer next time instead of offering to
+    pay the quote twice.
+  - **Tracker**: sent → seen by the pay-in → confirmed (n of N) → FMX delivered,
+    with the network's explorer link for the transfer and explorer.ferminux.net
+    for the FMX payout, polled every 10 s. Purchases are listed under Swap →
+    *FMX purchases* and survive a reload (`ferminux.wallet.payin.v1`: in
+    `localStorage` only while the vault is remembered, otherwise in the tab's
+    `sessionStorage`; removed with the vault). An unpaid quote with time left
+    can be reviewed and paid from its tracker.
+  `npm run payin-smoke` drives it at 390 and 1440 px against a mocked pay-in and
+  mocked RPCs (below).
 
 ## WalletConnect
 
@@ -237,7 +289,9 @@ is the submission, with its icons in `docs/walletconnect-listing/`.
   Ferminux addresses) is resolved into the new list on first load.
 - **NFTs** and **Connect** (WalletConnect) — see the sections above.
 - **Swap** — the Ferminux DEX from Home, chain 3961 only, with the wallet's own
-  approval and confirm steps — see *Swap* above.
+  approval and confirm steps — see *Swap* above. Paying with USDT, USDC or a
+  native coin on another network buys FMX through the pay-in — see *Buy FMX
+  with another network's coin* above.
 - **Activity** — for Ferminux, one chronological feed merging **Sent**,
   **Received** and **Signed** block-reward rows from the Blockscout v2 API, with
   a graceful "history unavailable" fallback; the wallet is fully functional
@@ -464,6 +518,7 @@ npm run ui           # headless-browser check of the multi-account UI (see below
 npm run smoke        # multi-chain browser smoke on anvil forks of 3961 + BSC (see below)
 npm run mint-smoke   # NFTs → Mint at 390 and 1440 px on an anvil fork of 3961 (both collections, races, short balance)
 npm run swap-smoke   # Home → Swap at 390 and 1440 px on an anvil fork of 3961 (approvals, multi-pool routes, price moves)
+npm run payin-smoke  # Swap → Other networks at 390 and 1440 px, pay-in and all eight RPCs mocked (exact payment, tracker, guards)
 npm run live         # READ-ONLY check against the real chain-3961 explorer
 npm run build        # tsc --noEmit + vite build + external-URL guard on dist/
 npm run preview      # serve the production build locally
@@ -483,6 +538,7 @@ at build time with environment variables:
 | `VITE_CHAIN_ID` | `3961` |
 | `VITE_EXPLORER_URL` | `https://explorer.ferminux.net` |
 | `VITE_RPC_ETH`, `VITE_RPC_BSC`, `VITE_RPC_BASE`, `VITE_RPC_ARBITRUM`, `VITE_RPC_POLYGON`, `VITE_RPC_OPTIMISM`, `VITE_RPC_AVALANCHE` | the public RPCs in *Networks* (comma-separated ordered fallback) |
+| `VITE_PAYIN_API_URL` | `https://ferminux.net` — the pay-in (`/api/payin/*`) behind Swap → Other networks |
 | `VITE_WC_PROJECT_ID` | empty — WalletConnect off (see *WalletConnect*) |
 | `VITE_WC_TEST_KIT` | unset. `1` only in `npm run smoke`'s test build; never for a deployed build |
 
@@ -612,6 +668,27 @@ decoded with `createImageBitmap`, which needs no URL at all; `blob:` in
   the acknowledgement, FMX → WFMX is `deposit()`, and an asset's Swap button
   starts the form from that asset (none on another network).
   `PLAYWRIGHT_MODULE=…/playwright/index.mjs npm run swap-smoke`.
+- `npm run payin-smoke` (`scripts/payin-smoke.mjs`) builds the bundle with every
+  endpoint on one local origin — a JSON-RPC mock for each of the eight networks,
+  a pay-in mock with the gateway's rules (unique exact amounts stepped down by
+  dust, USD limits, $0.52 with the 2% spread, the same payer's older quote
+  superseded, a deposit matched by exact amount and sender) and a 404 explorer —
+  so nothing reaches a real network. At **390×844 touch**: the DEX form still
+  quotes FMX → USDF; the picker lists seven networks with balances and Polygon
+  (scanner down) disabled; BNB Smart Chain USDT (18 decimals) is refused under
+  $1 and over the balance, quoted for 25 USDT, reviewed (exact
+  24.999999999999999997 USDT, deposit, token contract, recipient, countdown)
+  and signed — the one transaction received is decoded and must be
+  `transfer(deposit, sendExactly)` on chain 56 from the wallet; the tracker
+  moves sent → seen, survives a reload and unlock, then confirmed → paid with
+  the explorer link; Avalanche USDT without AVAX is refused before any quote; a
+  quote with 50 s left cannot be signed and is replaced; an unpaid quote is
+  listed and can be paid from its tracker. At **1440×900**: a recipient change
+  behind its warning and acknowledgement, then Base ETH: the transaction must
+  carry exactly `sendExactly` wei to the deposit on chain 8453 with no call
+  data, then paid; picking FMX returns to the DEX form. No sideways scroll at
+  320–430 px, no page errors. `PLAYWRIGHT_MODULE=…/playwright/index.mjs npm run
+  payin-smoke`.
 - `npm run smoke` (`scripts/multichain-smoke.mjs`) forks **Ferminux (3961)** and
   **BSC (56)** into two local anvils (ports 8561/8562), builds the bundle with
   those two networks pointed at the forks (the other six keep their public RPCs,
@@ -723,6 +800,7 @@ decoded with `createImageBitmap`, which needs no URL at all; `blob:` in
 | Account addresses, labels, HD indices | `localStorage`, **only when remembered** | Public data, and what makes the set reappear intact after a lock. Nothing address-shaped is written when *remember* is off. |
 | Added tokens | `localStorage` (`ferminux.wallet.tokens.v2`) | Chain id, contract address and the metadata the contract reported — public data. |
 | Sent-transaction log (non-Ferminux networks) | `localStorage` (`ferminux.wallet.activity.v1`), **only when remembered** | Hashes, addresses, amounts — public on-chain data, but it names this wallet's address, so without *remember* it lives in page memory only, and forgetting the device removes it. |
+| FMX purchases (pay-in) | `localStorage` (`ferminux.wallet.payin.v1`) **only when remembered**, else the tab's `sessionStorage` | Quote ids, exact amounts, deposit and recipient addresses, transaction hashes — public data that names this wallet's address. Removed with the vault. |
 | WalletConnect sessions | WalletConnect's IndexedDB store | Session metadata, the connected account's address and per-session relay encryption keys. Never a wallet key. Kept until the site is disconnected, **also when *remember* is off** — disconnect sites before leaving a shared device. |
 | View preferences | `localStorage` | Hide-zero toggle, network filter. |
 | Password | Nowhere | Used transiently for scrypt — including for an import into a remembered vault, where it is verified against the stored set, used once and dropped. There is no recovery. |

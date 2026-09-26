@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { JsonRpcProvider } from 'ethers';
-import { DEX_ADDRESSES, PRICE_IMPACT_CONFIRM_BPS, PRICE_IMPACT_WARN_BPS, isCanonicalToken } from '../config.ts';
+import { DEX_ADDRESSES, PAYIN_ENABLED, PRICE_IMPACT_CONFIRM_BPS, PRICE_IMPACT_WARN_BPS, isCanonicalToken } from '../config.ts';
 import { Modal, Notice, Spinner, StatRow, TxStatus, runTx, type TxPhase } from '../components/ui.tsx';
 import { RouteTrace, TokenAmountField, routeTokens } from '../components/TradeParts.tsx';
 import { IconArrowDown, IconChevronDown, IconSettings, IconSwap } from '../components/icons.tsx';
@@ -45,6 +45,9 @@ import type { TradeSettings } from '../state/useSettings.ts';
 import type { WalletSession } from '../state/useWallet.ts';
 import type { Page } from '../state/useRoute.ts';
 import { TokenPicker } from './TokenPicker.tsx';
+import { PAY_CHAINS, isFinished, type PayChainKey, type PaySelection } from '../lib/payin.ts';
+import { usePayAssets, usePayBalances, usePayTracks, type PayTracksState } from '../state/usePayin.ts';
+import { PayCard, PayPurchases } from './PayCard.tsx';
 import { SettingsModal } from './SettingsModal.tsx';
 import { FmxPriceCard } from './ChartsView.tsx';
 import { MarketsList } from './MarketsList.tsx';
@@ -69,11 +72,28 @@ export function SwapView(props: {
   onChainChanged: () => void;
   navigate: (to: { page: Page; pool?: string | null }) => void;
 }) {
+  // Pay with any coin: a quote left open (or in flight) when the page was
+  // closed brings the card back to it.
+  const payTracks = usePayTracks();
+  const [pay, setPay] = useState<PaySelection | null>(() => {
+    const t = payTracks.active;
+    return PAYIN_ENABLED && t && !isFinished(t, Date.now()) ? { chain: t.quote.chain, asset: t.quote.asset } : null;
+  });
   return (
     <div className="page page-swap">
       <div className="swap-layout">
         <div className="swap-main">
-          <SwapCard {...props} />
+          <SwapCard {...props} pay={pay} setPay={setPay} payTracks={payTracks} />
+          {PAYIN_ENABLED && payTracks.tracks.length > 0 && (
+            <PayPurchases
+              tracks={payTracks}
+              onOpen={(t) => {
+                payTracks.setActive(t.quote.quoteId);
+                setPay({ chain: t.quote.chain, asset: t.quote.asset });
+                if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+              }}
+            />
+          )}
         </div>
         <div className="swap-side">
           <FmxPriceCard market={props.market} pools={props.pools} compact />
@@ -83,6 +103,8 @@ export function SwapView(props: {
     </div>
   );
 }
+
+const PAY_KEYS: readonly PayChainKey[] = PAY_CHAINS.map((c) => c.key);
 
 function SwapCard({
   provider,
@@ -96,7 +118,10 @@ function SwapCard({
   link,
   onImportToken,
   onChainChanged,
-}: Parameters<typeof SwapView>[0]) {
+  pay,
+  setPay,
+  payTracks,
+}: Parameters<typeof SwapView>[0] & { pay: PaySelection | null; setPay: (s: PaySelection | null) => void; payTracks: PayTracksState }) {
   const [tokenIn, setTokenIn] = useState<TokenInfo | null>(null);
   const [tokenOut, setTokenOut] = useState<TokenInfo | null>(null);
   const [amountText, setAmountText] = useState('');
@@ -156,7 +181,7 @@ function SwapCard({
 
   // ---- live quote: debounced on typing, re-run on every pool refresh ------
   useEffect(() => {
-    if (!provider || !tokenIn || !tokenOut || amountIn <= 0n || wrap) {
+    if (!provider || !tokenIn || !tokenOut || amountIn <= 0n || wrap || pay) {
       setQuote(null);
       setQuoteError(null);
       setQuoting(false);
@@ -185,7 +210,7 @@ function SwapCard({
       alive = false;
       clearTimeout(timer);
     };
-  }, [provider, tokenIn, tokenOut, amountIn, settings.slippageBps, settings.maxHops, pools.index, wrap]);
+  }, [provider, tokenIn, tokenOut, amountIn, settings.slippageBps, settings.maxHops, pools.index, wrap, pay]);
 
   // ---- allowance ----------------------------------------------------------
   const allowanceKey = wallet.address && tokenIn ? `${wallet.address.toLowerCase()}:${tokenKey(tokenIn)}` : '';
@@ -360,6 +385,7 @@ function SwapCard({
 
   const pickerSelect = (token: TokenInfo) => {
     setAutoSelect(false);
+    setPay(null);
     if (picking === 'in') {
       if (sameToken(token, tokenOut)) setTokenOut(tokenIn);
       setTokenIn(token);
@@ -370,6 +396,51 @@ function SwapCard({
     setPicking(null);
     setQuote(null);
   };
+
+  // ---- pay with any coin: the "You pay" picker's other networks ---------------
+  const payAssets = usePayAssets(PAYIN_ENABLED && (picking === 'in' || pay !== null));
+  const payBalances = usePayBalances(wallet.address, PAY_KEYS, PAYIN_ENABLED && picking === 'in');
+  const selectPay = (s: PaySelection) => {
+    const a = payTracks.active;
+    if (a && (a.quote.chain !== s.chain || a.quote.asset !== s.asset)) payTracks.setActive(null);
+    setPay(s);
+    setPicking(null);
+    setReviewing(false);
+  };
+  const picker = picking && (
+    <TokenPicker
+      tokens={tokens}
+      balances={balances}
+      prices={market.prices}
+      provider={provider}
+      selected={picking === 'in' ? (pay ? null : tokenIn) : tokenOut}
+      other={picking === 'in' ? tokenOut : tokenIn}
+      onImport={onImportToken}
+      onSelect={pickerSelect}
+      onClose={() => setPicking(null)}
+      pay={
+        PAYIN_ENABLED && picking === 'in'
+          ? { assets: payAssets, balances: payBalances.balances, connected: Boolean(wallet.address), selected: pay, onSelect: selectPay }
+          : undefined
+      }
+    />
+  );
+
+  if (PAYIN_ENABLED && pay) {
+    return (
+      <>
+        <PayCard
+          selection={pay}
+          wallet={wallet}
+          tracks={payTracks}
+          assets={payAssets}
+          onPickToken={() => setPicking('in')}
+          onExit={() => setPay(null)}
+        />
+        {picker}
+      </>
+    );
+  }
 
   const inError =
     parsed && !parsed.ok ? parsed.error : insufficient && tokenIn ? `More than your ${tokenIn.symbol} balance.${tokenIn.kind === 'native' ? ' Keep some FMX for the fee, too.' : ''}` : null;
@@ -549,19 +620,7 @@ function SwapCard({
         {action.label}
       </button>
 
-      {picking && (
-        <TokenPicker
-          tokens={tokens}
-          balances={balances}
-          prices={market.prices}
-          provider={provider}
-          selected={picking === 'in' ? tokenIn : tokenOut}
-          other={picking === 'in' ? tokenOut : tokenIn}
-          onImport={onImportToken}
-          onSelect={pickerSelect}
-          onClose={() => setPicking(null)}
-        />
-      )}
+      {picker}
       {settingsOpen && <SettingsModal value={settings} onChange={onSettings} onClose={() => setSettingsOpen(false)} />}
       {reviewing && quote && canTrade && (
         <ReviewSwap

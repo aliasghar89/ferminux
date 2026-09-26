@@ -10,6 +10,7 @@ import { parseWcUri } from '../lib/walletconnect.ts';
 import type { AssetRef } from '../lib/portfolio.ts';
 import { usePortfolio } from '../state/usePortfolio.ts';
 import { useLocalActivity } from '../state/useLocalActivity.ts';
+import { usePayinRecords } from '../state/usePayin.ts';
 import { SendPanel, type SendSelection } from './SendPanel.tsx';
 import { SwapPanel } from './SwapPanel.tsx';
 import { ActivityPanel } from './ActivityPanel.tsx';
@@ -100,6 +101,7 @@ export function WalletHome({
   const active = api.active;
   const portfolio = usePortfolio(active.address);
   const local = useLocalActivity(api.remembered);
+  const purchases = usePayinRecords(api.remembered);
 
   const afterSend = (chainId: number) => {
     if (chainId === CHAIN_ID) {
@@ -209,6 +211,9 @@ export function WalletHome({
             from={swapFrom}
             onSent={afterSend}
             onAddFunds={() => setReceiveOpen(true)}
+            purchases={purchases}
+            onRecord={local.record}
+            onStatus={local.setStatus}
           />
         </>
       );

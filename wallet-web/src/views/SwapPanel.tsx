@@ -17,6 +17,11 @@ import type { ChainState } from '../App.tsx';
 import type { AccountsApi } from '../state/useAccounts.ts';
 import type { PortfolioApi } from '../state/usePortfolio.ts';
 import { useSwapPools } from '../state/useSwapPools.ts';
+import { usePayinAssets, usePayinTracking, type PayinRecordsApi } from '../state/usePayin.ts';
+import { payinCoin, payinCoinKey, quoteFromRecord, recordsFrom, type PayinQuote } from '../lib/payin.ts';
+import type { LocalTx, LocalTxStatus } from '../lib/localActivity.ts';
+import { BuyPanel } from './BuyPanel.tsx';
+import { PayinTracker, PurchasesList, useNowS } from './PayinParts.tsx';
 import { loadSwapSettings, saveSwapSettings } from '../state/storage.ts';
 import { CHAIN_ID } from '../config.ts';
 import { FERMINUX_CHAIN } from '../lib/chains.ts';
@@ -106,6 +111,9 @@ export function SwapPanel({
   from,
   onSent,
   onAddFunds,
+  purchases,
+  onRecord,
+  onStatus,
 }: {
   api: AccountsApi;
   chain: ChainState;
@@ -116,6 +124,11 @@ export function SwapPanel({
   onSent: (chainId: number) => void;
   /** The account needs FMX: take the user to Receive. */
   onAddFunds: () => void;
+  /** FMX bought through the pay-in on this device (WalletHome keeps them across screens). */
+  purchases: PayinRecordsApi;
+  /** A transfer sent on another network, for that network's Activity list. */
+  onRecord: (tx: LocalTx) => void;
+  onStatus: (chainId: number, hash: string, status: LocalTxStatus) => void;
 }) {
   const wallet = api.active;
   const assets = portfolio.assetsByChain.get(CHAIN_ID) ?? [];
@@ -140,6 +153,17 @@ export function SwapPanel({
   const [maxBusy, setMaxBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [phase, setPhaseState] = useState<Phase>({ kind: 'edit' });
+  // Buying FMX with a coin on another network (the pay-in): the coin in use, a purchase being tracked,
+  // and a stored quote to pay.
+  const [buyKey, setBuyKey] = useState<string | null>(null);
+  const [track, setTrack] = useState<string | null>(null);
+  const [resume, setResume] = useState<PayinQuote | null>(null);
+  // A new mount of the buy form per "Review and pay"; consuming the quote never remounts it.
+  const [resumeSeq, setResumeSeq] = useState(0);
+  const payin = usePayinAssets();
+  usePayinTracking(purchases, wallet.address, () => onSent(CHAIN_ID));
+  const myPurchases = recordsFrom(purchases.list, wallet.address);
+  const listNow = useNowS(5_000);
   const alive = useRef(true);
   useEffect(
     () => () => {
@@ -210,6 +234,14 @@ export function SwapPanel({
   function pick(side: 'in' | 'out', key: string) {
     setPicker(null);
     setFormError(null);
+    if (side === 'in' && buyKey !== null) {
+      // Back from buying to a Ferminux DEX swap.
+      setBuyKey(null);
+      setAmount('');
+      setInKey(key);
+      if (key === outKey) setOutKey(key === 'native' ? (usdf ? tokenKey(usdf) : 'native') : 'native');
+      return;
+    }
     const other = side === 'in' ? outKey : inKey;
     if (key === other) {
       // Picking the other side's token swaps the two.
@@ -460,6 +492,83 @@ export function SwapPanel({
   // The confirm and result screens keep the width of the wallet's other confirm screens.
   const flow = (el: JSX.Element) => <div className="swap-flow">{el}</div>;
 
+  const balances = new Map<string, bigint | null>(offered.map((a) => [tokenKey(a), balanceFor(portfolio.lastGood, CHAIN_ID, a.address)]));
+  const purchaseList = <PurchasesList records={myPurchases} nowS={listNow} onOpen={(id) => setTrack(id)} />;
+  const tokenPicker = picker && (
+    <TokenPicker
+      side={picker}
+      tokens={offered}
+      balances={balances}
+      selected={picker === 'in' ? (buyKey ? '' : inKey) : outKey}
+      other={picker === 'in' ? (buyKey ? '' : outKey) : inKey}
+      hiddenCount={hiddenCount}
+      onPick={(k) => pick(picker, k)}
+      onClose={() => setPicker(null)}
+      payin={{
+        assets: payin.assets,
+        state: payin.state,
+        balanceOf: (chainId, address) => balanceFor(portfolio.lastGood, chainId, address),
+        selected: buyKey,
+        onPick: (k) => {
+          setPicker(null);
+          setFormError(null);
+          setTrack(null);
+          setResume(null);
+          setBuyKey(k);
+        },
+      }}
+    />
+  );
+
+  /* ---------------- render: buying FMX on another network ---------------- */
+
+  const tracked = track ? myPurchases.find((r) => r.quoteId === track) ?? null : null;
+  if (tracked) {
+    const coin = payinCoin(tracked.chain, tracked.asset);
+    return (
+      <PayinTracker
+        record={tracked}
+        onBack={() => setTrack(null)}
+        onPay={() => {
+          setResume(quoteFromRecord(tracked));
+          setResumeSeq((n) => n + 1);
+          if (coin) setBuyKey(payinCoinKey(coin));
+          setTrack(null);
+        }}
+        onBuyAgain={() => {
+          setResume(null);
+          if (coin) setBuyKey(payinCoinKey(coin));
+          setTrack(null);
+        }}
+      />
+    );
+  }
+  const buyCoin = buyKey ? payinCoin(buyKey.split(':')[0]!, buyKey.split(':')[1]!) : null;
+  if (buyCoin) {
+    return (
+      <>
+        <BuyPanel
+          key={`${wallet.id}:${buyKey}:${resumeSeq}`}
+          api={api}
+          portfolio={portfolio}
+          coin={buyCoin}
+          payin={payin}
+          records={purchases}
+          resume={resume}
+          onResumeUsed={() => setResume(null)}
+          onOpenPicker={() => setPicker('in')}
+          onTrack={(id) => setTrack(id)}
+          onSent={onSent}
+          onRecord={onRecord}
+          onStatus={onStatus}
+          purchases={purchaseList}
+          rail={<BuyHowTo coinSymbol={buyCoin.symbol} chainName={buyCoin.chain.name} />}
+        />
+        {tokenPicker}
+      </>
+    );
+  }
+
   if (phase.kind === 'approve') {
     return flow(
       <ApproveConfirm
@@ -622,8 +731,6 @@ export function SwapPanel({
     }
     return null;
   })();
-
-  const balances = new Map<string, bigint | null>(offered.map((a) => [tokenKey(a), balanceFor(portfolio.lastGood, CHAIN_ID, a.address)]));
 
   return (
     <div className="swap-grid">
@@ -796,9 +903,11 @@ export function SwapPanel({
         </div>
 
         <p className="swap-scope small" data-testid="swap-scope">
-          Swaps run on the Ferminux DEX, on the Ferminux Network (chain {SWAP_CHAIN_ID}) only, from {wallet.label}. Swapping on the other{' '}
-          networks this wallet holds is not offered.
+          Swaps run on the Ferminux DEX, on the Ferminux Network (chain {SWAP_CHAIN_ID}) only, from {wallet.label}. To pay with USDT, USDC or
+          another network’s own coin, pick it under You pay → Other networks: that buys FMX through the Ferminux pay-in.
         </p>
+
+        {purchaseList}
 
         <div className="cta-bar">
           <button className="btn btn-primary btn-block" data-testid="swap-review" onClick={startReview} disabled={ctaDisabled}>
@@ -817,19 +926,34 @@ export function SwapPanel({
         <PoolsList pools={pools.pools} known={assets} error={pools.error} />
       </aside>
 
-      {picker && (
-        <TokenPicker
-          side={picker}
-          tokens={offered}
-          balances={balances}
-          selected={picker === 'in' ? inKey : outKey}
-          other={picker === 'in' ? outKey : inKey}
-          hiddenCount={hiddenCount}
-          onPick={(k) => pick(picker, k)}
-          onClose={() => setPicker(null)}
-        />
-      )}
+      {tokenPicker}
       {settingsOpen && <SwapSettingsSheet settings={settings} onChange={setSettings} onClose={() => setSettingsOpen(false)} />}
     </div>
+  );
+}
+
+/** The rail beside the buy form: what happens, in three steps. */
+function BuyHowTo({ coinSymbol, chainName }: { coinSymbol: string; chainName: string }) {
+  return (
+    <section className="panel" aria-label="How buying works" data-testid="payin-howto">
+      <div className="panel-head">
+        <h2>How buying works</h2>
+      </div>
+      <ol className="howto-steps">
+        <li>
+          <span className="track-dot">1</span>
+          <span>Get a quote: an exact amount of {coinSymbol} to send, valid for 15 minutes.</span>
+        </li>
+        <li>
+          <span className="track-dot">2</span>
+          <span>This wallet sends exactly that amount on {chainName} to the pay-in’s deposit address.</span>
+        </li>
+        <li>
+          <span className="track-dot">3</span>
+          <span>Once {chainName} has confirmed it, the pay-in sends FMX to your recipient on the Ferminux Network.</span>
+        </li>
+      </ol>
+      <p className="small faint howto-foot">The price per FMX is set by the pay-in operator, not read from a pool; the quote shows it before you sign.</p>
+    </section>
   );
 }

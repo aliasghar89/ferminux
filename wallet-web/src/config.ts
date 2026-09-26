@@ -78,6 +78,14 @@ export const WALLET_CONNECT_URLS: string[] = list(env.VITE_WALLET_CONNECT_URLS, 
   'https://ferminux.net/wallet/connect.html',
 ]);
 
+/**
+ * The Ferminux pay-in (agents/gateway: /api/payin/assets, /quote, /{id}):
+ * buying FMX with USDT, USDC or a native coin on one of the seven other
+ * networks. Same host as the NFT metadata, already in the wallet's CSP
+ * connect-src; test builds point it at a local mock.
+ */
+export const PAYIN_API_URL: string = (env.VITE_PAYIN_API_URL ?? 'https://ferminux.net').replace(/\/+$/, '');
+
 /** Idle time before the session auto-locks (15 minutes). */
 export const IDLE_LOCK_MS = 15 * 60 * 1000;
 

@@ -5,6 +5,7 @@ import { formatUsdPrice } from '../lib/prices.ts';
 import type { ChainState } from '../state/useChain.ts';
 import type { Page } from '../state/useRoute.ts';
 import type { WalletSession } from '../state/useWallet.ts';
+import { chainName, isKnownChain } from '../../../../shared/fxwallet/chains.ts';
 import { Brand } from './Brand.tsx';
 import { CopyButton } from './ui.tsx';
 import {
@@ -90,7 +91,8 @@ export function Shell({
         <div className="banner banner-warn" role="status">
           <IconAlert />
           <span>
-            Your wallet is on chain {wallet.wallet.chainId}, not Ferminux ({CHAIN_ID}). Reading works; signing does not.
+            Your wallet is on {isKnownChain(wallet.wallet.chainId) ? `${chainName(wallet.wallet.chainId)} (${wallet.wallet.chainId})` : `chain ${wallet.wallet.chainId}`}, not Ferminux ({CHAIN_ID}).
+            Reading works; signing on Ferminux does not.
           </span>
           <button className="btn btn-sm" onClick={() => void wallet.switchChain()}>
             Switch to Ferminux

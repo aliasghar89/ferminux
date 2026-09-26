@@ -661,3 +661,92 @@ a.handoff-open{margin-bottom:12px}
 .flip-row .flip-btn{position:static;transform:none}
 .quote-box{border:1px solid var(--border);border-radius:var(--r-card);padding:6px 12px;margin-top:12px}
 .action-stack{display:grid;gap:8px;margin-top:14px}
+
+/* ---------------------------------- pay with any coin (views/PayCard, PayNetworks) */
+/* A network is named in text on a hairline chip: no third-party logos ship. */
+.net-tag{display:inline-flex;align-items:center;gap:6px;height:20px;padding:0 6px;border-radius:var(--r-xs);border:1px solid var(--border);background:var(--surface-2);color:var(--muted);font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.03em;white-space:nowrap;flex:none}
+.net-tag-named{font-family:var(--sans);font-size:12.5px;font-weight:500;letter-spacing:0;color:var(--ink);height:26px;padding:0 9px;border-radius:var(--r-pill)}
+.net-tag-named .net-short{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.pay-coin{position:relative;display:inline-block;flex:none}
+.pay-coin-face{font-weight:600;letter-spacing:-.03em;line-height:1}
+.pay-coin-face.is-native{color:var(--ink)}
+.pay-coin-net{position:absolute;right:-5px;bottom:-4px;font-family:var(--mono);font-size:7.5px;font-weight:600;letter-spacing:.02em;line-height:1;color:var(--muted);background:var(--surface-3);border:1px solid var(--border-strong);border-radius:3px;padding:1.5px 2.5px;white-space:nowrap}
+
+/* token picker: "On Ferminux", then "Other networks" */
+.chip-jump{padding:0 11px 0 13px;color:var(--accent);border-color:var(--accent-border);font-weight:500}
+.chip-jump .ic{width:14px;height:14px}
+.pay-networks{scroll-margin-top:8px}
+.picker-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:18px}
+.picker-section-first{margin-top:14px}
+.picker-section-first+.token-list{margin-top:8px}
+.picker-section-title{font-family:var(--mono);font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:.14em;color:var(--faint)}
+.picker-section-sub{font-size:12.5px;color:var(--faint);line-height:1.55;margin:6px 0 0}
+.pay-networks .notice{margin-top:10px}
+.pay-net-list{list-style:none;margin:10px -18px 0;padding:0;border-top:1px solid var(--hairline)}
+.pay-net{padding:12px 18px;border-bottom:1px solid var(--hairline);min-width:0}
+.pay-net-head{display:flex;align-items:center;gap:8px;min-width:0;margin-bottom:8px}
+.pay-net-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pay-net-conf{font-size:11px;color:var(--faint);white-space:nowrap}
+.pay-net.is-paused .pay-net-name{color:var(--muted)}
+.pay-net-reason{font-size:12px;color:var(--warn);margin:8px 0 0;line-height:1.5}
+.pay-assets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pay-asset{appearance:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;min-height:48px;padding:7px 10px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--bg);color:var(--ink);text-align:left;cursor:pointer;transition:border-color var(--dur-1) var(--ease-std),background-color var(--dur-1) var(--ease-std)}
+.pay-asset:hover:not(:disabled){border-color:var(--border-strong);background:var(--surface-2)}
+.pay-asset[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent-border)}
+.pay-asset:disabled{cursor:not-allowed;opacity:.5}
+.pay-asset-sym{font-size:13.5px;font-weight:600}
+.pay-asset-bal{font-size:11.5px;color:var(--faint);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* the pay card */
+.pay-badge{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent-border);background:var(--accent-soft);border-radius:var(--r-xs);padding:3px 7px}
+.pay-mode{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin:-4px 0 12px;font-size:13.5px}
+.pay-mode-title{font-weight:600;color:var(--ink);min-width:0}
+.pay-mode .link-btn{font-size:13px}
+.pay-token-btn{padding-left:8px}
+.pay-token-btn .pay-coin{margin-right:2px}
+.field-box.is-locked .token-btn-static{cursor:default;border-color:var(--border);background:var(--surface)}
+.token-btn-static .ic{width:13px;height:13px;color:var(--faint)}
+.pay-oneway{margin:8px 2px 0}
+.pay-facts{padding:4px 12px 8px}
+.pay-to{white-space:nowrap}
+.pay-to-change{display:flex;justify-content:flex-end;padding:2px 0 4px}
+.pay-to-change .link-btn{font-size:12.5px}
+.pay-recipient-edit{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:var(--r-card);display:grid;gap:10px}
+.pay-recipient-edit .field-label{margin:0}
+.pay-recipient-edit .check-row{margin:0}
+.pay-recipient-edit>.link-btn{justify-self:start;font-size:13px}
+.swap-card>.pay-manual{margin:10px 0 0;text-align:center}
+.pay-qid{display:inline-flex;align-items:center;gap:4px;min-width:0}
+.pay-qid .mono{overflow-wrap:anywhere}
+.pay-card .notice .check-row{margin:10px 0 0;font-size:13.5px}
+
+/* the tracker */
+.pay-tracker{display:grid;gap:12px;min-width:0}
+.pay-track-head{display:flex;align-items:center;gap:12px;min-width:0}
+.pay-track-title{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pay-track-amount{font-size:22px;font-weight:500;letter-spacing:-.02em;line-height:1.2;overflow-wrap:anywhere}
+.pay-track-status{margin:0;font-size:14px;font-weight:600;color:var(--ink)}
+.pay-track-status.is-done{color:var(--ok)}
+.pay-track-status.is-bad{color:var(--warn)}
+.pay-steps{list-style:none;margin:0;padding:12px 14px;display:grid;gap:0;border:1px solid var(--border);border-radius:var(--r-card);background:var(--bg)}
+.pay-step{position:relative;display:flex;align-items:flex-start;gap:12px;padding:6px 0;min-width:0}
+.pay-step+.pay-step::before{content:"";position:absolute;left:11px;top:-8px;height:14px;width:1px;background:var(--border)}
+.pay-step.is-done+.pay-step::before{background:var(--accent-border)}
+.pay-step-dot{flex:none;display:grid;place-items:center;width:23px;height:23px;border-radius:50%;border:1px solid var(--border-strong);font-size:11px;color:var(--faint);background:var(--surface)}
+.pay-step-dot .ic{width:13px;height:13px}
+.pay-step.is-done .pay-step-dot{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent)}
+.pay-step.is-current .pay-step-dot{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.pay-step.is-bad .pay-step-dot{border-color:var(--warn-border);background:var(--warn-soft);color:var(--warn)}
+.pay-step-body{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;flex:1;min-width:0;padding-top:2px}
+.pay-step-label{font-size:14px;font-weight:600;color:var(--muted)}
+.pay-step.is-done .pay-step-label,.pay-step.is-current .pay-step-label{color:var(--ink)}
+.pay-step-detail{font-size:12.5px;color:var(--faint);min-width:0;overflow-wrap:anywhere}
+.pay-track-rows{border-top:0;padding-top:0}
+.pay-switch-back{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;border:1px solid var(--border);background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px;font-size:13.5px}
+.pay-switch-back>span{flex:1;min-width:180px}
+.pay-track-actions{display:grid;gap:10px}
+.pay-track-links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;font-size:13.5px}
+
+/* "Your FMX purchases" under the card */
+.pay-purchases .row-title .tag{font-family:var(--sans);font-size:11px;letter-spacing:0}
+.pay-purchases .row-btn>.pay-coin{grid-row:1/span 2}

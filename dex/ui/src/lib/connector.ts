@@ -7,6 +7,7 @@
 import { createWalletConnector } from '../../../../shared/fxwallet/connector.ts';
 import { RPC_URLS } from '../config.ts';
 import { BSC } from './bridgeChains.ts';
+import { PAY_CHAINS } from './payin.ts';
 
 const WC_PROJECT_ID: string = import.meta.env.VITE_WC_PROJECT_ID ?? '';
 
@@ -14,8 +15,10 @@ export const connector = createWalletConnector({
   appName: 'Ferminux DEX',
   // Override only to test against a local wallet build.
   walletUrl: import.meta.env.VITE_FXWALLET_URL || undefined,
-  // BSC for the bridge panel's return leg; everything else reads Ferminux.
-  rpcUrls: { 3961: RPC_URLS, 56: BSC.rpcUrls },
+  // Ferminux; the seven networks Swap can pay on through the pay-in (their
+  // public endpoints, for reads a wallet makes there); BSC as the bridge
+  // panel has it.
+  rpcUrls: { ...Object.fromEntries(PAY_CHAINS.map((c) => [c.chainId, c.rpcUrls])), 3961: RPC_URLS, 56: BSC.rpcUrls },
   theme: 'dark',
   walletConnect: WC_PROJECT_ID
     ? {

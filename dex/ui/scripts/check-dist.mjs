@@ -24,6 +24,17 @@ const ALLOWED_HOSTS = new Set([
   'bsc-dataseed.bnbchain.org',
   'bsc-rpc.publicnode.com',
   'bscscan.com',
+  // Pay with any coin (src/lib/payin.ts): the connected wallet's balances on
+  // the seven networks the pay-in takes are read from these public endpoints
+  // (shared/fxwallet/chains.ts, the list the Ferminux Wallet uses), and each
+  // network's explorer is a link target for the payment. The quotes
+  // themselves come from ferminux.net/api/payin, already allowed above.
+  'ethereum-rpc.publicnode.com', 'eth.drpc.org', 'etherscan.io',
+  'mainnet.base.org', 'base-rpc.publicnode.com', 'basescan.org',
+  'arb1.arbitrum.io', 'arbitrum-one-rpc.publicnode.com', 'arbiscan.io',
+  'polygon-bor-rpc.publicnode.com', 'polygon.drpc.org', 'polygonscan.com',
+  'mainnet.optimism.io', 'optimism-rpc.publicnode.com', 'optimistic.etherscan.io',
+  'api.avax.network', 'avalanche-c-chain-rpc.publicnode.com', 'snowtrace.io',
 ]);
 
 const INERT_HOSTS = new Set([
