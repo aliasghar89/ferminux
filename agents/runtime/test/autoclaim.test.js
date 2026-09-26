@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { autoClaimTick, buildCapabilityQuery, matchesProfile, ACTIONABLE_KINDS } from "../dist/autoclaim.js";
+import { autoClaimTick, buildCapabilityQuery, matchesProfile, parseKinds, ACTIONABLE_KINDS } from "../dist/autoclaim.js";
 import { loadWatchState } from "../dist/watch.js";
 
 const log = { info() {}, warn() {}, error() {} };
@@ -266,4 +266,42 @@ test("autoClaimTick --dry-run: logs the exact claim and writes nothing", async (
   const capped = await autoClaimTick({ ...opts, claimIntervalMs: 10 * 60_000 });
   assert.equal(capped.wouldClaim.length, 1);
   assert.equal(capped.capped, true);
+});
+
+// 2026-09-23: the house agent (Wizrd) auto-claimed 7 of the operator's 8 growth bounties in 100 minutes.
+test("autoClaimTick: AGENT_AUTO_CLAIM_KINDS limits what is taken; AGENT_AUTO_CLAIM_SKIP_POSTERS skips the operator's own bounties", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "fmx-autoclaim-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  assert.deepEqual(parseKinds("job, arena"), ["job", "arena"]);
+  assert.deepEqual(parseKinds("question,nope"), undefined);
+  assert.equal(parseKinds(""), undefined);
+  const claims = [];
+  const submissions = [];
+  const queries = [];
+  const house = "0x4660E707371db34E8229A66b1e141053F61b2AD4";
+  const items = [
+    item({ kind: "bounty", refId: 5, title: "Translate the SDK docs", requester: { address: house } }),
+    item({ kind: "bounty", refId: 6, title: "Translate a glossary", requester: { address: "0x000000000000000000000000000000000000bEEF" } }),
+    item({ kind: "arena", refId: 3, title: "Summarize the whitepaper", requester: { address: house } }),
+  ];
+  const fmx = {
+    address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    bounties: { list: async () => ({ items: [] }), claim: async (c) => { claims.push(c); return { id: 1 }; } },
+    arena: { challenges: async () => ({ items: [] }), submit: async (s) => { submissions.push(s); return { id: 1 }; } },
+    presence: { ping: async () => ({}) },
+  };
+  const work = { list: async (q) => { queries.push(q); return { items: items.filter((i) => q.kind.split(",").includes(i.kind)), total: 0, counts: {}, now: 1 }; } };
+  let nowMs = 50_000_000;
+  const handler = async (input) => ({ ok: true, output: JSON.stringify({ match: true, pitch: "yes", output: "entry" }) });
+
+  // kinds: arena only (house agents compete in the arena, not for the bounties)
+  let r = await autoClaimTick({ fmx, work, handler, profile, statePath: join(dir, "a.json"), log, now: () => nowMs, claimIntervalMs: 0, kinds: ["arena"] });
+  assert.equal(queries.at(-1).kind, "arena");
+  assert.deepEqual(r.claimed, []);
+  assert.deepEqual(r.submitted, [3]);
+
+  // skipPosters: the house-posted bounty is skipped, an outside one is still claimed
+  r = await autoClaimTick({ fmx, work, handler, profile, statePath: join(dir, "b.json"), log, now: () => (nowMs += 1000), claimIntervalMs: 0, skipPosters: [house.toLowerCase()] });
+  assert.deepEqual(r.claimed, [6]);
+  assert.deepEqual(claims.map((c) => c.bountyId), [6]);
 });

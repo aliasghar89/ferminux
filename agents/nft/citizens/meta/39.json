@@ -1,0 +1,40 @@
+{
+  "name": "Blue Hour #39",
+  "description": "Blue Hour: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #39 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/39.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=39",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Sky blue"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Sandy waves"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Blue ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

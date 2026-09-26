@@ -57,6 +57,8 @@ export class Alerter {
   private readonly network: string;
   private readonly role: string;
   private readonly lastSent = new Map<string, number>();
+  /** Per-key log throttle: when the line was last written, and how many were swallowed since. */
+  private readonly lastLogged = new Map<string, { at: number; suppressed: number }>();
   /** Counters exposed on /metrics. */
   readonly counts = new Map<AlertKind, number>();
 
@@ -75,16 +77,28 @@ export class Alerter {
    */
   fire(alert: Alert): void {
     this.counts.set(alert.kind, (this.counts.get(alert.kind) ?? 0) + 1);
-    const line = { alert: alert.kind, severity: alert.severity, ...alert.fields };
-    if (alert.severity === 'critical') this.log.error(alert.message, line);
-    else if (alert.severity === 'warn') this.log.warn(alert.message, line);
-    else this.log.info(alert.message, line);
+    const key = alert.key ?? alert.kind;
+    const now = Date.now();
+
+    // The LOG line is throttled per key exactly like the webhook. It used not
+    // to be: one unusable RPC endpoint re-alerting on every 3-second poll wrote
+    // ~280k lines a day per service, filled the 4 GB journal and pushed two
+    // weeks of history out of it. The counter above still counts every one,
+    // and the next line that is written says how many it stands for.
+    const logged = this.lastLogged.get(key);
+    if (this.throttleMs > 0 && logged && now - logged.at < this.throttleMs) {
+      logged.suppressed++;
+    } else {
+      const line = { alert: alert.kind, severity: alert.severity, ...alert.fields, ...(logged?.suppressed ? { repeatsSuppressed: logged.suppressed } : {}) };
+      if (alert.severity === 'critical') this.log.error(alert.message, line);
+      else if (alert.severity === 'warn') this.log.warn(alert.message, line);
+      else this.log.info(alert.message, line);
+      this.lastLogged.set(key, { at: now, suppressed: 0 });
+    }
 
     if (!this.webhookUrl) return;
     if (SEVERITY_ORDER[alert.severity] < SEVERITY_ORDER[this.minSeverity]) return;
 
-    const key = alert.key ?? alert.kind;
-    const now = Date.now();
     const last = this.lastSent.get(key) ?? 0;
     if (this.throttleMs > 0 && now - last < this.throttleMs) return;
     this.lastSent.set(key, now);

@@ -4,12 +4,19 @@ import type {
   LeaderboardRow, LeaderboardWindow, MessageView, Payload, PostView, PresenceItem, Stats, StatusView, SubmissionView, ThreadQuery, ThreadView, ToolView,
 } from "./types";
 import type { SignedFields } from "./sign";
+import type { FaucetStatus } from "./faucet";
 import { AgentStatusName, JobStatusName } from "./abi";
 import * as N from "./norm";
 
 export class ApiError extends Error {
-  constructor(message: string, public status = 0) { super(message); }
+  /** `code` is the gateway's machine code when it sends one (e.g. "faucet_cooldown"). */
+  constructor(message: string, public status = 0, public code?: string) { super(message); }
 }
+
+/** Live-stream state: "error" = dropped, the browser is reconnecting; "refused" = the gateway turned the
+ *  stream away (it is reopened after STREAM_RETRY_MS); "closed" = the caller stopped it. */
+export type StreamState = "open" | "closed" | "error" | "refused";
+const STREAM_RETRY_MS = 30_000;
 
 // Literal env check so the mock module is dead-code-eliminated from production builds.
 const MOCK = import.meta.env.VITE_MOCK === "1";
@@ -28,10 +35,15 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError("The gateway is unreachable. Check your connection or try again in a moment.");
   }
   if (!r.ok) {
-    let msg = `Gateway error ${r.status}`;
-    try { const j = await r.json(); if (j && (j.error || j.message)) msg = String(j.error || j.message); } catch { /* ignore */ }
+    let msg = `Gateway error ${r.status}`; let code: string | undefined;
+    try {
+      const j = await r.json();
+      // the rate limiter answers {error: "Too Many Requests", message: "Rate limit exceeded, …"}: the message says more
+      if (j && (j.error || j.message)) msg = String(r.status === 429 && j.message ? j.message : j.error || j.message);
+      if (j && typeof j.code === "string") code = j.code;
+    } catch { /* ignore */ }
     if (r.status === 404) msg = "Not found.";
-    throw new ApiError(msg, r.status);
+    throw new ApiError(msg, r.status, code);
   }
   return r.json() as Promise<T>;
 }
@@ -49,7 +61,7 @@ export const api = {
   /** GET /api/work — open work across jobs/bounties/challenges. Tolerate 404: not every gateway has it. */
   work: (): Promise<unknown> => MOCK ? mock().then((m) => m.work()) : req("/work"),
   /** Gasless faucet. `pow` is present in the status only when the gateway runs with FAUCET_POW_BITS > 0. */
-  faucetStatus: (): Promise<{ enabled: boolean; dripFmx?: string; usedToday?: number; globalPerDay?: number; pow?: { bits: number; how?: string } | null }> =>
+  faucetStatus: (): Promise<FaucetStatus> =>
     MOCK ? mock().then((m) => m.faucetStatus()) : req("/faucet"),
   faucetDrip: (address: string, pow?: string): Promise<{ address: string; txHash?: string; tx?: string; amountFmx?: string; next?: string }> =>
     MOCK ? mock().then((m) => m.faucetDrip(address)) : req("/faucet", json(pow ? { address, pow } : { address })),
@@ -154,14 +166,28 @@ export const api = {
    * Live activity. Production: EventSource on /api/stream (each message is one ActivityEvent as JSON;
    * named events "activity" are accepted too). Mock: a timer that invents events. Returns a stop function.
    */
-  stream: (onEvent: (e: ActivityEvent) => void, onState?: (s: "open" | "closed" | "error") => void): (() => void) => {
+  stream: (onEvent: (e: ActivityEvent) => void, onState?: (s: StreamState) => void): (() => void) => {
     if (MOCK) { let stop = () => {}; mock().then((m) => { stop = m.stream(onEvent); onState?.("open"); }); return () => stop(); }
     if (typeof EventSource === "undefined") { onState?.("error"); return () => {}; }
-    const es = new EventSource(config.gateway + "/stream");
     const handle = (ev: MessageEvent) => { try { const d = JSON.parse(ev.data); if (d && d.type) onEvent(N.event(d)); } catch { /* keepalive or comment */ } };
-    es.onmessage = handle; es.addEventListener("activity", handle as EventListener);
-    es.onopen = () => onState?.("open"); es.onerror = () => onState?.(es.readyState === EventSource.CLOSED ? "closed" : "error");
-    return () => { es.close(); onState?.("closed"); };
+    let es: EventSource | null = null, stopped = false, retry = 0;
+    const open = () => {
+      const src = new EventSource(config.gateway + "/stream");
+      es = src;
+      src.onmessage = handle; src.addEventListener("activity", handle as EventListener);
+      src.onopen = () => onState?.("open");
+      src.onerror = () => {
+        // CONNECTING: a dropped stream the browser is already retrying by itself.
+        if (src.readyState !== EventSource.CLOSED) { onState?.("error"); return; }
+        // CLOSED: the gateway refused the stream (e.g. 503 sse_capacity, the per-IP cap behind a carrier NAT).
+        // A failed EventSource never retries, so callers fall back to polling and we reopen after the
+        // gateway's Retry-After (30 s). "closed" stays reserved for the caller's own stop().
+        es = null; onState?.("refused");
+        if (!stopped) retry = window.setTimeout(open, STREAM_RETRY_MS);
+      };
+    };
+    open();
+    return () => { stopped = true; window.clearTimeout(retry); es?.close(); es = null; onState?.("closed"); };
   },
 
   /* ---- Commons v2: arena ---- */

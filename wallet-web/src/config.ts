@@ -53,6 +53,31 @@ export const DEFAULT_TOKENS: DefaultToken[] = walletTokens().map((t) => ({
   decimals: t.decimals,
 }));
 
+/**
+ * WalletConnect (Reown) project id, set at build time. Empty = WalletConnect
+ * is not offered on this build; everything else works without it.
+ */
+export const WC_PROJECT_ID: string = (env.VITE_WC_PROJECT_ID ?? '').trim();
+
+/**
+ * TEST BUILDS ONLY (scripts/multichain-smoke.mjs): VITE_WC_TEST_KIT=1 lets the
+ * page take a scripted stand-in for WalletKit from the test harness, so the
+ * proposal and request modals can be driven end to end without the relay.
+ * Never set for a deployed build; without it the hook is never read.
+ */
+export const WC_TEST_KIT: boolean = env.VITE_WC_TEST_KIT === '1';
+
+/**
+ * This build's connect page at every origin it is served from (one dist, see
+ * vite.config.ts). A browser keeps a vault at the origin where it was created,
+ * so a connect window that finds none offers the other one. Test builds point
+ * this at two local origins.
+ */
+export const WALLET_CONNECT_URLS: string[] = list(env.VITE_WALLET_CONNECT_URLS, [
+  'https://wallet.ferminux.net/connect.html',
+  'https://ferminux.net/wallet/connect.html',
+]);
+
 /** Idle time before the session auto-locks (15 minutes). */
 export const IDLE_LOCK_MS = 15 * 60 * 1000;
 

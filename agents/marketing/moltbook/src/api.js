@@ -2,7 +2,8 @@
 // Handles: Authorization header, 429 exponential backoff (Retry-After aware),
 // and a small in-process request budget so we never even try to exceed
 // 60 reads/min or 30 writes/min (skill.md).
-import { heuristicSolve, llmSolve, formatAnswer } from "./verify.js";
+import { heuristicSolveDetailed, llmSolve, formatAnswer } from "./verify.js";
+import { llmAvailable } from "./llm.js";
 
 const READS_PER_MIN = 60;
 const WRITES_PER_MIN = 30;
@@ -41,6 +42,14 @@ export class MoltbookClient {
 
   async _request(method, path, { query, body, isWrite } = {}) {
     if (!this.cfg.apiKey) throw new Error("MOLTBOOK_API_KEY is not set");
+    // After a 429 on a write, every write fails fast until the platform's retry-after has passed, so the
+    // heartbeat's reply/comment loops stop instead of queueing more writes behind a multi-minute backoff
+    // (49 rate_limited_429 on 09-22..24, 40 of them on one thread).
+    if (isWrite && this.writeBlockedUntil && Date.now() < this.writeBlockedUntil) {
+      const err = new Error(`writes paused after a 429 until ${new Date(this.writeBlockedUntil).toISOString()}`);
+      err.status = 429;
+      throw err;
+    }
     await (isWrite ? this.writeBudget : this.readBudget).wait();
 
     let url = this.cfg.apiBase + path;
@@ -73,7 +82,13 @@ export class MoltbookClient {
             waitSec = j.retry_after_seconds || j.retry_after_minutes * 60 || 30;
           }
           const backoff = Math.min(waitSec, 300) * 1000 * Math.pow(1.5, attempt - 1);
-          this.log.warn("rate_limited_429", { method, path, attempt, waitMs: Math.round(backoff) });
+          this.log.warn("rate_limited_429", { method, path, attempt, waitMs: Math.round(backoff), write: Boolean(isWrite) });
+          if (isWrite) {
+            this.writeBlockedUntil = Date.now() + Math.max(waitSec * 1000, 60_000);
+            const err = new Error(`rate limited (429) on ${method} ${path}`);
+            err.status = 429;
+            throw err;
+          }
           await sleep(backoff);
           continue;
         }
@@ -147,16 +162,27 @@ export class MoltbookClient {
 
     const { verification_code, challenge_text } = verification;
     let answer = null;
+    let solver = null;
 
-    if (this.llmComplete) {
+    if (llmAvailable(this.llmComplete)) {
       try {
         answer = await llmSolve(challenge_text, this.llmComplete);
+        if (answer !== null) solver = "llm";
       } catch (err) {
         this.log.warn("llm_verify_failed", { err: err.message });
       }
     }
     if (answer === null) {
-      answer = heuristicSolve(challenge_text);
+      // Without the LLM, submit only a confident heuristic answer: a wrong answer counts toward suspension,
+      // an unanswered challenge only leaves the content pending (14 "Incorrect answer" submissions on 09-24).
+      const h = heuristicSolveDetailed(challenge_text);
+      if (h.value !== null && h.confident) {
+        answer = h.value;
+        solver = "heuristic";
+      } else if (h.value !== null) {
+        this.log.warn("verification_skipped_low_confidence", { kind, challenge_text, guess: formatAnswer(h.value), verification_code });
+        return { ...createResponse, verified: false, verification_code, challenge_text, skipped: "low_confidence" };
+      }
     }
     if (answer === null) {
       this.log.error("verification_unsolved", { kind, challenge_text, verification_code, expires_at: verification.expires_at });
@@ -165,7 +191,7 @@ export class MoltbookClient {
 
     if (this.cfg.verifyDry) {
       // Operator check mode: log the challenge and our answer, submit nothing.
-      this.log.warn("verification_dry", { kind, challenge_text, verification_code, answer: formatAnswer(answer), expires_at: verification.expires_at, solver: this.llmComplete ? "llm" : "heuristic" });
+      this.log.warn("verification_dry", { kind, challenge_text, verification_code, answer: formatAnswer(answer), expires_at: verification.expires_at, solver });
       return { ...createResponse, verified: "dry", verification_code, challenge_text, answer: formatAnswer(answer) };
     }
 
@@ -181,13 +207,13 @@ export class MoltbookClient {
         challenge_text,
         answer: formatAnswer(answer),
         ok,
-        solver: this.llmComplete ? "llm" : "heuristic",
+        solver,
         content_id: res?.content_id,
       });
       this.onVerifyResult?.(ok);
       return { ...createResponse, verified: ok, verification_code };
     } catch (err) {
-      this.log.error("verification_submit_failed", { kind, verification_code, challenge_text, answer: formatAnswer(answer), solver: this.llmComplete ? "llm" : "heuristic", err: err.message, body: err.body });
+      this.log.error("verification_submit_failed", { kind, verification_code, challenge_text, answer: formatAnswer(answer), solver, err: err.message, body: err.body });
       this.onVerifyResult?.(false);
       return { ...createResponse, verified: false, verification_code };
     }

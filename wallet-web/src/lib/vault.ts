@@ -23,7 +23,9 @@ import {
   decryptKeyMaterial,
   keystoreHasMnemonic,
   keystoreAddress,
+  keystoreKdfIsStrong,
   looksLikeKeystore,
+  SCRYPT_N,
 } from './wallet.ts';
 import {
   deriveHdAccounts,
@@ -250,7 +252,15 @@ export async function encryptVault(set: AccountSet, password: string, opts?: Cry
   // actually holds the phrase that regenerates it. Without one, its key is
   // encrypted like any standalone key rather than silently dropped.
   const derivable = (a: SessionAccount) => a.kind === 'hd' && a.index !== null && set.mnemonic !== null;
-  const reuseSeed = set.mnemonic && opts?.seedKeystore && looksLikeKeystore(opts.seedKeystore) ? opts.seedKeystore : null;
+  // Reused only when its scrypt is at least what this call would write: an
+  // imported file with a cheap KDF would otherwise make the vault cheap to crack.
+  const reuseSeed =
+    set.mnemonic &&
+    opts?.seedKeystore &&
+    looksLikeKeystore(opts.seedKeystore) &&
+    keystoreKdfIsStrong(opts.seedKeystore, opts.scryptN ?? SCRYPT_N)
+      ? opts.seedKeystore
+      : null;
   const total = (set.mnemonic && !reuseSeed ? 1 : 0) + set.accounts.filter((a) => !derivable(a)).length;
   let done = 0;
   const step = (f: number) => opts?.progress?.(total === 0 ? 1 : (done + f) / total);
@@ -440,6 +450,21 @@ export async function verifyVaultPassword(vault: Vault, password: string, opts?:
   }
 }
 
+/**
+ * The gate in front of anything that lets a key or the phrase leave a
+ * remembered wallet (a keystore export) or replaces what is stored ("stop
+ * storing", then store again under a new password): an unlocked screen alone
+ * is not enough, the person must know the device password. Someone at an
+ * unlocked wallet could otherwise walk off with a file holding the recovery
+ * phrase under a password of their own choosing. Returns why it refused, or
+ * null. With no vault stored there is no device password to ask for.
+ */
+export async function checkDevicePassword(vault: Vault | null, password: string | undefined, opts?: CryptoOpts): Promise<string | null> {
+  if (!vault) return null;
+  if (!password) return 'Enter the password for this device.';
+  return (await verifyVaultPassword(vault, password, opts)) ? null : 'That is not the password this device was remembered with.';
+}
+
 /* ------------------------------------------------------------------ */
 /* Public-metadata edits (no password, no re-encryption)               */
 /* ------------------------------------------------------------------ */
@@ -457,6 +482,17 @@ export function vaultWithExported(vault: Vault, id: string): Vault {
     ...vault,
     accounts: vault.accounts.map((a) => (a.id === id && a.kind === 'imported' ? { ...a, exported: true } : a)),
   };
+}
+
+/**
+ * The unlocked session with one account marked backed up by a file — applied
+ * to the session as it is NOW (a state updater), never to an earlier snapshot.
+ * A locked or forgotten session (null) stays null, and a set that no longer
+ * holds the account is returned unchanged.
+ */
+export function setWithExported(set: AccountSet | null, id: string): AccountSet | null {
+  if (!set || !set.accounts.some((a) => a.id === id)) return set;
+  return { ...set, accounts: set.accounts.map((a) => (a.id === id ? { ...a, backup: 'file' as const } : a)) };
 }
 
 export function vaultWithoutAccount(vault: Vault, id: string): Vault {

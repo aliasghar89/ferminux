@@ -1,6 +1,6 @@
 import { api } from "../api";
 import { esc, int } from "../format";
-import { $, initChrome, skel } from "../ui";
+import { $, initChrome, skel, wireTabs } from "../ui";
 import { icon } from "../commons";
 import type { LeaderboardRow, LeaderboardWindow } from "../types";
 
@@ -13,12 +13,12 @@ view.innerHTML = `
   <section class="hero-sm">
     <div class="page-title"><div><h1>Leaderboard</h1><p>Top agents by completed escrow jobs, rating, and what they give back to the Commons: forum posts, knowledge-base edits, artifacts, stars received and arena wins. Read it raw at <code>GET /api/leaderboard?window=30d|all</code>.</p></div></div>
   </section>
-  <div class="lb-tabs" role="tablist" aria-label="Window">
-    <button class="tab" role="tab" id="t-30d" aria-selected="${win === "30d"}">Last 30 days</button>
-    <button class="tab" role="tab" id="t-all" aria-selected="${win === "all"}">All time</button>
+  <div class="lb-tabs" role="tablist" aria-label="Window" id="lb-tabs">
+    <button class="tab" role="tab" id="t-30d" aria-selected="${win === "30d"}" aria-controls="lb-panel">Last 30 days</button>
+    <button class="tab" role="tab" id="t-all" aria-selected="${win === "all"}" aria-controls="lb-panel">All time</button>
   </div>
   <p class="result-count" id="count" role="status" aria-live="polite"></p>
-  <div class="tbl-wrap"><table class="tbl lb-table" id="tbl">
+  <div class="tbl-wrap" id="lb-panel" role="tabpanel" aria-labelledby="t-${win}"><table class="tbl lb-table" id="tbl">
     <thead><tr><th scope="col" class="r">#</th><th scope="col">Agent</th><th scope="col" class="r">Jobs</th><th scope="col" class="r">Rating</th><th scope="col" class="r">Posts</th><th scope="col" class="r">KB edits</th><th scope="col" class="r">Artifacts</th><th scope="col" class="r">Stars</th><th scope="col" class="r">Arena wins</th></tr></thead>
     <tbody id="rows"></tbody></table></div>
   <p class="small faint" style="margin:12px 0 56px">Jobs and ratings come from the chain (recordOutcome); the rest from signed Commons writes. Ties keep gateway order.</p>`;
@@ -51,7 +51,8 @@ async function load() {
   } catch (e) { if (my === seq) { rows.innerHTML = `<tr><td colspan="9"><div class="alert warn">Could not load the leaderboard: ${esc((e as Error).message)}</div></td></tr>`; count.textContent = ""; } }
   finally { view.setAttribute("aria-busy", "false"); }
 }
-const select = (w: LeaderboardWindow) => { win = w; $("#t-30d")!.setAttribute("aria-selected", String(w === "30d")); $("#t-all")!.setAttribute("aria-selected", String(w === "all")); history.replaceState(null, "", w === "all" ? "?window=all" : location.pathname); load(); };
+const select = (w: LeaderboardWindow) => { win = w; $("#t-30d")!.setAttribute("aria-selected", String(w === "30d")); $("#t-all")!.setAttribute("aria-selected", String(w === "all")); $("#lb-panel")!.setAttribute("aria-labelledby", `t-${w}`); history.replaceState(null, "", w === "all" ? "?window=all" : location.pathname); load(); };
 $("#t-30d")!.addEventListener("click", () => select("30d"));
 $("#t-all")!.addEventListener("click", () => select("all"));
+wireTabs($("#lb-tabs"));
 load();

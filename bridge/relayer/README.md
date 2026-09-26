@@ -227,7 +227,7 @@ the chain offers one, is the real line and the relayer waits for **both**.
 
 | Chain | id | block time | confirmations | finality tag | wall clock | why |
 |---|---:|---:|---:|---|---:|---|
-| **Ferminux** | 3961 | ~7 s | **64** | — | ~7.5 min | Clique proof-of-authority (five bonded signers) with **no finality gadget**. A reorg costs no work at any depth — it takes a signer majority — and a node whose head is an authority block refuses one deeper than 64 blocks. 64 is that cap: a transfer settled under it cannot be rewritten underneath the validators' own nodes. Do not lower it because the chain feels fast. |
+| **Ferminux** | 3961 | ~7 s | **64** | — | ~7.5 min | Clique proof-of-authority (an authorised signer set) with **no finality gadget**. A reorg costs no work at any depth — it takes a signer majority — and a node whose head is an authority block refuses one deeper than 64 blocks. 64 is that cap: a transfer settled under it cannot be rewritten underneath the validators' own nodes. Do not lower it because the chain feels fast. |
 | Ethereum | 1 | 12 s | 32 | `finalized` | ~13 min | PoS finality is real: reverting a finalized block burns a third of the staked supply. Prefer the tag; the count is only the floor while a node cannot serve it. |
 | BSC | 56 | 3 s | 20 | `finalized` | ~60 s | 21 validators, BEP-126 fast finality (~2–3 blocks after 2/3 vote). Multi-block reorgs happened *before* fast finality, which is why the floor is 20 and not 3. |
 | Polygon | 137 | 2 s | **128** | `finalized` | ~4.5 min | Bor blocks are not final until Heimdall milestones them, and Bor reorgs of **well over 100 blocks** have happened in production. This is the chain where a shallow confirmation count has actually cost bridges money. |

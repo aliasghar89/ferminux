@@ -1,0 +1,48 @@
+[
+  null,
+  null,
+  "blocks:new_block",
+  "new_block",
+  {
+    "block": {
+      "base_fee_per_gas": "7",
+      "burnt_fees": "0",
+      "burnt_fees_percentage": null,
+      "difficulty": "1",
+      "gas_limit": "100000000",
+      "gas_target_percentage": -100,
+      "gas_used": "0",
+      "gas_used_percentage": 0,
+      "hash": "0x740c227ea9a177d771fd1eda2003405bb27814555363baa8753add93da05ab1c",
+      "height": 396537,
+      "internal_transactions_count": null,
+      "miner": {
+        "ens_domain_name": null,
+        "hash": "0x0000000000000000000000000000000000000000",
+        "implementations": [],
+        "is_contract": false,
+        "is_scam": false,
+        "is_verified": false,
+        "metadata": null,
+        "name": null,
+        "private_tags": [],
+        "proxy_type": null,
+        "public_tags": [],
+        "watchlist_names": []
+      },
+      "nonce": "0x0000000000000000",
+      "parent_hash": "0xd12f07b6abb702b0eebe8d7f9f07664ee096c5779eabdfc721c2474b1fdf8632",
+      "priority_fee": "0",
+      "rewards": [],
+      "size": 611,
+      "timestamp": "2026-09-24T17:11:03.000000Z",
+      "total_difficulty": "48967886223198",
+      "transaction_fees": "0",
+      "transactions_count": 0,
+      "type": "block",
+      "uncles_hashes": [],
+      "withdrawals_count": null
+    },
+    "average_block_time": "7.0e3"
+  }
+]

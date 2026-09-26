@@ -1,0 +1,13 @@
+{
+    "items": [
+        {
+            "account": "0x4C53CFD7820B2bd806D9Fc3671AC474ee532FC13",
+            "owner": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+            "createdAt": 1790029378,
+            "txHash": "0x01c70911201eebcfb6e96223206ac6c25f31757127abda5829bc5ec71ecf9497"
+        }
+    ],
+    "total": 1,
+    "factory": "0x82e7C593785f726A0A0BB4D37AbCaF2bA4a72dcb",
+    "implementation": "0xb110021fAFcB541081aDA72da58964BA74c63942"
+}

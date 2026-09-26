@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!--
+  Upgrade record for the block-160,000 switch, kept as history (the pre-fork countdown is gone).
+  noindex on purpose: the compensation rule below is still an open owner decision (pay it, or publish a
+  correction). Do not reword that paragraph without the owner, and remove noindex only once it is settled.
+-->
+<meta name="robots" content="noindex">
+<title>Upgrade at block 160,000 — Ferminux Network</title>
+<meta name="description" content="The record of Ferminux's switch from proof-of-work to authority consensus at block 160,000 on 5 September 2026: what changed, the release, and how to verify it.">
+<link rel="canonical" href="https://ferminux.net/fork.html">
+<meta property="og:title" content="Upgrade at block 160,000 — Ferminux Network">
+<meta property="og:description" content="The switch to authority consensus at block 160,000: what changed and how to verify it.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container read">
+    <section class="hero-sm">
+      <p class="kicker">Chain 3961 · the record</p>
+      <h1>Ferminux switched consensus at block 160,000</h1>
+      <p class="lede">At block 160,000 proof-of-work ended and a set of foundation-operated signers (five at the switch) took over confirming blocks. This page records what changed, the release, and how to verify it yourself.</p>
+    </section>
+
+    <div class="doc">
+      <section id="when">
+        <div class="callout">
+          <div class="figs">
+            <div class="fig"><div class="k">Switch block</div><div class="v" id="fk-block">160,000</div></div>
+            <div class="fig"><div class="k">Took effect</div><div class="v" id="fk-time">5 Sep 2026, 12:11 UTC</div></div>
+            <div class="fig"><div class="k">Release</div><div class="v">v1.1.0-posa</div></div>
+          </div>
+          <p class="verdict" id="fk-proof" aria-live="polite">Reading blocks 159,999 and 160,000 from rpc.ferminux.net…</p>
+        </div>
+        <p>The time is block 160,000's own timestamp, read from its header. Block 159,999 is the last proof-of-work block; from 160,000 every block is confirmed by an authorised signer, which you can check in any block header (section "Verify").</p>
+      </section>
+
+      <section id="why">
+        <h2>Why</h2>
+        <p>On 21 August 2026 the chain stopped producing blocks for four hours and thirty-six minutes, and did not return to normal for nine — blocks 20,570 to 20,577 took nine hours between them. Rented GPU capacity had set the difficulty to a level the remaining producers could not meet, and proof-of-work only lowers difficulty when a block is found. Nothing downstream could work: the bridge could not confirm transfers and the explorer froze. That failure is structural to a small proof-of-work chain. Authority consensus removes the dependency entirely. What it costs is stated plainly on the <a class="link-inline" href="/consensus.html">consensus page</a>.</p>
+      </section>
+
+      <section id="changed">
+        <h2>What changed</h2>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">If you…</th><th scope="col">Then…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>run a node</strong></td><td>Software older than v1.1.0-posa stopped at block 160,000 and cannot follow the chain. Install the current release with the one-line installer below.</td></tr>
+            <tr><td>produced proof-of-work blocks</td><td>That ended at block 160,000. There is no proof-of-work after it. See the compensation rule below.</td></tr>
+            <tr><td>hold FMX, AZNT or USDF</td><td>Nothing. Same chain ID, same addresses, same balances, same contracts.</td></tr>
+            <tr><td>use the bridge</td><td>The bridge waits for a signed checkpoint of the new chain before it releases funds. Its current state is on the <a class="link-inline" href="/security.html#status">security page</a>.</td></tr>
+            <tr><td>use the DEX, wallet or launchpad</td><td>Nothing.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="outside">
+        <h2>Addresses outside the foundation</h2>
+        <p>Before the switch we looked at who it actually affected rather than guessing. In a census of the first 25,656 blocks, <strong>97.05%</strong> came from the foundation's own address and a further <strong>0.98%</strong> from the treasury address during the launch hour. Exactly one address that is not ours had produced Ferminux blocks — <code>0x4adbea69…742669bd</code>, 505 blocks on 20 August, earning 3,030 FMX.</p>
+        <div class="callout warn">
+          <p><strong>Compensation rule, as announced before the switch.</strong> Every address that produced a block before the fork and <strong>is not a foundation address</strong> receives a one-time credit equal to <strong>100% of the block rewards it earned</strong>, paid from the community allocation on top of the rewards it already has. On the census numbers that is one address and 3,030 FMX. The eligible list is derived from block headers, published with the claim form, and fixed at the fork block.</p>
+        </div>
+        <p>Foundation addresses are excluded by name, because paying ourselves out of the community allocation for our own capacity would be a transfer dressed up as compensation. The excluded addresses are <code>0x7F164333…E45130f7</code> and <code>0xc0A5Eb61…65af15aB</code>.</p>
+      </section>
+
+      <section id="release">
+        <h2>Release v1.1.0-posa</h2>
+        <p>Identical to the software before it except that it knows the switch block and the reward-sink contract. Verify every file against its checksum.</p>
+        <div class="tbl-wrap"><table class="tbl auto">
+          <thead><tr><th scope="col">Platform</th><th scope="col">File</th><th scope="col">SHA-256</th></tr></thead>
+          <tbody>
+            <tr><td>Linux amd64</td><td><code>ferminux-geth-v1.1.0-posa-linux-amd64</code></td><td class="addr">8bab124978fae52d8a1894189ba35ba1ba16e3524186b3f2a935dc0555257294</td></tr>
+            <tr><td>Linux arm64</td><td><code>ferminux-geth-v1.1.0-posa-linux-arm64</code></td><td class="addr">e47c53fcdec1e7c6b588a52c170587dbe199d20700c2977b8ca773c8ee1e5f8e</td></tr>
+            <tr><td>macOS Apple Silicon</td><td><code>ferminux-geth-v1.1.0-posa-macos-arm64</code></td><td class="addr">c3b98947d500822d65dab38985aa4f5fe54639aa39400b04c9c1bef79de311c2</td></tr>
+            <tr><td>Windows amd64</td><td colspan="2"><em>Coming soon: a tested Windows build.</em> The Windows archive from before the switch stops at block 159,999 and cannot follow the chain, so it has been withdrawn. Until then, run the Linux build under WSL2 or in Docker.</td></tr>
+          </tbody>
+        </table></div>
+        <pre>curl -fsSL https://ferminux.net/install.sh | bash</pre>
+      </section>
+
+      <section id="verify">
+        <h2>Verify</h2>
+        <p>Start the node and read its startup banner: it lists the authority switch at block 160000. Dump its genesis and compare the hash to the chain's: both must be <code>0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</code>. The signer set is readable from any node with <code>clique_getSigners</code>, and the <a class="link-inline" href="/consensus.html">consensus page</a> shows how many are confirming right now.</p>
+      </section>
+
+      <section id="not">
+        <h2>What this is not</h2>
+        <p>It is not proof of stake, and it is not decentralised: one operator runs every signer. The <a class="link-inline" href="/consensus.html">consensus page</a> and the <a class="link-inline" href="/security.html">security page</a> say so in full, including what history is secured by and what happens if signers are lost.</p>
+      </section>
+    </div>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/fork.ts"></script>
+</body>
+</html>

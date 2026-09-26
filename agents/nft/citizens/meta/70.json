@@ -1,0 +1,40 @@
+{
+  "name": "Teal Chassis #70",
+  "description": "Teal Chassis: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #70 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/70.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=70",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Deep teal"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Black bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory armour"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Plate 20"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

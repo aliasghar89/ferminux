@@ -1,0 +1,72 @@
+{
+    "priority_fee": "45672000000000",
+    "raw_input": "0x3ccfd60b",
+    "result": "success",
+    "hash": "0x9f820129d73f54b8bc187eabb4006f0b8e3fcaaca38eff428c4f9f5ac0502581",
+    "max_fee_per_gas": "1000000014",
+    "revert_reason": null,
+    "confirmation_duration": [
+        0,
+        7000.0
+    ],
+    "transaction_burnt_fee": "319704",
+    "type": 2,
+    "token_transfers_overflow": false,
+    "confirmations": 34164,
+    "position": 0,
+    "max_priority_fee_per_gas": "1000000000",
+    "transaction_tag": null,
+    "created_contract": null,
+    "value": "0",
+    "from": {
+        "ens_domain_name": null,
+        "hash": "0xbe81F8213D94A0ed72215027C537D974ccd8CED0",
+        "implementations": [],
+        "is_contract": false,
+        "is_scam": false,
+        "is_verified": false,
+        "metadata": null,
+        "name": null,
+        "private_tags": [],
+        "proxy_type": null,
+        "public_tags": [],
+        "watchlist_names": []
+    },
+    "gas_used": "45672",
+    "status": "ok",
+    "to": {
+        "ens_domain_name": null,
+        "hash": "0x59404F738A90E5CF725F5837EF40461d1EA2EC35",
+        "implementations": [],
+        "is_contract": true,
+        "is_scam": false,
+        "is_verified": false,
+        "metadata": null,
+        "name": null,
+        "private_tags": [],
+        "proxy_type": "unknown",
+        "public_tags": [],
+        "watchlist_names": []
+    },
+    "authorization_list": [],
+    "method": "0x3ccfd60b",
+    "fee": {
+        "type": "actual",
+        "value": "45672000319704"
+    },
+    "actions": [],
+    "gas_limit": "59281",
+    "gas_price": "1000000007",
+    "decoded_input": null,
+    "token_transfers": [],
+    "base_fee_per_gas": "7",
+    "timestamp": "2026-09-21T22:41:17.000000Z",
+    "nonce": 8,
+    "historic_exchange_rate": null,
+    "transaction_types": [
+        "contract_call"
+    ],
+    "exchange_rate": null,
+    "block_number": 362339,
+    "has_error_in_internal_transactions": null
+}

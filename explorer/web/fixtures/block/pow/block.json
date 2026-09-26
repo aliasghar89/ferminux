@@ -1,0 +1,44 @@
+{
+    "base_fee_per_gas": "7",
+    "burnt_fees": "887845",
+    "burnt_fees_percentage": 6.363636317355372e-07,
+    "difficulty": "388897935",
+    "gas_limit": "100000000",
+    "gas_target_percentage": -99.74633,
+    "gas_used": "126835",
+    "gas_used_percentage": 0.126835,
+    "hash": "0x130ac9fefc7392533c36b58607371a74111e7c9af28c1f8987207c557b8f3dc5",
+    "height": 82711,
+    "internal_transactions_count": 0,
+    "miner": {
+        "ens_domain_name": null,
+        "hash": "0x7F16433359E4eF704E90cE08460c6238E45130f7",
+        "implementations": [],
+        "is_contract": false,
+        "is_scam": false,
+        "is_verified": false,
+        "metadata": null,
+        "name": null,
+        "private_tags": [],
+        "proxy_type": null,
+        "public_tags": [],
+        "watchlist_names": []
+    },
+    "nonce": "0xc8c540abe15752c0",
+    "parent_hash": "0xac1260ef4e04992f51097c13051c292d076aed7570cca77ab77593e54a703c2d",
+    "priority_fee": "139518500126835",
+    "rewards": [
+        {
+            "reward": "1000139518500126835",
+            "type": "Miner Reward"
+        }
+    ],
+    "size": 930,
+    "timestamp": "2026-08-27T00:43:50.000000Z",
+    "total_difficulty": "42562290601418",
+    "transaction_fees": "139518501014680",
+    "transactions_count": 1,
+    "type": "block",
+    "uncles_hashes": [],
+    "withdrawals_count": 0
+}

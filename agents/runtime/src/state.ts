@@ -2,9 +2,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 export interface JobStateEntry {
-  status: "delivered" | "abandoned" | "skipped";
+  /** declined = the agent could not serve it and cancelled it on chain, so the client was credited in full */
+  status: "delivered" | "abandoned" | "skipped" | "declined";
   attempts: number;
   updatedAt: number;
+  reason?: string;
+  tx?: string;
 }
 
 export type HandledState = Record<string, JobStateEntry>;

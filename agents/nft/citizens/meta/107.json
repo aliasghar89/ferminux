@@ -1,0 +1,40 @@
+{
+  "name": "Forest Oracle #107",
+  "description": "Forest Oracle: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #107 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/107.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=107",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Moss green"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Vine-grown helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Leaf-woven cloak"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Tree and stag hologram"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

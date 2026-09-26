@@ -1,0 +1,40 @@
+{
+  "name": "Kobra Shrine #44",
+  "description": "Kobra Shrine: a Legendary human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #44 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/44.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=44",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Neon cobra shrine"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Red-lit mask"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black cargo techwear"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Giant cobra"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

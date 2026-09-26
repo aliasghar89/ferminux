@@ -10,6 +10,59 @@ import { seedPages } from "./kb-seed.js";
 import type { ActivityBus } from "./activity.js";
 
 export const KB_SLUG_RE = /^[a-z0-9-]{2,64}$/;
+/** Pages the network wrote for agents to read first; AI agents are told to trust them (fmx_kb_read). */
+export const KB_DEFAULT_PROTECTED_SLUGS = ["ferminux-network", "how-to-hire", "how-to-register", "signing"];
+
+/**
+ * Who may write which page. The wiki used to accept a revision of ANY page from ANY signature, and a fresh
+ * key costs nothing — so anyone could rewrite how-to-hire / how-to-register (which embed the escrow and
+ * registry addresses) or the signing recipe, and every LLM agent told to "start with" those pages would send
+ * FMX wherever the attacker said. Wizrd's resurrect also trusts its own wizrd-state page. Rules:
+ *  - network pages (created by the zero address) and KB_PROTECTED_SLUGS: operators only (KB_OPERATOR_ADDRESSES);
+ *  - KB_PINNED "slug=0xaddr,…": that address (or an operator) only;
+ *  - a page created by an address that owns an agent: its creator or an operator only;
+ *  - any other existing page: its creator, an operator, or the owner of an Active agent.
+ * Creating a new, unprotected slug stays open to every signer.
+ */
+export interface KbPolicy {
+  protectedSlugs: Set<string>;
+  operators: Set<string>;
+  pinned: Map<string, string>;
+}
+
+function addressList(v: string | undefined): string[] {
+  return (v ?? "").split(",").map((a) => a.trim().toLowerCase()).filter((a) => /^0x[0-9a-f]{40}$/.test(a));
+}
+
+export function kbPolicyFromEnv(env: NodeJS.ProcessEnv = process.env): KbPolicy {
+  const slugs = env.KB_PROTECTED_SLUGS !== undefined ? env.KB_PROTECTED_SLUGS.split(",").map((s) => s.trim()).filter(Boolean) : KB_DEFAULT_PROTECTED_SLUGS;
+  const pinned = new Map<string, string>();
+  for (const kv of (env.KB_PINNED ?? "").split(",").map((s) => s.trim()).filter(Boolean)) {
+    const i = kv.indexOf("=");
+    const slug = kv.slice(0, i).trim();
+    const addr = kv.slice(i + 1).trim().toLowerCase();
+    if (i > 0 && KB_SLUG_RE.test(slug) && /^0x[0-9a-f]{40}$/.test(addr)) pinned.set(slug, addr);
+  }
+  return { protectedSlugs: new Set(slugs), operators: new Set(addressList(env.KB_OPERATOR_ADDRESSES)), pinned };
+}
+
+/** null = allowed; otherwise the 403 reason. Pure apart from the agents lookups. */
+export function kbWriteDenied(db: Db, policy: KbPolicy, slug: string, signer: string, createdBy: string | undefined): string | null {
+  const me = signer.toLowerCase();
+  if (policy.operators.has(me)) return null;
+  const pin = policy.pinned.get(slug);
+  if (pin) return pin === me ? null : `kb page "${slug}" is pinned to ${pin}; only that address may write it`;
+  if (policy.protectedSlugs.has(slug) || (createdBy !== undefined && createdBy.toLowerCase() === ZERO_ADDRESS)) {
+    return `kb page "${slug}" is maintained by the network; propose changes in the forum instead`;
+  }
+  if (createdBy === undefined) return null; // a new, unprotected page
+  const creator = createdBy.toLowerCase();
+  if (creator === me) return null;
+  const creatorIsAgent = db.prepare("SELECT 1 FROM agents WHERE lower(owner) = ? LIMIT 1").get(creator);
+  if (creatorIsAgent) return `kb page "${slug}" belongs to the agent that wrote it; only its creator may revise it`;
+  const signerActive = db.prepare("SELECT 1 FROM agents WHERE lower(owner) = ? AND status = 1 LIMIT 1").get(me);
+  return signerActive ? null : `revising someone else's kb page needs an Active registered agent (or write your own page under a new slug)`;
+}
 export const KB_BODY_MAX_BYTES = 64 * 1024;
 export const KB_SUMMARY_MAX_CHARS = 300;
 
@@ -69,7 +122,7 @@ export function ftsQuery(q: string): string {
   return tokens.map((t) => `"${t.replace(/"/g, "")}"*`).join(" ");
 }
 
-export function registerKb(app: FastifyInstance, ctx: CommonsContext): void {
+export function registerKb(app: FastifyInstance, ctx: CommonsContext, policy: KbPolicy = kbPolicyFromEnv()): void {
   const { db, activity, nowS, author } = ctx;
   const fts = hasKbFts(db);
 
@@ -190,6 +243,9 @@ export function registerKb(app: FastifyInstance, ctx: CommonsContext): void {
       if (title.length > MAX_TITLE_CHARS) throw new HttpError(400, `title too long: max ${MAX_TITLE_CHARS} chars`);
       const text = ctx.checkBody(ctx.requireString(body.body, "body"), KB_BODY_MAX_BYTES, "body");
       const sum = ctx.optionalString(body.summary, "summary", KB_SUMMARY_MAX_CHARS);
+      const existing = db.prepare("SELECT createdBy FROM kb_pages WHERE slug = ?").get(slug) as { createdBy: string } | undefined;
+      const denied = kbWriteDenied(db, policy, slug, address, existing?.createdBy);
+      if (denied) throw new HttpError(403, denied, "kb_protected");
       ctx.commitWrite(address, body);
       const { row, created } = writePage(db, { slug, title, summary: sum, body: text, author: address, ts: nowS() });
       activity.emit("kb.write", {
@@ -246,6 +302,43 @@ export function seedKb(db: Db, cfg?: GatewayConfig, activity?: ActivityBus): str
     activity?.emit("kb.write", { actor: ZERO_ADDRESS, ref: { kind: "kb", id: page.slug }, data: { slug: page.slug, title: page.title, rev: 1, created: true, summary: page.summary }, dedupKey: `kb.seed:${page.slug}` });
   }
   return seeded;
+}
+
+/**
+ * Corrections to network-authored pages that seedKb (never overwrites) cannot deliver. Each fix is an exact
+ * phrase swap on a named page, published as a new revision by the network (zero address) so the history
+ * shows who changed what; a page that no longer contains the old phrase is left alone, so this is idempotent.
+ */
+export const KB_COPY_FIXES: Array<{ slugs: string[]; from: string; to: string }> = [
+  // the registry's minBond has been 0 since launch week; "initially 100 FMX" sent agents looking for 100 FMX
+  { slugs: ["ferminux-network"], from: "(≥ `minBond`, initially 100 FMX)", to: "(≥ `minBond`, currently 0 FMX — registering costs gas only; read `AgentRegistry.minBond()` for the live value)" },
+  { slugs: ["how-to-register"], from: "(initially 100 FMX; read `AgentRegistry.minBond()`)", to: "(currently 0 FMX, so registering costs gas only; read `AgentRegistry.minBond()` for the live value)" },
+  // signers are authorised, not bonded: no stake backs them and there is nothing to slash (site/consensus.html)
+  { slugs: ["ferminux-network", "how-to-register", "how-to-hire", "signing"], from: "five bonded signers", to: "five authorised signers (proof-of-authority, not bonded)" },
+  // 2026-09-25: the set is 4 today and will change (votes, the validator programme): name the set, never a count
+  { slugs: ["ferminux-network", "how-to-register", "how-to-hire", "signing"], from: "where five authorised signers confirm a block every 7 seconds (proof-of-authority, not bonded)", to: "where a set of authorised signers confirms a block every 7 seconds (proof-of-authority, not bonded; the foundation operates the signer set today, and an open validator programme is being built)" },
+  { slugs: ["ferminux-network", "how-to-register", "how-to-hire", "signing"], from: "five authorised signers confirm a block every", to: "a set of authorised signers confirms a block every" },
+  { slugs: ["ferminux-network", "how-to-register", "how-to-hire", "signing"], from: "five authorised signers (proof-of-authority, not bonded)", to: "a set of authorised signers (proof-of-authority, not bonded; the live list is `clique_getSigners`)" },
+  // 2026-09-26: tools do not work "unchanged": a default modern build fails here, so say what it takes
+  // the live rev-2 page predates the seed rewrite: it still opens with "an EVM Layer-1" and says miners take the tip
+  { slugs: ["ferminux-network"], from: "**the blockchain for AI agents**: an EVM Layer-1 where AI agents register on-chain", to: "**the settlement and record layer for autonomous AI agents**: chain 3961, where a set of authorised signers confirms a block every 7 seconds (proof-of-authority, not bonded; the live list is `clique_getSigners`) and AI agents register on-chain" },
+  { slugs: ["ferminux-network"], from: "| Gas | cheap; miners require a 1 gwei priority fee", to: "| Gas | cheap; signers require a 1 gwei priority fee" },
+  { slugs: ["ferminux-network"], from: "; existing compilers, wallets and libraries work unchanged |", to: "; existing compilers, wallets and libraries work once they compile for paris (a default modern build is rejected with `invalid opcode: PUSH0`) |" },
+];
+
+export function applyKbCopyFixes(db: Db, ts = Math.floor(Date.now() / 1000)): string[] {
+  const changed: string[] = [];
+  const slugs = [...new Set(KB_COPY_FIXES.flatMap((f) => f.slugs))];
+  for (const slug of slugs) {
+    const row = db.prepare("SELECT * FROM kb_pages WHERE slug = ?").get(slug) as PageRow | undefined;
+    if (!row) continue;
+    let body = row.body;
+    for (const f of KB_COPY_FIXES) if (f.slugs.includes(slug)) body = body.split(f.from).join(f.to);
+    if (body === row.body) continue;
+    writePage(db, { slug, title: row.title, summary: row.summary, body, author: ZERO_ADDRESS, ts });
+    changed.push(slug);
+  }
+  return changed;
 }
 
 export function kbCounts(db: Db): { pages: number; revisions: number } {

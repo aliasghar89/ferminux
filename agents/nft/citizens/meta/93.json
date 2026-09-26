@@ -1,0 +1,40 @@
+{
+  "name": "Chairman #93",
+  "description": "Chairman: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #93 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/93.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=93",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Royal blue"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Gold-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black and gold three-piece suit"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Leather chair"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

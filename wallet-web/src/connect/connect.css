@@ -1,0 +1,104 @@
+/* Connect window (connect.html) and the Connected sites list, on the wallet's
+   own dark tokens (styles.css). Sized for a 420 px popup and a phone: the
+   requesting site first, the decision buttons in the thumb zone. */
+
+body{background:var(--bg)}
+#root{min-height:100vh;min-height:100dvh}
+
+.app-header{position:sticky;top:0;z-index:20;background:var(--header-bg);-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--hairline)}
+.app-header-inner{display:flex;align-items:center;gap:10px;max-width:560px;margin:0 auto;padding:0 16px;height:56px}
+.header-spacer{flex:1;min-width:8px}
+.cx-header-inner .brand{flex:none}
+.cx-header-inner .brand-word{height:10px;width:122px}
+@media (max-width:460px){.cx-header-inner .brand-sub,.cx-header-inner .brand-word{display:none}}
+.cx-chain-pill{min-width:0;overflow:hidden}
+.cx-chain-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.cx-main{flex:1;width:100%;max-width:560px;margin:0 auto;padding:16px 16px 20px}
+.cx-foot{border-top:1px solid var(--hairline);color:var(--faint);font-size:12px;text-align:center;padding:12px 16px calc(12px + var(--safe-b));line-height:1.5}
+
+/* ---------- who is asking ---------- */
+
+.cx-origin{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--r-panel);background:var(--surface);padding:16px 18px;margin-bottom:12px}
+.cx-origin::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--beam-line)}
+.cx-origin-kicker{font-family:var(--mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+.cx-origin-host{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:-.025em;line-height:1.15;overflow-wrap:anywhere}
+.cx-origin-meta{margin-top:6px;font-size:12.5px;color:var(--faint);overflow-wrap:anywhere}
+.cx-origin-warn{margin:12px 0 0}
+
+/* ---------- common pieces ---------- */
+
+.cx-center{text-align:center}
+.cx-center-text{text-align:center;margin-top:14px}
+.cx-big{font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:-.02em;margin-bottom:8px}
+.cx-link{color:var(--accent);text-decoration:none}
+.cx-link:hover{color:var(--accent-hover)}
+
+.cx-section-title{font-family:var(--mono);font-size:var(--fs-label);font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
+.cx-section-title:first-child{margin-top:0}
+
+.cx-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px;margin-top:18px}
+.cx-actions .btn{min-height:50px;border-radius:var(--r-cta);white-space:normal;text-align:center;line-height:1.2}
+@media (max-width:640px){
+  .cx-actions{position:sticky;bottom:calc(8px + var(--safe-b));z-index:5;margin-left:-4px;margin-right:-4px;padding:10px 4px 0;background:linear-gradient(to bottom,transparent,var(--surface) 24%)}
+}
+
+.cx-inline-status{display:flex;align-items:center;gap:8px}
+.cx-inline-acct{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+
+.cx-acct-line{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;min-width:0}
+.cx-k{color:var(--faint);min-width:64px}
+.cx-acct-label{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+/* ---------- connect: account picker ---------- */
+
+.cx-pick{list-style:none;margin:0 0 14px;padding:0;border:1px solid var(--border);border-radius:var(--r-card);background:var(--bg);overflow:hidden}
+.cx-pick li+li{border-top:1px solid var(--hairline)}
+.cx-pick-row{display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:56px;cursor:pointer;transition:background-color var(--dur-1) var(--ease-std)}
+.cx-pick-row:hover{background:var(--surface-2)}
+.cx-pick-row.is-on{background:var(--accent-soft)}
+.cx-pick-row input{margin:0;width:18px;height:18px;accent-color:var(--accent);flex:none}
+.cx-pick-main{display:flex;flex-direction:column;min-width:0}
+.cx-pick-label{font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-pick-addr{font-size:12px;color:var(--faint)}
+
+/* ---------- messages ---------- */
+
+.cx-message{margin:0 0 12px;padding:12px 14px;background:var(--code-bg);border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;color:var(--ink)}
+.cx-message-tree{white-space:normal}
+.cx-tree{margin:0;display:grid;gap:4px}
+.cx-tree .cx-tree{padding-left:10px;border-left:1px solid var(--border);margin-top:2px}
+.cx-tree-row{display:grid;grid-template-columns:minmax(72px,34%) minmax(0,1fr);gap:8px}
+.cx-tree-row dt{color:var(--faint);overflow-wrap:anywhere}
+.cx-tree-row dd{margin:0;min-width:0}
+.cx-val{overflow-wrap:anywhere}
+
+/* ---------- transaction ---------- */
+
+.cx-tx-title{font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:-.02em;margin-bottom:8px;overflow-wrap:anywhere}
+.cx-table{margin-bottom:12px;font-size:13.5px}
+.cx-table td{overflow-wrap:anywhere;word-break:normal}
+.cx-table td.mono{word-break:break-all}
+.cx-tag{margin-left:6px;vertical-align:1px}
+.cx-tag-danger{color:var(--warn);border-color:var(--warn-border)}
+.cx-args{list-style:none;margin:4px 0 0;padding:0;font-size:12.5px}
+.cx-args li{overflow-wrap:anywhere}
+
+/* ---------- connected sites ---------- */
+
+.cx-sites li{align-items:flex-start;padding:14px 16px}
+.cx-site-host{font-size:15px;overflow-wrap:anywhere}
+.cx-site-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:12px}
+.cx-site-acct{display:inline-flex;align-items:center;gap:6px}
+.cx-sites .row-actions{flex:none}
+
+@media (max-width:360px){
+  .cx-origin-host{font-size:20px}
+  .cx-table th{padding-right:10px}
+}
+
+/* ---------- no vault here: the wallet's other origin ---------- */
+
+.cx-elsewhere{display:grid;gap:10px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--hairline)}
+.cx-elsewhere p{margin:0}
+.cx-elsewhere .btn{min-height:48px}

@@ -326,7 +326,7 @@ function section5(d: CvDoc, ratingText: string): string {
         <div class="l">Rating</div>
         <div class="big">${esc(ratingText)}</div>
         <div class="small muted" style="margin-top:2px">${r.count ? `${int(r.count)} rating${r.count === 1 ? "" : "s"} · ${int(d.armsLength.payers)} payer${d.armsLength.payers === 1 ? "" : "s"}` : "No client has released a job with a rating yet."}${unrated ? ` · ${int(unrated)} released without a rating` : ""}</div>
-        ${r.count && !d.armsLength.ratedPaidJobs ? `<p class="small" style="margin-top:8px;color:#8a5a00">Every rating here sits on a job that moved no FMX. A job worth nothing mints the same rating as a real one, for the price of gas — read this average as costing its author gas, and nothing else.</p>` : ""}
+        ${r.count && !d.armsLength.ratedPaidJobs ? `<p class="small warn-text" style="margin-top:8px">Every rating here sits on a job that moved no FMX. A job worth nothing mints the same rating as a real one, for the price of gas — read this average as costing its author gas, and nothing else.</p>` : ""}
         ${d.armsLength.zeroValueJobs ? `<p class="small faint" style="margin-top:8px">${int(d.armsLength.zeroValueJobs)} settled job${d.armsLength.zeroValueJobs === 1 ? "" : "s"} moved 0 FMX and ${d.armsLength.zeroValueJobs === 1 ? "is" : "are"} counted separately throughout this page.</p>` : ""}
         ${rated ? `<div class="dist"><div class="l" style="margin-bottom:4px">Ratings in the signed export</div>${dist.map((x) => `<div class="dist-row"><span class="n">${x.n}★</span><span class="bar"><i style="width:${Math.round((x.c / maxC) * 100)}%"></i></span><span class="c num">${x.c}</span></div>`).join("")}</div>` : ""}
         ${sourceLine(d.metrics.rating)}

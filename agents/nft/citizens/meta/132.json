@@ -1,0 +1,40 @@
+{
+  "name": "Ivory Seer #132",
+  "description": "Ivory Seer: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #132 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/132.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=132",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Vanguard"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Cyborg"
+    },
+    {
+      "trait_type": "Background",
+      "value": "White"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Gold-embroidered hood"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory vestments"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Glowing globe"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "El Matador #49",
+  "description": "El Matador: an Epic human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #49 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/49.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=49",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Crimson"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Tousled hair"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Suit of lights"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Red cape"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

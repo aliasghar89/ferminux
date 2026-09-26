@@ -25,6 +25,8 @@ function defaultState() {
       formatDailyCounts: {}, // { [day]: { [format]: n } }
       submoltDailyCounts: {}, // { [day]: { [submolt]: n } }
       usedTitles: [],
+      publishedHashes: [], // sha256 of normalised title+body of every post we published (dedupe)
+      replyAuthors: {}, // { [thread author]: ISO time of our last reply-as-post to them }
       repliedThreadIds: [], // threads already answered with a reply-as-post
       templateCursor: {}, // { [format]: nextVariantIndex }
       lastBountyDigestAt: null,
@@ -51,6 +53,9 @@ function defaultState() {
       // For replies/DMs we've already answered, keyed by comment id / dm id.
       answeredCommentIds: [],
       answeredDmIds: [],
+      perThread: {}, // { [postId]: replies we posted there }
+      perAuthorThread: {}, // { ["postId:author"]: replies to that author there }
+      dailyCounts: {}, // replies per UTC day
     },
     notifications: {
       lastReadAt: null,

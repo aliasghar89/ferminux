@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -8,5 +9,12 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
+    rollupOptions: {
+      // connect.html: the window dApps open for "Connect with Ferminux Wallet".
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        connect: fileURLToPath(new URL('./connect.html', import.meta.url)),
+      },
+    },
   },
 });

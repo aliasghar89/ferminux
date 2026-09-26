@@ -1,0 +1,40 @@
+{
+  "name": "Contrail Ace #110",
+  "description": "Contrail Ace: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #110 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/110.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=110",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Clear sky"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Jet-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Flight jacket and harness"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Jet formation"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

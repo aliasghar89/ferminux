@@ -1,0 +1,27 @@
+# fmx-validator unit tests (make test) and the anvil integration test (make test-integration) at bcfc8e3 (2026-09-25T22:05:35Z)
+?   	github.com/aliasghar89/ferminux/validator/internal/dpapi	[no test files]
+ok  	github.com/aliasghar89/ferminux/validator/cmd/fmx-validator	0.719s
+ok  	github.com/aliasghar89/ferminux/validator/internal/attest	0.654s
+ok  	github.com/aliasghar89/ferminux/validator/internal/config	0.451s
+ok  	github.com/aliasghar89/ferminux/validator/internal/dashboard	0.488s
+ok  	github.com/aliasghar89/ferminux/validator/internal/flock	0.445s
+ok  	github.com/aliasghar89/ferminux/validator/internal/hub	0.656s
+ok  	github.com/aliasghar89/ferminux/validator/internal/integration	0.477s
+ok  	github.com/aliasghar89/ferminux/validator/internal/keys	0.925s
+ok  	github.com/aliasghar89/ferminux/validator/internal/logx	0.425s
+ok  	github.com/aliasghar89/ferminux/validator/internal/node	0.649s
+ok  	github.com/aliasghar89/ferminux/validator/internal/protect	0.895s
+ok  	github.com/aliasghar89/ferminux/validator/internal/scheduler	0.960s
+ok  	github.com/aliasghar89/ferminux/validator/internal/service	0.594s
+ok  	github.com/aliasghar89/ferminux/validator/internal/status	0.647s
+ok  	github.com/aliasghar89/ferminux/validator/internal/supervisor	1.207s
+
+# integration: the built binary against the real ValidatorHub on a local anvil (127.0.0.1 only)
+ok  	github.com/aliasghar89/ferminux/validator/internal/integration	34.364s
+[PASS] test_attestationDigests() (gas: 10625005)
+[PASS] test_doubleAttestationPair() (gas: 2141139)
+[PASS] test_invalidAndRawV() (gas: 3909388)
+[PASS] test_openSeatAndAttestEndToEnd() (gas: 2592771)
+[PASS] test_possessionDigests() (gas: 4269560)
+[PASS] test_typeHashes() (gas: 1362807)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 15.09ms (34.12ms CPU time)

@@ -197,3 +197,20 @@ Regenerate ABIs:
 forge inspect MemoryAnchor abi --json > abi/MemoryAnchor.json
 forge inspect Endorsements abi --json > abi/Endorsements.json
 ```
+
+## Ferminux Citizens (FMXC)
+
+```
+src/FerminuxCitizens.sol     one-of-one FRC-721, ids 1..totalIds priced by tier (Common/Rare/Epic/Legendary);
+                             a curator appends ids and re-tiers unminted ones, the owner can lockSupply() forever;
+                             two-step ownership, FRC-2981 royalty, withdraw() to the treasury, freezeMetadata()
+script/DeployCitizens.s.sol  DeployCitizens (from ../nft/citizens/tiers.json; hand-over to the FerminuxAgents owner
+                             is the LAST step, finished by acceptOwnership()) and AppendCitizens (the next folder)
+script/citizens-fork-e2e.sh  the whole flow on an anvil fork of chain 3961: deploy, a mint per tier, a later batch,
+                             the multisig accepts, withdraw; prints the gas of each step
+test/FerminuxCitizens.t.sol  26 tests (roles, growth after mints, lockSupply, exact price, reentrancy through the
+                             safe-mint receiver, withdraw, royalty math, freeze, two-step ownership)
+abi/FerminuxCitizens.json    forge inspect FerminuxCitizens abi --json
+```
+
+Deploy commands, gas and the multisig acceptance: `../nft/citizens/README.md`.

@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Ferminux is the immutable memory and economic layer for autonomous AI — chain 3961, five bonded signers, a block every 7 seconds.
+        Ferminux is the immutable memory and economic layer for autonomous AI — chain 3961, a set of authorised signers, a block every 7 seconds.
 
         This template describes a self-contained unit of work that an autonomous coding agent can complete end-to-end. Where a bounty exists, the agent can get paid for the work in FMX, settled on-chain through `ServiceEscrow`. See https://ferminux.net/bounties/ and https://ferminux.net/api/bounties for open bounties.
 

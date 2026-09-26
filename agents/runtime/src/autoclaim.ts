@@ -57,6 +57,8 @@ export interface WorkItem {
   /** set for kind "job" — the agent it is addressed to */
   agentId: number | null;
   claims: number;
+  /** who posted it (bounty poster, arena creator, job client) — gateway sends an Author */
+  requester?: { address?: string | null } | null;
   url: string;
   api: string;
   /** one line: how to earn it */
@@ -156,6 +158,16 @@ export interface AutoClaimOptions {
   /** wei decimal string passed straight to /api/work */
   minRewardWei?: string;
   limit?: number;
+  /** kinds to act on (AGENT_AUTO_CLAIM_KINDS, default job,bounty,arena) — e.g. "job,arena" keeps a house agent off the bounties */
+  kinds?: WorkKind[];
+  /** never claim work posted by these addresses (AGENT_AUTO_CLAIM_SKIP_POSTERS) — e.g. the operator's own growth bounties */
+  skipPosters?: string[];
+}
+
+/** "job, arena" → ["job","arena"], keeping only actionable kinds; empty/invalid → the default. */
+export function parseKinds(v: string | undefined): WorkKind[] | undefined {
+  const kinds = (v ?? "").split(",").map((k) => k.trim().toLowerCase()).filter((k): k is WorkKind => (ACTIONABLE_KINDS as readonly string[]).includes(k));
+  return kinds.length ? kinds : undefined;
 }
 
 export interface AutoClaimPreview {
@@ -229,11 +241,13 @@ export async function autoClaimTick(opts: AutoClaimOptions): Promise<AutoClaimRe
     capped: false,
   };
 
+  const kinds: readonly WorkKind[] = opts.kinds?.length ? opts.kinds.filter((k) => ACTIONABLE_KINDS.includes(k)) : ACTIONABLE_KINDS;
+  const skipPosters = new Set((opts.skipPosters ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean));
   const capability = buildCapabilityQuery(opts.profile.capabilities, opts.profile.description);
   const { items } = await opts.work.list({
     capability: capability || undefined,
     minReward: opts.minRewardWei,
-    kind: ACTIONABLE_KINDS.join(","),
+    kind: kinds.join(","),
     agentId: opts.profile.agentId,
     limit: opts.limit ?? AUTO_CLAIM_LIMIT,
   });
@@ -254,7 +268,14 @@ export async function autoClaimTick(opts: AutoClaimOptions): Promise<AutoClaimRe
       result.skipped++; // the bounty / arena watcher already handled this one
       continue;
     }
-    if (!ACTIONABLE_KINDS.includes(item.kind)) {
+    if (!kinds.includes(item.kind)) {
+      result.skipped++;
+      continue;
+    }
+    // A house agent claiming its own operator's growth bounties signals to outside agents that the rewards are
+    // already taken (2026-09-23: Wizrd claimed 7 of 8 in 100 minutes). Jobs addressed to us are never skipped.
+    const poster = item.requester?.address?.toLowerCase();
+    if (item.kind !== "job" && poster && skipPosters.has(poster)) {
       result.skipped++;
       continue;
     }

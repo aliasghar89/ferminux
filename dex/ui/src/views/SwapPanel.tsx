@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { JsonRpcProvider } from 'ethers';
-import { DEX_ADDRESSES, PRICE_IMPACT_CONFIRM_BPS, PRICE_IMPACT_WARN_BPS } from '../config.ts';
-import { MobileHandoff } from '../components/MobileHandoff.tsx';
+import { DEX_ADDRESSES, PRICE_IMPACT_CONFIRM_BPS, PRICE_IMPACT_WARN_BPS, isCanonicalToken } from '../config.ts';
 import { Modal, Notice, Spinner, StatRow, TxStatus, type TxPhase } from '../components/ui.tsx';
 import {
   formatAmount,
@@ -13,6 +12,7 @@ import {
 } from '../lib/amounts.ts';
 import { maxNativeSpendable } from '../lib/gas.ts';
 import { FEE_BPS } from '../lib/math.ts';
+import { linkedPair, type DexLink } from '../lib/deeplink.ts';
 import { hopReserves } from '../lib/pairs.ts';
 import {
   allowanceShortfall,
@@ -39,6 +39,7 @@ export function SwapPanel({
   tokens,
   balances,
   bases,
+  link,
   onImportToken,
   onChainChanged,
 }: {
@@ -49,6 +50,8 @@ export function SwapPanel({
   balances: Map<string, bigint>;
   /** Intermediate tokens the router may hop through. */
   bases: string[];
+  /** The pair a deep link asked for (?inputCurrency=…&outputCurrency=…), if any. */
+  link?: DexLink;
   onImportToken: (token: TokenInfo) => void;
   onChainChanged: () => void;
 }) {
@@ -64,19 +67,37 @@ export function SwapPanel({
   const [shortfall, setShortfall] = useState<bigint | null>(null);
   const [phase, setPhase] = useState<TxPhase>({ state: 'idle' });
   const [confirmSevere, setConfirmSevere] = useState(false);
+  // True until the trader picks a token themselves: while it holds, the
+  // selection is the app's own default and is re-chosen as pools load.
+  const [autoSelect, setAutoSelect] = useState(true);
 
-  // ---- default selection: FMX → the first token that has a pool with it ----
-  // Preloaded tokens can exist in the list without a pool (AZNT is configured
-  // before anyone seeds AZNT/FMX), so prefer a counterpart that is actually
-  // tradeable and only then fall back to the first ERC-20 in the list.
+  // ---- default selection: the deep link's pair, else FMX → the first token that has a pool with it ----
+  // Preloaded tokens exist in the list without a pool (USDF is listed before
+  // anyone seeds FMX/USDF), so prefer a counterpart that is actually tradeable
+  // and only then fall back to the first ERC-20 in the list. The pools arrive
+  // after the first render, so the default is re-chosen when they do, until the
+  // trader picks something.
   useEffect(() => {
-    if (tokenIn || tokens.length === 0) return;
+    if (!autoSelect || tokens.length === 0) return;
     const native = tokens.find((t) => t.kind === 'native') ?? tokens[0];
-    setTokenIn(native);
-    const others = tokens.filter((t) => t.kind !== 'native' && t.symbol !== 'WFMX');
-    const tradeable = others.find((t) => hopReserves(pools.index, native.address, t.address) !== null);
-    setTokenOut(tradeable ?? others[0] ?? null);
-  }, [tokens, tokenIn, pools.index]);
+    const counterpart = (from: TokenInfo): TokenInfo | null => {
+      const others = tokens.filter(
+        (t) => t.kind !== 'native' && t.address.toLowerCase() !== from.address.toLowerCase(),
+      );
+      return others.find((t) => hopReserves(pools.index, from.address, t.address) !== null) ?? others[0] ?? null;
+    };
+    const trusted = (t: TokenInfo) =>
+      t.kind === 'native' ||
+      t.address.toLowerCase() === DEX_ADDRESSES.wfmx.toLowerCase() ||
+      isCanonicalToken(t.address);
+    const linked = link ? linkedPair(link, tokens, trusted, counterpart) : null;
+    const nextIn = linked?.tokenIn ?? native;
+    const nextOut = linked ? linked.tokenOut : counterpart(native);
+    if (!sameToken(nextIn, tokenIn)) setTokenIn(nextIn);
+    if (!sameToken(nextOut, tokenOut) && !(nextOut === null && tokenOut === null)) setTokenOut(nextOut);
+    // Chosen from loaded pools: settle, so a later refresh never swaps a token under the trader.
+    if (pools.status === 'ready') setAutoSelect(false);
+  }, [tokens, pools.index, pools.status, autoSelect, link, tokenIn, tokenOut]);
 
   const parsed = tokenIn ? parseAmount(amountText, tokenIn.decimals) : null;
   const amountIn = parsed?.ok ? parsed.wei : 0n;
@@ -149,6 +170,7 @@ export function SwapPanel({
   const level = quote ? impactLevel(quote.priceImpactBps) : 'ok';
 
   const flip = () => {
+    setAutoSelect(false);
     setTokenIn(tokenOut);
     setTokenOut(tokenIn);
     setAmountText('');
@@ -324,12 +346,18 @@ export function SwapPanel({
                 {tokenOut ? tokenOut.symbol : 'Select'} <span className="caret">▾</span>
               </button>
             </div>
+            {/* the pool's own ratio before any amount is typed; the quote box takes over once one is */}
+            {!quote && !wrap && spot && tokenIn && tokenOut && (
+              <p className="field-hint num" data-testid="pool-price">
+                Pool price: 1 {tokenIn.symbol} = {spot} {tokenOut.symbol}
+              </p>
+            )}
           </div>
 
           {/* ---------------- wrap notice ---------------- */}
           {wrap && (
             <Notice kind="warn">
-              FMX and WFMX are the same coin: WFMX is the ERC-20 wrapper the pools hold. This is a{' '}
+              FMX and WFMX are the same coin: WFMX is the FRC-20 wrapper the pools hold. This is a{' '}
               {wrap === 'wrap' ? 'wrap' : 'unwrap'} at exactly 1:1 — no pool, no fee, no price impact, no slippage
               setting involved.
             </Notice>
@@ -438,14 +466,8 @@ export function SwapPanel({
 
           {/* ---------------- actions ---------------- */}
           <div className="action-stack">
-            {!wallet.hasInjected && (
-              <MobileHandoff
-                hasInjected={wallet.hasInjected}
-                lede="Browsing pools and prices needs no wallet; trading does."
-              />
-            )}
-            {wallet.hasInjected && !wallet.wallet && (
-              <button className="btn btn-primary btn-block btn-lg" onClick={() => void wallet.connect()} disabled={wallet.connecting}>
+            {!wallet.wallet && (
+              <button className="btn btn-primary btn-block btn-lg" onClick={wallet.connect} disabled={wallet.connecting}>
                 {wallet.connecting ? <Spinner /> : null} Connect wallet
               </button>
             )}
@@ -501,6 +523,7 @@ export function SwapPanel({
           exclude={selecting === 'in' ? tokenOut : tokenIn}
           onImport={onImportToken}
           onSelect={(token) => {
+            setAutoSelect(false);
             if (selecting === 'in') {
               if (sameToken(token, tokenOut)) setTokenOut(tokenIn);
               setTokenIn(token);

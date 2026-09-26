@@ -87,7 +87,8 @@ import {
 import { loadLockSummary, loadLockSummaries, loadOwnerLocks, lockState } from '../src/lib/locker.ts';
 import { approveToken, fetchBalance, nativeToken, wfmxToken } from '../src/lib/tokens.ts';
 
-const PORT = 8602;
+// DEX_TEST_PORT moves it when 8602 is taken (another run, or the dev server).
+const PORT = Number(process.env.DEX_TEST_PORT) || 8602;
 const RPC = `http://127.0.0.1:${PORT}`;
 // Well-known anvil dev keys (public test keys).
 const KEY0 = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';

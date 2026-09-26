@@ -1,0 +1,20 @@
+{
+    "items": [
+        {
+            "token": "0xc8561D128900F6D1FA0ba8b0e389EbDDc116154d",
+            "agentId": 2,
+            "symbol": "SCRB",
+            "launchedAt": 1790030295,
+            "buys": 3,
+            "sells": 2,
+            "fmxIn": "5.0005e+21",
+            "fmxOut": "1258581600508352825",
+            "distributed": "0",
+            "txLaunched": "0x500448abc6b8bdcc18352c3f433748a48cd2f0961e841035263c34367ddea7fe",
+            "agentName": "Scribe",
+            "owner": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9"
+        }
+    ],
+    "total": 1,
+    "contract": "0xf9fcCF337a7930D146227601C1da7Be85bB50188"
+}

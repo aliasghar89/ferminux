@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ferminux Network — Whitepaper v1.0</title>
+<style>
+@page { size: A4; margin: 22mm 20mm 24mm 20mm; }
+:root{--ink:#16181c;--muted:#5b6169;--faint:#8b9198;--accent:#a8761c;--warn:#a33a1f;--border:#e3e3e0;--hairline:#efefec;--surface:#fbfbfa;
+--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);background:#fff;font-family:var(--sans);font-size:11.2pt;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.num{font-variant-numeric:tabular-nums}code{font-family:var(--mono);font-size:.9em}
+h1{font-size:26pt;line-height:1.15;letter-spacing:-.02em;margin:0 0 6pt;font-weight:650}
+h2{font-size:9.5pt;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:22pt 0 8pt;padding-bottom:5pt;border-bottom:1px solid var(--hairline);page-break-after:avoid}
+h3{font-size:11.5pt;margin:14pt 0 5pt;font-weight:650;page-break-after:avoid}
+p{margin:0 0 8pt;max-width:72ch}
+ul{margin:0 0 8pt;padding-left:16pt}li{margin-bottom:3pt}
+table{width:100%;border-collapse:collapse;margin:4pt 0 12pt;font-size:10.2pt;page-break-inside:avoid}
+th{text-align:left;font-size:8.5pt;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:600;padding:0 8pt 5pt 0;border-bottom:1px solid var(--border)}
+td{padding:6pt 8pt 6pt 0;border-bottom:1px solid var(--hairline);vertical-align:top}tr:last-child td{border-bottom:0}
+.cover{height:247mm;display:flex;flex-direction:column;justify-content:space-between;page-break-after:always}
+.brand{display:flex;align-items:center;gap:8pt;font-weight:600;font-size:12pt}.mark{width:9pt;height:9pt;background:var(--accent);border-radius:2pt}
+.lede{font-size:13pt;color:var(--muted);max-width:60ch;margin:10pt 0 0}
+.meta{font-size:9.5pt;color:var(--faint);line-height:1.7}
+.statement{border:1px solid var(--border);border-left:3px solid var(--ink);border-radius:4pt;background:var(--surface);padding:10pt 12pt;margin:4pt 0 12pt;page-break-inside:avoid}
+.limits{border:1px solid var(--border);border-left:3px solid var(--warn);border-radius:4pt;background:var(--surface);padding:10pt 12pt;margin:4pt 0 12pt;page-break-inside:avoid}
+.limits ul{margin:4pt 0 0}
+.kv{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8pt;margin:4pt 0 12pt}
+.kv div{border:1px solid var(--border);border-radius:4pt;background:var(--surface);padding:8pt 10pt}
+.kv .k{font-size:8.5pt;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600}.kv .v{font-size:13pt;font-weight:600;letter-spacing:-.01em}
+.addr{font-family:var(--mono);font-size:8.6pt;word-break:break-all;color:var(--muted)}
+.foot{margin-top:26pt;padding-top:10pt;border-top:1px solid var(--border);font-size:9pt;color:var(--faint)}
+.toc td{padding:3pt 8pt 3pt 0;border:0}
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <div class="brand"><span class="mark"></span>Ferminux Network</div>
+  </div>
+  <div>
+    <h1>Ferminux Network</h1>
+    <p class="lede">A sovereign EVM chain with a fixed-supply native coin, an authority consensus that states exactly who runs it, and a bridge, exchange and stablecoin built on it. This document describes the system as deployed. Every claim is checkable on-chain.</p>
+  </div>
+  <div class="meta">
+    Whitepaper v1.1 · 26 September 2026 (v1.0: 22 August 2026)<br>
+    Chain ID 3961 · Native coin FMX · ferminux.net<br>
+    Genesis <span class="addr">0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</span><br>
+    Where this document and the node software disagree, the software is authoritative.
+  </div>
+</section>
+
+<h2>Contents</h2>
+<table class="toc">
+<tr><td>1</td><td>Abstract</td></tr>
+<tr><td>2</td><td>The network</td></tr>
+<tr><td>3</td><td>Consensus: what it is, why it changed, what it is not</td></tr>
+<tr><td>4</td><td>FMX: supply, allocation, emission, lock-up</td></tr>
+<tr><td>5</td><td>The ecosystem: bridge, DEX, stablecoin, wallet, launchpad</td></tr>
+<tr><td>6</td><td>Security model</td></tr>
+<tr><td>7</td><td>Roadmap</td></tr>
+<tr><td>8</td><td>Verify it yourself</td></tr>
+<tr><td>9</td><td>Disclosures</td></tr>
+</table>
+
+<div class="statement">
+<p><strong>What changed since v1.0 (22 August 2026).</strong> The authority fork activated at block 160,000 on 5 September 2026. The signer set has since changed by vote: two of the original signers were voted out and one new signer was voted in, so four signers confirm blocks on 26 September 2026 (the live list is <code>clique_getSigners</code> on any node). The bridge has been paused since 11 September 2026. The DEX has one pool, WFMX/AZNT. The TokenFactory's launch fee is burned rather than paid to the multisig. Sections 2, 3, 5 and 7 are updated below; the rest describes the design as it stood.</p>
+</div>
+
+<h2>1. Abstract</h2>
+<p>Ferminux is an independent layer-1 blockchain with an EVM-compatible execution layer. It has its own native coin, FMX, with a hard cap of 100,000,000 and a fully specified emission schedule; its own consensus; and a first-party set of applications — a two-way bridge to BNB Smart Chain, a decentralised exchange, a fully-collateralised dollar stablecoin, a web wallet, a block explorer and a token launchpad — all of which are live at the time of writing.</p>
+<p>The network launched on 20 August 2026 as an Ethash proof-of-work chain. Within its first two days it demonstrated the structural weakness of small proof-of-work chains: rented hashrate raised the difficulty, left, and the chain took nine hours to recover. The operator's response — documented in §3 — was a scheduled move to authority consensus, operated by a set of foundation signers on several hosting providers, with the limits of that choice stated plainly rather than dressed up. This paper is written in that spirit: what exists, how it works, what it promises, and what it does not.</p>
+
+<h2>2. The network</h2>
+<div class="kv">
+  <div><div class="k">Chain ID</div><div class="v num">3961</div></div>
+  <div><div class="k">Block time</div><div class="v num">~7 s</div></div>
+  <div><div class="k">FMX hard cap</div><div class="v num">100,000,000</div></div>
+</div>
+<table>
+<thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Execution</td><td>EVM bytecode, Paris rule-set (no PUSH0). Solidity contracts compile with <code>evm_version = paris</code>.</td></tr>
+<tr><td>Node software</td><td><code>ferminux</code>, the network's own node client (LGPL-3.0; lineage and attribution in LICENSES.md). Genesis and bootnodes are compiled into the binary; a node joins the network with no configuration. One-line installer: <code>curl -fsSL https://ferminux.net/install.sh | bash</code>, verified against published SHA-256 checksums.</td></tr>
+<tr><td>Native coin</td><td>FMX, 18 decimals. Pays gas, block rewards and the bridge fee.</td></tr>
+<tr><td>Public RPC</td><td><code>https://rpc.ferminux.net</code> — two sentry nodes behind a resolver that fails over per request.</td></tr>
+<tr><td>Explorer</td><td><code>https://explorer.ferminux.net</code> (Blockscout), with contract verification.</td></tr>
+<tr><td>Infrastructure</td><td>Fifteen nodes at the time of writing across netcup, Hetzner and FlokiNET: three bootnodes and two RPC sentries on netcup; three independent witness nodes used by the bridge; and the signer nodes (four on 26 September 2026), each on its own machine. Nightly off-site backups of the keys, configuration and explorer index, client-side encrypted; every keystore is opened and checked against its expected address before a backup is published, and a backup that cannot prove itself restorable is refused. Chain data is deliberately not backed up — it is reproducible by re-syncing from the network.</td></tr>
+</tbody>
+</table>
+
+<h2>3. Consensus</h2>
+<h3>3.1 What it is</h3>
+<div class="statement">
+<p>Ferminux uses <strong>authority consensus</strong>. A set of authorised signers confirms blocks in rotation every 7 seconds; there were five at the fork and four on 26 September 2026. They are <strong>not bonded</strong>: no stake backs them and there is nothing to slash, so the only thing standing behind a signer is the foundation's operation of it. The signer set is operated by the foundation. This is not trustless proof of stake and we do not claim it is. FMX staking, when it launches, is a yield programme funded from the ecosystem allocation; it does not secure the chain.</p>
+<p>Concretely: block <em>n</em> is confirmed in turn by signer <em>n</em> mod <em>N</em>, where <em>N</em> is the size of the set, with a fallback so that a single unavailable signer does not stop production. An empty block is confirmed whether or not anyone is transacting. Production continues as long as more than half of the signer processes are running.</p>
+</div>
+<p>The authority engine is a Clique-based wrapper compiled into the node software and activates at a fixed block, <strong>160,000</strong>. Below that block the chain is proof-of-work exactly as launched; from that block onward the authorised signers confirm blocks. The fork block, the signer set and the reward-sink contract are compiled constants — there is no configuration file that can change them on a running network, which is deliberate: every node that runs the release is on the same rules.</p>
+
+<h3>3.2 Why it changed</h3>
+<p>On 21 August 2026 the chain stopped producing blocks for four hours and thirty-six minutes, and did not recover for nine: blocks 20,570 to 20,577 took nine hours between them, crawling at roughly a tenth of the hashrate the difficulty had been set for. Rented GPU hashrate had set that difficulty, and Ethash only lowers it when a block is found — so each block bought at most a 4.83% reduction, and the chain ratcheted back rather than snapping back. Nothing downstream could work: the bridge could not confirm transfers and the explorer froze.</p>
+<p>That failure is structural to a small proof-of-work chain: whoever brings the most hashrate sets a difficulty that only they can sustain, and when they leave the chain halts. Authority consensus removes the dependency on hashrate entirely. It does so at a cost, stated in §3.4.</p>
+
+<h3>3.3 The signers</h3>
+<table>
+<thead><tr><th>#</th><th>Signer address</th><th>Operator</th><th>Hosting</th></tr></thead>
+<tbody>
+<tr><td>1</td><td class="addr">0x3322f60aCEA9f88658665E83BeB30a516036187D</td><td>Ferminux foundation</td><td>netcup</td></tr>
+<tr><td>4</td><td class="addr">0x71377E0F553a5B0CB847443ab6648235977919b0</td><td>Ferminux foundation</td><td>Hetzner</td></tr>
+<tr><td>5</td><td class="addr">0x8e97f419F388c20E745dFF826587f359C31EF693</td><td>Ferminux foundation</td><td>FlokiNET</td></tr>
+<tr><td>6</td><td class="addr">0x44112Af43721BDBa8fBb9B5Fdd2757736e2AFFce</td><td>Ferminux foundation</td><td>InterServer</td></tr>
+</tbody>
+</table>
+<p>The set on 26 September 2026. Signers 2 (<span class="addr">0xA46A…de23</span>) and 3 (<span class="addr">0x1538…bB0f</span>) were voted out on 25 September 2026 and signer 6 was voted in the same day; the votes are in the block headers.</p>
+<p>All of them are operated by one party. They run on separate machines at four unrelated hosting providers, one per provider, so no single provider outage stops block production — but they answer to the same operator. Each signer is a dedicated process with no remote control interface; its key is unlocked only on its own machine. The signer set can change two ways, and the second one matters more than the first. Normally it takes an in-band vote by a majority of current signers, recorded in block headers and visible to anyone. But a <strong>break-glass</strong> path also exists: <strong>two of three foundation-held owner keys can replace the signer set outright</strong>, with no signer vote at all. It is there so the chain can be recovered if signer keys are lost, and every use of it is a block anyone can see — but it means the honest statement is that the same party which runs every signer can also replace the whole set at will.</p>
+<p>After the fork, each block's reward is split three ways: <strong>40%</strong> to the sealing signer, <strong>50%</strong> to the <code>FMXRewardSink</code> contract (<span class="addr">0x691E5275BF346FfFa0B30174dDBeDfCC078dd8D6</span>), and <strong>10%</strong> to the treasury. The sink is the funding source for ecosystem programmes, including the staking yield programme in §7.</p>
+
+<h3>3.4 What we are not claiming</h3>
+<div class="limits">
+<ul>
+<li><strong>It is not decentralised.</strong> Several signers, one operator. Proof-of-work, whatever its faults, let anyone with hardware participate in producing blocks. This does not.</li>
+<li><strong>History is secured by keys, not by work.</strong> Under proof-of-work, rewriting the chain cost real electricity. Under authority consensus a majority of signers could rewrite it at no cost. The bridge is defended against this with signed checkpoints and a reorg-depth limit of 64 blocks compiled into every node, not by the consensus rule itself.</li>
+<li><strong>Losing half the signers halts the chain.</strong> If half or more of the signer keys or machines are lost at once (two of the four on 26 September 2026), block production stops until the foundation restores them from escrow. This is a known, rehearsed recovery, and it is still a halt.</li>
+<li><strong>Staking does not secure anything.</strong> The staking programme pays FMX from a funded pool to holders who lock FMX. It votes on nothing and can neither halt nor split the chain.</li>
+</ul>
+</div>
+
+<h2>4. FMX</h2>
+<h3>4.1 Supply</h3>
+<p>Stated hard cap <strong>100,000,000 FMX</strong>. To be exact about what that is: <em>no code checks it</em> — there is no supply counter in the node that would refuse a block for exceeding it. What the software enforces is the emission schedule, and that schedule converges to about 32.5 million (§4.2), so the cap is a ceiling the chain cannot reach rather than a rule it is stopped by. Genesis premine <strong>30,000,000</strong>. Everything beyond the premine is issued as block rewards on the schedule below; nothing is issued by any other mechanism, and there is no public sale.</p>
+<table>
+<thead><tr><th>Genesis allocation</th><th>Address</th><th>FMX</th><th>Share of cap</th></tr></thead>
+<tbody>
+<tr><td>Treasury</td><td class="addr">0xc0A5Eb613f859f072554F29f1Ab7400265af15aB</td><td class="num">12,000,000</td><td class="num">12%</td></tr>
+<tr><td>Ecosystem / listings</td><td class="addr">0xEeDd7368290a17aB2Aa3F298Ff24BB99D581E787</td><td class="num">6,000,000</td><td class="num">6%</td></tr>
+<tr><td>Team — vested (6-month cliff, 36 months linear, <code>FMXVesting</code>)</td><td class="addr">0x86e286684Ae5899A941142D143949C444F9Fe831</td><td class="num">5,000,000</td><td class="num">5%</td></tr>
+<tr><td>AZNT liquidity and market operations</td><td class="addr">0x040F1E90EF72b364141D91c3C0314ac3b5eCD0AE</td><td class="num">4,000,000</td><td class="num">4%</td></tr>
+<tr><td>Community / faucet / airdrops</td><td class="addr">0x34f5366014EF292fd5ff9FFDE81d47819EF65cFC</td><td class="num">3,000,000</td><td class="num">3%</td></tr>
+<tr><td><strong>Total premine</strong></td><td></td><td class="num"><strong>30,000,000</strong></td><td class="num"><strong>30%</strong></td></tr>
+</tbody>
+</table>
+<p>Founder and developer share — team 5 M (vested) plus treasury 12 M — is 17% of the cap.</p>
+
+<h3>4.2 Emission</h3>
+<p>The network launched at 6 FMX per block. From block 20,000 the base reward is <strong>1 FMX per block, halving every 4,500,000 blocks</strong> (roughly annually at 7-second blocks). After the authority fork at block 160,000 the per-block reward is <strong>0.25 FMX</strong>, split 40 / 50 / 10 as described in §3.3. On this schedule total supply converges to about <strong>32.5 million FMX</strong>: the 30 million premine plus 2.47 million ever issued as block rewards (0.12 M at the launch rate, 0.14 M before the authority fork, and 2.21 M across the whole quartered tail). The 100 million cap is therefore a ceiling the chain never approaches, not a target — roughly 67.5 million FMX will never exist. The schedule is enforced by the node software and visible in every block's reward.</p>
+
+<h3>4.3 Foundation lock-up</h3>
+<p>To align the operator with holders for the first year of authority consensus, FMX is locked in an immutable contract, <code>FoundationLock</code> at <span class="addr">0xC0E01D9F49eE0967F34e1CB045B74D3Aefac189d</span>, which cannot release funds before <strong>21 August 2027</strong> and whose sole beneficiary is the foundation multisig. Its balance and unlock time are readable on-chain at any time (<code>locked()</code>, <code>unlockAt()</code>) and are displayed live on the security page. The lock is being funded in tranches; 150,292 FMX were locked at the time of writing, against a stated target of 1,000,000.</p>
+
+<h3>4.4 Price</h3>
+<p>No price is published anywhere by the foundation. FMX's market is the Ferminux DEX on chain 3961, where the WFMX/AZNT pool (<span class="addr">0xbab12e7B817F0686e11949eC06697235DC146845</span>, its liquidity locked until 20 August 2027) has traded since 20 August 2026; the price is whatever that pool says. Bridged FMX (wFMX) also trades in a small wFMX/BNB pool on PancakeSwap, funded by the foundation.</p>
+
+<h2>5. The ecosystem</h2>
+<table>
+<thead><tr><th>Component</th><th>What it is</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td><strong>Bridge (FMX ⇄ BNB Smart Chain)</strong></td><td>Lock-and-mint. FMX locked on Ferminux is minted as <code>wFMX</code> on BSC (<span class="addr">0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0</span>) and burned to return. Transfers are executed by 2-of-3 validator signatures from three independent hosts, after 64 confirmations on the source chain and, after the fork, a signed checkpoint. Per-transfer and daily caps, a 48-hour timelock on every parameter change, and an independent watcher that reconciles both chains and alerts on any mismatch.</td><td>Built and exercised end to end (four round-trip legs verified with exact solvency); <strong>paused since 11 September 2026</strong></td></tr>
+<tr><td><strong>DEX</strong></td><td>Constant-product exchange on Ferminux, with a canonical token allowlist so look-alike tokens are not presented as official. One pool today: WFMX/AZNT.</td><td>Live</td></tr>
+<tr><td><strong>USDF</strong></td><td>Dollar stablecoin on Ferminux, minted only against a confirmed fiat deposit. 500,000 USDF issued against the first deposit; minting authority revoked from the hot key afterward.</td><td>Live</td></tr>
+<tr><td><strong>AZNT</strong></td><td>Community token launched through the Ferminux token factory; minting authority revoked from the hot key.</td><td>Live</td></tr>
+<tr><td><strong>Web wallet</strong></td><td>Browser wallet for FMX and tokens on Ferminux, with gas estimation for contract calls.</td><td>Live</td></tr>
+<tr><td><strong>Launchpad / TokenFactory</strong></td><td>Deploy a standard token on Ferminux for a flat 10,000 FMX fee, which is burned (the fee collector is <span class="addr">0x…dEaD</span>).</td><td>Live; public sales closed for now</td></tr>
+<tr><td><strong>Explorer</strong></td><td>Blockscout with verified contracts and per-block reward attribution.</td><td>Live</td></tr>
+</tbody>
+</table>
+
+<h2>6. Security model</h2>
+<h3>6.1 Keys and custody</h3>
+<ul>
+<li>Protocol-level authority on each chain is a 2-of-3 multisig; each chain has its own (the Ferminux multisig for Ferminux contracts, <span class="addr">0x15D0791d49A089863243BE2C2050e5d26E1bBA9c</span> for BSC). Bridge parameter changes that <em>enlarge</em> what the bridge can do pass through a 48-hour timelock. Three do not, deliberately: <code>pause</code> and <code>pauseToken</code> (a hot pauser key, so a suspected incident can be stopped in one transaction) and <code>decreaseTokenLimits</code> (the owner may always tighten a cap immediately). The rule is that anything which increases risk waits 48 hours and anything which reduces it takes effect at once — not that every change is timelocked.</li>
+<li>Bridge validator keys live on three separate hosts and nowhere else. Signer keys live one per host, escrowed offline, on a recovery procedure that has been rehearsed end-to-end under 30 minutes.</li>
+<li>Break-glass: if the signer set is lost, a 2-of-3 owner signature over the chain ID, block number, parent hash and new signer list reinstates production. The procedure is scripted and was live-tested.</li>
+</ul>
+<h3>6.2 Chain rules that limit damage</h3>
+<ul>
+<li>A 64-block reorg cap compiled into every node: no node will reorganise deeper than 64 blocks under an authority head, whatever it is offered.</li>
+<li>Fork choice prefers an authority head over any proof-of-work head after the fork block, so a node still producing proof-of-work blocks on old software cannot carry the network.</li>
+<li>The bridge waits for finality it can verify — confirmations and, after the fork, a checkpoint published to BSC — and fails closed when it cannot.</li>
+</ul>
+<h3>6.3 Operations</h3>
+<ul>
+<li>Every signer and witness node runs as an unprivileged user under a systemd sandbox; signer processes expose no HTTP or WebSocket interface at all.</li>
+<li>A chain watchdog on three hosts raises an alert on a stall, and after the fork on a dead signer, a falling in-turn rate, a skewed signer clock or a halt.</li>
+<li>Every change to consensus-affecting software is rehearsed on an isolated copy of the live chain before it reaches production; the rehearsal logs are kept with the release.</li>
+</ul>
+
+<h2>7. Roadmap</h2>
+<table>
+<thead><tr><th>When</th><th>What</th></tr></thead>
+<tbody>
+<tr><td>Block 160,000 (reached 5 September 2026)</td><td>Authority consensus activated and proof-of-work block production ended. Every address that produced a block before the fork and is not a foundation address receives a one-time credit equal to 100% of the rewards it earned, paid from the community allocation. On the census of 2026-08-22 that is exactly one address and 3,030 FMX, because 98% of all blocks were produced by the operator. The eligible list was fixed at the fork block.</td></tr>
+<tr><td>After the fork</td><td>Release B pins the fork checkpoint; explorer and documentation updated for the authority era; the pre-fork pool and its software are retired.</td></tr>
+<tr><td>Q4 2026</td><td>FMX staking yield programme — deposits locked for a term, paid from the reward sink — after external audit. It has no consensus role.</td></tr>
+<tr><td>Q4 2026</td><td>wFMX/BNB market on PancakeSwap; chain listing in public chain registries; further bridge routes (USDT, Ethereum) on the same validator set and caps.</td></tr>
+</tbody>
+</table>
+<p>Dates are estimates from measured block pace; block numbers are the facts.</p>
+
+<h2>8. Verify it yourself</h2>
+<ul>
+<li>Genesis hash from any node: <code>ferminux-geth dumpgenesis</code> → <span class="addr">0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</span>.</li>
+<li>The fork block and signer set are printed in the node's start-up banner and are readable after the fork via <code>clique_getSigners</code> and <code>clique_getSnapshot</code> on any node.</li>
+<li>The signer of any block is recoverable from the block header's signature.</li>
+<li>Bridge collateral and lock-up balances are read live from the contracts on the security page at <code>ferminux.net/security.html</code>.</li>
+<li>Release binaries ship with SHA-256 checksums; the installer refuses a binary that does not match.</li>
+</ul>
+
+<h2>9. Disclosures</h2>
+<p>This document describes software and contracts as deployed on 22 August 2026 and will be revised as they change. It is not an offer to sell, a solicitation, or investment advice. FMX is a utility coin that pays for transactions on the Ferminux network; it has no guaranteed value and no price until a market exists. The authority consensus described in §3 is operated by a single party; holders should weigh that before relying on the chain for anything of value. The staking programme, when it launches, pays from a finite pool and makes no promise beyond its published balance and depletion date. Nothing here should be read as a claim of decentralisation, of proof of stake, or of regulatory status in any jurisdiction.</p>
+
+<div class="foot">Ferminux Network · chain ID 3961 · ferminux.net · explorer.ferminux.net · Whitepaper v1.0, 22 August 2026</div>
+</body>
+</html>

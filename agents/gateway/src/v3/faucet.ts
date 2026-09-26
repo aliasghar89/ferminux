@@ -2,7 +2,7 @@
 // on-chain faucet's drip() — an agent arriving alone (no human, no wallet UI)
 // was stuck. POST /api/faucet {address} sends FAUCET_DRIP_FMX (default 0.5)
 // from the relayer wallet. Limits: 1 drip / address / 24 h, 10 / IP / day,
-// FAUCET_MAX_PER_DAY (default 500) globally, only to addresses that hold less
+// FAUCET_MAX_PER_DAY (default 100) globally, never below the relayer reserve, only to addresses that hold less
 // than the drip amount, and only to keys that have never sent a transaction
 // (nonce 0) — the faucet exists to give a brand-new key its first gas, so a
 // key that already transacted is farming. FAUCET_POW_BITS > 0 additionally
@@ -18,7 +18,11 @@ export const FAUCET_DRIP_WEI = parseEther(process.env.FAUCET_DRIP_FMX || "0.5");
 const DRIP_WEI = FAUCET_DRIP_WEI;
 export const FAUCET_PER_IP_PER_DAY = 10;
 const PER_IP_PER_DAY = FAUCET_PER_IP_PER_DAY;
-export const FAUCET_GLOBAL_PER_DAY = Number(process.env.FAUCET_MAX_PER_DAY || 500);
+// 100/day (was 500): 500 × 0.5 FMX exceeded the relayer's whole balance, so ~40 IPs with fresh keys could
+// empty it in one UTC day — and the relayer also pays for every gasless relay and account creation.
+export const FAUCET_GLOBAL_PER_DAY = Number(process.env.FAUCET_MAX_PER_DAY || 100);
+/** The faucet stops before the relayer drops below this, so gasless relays keep their gas (FAUCET_RELAYER_RESERVE_FMX, default 50). */
+export const FAUCET_RELAYER_RESERVE_WEI = parseEther(process.env.FAUCET_RELAYER_RESERVE_FMX || "50");
 const GLOBAL_PER_DAY = FAUCET_GLOBAL_PER_DAY;
 export const FAUCET_POW_BITS = Math.max(0, Math.min(40, Number(process.env.FAUCET_POW_BITS || 0)));
 const DAY_S = 86_400;
@@ -52,6 +56,7 @@ export function registerFaucetRoutes(app: FastifyInstance, ctx: V3Context): void
     perAddress: "1 per 24 h",
     perIp: `${PER_IP_PER_DAY} per day`,
     globalPerDay: GLOBAL_PER_DAY,
+    relayerReserveFmx: formatEther(FAUCET_RELAYER_RESERVE_WEI),
     usedToday: (countAll.get(dayStart(ctx.nowS())) as { c: number }).c,
     freshKeysOnly: true,
     pow: FAUCET_POW_BITS > 0 ? { bits: FAUCET_POW_BITS, how: `include "pow": a string such that keccak256(utf8(lowercase(address) + ":" + pow)) starts with ${FAUCET_POW_BITS} zero bits` } : null,
@@ -78,7 +83,8 @@ export function registerFaucetRoutes(app: FastifyInstance, ctx: V3Context): void
         const pow = typeof body.pow === "string" ? body.pow : "";
         if (!pow || pow.length > 64 || powBits(address, pow) < FAUCET_POW_BITS) throw new HttpError(400, `anti-abuse puzzle required: keccak256(utf8(lowercase(address) + ":" + pow)) must start with ${FAUCET_POW_BITS} zero bits (see GET /api/faucet)`, "faucet_pow");
       }
-      const [bal, txCount] = await Promise.all([ctx.provider.getBalance(address), ctx.provider.getTransactionCount(address)]);
+      const [bal, txCount, relayerBal] = await Promise.all([ctx.provider.getBalance(address), ctx.provider.getTransactionCount(address), ctx.provider.getBalance(ctx.relayer.address)]);
+      if (relayerBal - DRIP_WEI < FAUCET_RELAYER_RESERVE_WEI) throw new HttpError(503, "faucet paused: the relayer is down to its reserve for gasless relays — try again after it is topped up", "faucet_reserve");
       if (bal >= DRIP_WEI) throw new HttpError(400, `address already holds ${formatEther(bal)} FMX — the faucet is for empty wallets`, "faucet_not_needed");
       if (txCount > 0) throw new HttpError(400, `address has already sent ${txCount} transaction(s) — the faucet only funds fresh keys`, "faucet_used_key");
       const fee = await ctx.provider.getFeeData();

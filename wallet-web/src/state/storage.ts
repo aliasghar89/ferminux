@@ -1,10 +1,18 @@
-// localStorage persistence. Only two categories are EVER stored, both harmless
+// localStorage persistence. Only these categories are EVER stored, all harmless
 // without the user's password / already public:
 //   1. the multi-account VAULT — scrypt-ENCRYPTED keystores (one for the HD
 //      seed, one per imported account) plus public metadata (addresses,
 //      labels, HD indices). Written only with the "remember on this device"
 //      opt-in.
-//   2. the list of added token contract addresses (public data)
+//   2. the tokens the user added (chain id, contract address, the metadata the
+//      contract reports) — public data
+//   3. the log of transactions this wallet sent on chains other than Ferminux
+//      (hashes, addresses, amounts) — public on-chain data, but it names the
+//      wallet's own address, so it is written only while the vault is
+//      remembered and removed with it
+//   4. view preferences (hide zero balances, chain filter)
+// WalletConnect keeps its own store (IndexedDB): session metadata and the
+// per-session relay encryption keys. It never sees a wallet key.
 // Plaintext keys, mnemonics and passwords are NEVER written anywhere.
 //
 // Nothing address-shaped is written when "remember" is off — locking or
@@ -18,10 +26,27 @@ import {
   migrateLegacyKeystore,
   type Vault,
 } from '../lib/vault.ts';
+import {
+  CUSTOM_TOKENS_KEY,
+  LEGACY_TOKENS_KEY,
+  parseCustomTokens,
+  serializeCustomTokens,
+} from '../lib/customTokens.ts';
+import type { CustomToken } from '../lib/portfolio.ts';
+import {
+  LOCAL_ACTIVITY_KEY,
+  parseLocalActivity,
+  serializeLocalActivity,
+  type LocalTx,
+} from '../lib/localActivity.ts';
 
-const TOKENS_KEY = 'ferminux.wallet.tokens.v1';
+import { vaultMirror } from '../platform/index.ts';
+
+const TOKENS_KEY = LEGACY_TOKENS_KEY;
 
 function safeGet(key: string): string | null {
+  // In the app the encrypted vault lives in the Keystore/Keychain store (platform/index.ts), not WebView storage.
+  if (vaultMirror.handles(key)) return vaultMirror.get(key);
   try {
     return window.localStorage.getItem(key);
   } catch {
@@ -30,6 +55,7 @@ function safeGet(key: string): string | null {
 }
 
 function safeSet(key: string, value: string): boolean {
+  if (vaultMirror.handles(key)) return vaultMirror.set(key, value);
   try {
     window.localStorage.setItem(key, value);
     return true;
@@ -40,6 +66,10 @@ function safeSet(key: string, value: string): boolean {
 }
 
 function safeRemove(key: string): void {
+  if (vaultMirror.handles(key)) {
+    vaultMirror.remove(key);
+    return;
+  }
   try {
     window.localStorage.removeItem(key);
   } catch {
@@ -83,10 +113,14 @@ export function saveVault(vault: Vault): void {
   safeSet(VAULT_KEY, serializeVault(vault));
 }
 
-/** "Forget this device" — removes both the current and the legacy blob. */
+/**
+ * "Forget this device" — removes both the current and the legacy blob, and the
+ * sent-transaction log, which names the accounts too.
+ */
 export function clearVault(): void {
   safeRemove(VAULT_KEY);
   safeRemove(LEGACY_KEYSTORE_KEY);
+  safeRemove(LOCAL_ACTIVITY_KEY);
 }
 
 export function loadTokenAddresses(): string[] {
@@ -102,4 +136,66 @@ export function loadTokenAddresses(): string[] {
 
 export function saveTokenAddresses(addresses: string[]): void {
   safeSet(TOKENS_KEY, JSON.stringify(addresses));
+}
+
+/* ---- multi-chain additions: all public data (addresses, metadata, tx hashes) ---- */
+
+export function loadCustomTokens(): CustomToken[] {
+  return parseCustomTokens(safeGet(CUSTOM_TOKENS_KEY));
+}
+
+export function saveCustomTokens(tokens: CustomToken[]): void {
+  safeSet(CUSTOM_TOKENS_KEY, serializeCustomTokens(tokens));
+}
+
+/** The pre-multi-chain token list (bare Ferminux addresses), read for migration. */
+export function loadLegacyTokenList(): string | null {
+  return safeGet(LEGACY_TOKENS_KEY);
+}
+
+export function loadLocalActivity(): LocalTx[] {
+  return parseLocalActivity(safeGet(LOCAL_ACTIVITY_KEY));
+}
+
+export function saveLocalActivity(list: LocalTx[]): void {
+  safeSet(LOCAL_ACTIVITY_KEY, serializeLocalActivity(list));
+}
+
+const PREFS_KEY = 'ferminux.wallet.prefs.v1';
+
+/** Per-viewer display preferences. Losing them only resets the view. */
+export interface ViewPrefs {
+  hideZero: boolean;
+  chainFilter: number | null;
+}
+
+export function loadViewPrefs(): ViewPrefs {
+  const fallback: ViewPrefs = { hideZero: true, chainFilter: null };
+  const raw = safeGet(PREFS_KEY);
+  if (!raw) return fallback;
+  try {
+    const p = JSON.parse(raw) as Partial<ViewPrefs>;
+    return {
+      hideZero: typeof p.hideZero === 'boolean' ? p.hideZero : fallback.hideZero,
+      chainFilter: typeof p.chainFilter === 'number' ? p.chainFilter : null,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveViewPrefs(prefs: ViewPrefs): void {
+  safeSet(PREFS_KEY, JSON.stringify(prefs));
+}
+
+/** Set once WalletConnect has been used here, so a later unlock reconnects saved sessions. */
+const WC_USED_KEY = 'ferminux.wallet.wc.used.v1';
+
+export function wcWasUsed(): boolean {
+  return safeGet(WC_USED_KEY) === '1';
+}
+
+export function markWcUsed(used: boolean): void {
+  if (used) safeSet(WC_USED_KEY, '1');
+  else safeRemove(WC_USED_KEY);
 }

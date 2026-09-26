@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JsonRpcProvider } from 'ethers';
-import { RPC_URLS, CHAIN_ID, EXPLORER_URL, IDLE_LOCK_MS, REFRESH_MS } from './config.ts';
+import { RPC_URLS, CHAIN_ID, REFRESH_MS } from './config.ts';
 import { connectRpc } from './lib/rpc.ts';
-import { formatGwei } from './lib/validate.ts';
 import { useAccountSession } from './state/useAccounts.ts';
 import { useBalances } from './state/useBalances.ts';
+import { forgetWalletConnect, useWalletConnect } from './state/useWalletConnect.ts';
+import { hasStoredVault } from './state/storage.ts';
 import { Onboarding } from './views/Onboarding.tsx';
 import { Unlock } from './views/Unlock.tsx';
 import { WalletHome } from './views/WalletHome.tsx';
-import { AccountSwitcher } from './views/AccountSwitcher.tsx';
-import { AccountsPanel } from './views/AccountsPanel.tsx';
+import { AccountsPanel, type AccountsMode } from './views/AccountsPanel.tsx';
+import { GateFrame } from './views/Shell.tsx';
+import { useLockMs } from './views/prefs.ts';
+import { useIdleLock } from './state/useIdleLock.ts';
+import { announceLock, onLockAnnounced } from './lib/lockSignal.ts';
+import { useWalletConnectLinks } from './platform/react.ts';
 
 export interface ChainState {
   provider: JsonRpcProvider | null;
@@ -95,145 +100,107 @@ export function App() {
   const session = useAccountSession();
   const { api, set, vault, lock: dropKeys, forget } = session;
   const [notice, setNotice] = useState<string | null>(null);
-  const [accountsOpen, setAccountsOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState<AccountsMode | null>(null);
 
   // Every account's balance, refreshed together in one batched request.
   const balances = useBalances(chain.rpcUrl, chain.provider, api?.addresses ?? EMPTY_ADDRESSES);
 
+  // WalletConnect answers for the active account only, and for nobody while locked.
+  const wc = useWalletConnect(set !== null && api !== null ? api.active.address : null, api?.remembered ?? vault !== null);
+
+  // wc: / ferminuxwallet:// / https://wallet.ferminux.net/wc links (app links, and the web /wc page) pair here.
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  useWalletConnectLinks(wc, setLinkNotice);
+
   const lock = useCallback(() => {
-    setAccountsOpen(false);
+    setAccountsOpen(null);
     dropKeys();
+    // Not remembered: nothing of this session outlives the lock, and
+    // WalletConnect's sessions name the address (IndexedDB included).
+    if (!hasStoredVault()) void forgetWalletConnect();
+    // A stored wallet's unlock screen says what is needed; only a session-only
+    // wallet needs telling that its keys are gone.
     setNotice(
-      'Session locked. Keys are kept in memory only — unlock, or import your wallet again, to continue.',
+      hasStoredVault()
+        ? null
+        : 'Session locked. Keys are kept in memory only — unlock, or import your wallet again, to continue.',
     );
   }, [dropKeys]);
 
-  // Idle auto-lock (15 min without interaction).
-  const lastActivity = useRef(Date.now());
-  useEffect(() => {
-    if (!set) return;
-    lastActivity.current = Date.now();
-    const bump = () => {
-      lastActivity.current = Date.now();
-    };
-    const events: (keyof WindowEventMap)[] = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
-    for (const ev of events) window.addEventListener(ev, bump, { passive: true });
-    const check = setInterval(() => {
-      if (Date.now() - lastActivity.current >= IDLE_LOCK_MS) lock();
-    }, 15_000);
-    return () => {
-      for (const ev of events) window.removeEventListener(ev, bump);
-      clearInterval(check);
-    };
-  }, [set, lock]);
+  // Idle auto-lock (15 min without interaction by default; Settings → Security).
+  // Also judged when the tab or app comes back from the background: state/useIdleLock.ts.
+  useIdleLock(set !== null, useLockMs(), lock);
+
+  // Lock pressed here locks the wallet, not one tab: every other tab and
+  // connect window holding keys from the stored vault drops them too.
+  const lockByHand = useCallback(() => {
+    announceLock();
+    lock();
+  }, [lock]);
+  const fromVault = useRef(false);
+  fromVault.current = set !== null && vault !== null;
+  useEffect(
+    () =>
+      onLockAnnounced(() => {
+        if (fromVault.current) lock();
+      }),
+    [lock],
+  );
 
   const unlocked = set !== null && api !== null;
   const phase: 'unlocked' | 'locked' | 'onboarding' = unlocked ? 'unlocked' : vault ? 'locked' : 'onboarding';
 
+  // A deep link that could not pair (platform/react.ts), shown on any screen.
+  const banner = linkNotice ? (
+    <div className="notice notice-warn" role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <span style={{ flex: '1 1 220px' }}>{linkNotice}</span>
+      <button className="btn btn-sm" onClick={() => setLinkNotice(null)}>
+        Dismiss
+      </button>
+    </div>
+  ) : null;
+
   return (
     <>
-      <header className="app-header">
-        <div className="app-header-inner">
-          <span className="brand">
-            <span className="brand-mark" aria-hidden="true" />
-            Ferminux
-            <span className="brand-sub">Wallet</span>
-          </span>
-          <span className="header-spacer" />
-          {unlocked && api && (
-            <AccountSwitcher api={api} balances={balances} onManage={() => setAccountsOpen(true)} />
-          )}
-          <span className="net-pill num" title={chain.rpcUrl ?? 'not connected'}>
-            <span
-              className={
-                'dot ' + (chain.status === 'ok' ? 'dot-ok' : chain.status === 'error' ? 'dot-bad' : 'dot-wait')
-              }
+      {phase === 'unlocked' && api ? (
+        <WalletHome
+          api={api}
+          balances={balances}
+          chain={chain}
+          wc={wc}
+          onManageAccounts={(mode) => setAccountsOpen(mode ?? 'list')}
+          onLock={lockByHand}
+          banner={banner}
+        />
+      ) : (
+        <GateFrame chain={chain} banner={banner}>
+          {phase === 'onboarding' && (
+            <Onboarding
+              notice={notice ?? undefined}
+              onOpen={async (accountSet, options) => {
+                setNotice(null);
+                await session.open(accountSet, options);
+              }}
             />
-            {/* The label collapses to the status dot on a narrow header so the
-                account switcher and Lock always stay reachable. */}
-            <span className="net-label">
-              {chain.status === 'ok'
-                ? `Ferminux · ${CHAIN_ID}`
-                : chain.status === 'error'
-                  ? 'RPC unreachable'
-                  : 'Connecting…'}
-            </span>
-          </span>
-          {unlocked && (
-            <button className="btn btn-sm" onClick={lock}>
-              Lock
-            </button>
           )}
-        </div>
-      </header>
-
-      <main className="app-main">
-        {chain.status === 'error' && (
-          <div className="notice notice-danger" role="alert">
-            Cannot reach any Ferminux RPC endpoint. Retrying automatically…{' '}
-            <button className="btn btn-sm" onClick={chain.retry} style={{ marginLeft: 8 }}>
-              Retry now
-            </button>
-          </div>
-        )}
-
-        {phase === 'onboarding' && (
-          <Onboarding
-            notice={notice ?? undefined}
-            onOpen={async (accountSet, options) => {
-              setNotice(null);
-              await session.open(accountSet, options);
-            }}
-          />
-        )}
-        {phase === 'locked' && vault && (
-          <Unlock
-            vault={vault}
-            notice={notice ?? undefined}
-            onUnlock={session.unlock}
-            onForgotten={() => {
-              setNotice(null);
-              forget();
-            }}
-          />
-        )}
-        {phase === 'unlocked' && api && (
-          <WalletHome api={api} balances={balances} chain={chain} onManageAccounts={() => setAccountsOpen(true)} />
-        )}
-      </main>
-
-      {accountsOpen && api && (
-        <AccountsPanel api={api} balances={balances} onClose={() => setAccountsOpen(false)} />
+          {phase === 'locked' && vault && (
+            <Unlock
+              vault={vault}
+              notice={notice ?? undefined}
+              onUnlock={session.unlock}
+              onForgotten={() => {
+                setNotice(null);
+                forget();
+                void forgetWalletConnect();
+              }}
+            />
+          )}
+        </GateFrame>
       )}
 
-      <footer className="app-footer">
-        <div className="app-footer-inner">
-          <span className="footer-item">
-            <span
-              className={
-                'dot ' + (chain.status === 'ok' ? 'dot-ok' : chain.status === 'error' ? 'dot-bad' : 'dot-wait')
-              }
-            />
-            {chain.status === 'ok' ? 'Connected' : chain.status === 'error' ? 'Offline' : 'Connecting'}
-          </span>
-          <span className="footer-item">
-            Block {chain.blockNumber !== null ? chain.blockNumber.toLocaleString('en-US') : '—'}
-          </span>
-          <span className="footer-item">
-            Base fee {chain.baseFee !== null ? `${formatGwei(chain.baseFee)} gwei` : '—'}
-          </span>
-          {chain.rpcUrl && (
-            <span className="footer-item" title={chain.rpcUrl}>
-              {new URL(chain.rpcUrl).host}
-            </span>
-          )}
-          <span className="footer-item" style={{ marginLeft: 'auto' }}>
-            <a href={EXPLORER_URL} target="_blank" rel="noreferrer noopener">
-              Explorer ↗
-            </a>
-          </span>
-        </div>
-      </footer>
+      {accountsOpen && api && (
+        <AccountsPanel api={api} balances={balances} initialMode={accountsOpen} onClose={() => setAccountsOpen(null)} />
+      )}
     </>
   );
 }

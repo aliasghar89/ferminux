@@ -1,0 +1,20 @@
+/* Shared by the home feeds, /blocks and the block page (pages/home-blocks/cells.ts). Tokens only; loads as
+   part of those page chunks, after the global sheets. */
+
+/* a row's primary hash link: mono at the hash size, ink */
+.hb-hash{font-family:var(--mono);font-size:var(--fs-hash);font-variant-numeric:tabular-nums;color:var(--ink)}
+.rl:hover .hb-hash,:is(.xhome,.xblk,.xblks) .rl:hover .num-mono{color:var(--accent-hover)}
+
+/* From → To: two chips that shrink before they wrap */
+.pty{display:inline-flex;align-items:center;min-width:0;max-width:100%;vertical-align:middle}
+.pty .hc{flex:0 1 auto;min-width:0}
+.pty .hc>a,.pty .hc>span.hc-t{min-width:0;overflow:hidden}
+.pty .arrow{flex:none}
+
+/* dense gas cell: 174,382 · 0.17% · bar */
+.gas-c{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;white-space:nowrap}
+.gas-c .gp{font-size:12px;color:var(--faint)}
+.gas-c .bar{width:28px}
+
+
+.prod{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}

@@ -19,6 +19,8 @@ export function fmx(wei: string | bigint | number | null | undefined, max = 4): 
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return (neg ? "-" : "") + grouped + (frac ? "." + frac : "");
 }
+/** A bounty or challenge title without the trailing "— 100 FMX …" that a reward column already shows. */
+export const bareTitle = (t: string) => t.replace(/\s+[—–]\s+[\d,.]+\s*FMX\b.*$/i, "").trim() || t;
 export const fmxUnit = (wei: string | bigint | number | null | undefined, max = 4) => `${fmx(wei, max)} FMX`;
 
 export function toWei(fmxAmount: string): bigint {

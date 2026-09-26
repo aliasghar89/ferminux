@@ -1,0 +1,59 @@
+{
+    "items": [
+        {
+            "block_hash": "0xec75428e4243d4df4b51dd52141eafc09b5bd8e1074b4efe2f33a7ff016f094d",
+            "block_number": 351415,
+            "from": {
+                "ens_domain_name": null,
+                "hash": "0x0000000000000000000000000000000000000000",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "log_index": 0,
+            "method": "0x5925b7b9",
+            "timestamp": "2026-09-21T01:26:49.000000Z",
+            "to": {
+                "ens_domain_name": null,
+                "hash": "0xc0A5Eb613f859f072554F29f1Ab7400265af15aB",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "token": {
+                "address_hash": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+                "circulating_market_cap": null,
+                "decimals": null,
+                "exchange_rate": null,
+                "holders_count": "2",
+                "icon_url": null,
+                "name": "Ferminux Agents",
+                "symbol": "FMXA",
+                "total_supply": "2",
+                "type": "ERC-721",
+                "volume_24h": null
+            },
+            "total": {
+                "token_id": "41",
+                "token_instance": null
+            },
+            "transaction_hash": "0x319fc5de251ac10ea1ea08ecf46303d88c4465b518993440ca6cd8547e8e7657",
+            "type": "token_minting"
+        }
+    ],
+    "next_page_params": null
+}

@@ -1,5 +1,5 @@
-// Multi-asset, multi-chain → FMX pay-in. Quote: operator-fixed USD price per FMX (PAYIN_PRICE_USD; the wFMX
-// pool only as a fallback), 2 % spread, 15-minute validity, deposit to the treasury hot wallet on any of 7
+// Multi-asset, multi-chain → FMX pay-in. Quote: operator-fixed USD price per FMX (PAYIN_PRICE_USD; the
+// Ferminux DEX pool only as a fallback), 2 % spread, 15-minute validity, deposit to the treasury hot wallet on any of 7
 // EVM chains (Ethereum, BNB Chain, Base, Arbitrum One, Polygon, Optimism, Avalanche C-Chain). Assets per
 // chain: USDC + USDT (ERC-20, 1 USD) and the chain's native coin (ETH / BNB / POL / AVAX), priced from
 // CoinGecko (cached 60 s) with a PancakeSwap V2 (BSC) fallback for BNB/ETH when CoinGecko is unreachable;
@@ -20,7 +20,7 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { Contract, JsonRpcProvider, getAddress, id as topicId, zeroPadValue } from "ethers";
 import { HttpError } from "../commons/context.js";
-import { FIXED_CONTRACTS } from "../constants.js";
+import { DEX_QUOTE_TOKENS, FERMINUX_DEX, FIXED_CONTRACTS } from "../constants.js";
 import { getMeta, setMeta } from "../db.js";
 import type { V3Context } from "./context.js";
 
@@ -32,12 +32,27 @@ export const PAYIN_MAX_USD = 10_000;
 export const PAYIN_PRICE_CACHE_MS = 60_000;
 export const PAYIN_LOOKBACK_BLOCKS = 200;
 export const PAYIN_CHUNK_BLOCKS = 2000;
+/** Floor for the adaptive getLogs range: providers that cap a range get halved down to this, never below. */
+export const PAYIN_MIN_CHUNK_BLOCKS = 50;
+/** getLogs ranges per chain per tick, so a recovered or first-run scanner catches up in minutes, not hours. */
+export const PAYIN_MAX_CHUNKS_PER_TICK = 5;
+/** A chain is unavailable after this many failed scans in a row (≈1 min at the 20 s poll)… */
+export const PAYIN_UNHEALTHY_AFTER_FAILS = 3;
+/** …or when its last good scan is older than this (and older than 3 polls). */
+export const PAYIN_STALE_S = 300;
+/** First scan on a chain (no cursor yet) looks back far enough to cover every quote from the last 24 h. */
+export const PAYIN_MAX_BACKFILL_S = 24 * 3600;
+/** Rough block times (s) — only used to size the first-scan lookback, where overshooting is harmless. */
+export const PAYIN_BLOCK_TIME_S: Record<string, number> = { eth: 12, bsc: 0.45, base: 2, arbitrum: 0.25, polygon: 2, optimism: 2, avalanche: 2 };
 /** Native-coin detection fetches full blocks; cap per tick so a backlog cannot stall the watcher. */
 export const PAYIN_NATIVE_BLOCKS_PER_TICK = 60;
 /** The two PancakeSwap reads behind the ETH fallback price must agree within this, else it is refused (manipulation guard). */
 export const PAYIN_ETH_XCHECK_BPS = 500n;
 /** Timeout for the CoinGecko price call. */
 export const PAYIN_HTTP_TIMEOUT_MS = 5000;
+/** A failed market read (Ferminux DEX, PancakeSwap pool) is remembered this long. GET /api/payin/market is public:
+ *  without it every request during an RPC outage re-read every pool, each call waiting out the RPC's timeout. */
+export const PAYIN_MARKET_ERROR_CACHE_MS = 15_000;
 const E18 = 10n ** 18n;
 
 // ---- PancakeSwap V2 pools on BSC — fallback native-coin price source when CoinGecko is unreachable (BNB/ETH only) ----
@@ -221,14 +236,118 @@ function envPriceE18(v: string | undefined): bigint | null {
 
 /* ============================================================== price feed */
 
-export interface PriceFeedOptions { fixedPriceUsd?: string; minPriceUsd?: string; now?: () => number }
+export interface PriceFeedOptions {
+  fixedPriceUsd?: string;
+  minPriceUsd?: string;
+  now?: () => number;
+  /** chain-3961 RPC for the Ferminux DEX reads (the gateway's RPC_URL); default the public endpoint */
+  ferminuxRpcUrl?: string;
+  /** the bridge relayer's liveness report (BRIDGE_STATUS_URL); default https://ferminux.net/bridge/status.json */
+  bridgeStatusUrl?: string;
+}
 
-/** USD per FMX (operator-fixed, else the PancakeSwap wFMX pair) and USD per native coin (CoinGecko, cached 60 s,
- * with a PancakeSwap V2 fallback for BNB/ETH), both 1e18 fixed-point. */
+/** The PancakeSwap wFMX pair's raw state: reserves, the quote side's token, and the pool's own last-update time. */
+export interface PoolReserves { reserveW: bigint; reserveQ: bigint; quoteDecimals: number; quoteSymbol: string; lastTradeAt: number }
+
+/** An FMX market as a pool shows it: spot USD per FMX, the pool's depth, and when it was read. No floor. */
+export interface MarketPrice {
+  /** USD per FMX, 1e18, from the reserves (spot: a trade of any size moves it) */
+  priceE18: bigint;
+  /** both sides of the pool in USD, 1e18 — how much can actually trade near that price */
+  liquidityUsdE18: bigint;
+  wfmxReserveE18: bigint;
+  /** unix s of the pool's last reserve update (its last swap or liquidity change) */
+  lastTradeAt: number;
+  /** ms, when this was read */
+  at: number;
+}
+
+/** One WFMX pool on the Ferminux DEX against a first-party stablecoin, raw from the chain. */
+export interface DexPoolReserves { pair: string; quoteToken: string; reserveW: bigint; reserveQ: bigint; lastTradeAt: number }
+
+/** A Ferminux DEX pool priced: in its own quote token and in USD through that token's peg. */
+export interface DexPool extends MarketPrice {
+  pair: string;
+  quoteSymbol: string;
+  quoteToken: string;
+  quoteDecimals: number;
+  /** quote-token units in the pool (raw, `quoteDecimals`) */
+  quoteReserve: bigint;
+  /** quote token per FMX, 1e18 */
+  priceInQuoteE18: bigint;
+  /** USD per quote token, 1e18, and where that number comes from */
+  usdPerQuoteE18: bigint;
+  usdBasis: string;
+}
+
+/** Every priced FMX pool on the Ferminux DEX, deepest first; `pools[0]` is the market's reference price. */
+export interface DexMarket { pools: DexPool[]; at: number }
+
+/** Whether the wFMX bridge is moving anything, per the relayer's own report. Unknown counts as paused. */
+export interface BridgeState { paused: boolean; reason: string | null; at: number }
+
+export const PAYIN_MARKET_SOURCE = "PancakeSwap v2 wFMX/WBNB pool on BNB Chain (on-chain reserves)";
+export const DEX_MARKET_SOURCE = (quoteSymbol: string) => `Ferminux DEX WFMX/${quoteSymbol} pool on chain 3961 (on-chain reserves)`;
+/** A relayer report older than this is not trusted — the same rule as ferminux.net/security.html. */
+export const BRIDGE_STATUS_MAX_AGE_MS = 10 * 60_000;
+const DEX_FACTORY_ABI = ["function getPair(address, address) view returns (address)"];
+const ZERO_ADDRESS = /^0x0{40}$/i;
+
+/** The Ferminux DEX link that opens a swap from `quoteToken` into native FMX. */
+export const dexSwapUrl = (quoteToken: string) => `${FERMINUX_DEX.url}/?inputCurrency=${quoteToken}&outputCurrency=FMX`;
+
+/** Price a raw Ferminux DEX pool. Pure: unit-tested without a chain. */
+export function priceDexPool(r: DexPoolReserves, at: number): DexPool | null {
+  const q = DEX_QUOTE_TOKENS.find((t) => t.address.toLowerCase() === r.quoteToken.toLowerCase());
+  if (!q || r.reserveW === 0n || r.reserveQ === 0n) return null;
+  const scaleQ = 10n ** BigInt(q.decimals);
+  // quote per FMX = (reserveQ / 10^decQ) / (reserveW / 10^18), ×1e18
+  const priceInQuoteE18 = (r.reserveQ * E18 * E18) / (scaleQ * r.reserveW);
+  const quoteSideUsdE18 = (r.reserveQ * q.usdE18) / scaleQ;
+  return {
+    pair: r.pair,
+    quoteSymbol: q.symbol,
+    quoteToken: q.address,
+    quoteDecimals: q.decimals,
+    quoteReserve: r.reserveQ,
+    priceInQuoteE18,
+    usdPerQuoteE18: q.usdE18,
+    usdBasis: q.usdBasis,
+    priceE18: (priceInQuoteE18 * q.usdE18) / E18,
+    // an x·y=k pool holds equal value on both sides at its own price, so depth is twice the quote side
+    liquidityUsdE18: 2n * quoteSideUsdE18,
+    wfmxReserveE18: r.reserveW,
+    lastTradeAt: r.lastTradeAt,
+    at,
+  };
+}
+
+/** The relayer report → paused or not. Mirrors ferminux.net/security.html: stale, empty or any chain with
+ * signing paused means paused. Pure: unit-tested. */
+export function bridgeStateFrom(report: unknown, nowMs: number): BridgeState {
+  const s = (report ?? {}) as { generatedAt?: unknown; chains?: unknown };
+  const at = Number(s.generatedAt) || 0;
+  const chains = Array.isArray(s.chains) ? (s.chains as Array<{ name?: string; finality?: { signing?: { paused?: boolean; reason?: string | null } | null } | null }>) : [];
+  if (!at || nowMs - at > BRIDGE_STATUS_MAX_AGE_MS) return { paused: true, reason: "the validators' status report is stale", at: nowMs };
+  if (chains.length === 0) return { paused: true, reason: "the validators' status report lists no chains", at: nowMs };
+  const off = chains.find((c) => c.finality?.signing?.paused);
+  if (off) return { paused: true, reason: `validators are not signing on ${off.name ?? "a chain"}${off.finality?.signing?.reason ? ` (${off.finality.signing.reason})` : ""}`, at: nowMs };
+  return { paused: false, reason: null, at: nowMs };
+}
+
+/** USD per FMX (operator-fixed, else the Ferminux DEX, else the PancakeSwap wFMX pair) and USD per native coin
+ * (CoinGecko, cached 60 s, with a PancakeSwap V2 fallback for BNB/ETH), all 1e18 fixed-point. */
 export class PriceFeed {
   private cache: { priceE18: bigint; quoteSymbol: string; at: number } | null = null;
+  private marketCache: MarketPrice | null = null;
+  private dexCache: DexMarket | null = null;
+  private bridgeCache: BridgeState | null = null;
+  private readonly reading = new Map<string, Promise<unknown>>();
+  private readonly readFailed = new Map<string, { err: Error; at: number }>();
   private readonly native = new Map<NativeSymbol, { usdE18: bigint; at: number }>();
   private readonly provider: JsonRpcProvider;
+  private readonly ferminux: JsonRpcProvider;
+  private readonly bridgeStatusUrl: string;
   private readonly fixedE18: bigint | null;
   private readonly floorE18: bigint | null;
   private readonly now: () => number;
@@ -238,38 +357,155 @@ export class PriceFeed {
     this.fixedE18 = envPriceE18(o.fixedPriceUsd);
     this.floorE18 = envPriceE18(o.minPriceUsd);
     this.provider = new JsonRpcProvider(bscRpcUrl, { chainId: 56, name: "bnb" }, { staticNetwork: true });
+    this.ferminux = new JsonRpcProvider(o.ferminuxRpcUrl ?? "https://rpc.ferminux.net", { chainId: 3961, name: "ferminux" }, { staticNetwork: true });
+    this.bridgeStatusUrl = o.bridgeStatusUrl ?? "https://ferminux.net/bridge/status.json";
   }
   get fixed(): boolean {
     return this.fixedE18 !== null;
   }
+
+  /** One read per key at a time (callers on a cold cache share it) and a failure remembered for
+   *  PAYIN_MARKET_ERROR_CACHE_MS, so a burst of requests during an outage costs one read, not one each. */
+  private shared<T>(key: string, read: () => Promise<T>): Promise<T> {
+    const failed = this.readFailed.get(key);
+    if (failed && this.now() - failed.at < PAYIN_MARKET_ERROR_CACHE_MS) return Promise.reject(failed.err);
+    let p = this.reading.get(key) as Promise<T> | undefined;
+    if (!p) {
+      p = read()
+        .then(
+          (v) => { this.readFailed.delete(key); return v; },
+          (err: unknown) => {
+            const e = err instanceof Error ? err : new Error(String(err));
+            this.readFailed.set(key, { err: e, at: this.now() });
+            throw e;
+          },
+        )
+        .finally(() => this.reading.delete(key));
+      this.reading.set(key, p);
+    }
+    return p;
+  }
   async price(): Promise<{ priceE18: bigint; quoteSymbol: string; at: number }> {
-    // Operator-fixed USD price (PAYIN_PRICE_USD) wins: the on-chain wFMX pair is tiny (≈0.06 BNB of liquidity as of
-    // 2026-09-22) and quoted in WBNB, so a pool read is both manipulable and not a USD number. A hot wallet holding
-    // 1M FMX must never be priced off it.
+    // Operator-fixed USD price (PAYIN_PRICE_USD) wins. Unset, the quote follows the primary market — the Ferminux
+    // DEX, falling back to the PancakeSwap wFMX pair only when chain 3961 cannot be read — under the
+    // PAYIN_MIN_PRICE_USD floor. A pool's spot price moves with every trade, so a hot wallet holding 1M FMX should
+    // run with the fixed price; the floor is the guard when it does not.
     if (this.fixedE18 !== null) return { priceE18: this.fixedE18, quoteSymbol: "USD", at: this.now() };
     if (this.cache && this.now() - this.cache.at < PAYIN_PRICE_CACHE_MS) return this.cache;
+    const m = await this.market();
+    let priceE18 = m.priceE18;
+    if (this.floorE18 !== null && priceE18 < this.floorE18) priceE18 = this.floorE18; // PAYIN_MIN_PRICE_USD guard
+    this.cache = { priceE18, quoteSymbol: "USD", at: this.now() };
+    return this.cache;
+  }
+
+  /** The primary FMX market: the deepest priced pool on the Ferminux DEX; the PancakeSwap wFMX pair only when
+   * chain 3961 cannot be read or has no priced pool. */
+  async market(): Promise<MarketPrice & { venue: "ferminux-dex" | "pancakeswap" }> {
+    try {
+      const d = await this.dexMarket();
+      return { ...d.pools[0]!, venue: "ferminux-dex" };
+    } catch {
+      return { ...(await this.pancakeMarket()), venue: "pancakeswap" };
+    }
+  }
+
+  /** Every FMX pool on the Ferminux DEX priced against a first-party stablecoin, deepest first, cached 60 s. */
+  async dexMarket(): Promise<DexMarket> {
+    if (this.dexCache && this.now() - this.dexCache.at < PAYIN_PRICE_CACHE_MS) return this.dexCache;
+    return this.shared("dex", async () => {
+      const at = this.now();
+      const pools = (await this.readDexPools()).map((r) => priceDexPool(r, at)).filter((p): p is DexPool => p !== null);
+      if (pools.length === 0) throw new Error("no priced FMX pool on the Ferminux DEX");
+      pools.sort((a, b) => (b.liquidityUsdE18 > a.liquidityUsdE18 ? 1 : b.liquidityUsdE18 < a.liquidityUsdE18 ? -1 : 0));
+      this.dexCache = { pools, at };
+      return this.dexCache;
+    });
+  }
+
+  /** The WFMX pools against each first-party stablecoin, by factory lookup (never by walking the open pair list).
+   * Protected (not private) so tests can stub it instead of hitting chain 3961. */
+  protected async readDexPools(): Promise<DexPoolReserves[]> {
+    const factory = new Contract(FERMINUX_DEX.factory, DEX_FACTORY_ABI, this.ferminux);
+    const found = await Promise.all(DEX_QUOTE_TOKENS.map(async (q) => ({ q, pair: (await factory.getPair(FERMINUX_DEX.wfmx, q.address)) as string })));
+    const out: DexPoolReserves[] = [];
+    for (const { q, pair } of found) {
+      if (ZERO_ADDRESS.test(pair)) continue;
+      const c = new Contract(pair, PAIR_ABI, this.ferminux);
+      const [t0, reserves] = await Promise.all([c.token0() as Promise<string>, c.getReserves() as Promise<[bigint, bigint, bigint]>]);
+      const wIs0 = t0.toLowerCase() === FERMINUX_DEX.wfmx.toLowerCase();
+      out.push({ pair: getAddress(pair), quoteToken: q.address, reserveW: wIs0 ? reserves[0] : reserves[1], reserveQ: wIs0 ? reserves[1] : reserves[0], lastTradeAt: Number(reserves[2]) });
+    }
+    return out;
+  }
+
+  /**
+   * The wFMX pool on PancakeSwap (BNB Chain), in USD, cached 60 s: a secondary venue for the bridged wFMX,
+   * published beside the Ferminux DEX price. It is a spot read of a thin pool, so it always travels with its depth
+   * and read time, never as a price anyone can buy at in size.
+   */
+  async pancakeMarket(): Promise<MarketPrice> {
+    if (this.marketCache && this.now() - this.marketCache.at < PAYIN_PRICE_CACHE_MS) return this.marketCache;
+    return this.shared("pancake", () => this.readPancakeMarket());
+  }
+
+  private async readPancakeMarket(): Promise<MarketPrice> {
+    const { reserveW, reserveQ, quoteDecimals, quoteSymbol, lastTradeAt } = await this.readPoolReserves();
+    if (reserveW === 0n || reserveQ === 0n) throw new Error("empty pair");
+    // price = (reserveQ / 10^decQ) / (reserveW / 10^18) → ×1e18; depth = both sides, i.e. 2 × the quote side
+    let priceE18 = (reserveQ * E18 * E18) / (10n ** BigInt(quoteDecimals) * reserveW);
+    let quoteSideUsdE18 = (reserveQ * E18) / 10n ** BigInt(quoteDecimals);
+    if (/^WBNB$/i.test(quoteSymbol)) {
+      // pair is quoted in WBNB → convert through the BNB price so the number is USD
+      const bnbUsdE18 = await this.nativeUsd("BNB");
+      priceE18 = (priceE18 * bnbUsdE18) / E18;
+      quoteSideUsdE18 = (quoteSideUsdE18 * bnbUsdE18) / E18;
+    } else if (!/^(USDT|USDC|BUSD|USD)$/i.test(quoteSymbol)) {
+      throw new Error(`pancake pair is quoted in ${quoteSymbol}, not WBNB or a USD stable`);
+    }
+    this.marketCache = { priceE18, liquidityUsdE18: 2n * quoteSideUsdE18, wfmxReserveE18: reserveW, lastTradeAt, at: this.now() };
+    return this.marketCache;
+  }
+
+  /** One read of the wFMX pair. Protected (not private) so tests can stub it instead of hitting BNB Chain. */
+  protected async readPoolReserves(): Promise<PoolReserves> {
     const pair = new Contract(FIXED_CONTRACTS.pancakePair, PAIR_ABI, this.provider);
     const [t0, t1, reserves] = await Promise.all([pair.token0() as Promise<string>, pair.token1() as Promise<string>, pair.getReserves() as Promise<[bigint, bigint, bigint]>]);
     const wfmxIs0 = t0.toLowerCase() === FIXED_CONTRACTS.wfmx.toLowerCase();
     if (!wfmxIs0 && t1.toLowerCase() !== FIXED_CONTRACTS.wfmx.toLowerCase()) throw new Error("pancake pair does not contain wFMX");
     const quoteToken = wfmxIs0 ? t1 : t0;
     const erc = new Contract(quoteToken, ERC20_ABI, this.provider);
-    const [decQ, symbol] = await Promise.all([erc.decimals() as Promise<bigint>, (erc.symbol() as Promise<string>).catch(() => "USD")]);
-    const reserveW = wfmxIs0 ? reserves[0] : reserves[1];
-    const reserveQ = wfmxIs0 ? reserves[1] : reserves[0];
-    if (reserveW === 0n) throw new Error("empty pair");
-    // price = (reserveQ / 10^decQ) / (reserveW / 10^18) → ×1e18
-    let priceE18 = (reserveQ * E18 * E18) / (10n ** BigInt(decQ) * reserveW);
-    let quoteSymbol = symbol;
-    if (/^WBNB$/i.test(symbol)) {
-      // pair is quoted in WBNB → convert through the PancakeSwap WBNB/USDT pool so the number is USD
-      const bnbUsdE18 = await this.nativeUsd("BNB");
-      priceE18 = (priceE18 * bnbUsdE18) / E18;
-      quoteSymbol = "USD";
+    // WBNB is known by address: a rate-limited symbol() read must never make a WBNB reserve count as dollars
+    // (that would publish a market price ~600x too low beside the quote for the whole cache window)
+    const isWbnb = quoteToken.toLowerCase() === WBNB.toLowerCase();
+    const [decQ, symbol] = await Promise.all([erc.decimals() as Promise<bigint>, isWbnb ? Promise.resolve("WBNB") : (erc.symbol() as Promise<string>).catch(() => "USD")]);
+    return {
+      reserveW: wfmxIs0 ? reserves[0] : reserves[1],
+      reserveQ: wfmxIs0 ? reserves[1] : reserves[0],
+      quoteDecimals: Number(decQ),
+      quoteSymbol: symbol,
+      lastTradeAt: Number(reserves[2]),
+    };
+  }
+
+  /** Is the wFMX bridge moving anything? From the relayer's report, cached 60 s; unreadable counts as paused. */
+  async bridgeStatus(): Promise<BridgeState> {
+    if (this.bridgeCache && this.now() - this.bridgeCache.at < PAYIN_PRICE_CACHE_MS) return this.bridgeCache;
+    let state: BridgeState;
+    try {
+      state = bridgeStateFrom(await this.fetchBridgeStatus(), this.now());
+    } catch (err) {
+      state = { paused: true, reason: `the validators' status report could not be read (${(err as Error).message.slice(0, 80)})`, at: this.now() };
     }
-    if (this.floorE18 !== null && priceE18 < this.floorE18) priceE18 = this.floorE18; // PAYIN_MIN_PRICE_USD guard
-    this.cache = { priceE18, quoteSymbol, at: this.now() };
-    return this.cache;
+    this.bridgeCache = state;
+    return state;
+  }
+
+  /** Protected (not private) so tests can stub it instead of fetching. */
+  protected async fetchBridgeStatus(): Promise<unknown> {
+    const res = await fetch(this.bridgeStatusUrl, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(PAYIN_HTTP_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`http ${res.status}`);
+    return res.json();
   }
 
   /** USD per whole asset unit, 1e18: stables are exactly 1; native coins from `nativeUsd`. */
@@ -341,6 +577,7 @@ export class PriceFeed {
   }
   destroy() {
     this.provider.destroy();
+    this.ferminux.destroy();
   }
 }
 
@@ -363,16 +600,48 @@ export interface PayinProviderLike {
 
 export interface PayinWatcherOptions { providerFor?: (chain: PayinChain) => PayinProviderLike }
 
+/** Scanner health for one pay-in chain, as /api/status, /api/payin/assets and the quote route see it. */
+export interface PayinChainHealth {
+  ok: boolean;
+  /** why the chain is not offered (null while ok): no completed scan yet, failing, or last good scan too old */
+  reason: string | null;
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastError: string | null;
+  consecutiveFailures: number;
+  /** current getLogs range (halved while a provider refuses the range) */
+  chunkBlocks: number;
+  /** which of the configured RPC URLs is in use (0-based) and how many there are — never the URL itself */
+  rpcIndex: number;
+  rpcCount: number;
+}
+
+interface ChainState {
+  lastOkAt: number | null;
+  lastErrorAt: number | null;
+  lastError: string | null;
+  consecutiveFailures: number;
+  chunkBlocks: number;
+  rpcIndex: number;
+}
+
 /** Idempotent: adds the payoutNonce column for DBs created before crash-safe payout existed. */
 function ensurePayoutNonceColumn(db: V3Context["db"]): void {
   const cols = db.prepare("PRAGMA table_info(payins)").all() as Array<{ name: string }>;
   if (cols.length && !cols.some((c) => c.name === "payoutNonce")) db.exec("ALTER TABLE payins ADD COLUMN payoutNonce INTEGER");
 }
 
+/** "a,b , c" → ["a","b","c"] */
+export function rpcList(v: string | undefined): string[] {
+  return (v ?? "").split(",").map((u) => u.trim()).filter(Boolean);
+}
+
 export class PayinWatcher {
   private readonly providers = new Map<PayinChain, PayinProviderLike>();
+  private readonly state = new Map<PayinChain, ChainState>();
   constructor(private readonly ctx: V3Context, private readonly opts: PayinWatcherOptions = {}) {
     ensurePayoutNonceColumn(ctx.db);
+    for (const chain of PAYIN_CHAIN_SLUGS) this.state.set(chain, { lastOkAt: null, lastErrorAt: null, lastError: null, consecutiveFailures: 0, chunkBlocks: PAYIN_CHUNK_BLOCKS, rpcIndex: 0 });
   }
 
   get enabled(): boolean {
@@ -382,14 +651,68 @@ export class PayinWatcher {
     if (!this.ctx.payinHot) return null;
     return this.ctx.cfg.payinDeposits?.[chain] ?? this.ctx.payinHot.address;
   }
+  private rpcUrls(chain: PayinChain): string[] {
+    const list = rpcList(this.ctx.cfg.payinRpcUrls?.[chain]);
+    return list.length ? list : ["http://127.0.0.1:1"];
+  }
   private provider(chain: PayinChain): PayinProviderLike {
     let p = this.providers.get(chain);
     if (!p) {
-      const rpcUrl = this.ctx.cfg.payinRpcUrls[chain]!;
+      const urls = this.rpcUrls(chain);
+      const rpcUrl = urls[this.state.get(chain)!.rpcIndex % urls.length]!;
       p = this.opts.providerFor?.(chain) ?? (new JsonRpcProvider(rpcUrl, { chainId: PAYIN_CHAINS[chain].chainId, name: chain }, { staticNetwork: true }) as unknown as PayinProviderLike);
       this.providers.set(chain, p);
     }
     return p;
+  }
+  /** After a failed scan, move to the next configured RPC URL (if there is more than one). */
+  private rotateProvider(chain: PayinChain): void {
+    if (this.opts.providerFor) return;
+    const urls = this.rpcUrls(chain);
+    if (urls.length < 2) return;
+    const st = this.state.get(chain)!;
+    st.rpcIndex = (st.rpcIndex + 1) % urls.length;
+    this.providers.get(chain)?.destroy();
+    this.providers.delete(chain);
+  }
+
+  /**
+   * Is this chain's deposit scanner working? A chain is offered only while its scanner has COMPLETED a scan
+   * recently (within PAYIN_STALE_S) and has not failed PAYIN_UNHEALTHY_AFTER_FAILS scans in a row since.
+   * Anything else is unavailable: no quote is issued for it and /api/status turns degraded. That includes
+   * a chain that has never completed a scan (a fresh boot refuses its quotes for the one poll it takes) and
+   * a scanner that hangs without ever throwing — the rule used to be "presumed healthy until it fails",
+   * which could not see either. The audit behind this (2026-09-24): three chains failed every 20 s poll for
+   * days while the quote route, the asset list and /api/status all said "ok", so a buyer could pay and
+   * never be credited.
+   */
+  chainHealth(chain: PayinChain): PayinChainHealth {
+    const st = this.state.get(chain)!;
+    const now = this.ctx.nowS();
+    const staleS = Math.max(PAYIN_STALE_S, Math.ceil((3 * (this.ctx.cfg.payinPollMs || 20_000)) / 1000));
+    const reason =
+      st.lastOkAt === null ? (st.consecutiveFailures > 0 ? `deposit scanner has failed ${st.consecutiveFailures} scan(s) and never completed one` : "deposit scanner has not completed a scan yet")
+      : st.consecutiveFailures >= PAYIN_UNHEALTHY_AFTER_FAILS ? `deposit scanner failed its last ${st.consecutiveFailures} scans`
+      : now - st.lastOkAt > staleS ? `deposit scanner's last completed scan is ${now - st.lastOkAt} s old`
+      : null;
+    return {
+      ok: reason === null,
+      reason,
+      lastOkAt: st.lastOkAt,
+      lastErrorAt: st.lastErrorAt,
+      lastError: st.lastError,
+      consecutiveFailures: st.consecutiveFailures,
+      chunkBlocks: st.chunkBlocks,
+      rpcIndex: st.rpcIndex,
+      rpcCount: this.opts.providerFor ? 1 : this.rpcUrls(chain).length,
+    };
+  }
+  chainAvailable(chain: PayinChain): boolean {
+    return this.enabled && this.chainHealth(chain).ok;
+  }
+  /** Every chain's scanner health (slug → health). */
+  health(): Record<PayinChain, PayinChainHealth> {
+    return Object.fromEntries(PAYIN_CHAIN_SLUGS.map((c) => [c, this.chainHealth(c)])) as Record<PayinChain, PayinChainHealth>;
   }
 
   /** Units an open quote on (chain, asset) already claims — used to pick a unique amount for a new one. */
@@ -405,10 +728,22 @@ export class PayinWatcher {
     const t = this.ctx.nowS();
     db.prepare("UPDATE payins SET status = 'expired' WHERE status = 'quoted' AND expiresAt < ?").run(t - 600);
     for (const chain of PAYIN_CHAIN_SLUGS) {
+      const st = this.state.get(chain)!;
       try {
         await this.scan(chain);
+        if (st.consecutiveFailures > 0) console.warn(`[payin] ${chain} scan recovered after ${st.consecutiveFailures} failed polls`);
+        st.consecutiveFailures = 0;
+        st.lastOkAt = this.ctx.nowS();
       } catch (err) {
-        console.error(`[payin] ${chain} scan failed:`, (err as Error).message);
+        st.consecutiveFailures += 1;
+        st.lastErrorAt = this.ctx.nowS();
+        st.lastError = (err as Error).message.slice(0, 300);
+        // one line on the first failure, then one every ~15 min — the old log line on every 20 s poll
+        // (≈4,300 a day per dead chain) buried everything else in a json-file log capped at 100 MB
+        if (st.consecutiveFailures === 1 || st.consecutiveFailures % 45 === 0) {
+          console.error(`[payin] ${chain} scan failed (${st.consecutiveFailures} in a row):`, st.lastError);
+        }
+        this.rotateProvider(chain);
       }
     }
     await this.payout();
@@ -430,9 +765,26 @@ export class PayinWatcher {
       .all(chain, asset, units.toString(), t - 600) as Array<{ quoteId: string; payer: string | null }>;
     const match = candidates.find((c) => c.payer && c.payer.toLowerCase() === fromAddr.toLowerCase()) ?? candidates.find((c) => !c.payer);
     db.prepare("INSERT OR IGNORE INTO payin_transfers (chain, txHash, logIndex, fromAddr, units, blockNumber, asset, quoteId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(chain, txHash, logIndex, fromAddr, units.toString(), blockNumber, asset, match?.quoteId ?? null, t);
-    if (!match) return false;
+    if (!match) {
+      console.warn(`[payin] ${chain} ${asset} deposit ${txHash} from ${fromAddr} matched no open quote — recorded unattributed for manual review`);
+      return false;
+    }
     db.prepare("UPDATE payins SET status = 'seen', txHashIn = ?, blockIn = ?, payer = COALESCE(payer, ?), seenAt = ?, confirmations = ? WHERE quoteId = ?").run(txHash, blockNumber, fromAddr, t, Math.max(0, head - blockNumber + 1), match.quoteId);
     return true;
+  }
+
+  /** Where a chain's very first ERC-20 scan starts: far enough back to cover every quote on it from the last
+   * 24 h. Without this a scanner that had never succeeded started at head−200 once fixed, and every deposit
+   * made during the outage stayed invisible. Overshooting only costs a few extra getLogs ranges. */
+  private firstScanFrom(chain: PayinChain, head: number): number {
+    const t = this.ctx.nowS();
+    const oldest = (this.ctx.db.prepare("SELECT MIN(createdAt) AS m FROM payins WHERE chain = ? AND createdAt >= ?").get(chain, t - PAYIN_MAX_BACKFILL_S) as { m: number | null }).m;
+    let lookback = PAYIN_LOOKBACK_BLOCKS;
+    if (oldest !== null && oldest !== undefined) {
+      const secs = Math.min(Math.max(t - oldest, 0) + 600, PAYIN_MAX_BACKFILL_S);
+      lookback = Math.max(lookback, Math.ceil(secs / (PAYIN_BLOCK_TIME_S[chain] ?? 2)));
+    }
+    return Math.max(head - lookback, 0);
   }
 
   private async scan(chain: PayinChain): Promise<void> {
@@ -442,50 +794,82 @@ export class PayinWatcher {
     const provider = this.provider(chain);
     const head = await provider.getBlockNumber();
     const info = PAYIN_CHAINS[chain];
+    const st = this.state.get(chain)!;
     const tokens = Object.entries(info.assets).filter(([, a]) => a.kind === "erc20") as Array<[PayinAsset, PayinAssetInfo]>;
     const assetByToken = new Map(tokens.map(([sym, a]) => [a.address!.toLowerCase(), sym]));
+    // The ERC-20 and native scans are independent: a provider that refuses eth_getLogs (bsc-dataseed) must not
+    // also blind the native-coin scan, which only needs full blocks. Both run; the first error is rethrown so
+    // the chain's health still records the failure.
+    let firstErr: unknown = null;
 
     // ---- ERC-20 stables: Transfer logs to the deposit address (both tokens in one filter) ----
-    const metaKey = `payin:${chain}:lastBlock`;
-    const last = Number(getMeta(db, metaKey) ?? head - PAYIN_LOOKBACK_BLOCKS);
-    const from = Math.min(last + 1, head);
-    const to = Math.min(head, from + PAYIN_CHUNK_BLOCKS - 1);
-    if (from <= head) {
-      const logs = await provider.getLogs({ address: tokens.map(([, a]) => a.address!), topics: [TRANSFER_TOPIC, null, zeroPadValue(deposit, 32)], fromBlock: from, toBlock: to });
-      for (const log of logs) {
-        const asset = assetByToken.get(log.address.toLowerCase());
-        if (!asset || !log.topics[1]) continue;
-        const fromAddr = getAddress("0x" + log.topics[1].slice(26));
-        this.attribute(chain, asset, BigInt(log.data), fromAddr, log.transactionHash, log.index, log.blockNumber, head);
+    try {
+      const metaKey = `payin:${chain}:lastBlock`;
+      const stored = getMeta(db, metaKey);
+      let last = stored !== undefined ? Number(stored) : this.firstScanFrom(chain, head);
+      for (let i = 0; i < PAYIN_MAX_CHUNKS_PER_TICK && last < head; i++) {
+        const from = last + 1;
+        const to = Math.min(head, from + st.chunkBlocks - 1);
+        let logs: Awaited<ReturnType<PayinProviderLike["getLogs"]>>;
+        try {
+          logs = await provider.getLogs({ address: tokens.map(([, a]) => a.address!), topics: [TRANSFER_TOPIC, null, zeroPadValue(deposit, 32)], fromBlock: from, toBlock: to });
+        } catch (err) {
+          // many public providers cap the range (10 / 50 / 500 / 10 000 blocks): halve it for the next try
+          st.chunkBlocks = Math.max(PAYIN_MIN_CHUNK_BLOCKS, Math.floor(st.chunkBlocks / 2));
+          throw err;
+        }
+        for (const log of logs) {
+          const asset = assetByToken.get(log.address.toLowerCase());
+          if (!asset || !log.topics[1]) continue;
+          const fromAddr = getAddress("0x" + log.topics[1].slice(26));
+          this.attribute(chain, asset, BigInt(log.data), fromAddr, log.transactionHash, log.index, log.blockNumber, head);
+        }
+        setMeta(db, metaKey, String(to));
+        last = to;
       }
-      setMeta(db, metaKey, String(to));
+      if (stored === undefined && last >= head) setMeta(db, metaKey, String(head));
+    } catch (err) {
+      firstErr ??= err;
     }
 
-    // ---- native coin: full blocks, only while a native quote is open (deposits to an EOA leave no log) ----
-    const nativeKey = `payin:${chain}:lastNativeBlock`;
-    const openNative = (db.prepare("SELECT COUNT(*) AS c FROM payins WHERE chain = ? AND asset = ? AND status = 'quoted' AND expiresAt >= ?").get(chain, info.native, this.ctx.nowS() - 600) as { c: number }).c;
-    const lastNative = Number(getMeta(db, nativeKey) ?? head - 1);
-    if (openNative === 0) {
-      setMeta(db, nativeKey, String(head));
-    } else {
-      const nFrom = Math.min(lastNative + 1, head);
-      const nTo = Math.min(head, nFrom + PAYIN_NATIVE_BLOCKS_PER_TICK - 1);
-      const depositLc = deposit.toLowerCase();
-      let scannedTo = nFrom - 1;
-      for (let n = nFrom; n <= nTo; n += 5) {
-        const batch = await Promise.all(Array.from({ length: Math.min(5, nTo - n + 1) }, (_, i) => provider.getBlock(n + i, true)));
-        for (const block of batch) {
-          if (!block) throw new Error(`block ${n} not available yet`);
-          for (const tx of block.prefetchedTransactions) {
-            if (!tx.to || tx.to.toLowerCase() !== depositLc || tx.value <= 0n) continue;
-            const receipt = await provider.getTransactionReceipt(tx.hash).catch(() => null);
-            if (receipt && receipt.status === 0) continue; // reverted (deposit address is a contract)
-            this.attribute(chain, info.native, tx.value, getAddress(tx.from), tx.hash, -1, block.number, head);
+    // ---- native coin: full blocks, only while a native quote is (or was, since the cursor last moved) open ----
+    try {
+      const nativeKey = `payin:${chain}:lastNativeBlock`;
+      const nativeAtKey = `payin:${chain}:lastNativeAt`;
+      const now = this.ctx.nowS();
+      // A quote that was open at any point since the cursor last advanced keeps the scan going: after an
+      // outage the cursor must not jump to head past a deposit made for a quote that expired meanwhile.
+      const sinceS = Number(getMeta(db, nativeAtKey) ?? now);
+      const openNative = (db.prepare("SELECT COUNT(*) AS c FROM payins WHERE chain = ? AND asset = ? AND status IN ('quoted', 'superseded', 'expired') AND expiresAt >= ?").get(chain, info.native, Math.min(sinceS, now) - 600) as { c: number }).c;
+      const lastNative = Number(getMeta(db, nativeKey) ?? head - 1);
+      if (openNative === 0) {
+        setMeta(db, nativeKey, String(head));
+        setMeta(db, nativeAtKey, String(now));
+      } else {
+        const nFrom = Math.min(lastNative + 1, head);
+        const nTo = Math.min(head, nFrom + PAYIN_NATIVE_BLOCKS_PER_TICK - 1);
+        const depositLc = deposit.toLowerCase();
+        let scannedTo = nFrom - 1;
+        for (let n = nFrom; n <= nTo; n += 5) {
+          const batch = await Promise.all(Array.from({ length: Math.min(5, nTo - n + 1) }, (_, i) => provider.getBlock(n + i, true)));
+          for (const block of batch) {
+            if (!block) throw new Error(`block ${n} not available yet`);
+            for (const tx of block.prefetchedTransactions) {
+              if (!tx.to || tx.to.toLowerCase() !== depositLc || tx.value <= 0n) continue;
+              const receipt = await provider.getTransactionReceipt(tx.hash).catch(() => null);
+              if (receipt && receipt.status === 0) continue; // reverted (deposit address is a contract)
+              this.attribute(chain, info.native, tx.value, getAddress(tx.from), tx.hash, -1, block.number, head);
+            }
+            scannedTo = Math.max(scannedTo, block.number);
           }
-          scannedTo = Math.max(scannedTo, block.number);
+        }
+        if (scannedTo >= nFrom) {
+          setMeta(db, nativeKey, String(scannedTo));
+          if (scannedTo >= head) setMeta(db, nativeAtKey, String(now));
         }
       }
-      if (scannedTo >= nFrom) setMeta(db, nativeKey, String(scannedTo));
+    } catch (err) {
+      firstErr ??= err;
     }
 
     // ---- confirmations for seen rows on this chain (confirmation depth is chain-specific) ----
@@ -493,6 +877,16 @@ export class PayinWatcher {
     for (const r of seen) {
       const conf = Math.max(0, head - r.blockIn + 1);
       db.prepare("UPDATE payins SET confirmations = ?, status = CASE WHEN ? >= ? THEN 'confirmed' ELSE status END WHERE quoteId = ?").run(conf, conf, info.confirmations, r.quoteId);
+    }
+    if (firstErr) throw firstErr;
+  }
+
+  /** Deposits recorded with no matching quote (paid too late, wrong amount, wrong sender) — each needs a manual refund or credit. */
+  unattributedCount(sinceS: number): number {
+    try {
+      return (this.ctx.db.prepare("SELECT COUNT(*) AS c FROM payin_transfers WHERE quoteId IS NULL AND createdAt >= ?").get(sinceS) as { c: number }).c;
+    } catch {
+      return 0;
     }
   }
 
@@ -622,12 +1016,99 @@ export function registerPayinRoutes(app: FastifyInstance, ctx: V3Context, watche
     expires: PAYIN_QUOTE_TTL_S,
     chains: PAYIN_CHAIN_SLUGS.map((chain) => {
       const c = PAYIN_CHAINS[chain];
+      const h = watcher.chainHealth(chain);
+      const available = watcher.enabled && h.ok;
       return {
         chain, chainId: c.chainId, name: c.name, explorer: c.explorer, confirmations: c.confirmations, depositAddress: watcher.depositAddress(chain),
         assets: Object.entries(c.assets).map(([symbol, a]) => ({ symbol, kind: a.kind, token: a.address, decimals: a.decimals, stable: a.stable })),
+        // a chain whose deposit scanner has not completed a recent scan takes no new quotes — pay-in UIs
+        // must not offer it (ferminux.net/buy-fmx and ferminux.com list only `available` chains)
+        available,
+        lastScanAt: h.lastOkAt,
+        ...(available || !watcher.enabled ? {} : { unavailableReason: `${h.reason ?? "deposit scanner is not reaching this chain right now"} — pay on another chain` }),
       };
     }),
+    availableChains: watcher.enabled ? PAYIN_CHAIN_SLUGS.filter((c) => watcher.chainAvailable(c)) : [],
   }));
+
+  // The market reference shown beside the quote. Its own route so a slow chain read never delays the asset list;
+  // the pages render the quote first and add this line when (if) it answers. The top level is the PRIMARY market:
+  // the deepest FMX pool on the Ferminux DEX (chain 3961). PancakeSwap's wFMX pool on BNB Chain rides along under
+  // `secondary`, with the bridge's live state, and takes the top level only when chain 3961 cannot be read.
+  app.get("/api/payin/market", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (_req, reply) => {
+    const [dex, pancake, bridge] = await Promise.allSettled([feed.dexMarket(), feed.pancakeMarket(), feed.bridgeStatus()]);
+    const quote = feed.fixed ? await feed.price().then((p) => p.priceE18).catch(() => null) : null;
+    // signed: + means the pay-in quote is above the primary market's spot price
+    const gap = (m: MarketPrice) => (quote === null || m.priceE18 === 0n ? null : Number(((quote - m.priceE18) * 10_000n) / m.priceE18) / 100);
+    const bridgeState: BridgeState = bridge.status === "fulfilled" ? bridge.value : { paused: true, reason: "the validators' status report could not be read", at: Date.now() };
+    const pancakeView = (m: MarketPrice) => ({
+      venue: "pancakeswap" as const,
+      source: PAYIN_MARKET_SOURCE,
+      chain: "bsc",
+      chainId: 56,
+      pair: FIXED_CONTRACTS.pancakePair,
+      token: FIXED_CONTRACTS.wfmx,
+      usdPerFmx: fmt18(m.priceE18),
+      liquidityUsd: fmt18(m.liquidityUsdE18),
+      wfmxReserve: fmt18(m.wfmxReserveE18),
+      lastTradeAt: m.lastTradeAt,
+      at: Math.floor(m.at / 1000),
+      swapUrl: `https://pancakeswap.finance/swap?chain=bsc&outputCurrency=${FIXED_CONTRACTS.wfmx}`,
+      // wFMX is native FMX only through the bridge: say whether it is moving, from the validators' own report
+      bridgePaused: bridgeState.paused,
+      bridgeReason: bridgeState.reason,
+      bridgeStatusUrl: "https://ferminux.net/security.html#status",
+    });
+    const poolView = (p: DexPool) => ({
+      pair: p.pair,
+      quoteSymbol: p.quoteSymbol,
+      quoteToken: p.quoteToken,
+      quoteReserve: formatUnits(p.quoteReserve, p.quoteDecimals),
+      priceInQuote: fmt18(p.priceInQuoteE18),
+      usdPerQuote: fmt18(p.usdPerQuoteE18),
+      usdBasis: p.usdBasis,
+      usdPerFmx: fmt18(p.priceE18),
+      liquidityUsd: fmt18(p.liquidityUsdE18),
+      wfmxReserve: fmt18(p.wfmxReserveE18),
+      lastTradeAt: p.lastTradeAt,
+      swapUrl: dexSwapUrl(p.quoteToken),
+      poolUrl: `https://explorer.ferminux.net/address/${p.pair}`,
+    });
+
+    if (dex.status === "fulfilled") {
+      const top = dex.value.pools[0]!;
+      return {
+        ...poolView(top),
+        source: DEX_MARKET_SOURCE(top.quoteSymbol),
+        venue: "ferminux-dex",
+        chain: "ferminux",
+        chainId: 3961,
+        token: FERMINUX_DEX.wfmx,
+        dexUrl: FERMINUX_DEX.url,
+        at: Math.floor(top.at / 1000),
+        pools: dex.value.pools.map(poolView),
+        quoteUsdPerFmx: quote === null ? null : fmt18(quote),
+        quoteVsMarketPct: gap(top),
+        note: `Spot price of the deepest FMX pool on the Ferminux DEX, read from its reserves: a trade of size moves it. USD is through ${top.quoteSymbol} (${top.usdBasis}). The pay-in quote is set by the operator, not read from this pool.`,
+        secondary: pancake.status === "fulfilled" ? pancakeView(pancake.value) : null,
+      };
+    }
+    if (pancake.status === "fulfilled") {
+      // chain 3961 did not answer: the BNB Chain pool stands in, labelled as what it is
+      return {
+        ...pancakeView(pancake.value),
+        quoteUsdPerFmx: quote === null ? null : fmt18(quote),
+        quoteVsMarketPct: gap(pancake.value),
+        note: "The Ferminux DEX could not be read just now, so this is the wFMX pool on BNB Chain: a thin pool whose price moves sharply with trade size. The pay-in quote is set by the operator, not read from it.",
+        primaryError: `Ferminux DEX unreadable: ${(dex.reason as Error).message.slice(0, 120)}`,
+        secondary: null,
+      };
+    }
+    return reply.code(503).send({
+      error: `market price unavailable: Ferminux DEX: ${(dex.reason as Error).message.slice(0, 100)}; PancakeSwap: ${(pancake.reason as Error).message.slice(0, 100)}`,
+      source: "Ferminux DEX (chain 3961), then the PancakeSwap wFMX/WBNB pool (BNB Chain)",
+    });
+  });
 
   app.post("/api/payin/quote", { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
     try {
@@ -636,6 +1117,13 @@ export function registerPayinRoutes(app: FastifyInstance, ctx: V3Context, watche
       const chain = String(body.chain ?? "") as PayinChain;
       if (!(chain in PAYIN_CHAINS)) throw new HttpError(400, `chain must be one of ${PAYIN_CHAIN_SLUGS.join("|")}`);
       const info = PAYIN_CHAINS[chain];
+      // Never take money on a chain we cannot currently see: the deposit would sit unattributed in the hot
+      // wallet until someone refunds it by hand.
+      if (!watcher.chainAvailable(chain)) {
+        const others = PAYIN_CHAIN_SLUGS.filter((c) => watcher.chainAvailable(c));
+        const why = watcher.chainHealth(chain).reason ?? "its deposit scanner is failing";
+        return reply.code(503).send({ error: `pay-in on ${info.name} is temporarily unavailable (${why}); pay on ${others.length ? others.join(", ") : "another chain later"}`, chain, unavailable: true, availableChains: others });
+      }
       // v1 callers send {usdc}; v2 sends {asset, amount}
       const legacy = body.asset === undefined && body.amount === undefined && body.usdc !== undefined;
       const asset = (legacy ? "USDC" : String(body.asset ?? "USDC").toUpperCase()) as PayinAsset;

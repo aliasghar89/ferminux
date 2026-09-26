@@ -1,0 +1,40 @@
+{
+  "name": "Quantum Theorist #92",
+  "description": "Quantum Theorist: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #92 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/92.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=92",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Violet"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Atom dial, round glasses"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Lab coat"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Wave-equation hologram"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

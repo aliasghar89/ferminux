@@ -14,6 +14,7 @@ import { canonicalMessage } from "../dist/commons/sign.js";
 import { parseChangelog, releasesSince, compareVersions } from "../dist/changelog.js";
 import { parseRewardFloor, capabilityTerms, formatFmx, WORK_KINDS } from "../dist/work.js";
 import { GATEWAY_VERSION } from "../dist/openapi.js";
+import { buildStatus } from "../dist/status.js";
 
 /** Reads SSE frames from a fetch Response until `count` events arrived or the deadline passes. */
 async function readWork(res, count, timeoutMs = 3000) {
@@ -101,7 +102,7 @@ async function setup() {
     1, bob.address, "h100-frankfurt", "https://gpu.example", "One H100 in Frankfurt", JSON.stringify({ gpu: "H100", vramGb: 80, pricePerSecond: "300000000000000", region: "eu-central", endpoint: "https://gpu.example/run" }), NOW_S - 50, NOW_S - 50,
   );
 
-  const { app, activity } = await buildServer({ db, cfg, workers: false, logger: false, commons: { now: () => nowMs, forward: async () => {}, toolProbeFetch: async () => new Response(null, { status: 200 }), sseHeartbeatMs: 1e9 } });
+  const { app, activity, v3, x402, payin } = await buildServer({ db, cfg, workers: false, logger: false, commons: { now: () => nowMs, forward: async () => {}, toolProbeFetch: async () => new Response(null, { status: 200 }), sseHeartbeatMs: 1e9 } });
   await app.ready();
   const clock = { s: () => Math.floor(nowMs / 1000), advance: (ms) => (nowMs += ms) };
   const inject = (method, url, body, hdrs = {}) => app.inject({ method, url, headers: { "content-type": "application/json", ...hdrs }, payload: body === undefined ? undefined : JSON.stringify(body) });
@@ -111,7 +112,7 @@ async function setup() {
     const sig = await wallet.signMessage(canonicalMessage(action, wallet.address, ts, payload));
     return { ...payload, address: wallet.address, ts, sig };
   };
-  return { app, db, activity, inject, get, signed, clock };
+  return { app, db, activity, inject, get, signed, clock, v3, x402, payin };
 }
 
 test("/api/work merges every earning surface, and hides taken/expired work", async (t) => {
@@ -242,7 +243,7 @@ test("/api/status reports every service, and degrades instead of throwing when t
   assert.equal(s.ok, false); // the test RPC is unreachable
   assert.ok(s.degraded.includes("rpc"));
   assert.equal(s.head, null);
-  for (const key of ["rpc", "indexer", "v3indexer", "facilitator", "relayer", "faucet", "payin", "webhooks", "db"]) {
+  for (const key of ["rpc", "chain", "indexer", "v3indexer", "facilitator", "relayer", "faucet", "payin", "webhooks", "db"]) {
     assert.ok(key in s.services, `missing service ${key}`);
     assert.equal(typeof s.services[key].ok, "boolean");
   }
@@ -256,6 +257,49 @@ test("/api/status reports every service, and degrades instead of throwing when t
   assert.equal(s.services.db.agents, 2);
   assert.equal(s.links.page, "https://ferminux.net/status/");
   assert.ok(s.uptimeS >= 0);
+});
+
+// A halted chain (head stops, indexer lag 0) and a signer outage (3 of 5 still confirming) both used to read
+// "ok" here — the 2026-09-24 audit found 2 of 5 signers silent with /api/status green.
+test("/api/status chain service: head-block age and silent signers from clique_status degrade it", async (t) => {
+  const { app, db, v3, x402, payin } = await setup();
+  t.after(() => app.close());
+  let blockTs = NOW_S - 5;
+  let activity = { "0x3322000000000000000000000000000000000001": 22, "0x7137000000000000000000000000000000000002": 21, "0x1538000000000000000000000000000000000003": 0 };
+  const provider = {
+    getBlockNumber: async () => 500,
+    getNetwork: async () => ({ chainId: 3961n }),
+    getBalance: async () => 0n,
+    getBlock: async (n) => ({ number: n, timestamp: blockTs }),
+    send: async (method) => {
+      if (method === "clique_status") return { sealerActivity: activity, numBlocks: 64, inturnPercent: 20.31 };
+      throw new Error(`unexpected ${method}`);
+    },
+  };
+  const opts = { db, cfg, provider, v3, x402, payin };
+  let s = await buildStatus(opts, Date.now());
+  assert.equal(s.services.chain.ok, false);
+  assert.ok(s.degraded.includes("chain"));
+  assert.deepEqual({ total: s.services.chain.signers.total, active: s.services.chain.signers.active }, { total: 3, active: 2 });
+  assert.deepEqual(s.services.chain.signers.silent, ["0x1538000000000000000000000000000000000003"]);
+  assert.match(s.services.chain.detail, /2 of 3 signers/);
+  assert.equal(s.services.chain.headAgeS, 5);
+
+  activity = { ...activity, "0x1538000000000000000000000000000000000003": 20 };
+  s = await buildStatus(opts, Date.now());
+  assert.equal(s.services.chain.ok, true, s.services.chain.detail);
+  assert.ok(!s.degraded.includes("chain"));
+
+  blockTs = NOW_S - 300; // head stopped moving: a halt
+  s = await buildStatus(opts, Date.now());
+  assert.equal(s.services.chain.ok, false);
+  assert.match(s.services.chain.detail, /halted/);
+
+  blockTs = NOW_S - 5;
+  provider.send = async () => { throw new Error("the method clique_status does not exist"); };
+  s = await buildStatus(opts, Date.now());
+  assert.equal(s.services.chain.ok, false, "signer health unknown is not ok");
+  assert.match(s.services.chain.detail, /clique_status unavailable/);
 });
 
 test("/api/changelog parses releases, filters with ?since=, and serves the raw Markdown", async (t) => {

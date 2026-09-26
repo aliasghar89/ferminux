@@ -54,6 +54,52 @@ export interface Endpoint {
   lastOkAt: number;
   /** Reset to 0 by a successful probe; used only for operator visibility. */
   consecutiveFailures: number;
+  /**
+   * Whether this endpoint serves eth_getLogs. Tracked APART from `healthy`:
+   * public nodes routinely answer eth_chainId and eth_call while refusing
+   * getLogs outright (bsc-dataseed: -32005 "limit exceeded" even for one block).
+   * When one flag carried both, every getLogs refusal demoted the endpoint for
+   * EVERYTHING, and the checkpoint-registry read — a plain eth_call that all
+   * three BSC endpoints serve — failed with "0 healthy endpoints" from
+   * 2026-09-14 on, so the validators refused to sign in both directions.
+   */
+  logsOk: boolean;
+  /** When logsOk last went false; the endpoint is retried for logs LOGS_RETRY_MS later. */
+  logsFailedAt: number;
+  logsError: string | null;
+}
+
+/** How long an endpoint that failed a log read sits out of log reads before one retry. */
+export const LOGS_RETRY_MS = 5 * 60_000;
+
+function textsOf(err: unknown, depth = 0, out: string[] = []): string[] {
+  if (depth > 4 || err === null || err === undefined) return out;
+  if (typeof err === 'string') {
+    out.push(err);
+    return out;
+  }
+  if (err instanceof AggregateError) for (const e of err.errors) textsOf(e, depth + 1, out);
+  const e = err as { message?: unknown; shortMessage?: unknown; error?: unknown; info?: { responseBody?: unknown } };
+  for (const v of [e.message, e.shortMessage, e.info?.responseBody]) if (typeof v === 'string') out.push(v);
+  if (e.error !== undefined) textsOf(e.error, depth + 1, out);
+  return out;
+}
+
+/**
+ * Is this getLogs failure a refusal of THE RANGE asked for — archive depth, or a
+ * span cap — rather than of the endpoint? Such an endpoint may serve the next
+ * range, and certainly still serves eth_call, so it must not be demoted for
+ * it; the chunk is simply retried on the next endpoint. The text is matched
+ * across ethers' wrapper AND the node's own response body, because a publicnode
+ * archive refusal arrives as "server response 403 Forbidden" with the reason
+ * only in the body.
+ *
+ * A bare "limit exceeded" is NOT treated as a range refusal: bsc-dataseed
+ * returns it for a single block at the head, i.e. it does not serve logs at all.
+ */
+export function isRangeRefusal(err: unknown): boolean {
+  const text = textsOf(err).join(' | ');
+  return /archive|block range|blocks range|range (is )?too (large|wide|big)|ranges over|exceed(s|ed)? (the )?max(imum)? (block )?range|query returned more than|too many blocks|range limit|limited to \d+ ?- ?\d+ blocks/i.test(text);
 }
 
 /**
@@ -150,6 +196,9 @@ export class ChainClient {
       lastCheckedAt: 0,
       lastOkAt: 0,
       consecutiveFailures: 0,
+      logsOk: true,
+      logsFailedAt: 0,
+      logsError: null,
     }));
   }
 
@@ -168,6 +217,43 @@ export class ChainClient {
 
   get healthyEndpoints(): Endpoint[] {
     return this.endpoints.filter((e) => e.healthy);
+  }
+
+  /**
+   * Healthy endpoints that serve eth_getLogs, plus any that failed a log read
+   * more than LOGS_RETRY_MS ago and are due one more try. Log reads (discovery
+   * and the pre-signing re-read) use this set; every other read uses
+   * healthyEndpoints, so a node that cannot serve logs still counts as a
+   * witness for headers and for the checkpoint registry.
+   */
+  get logEndpoints(): Endpoint[] {
+    const now = Date.now();
+    return this.endpoints.filter((e) => e.healthy && (e.logsOk || now - e.logsFailedAt >= LOGS_RETRY_MS));
+  }
+
+  private markLogsUnusable(e: Endpoint, message: string): void {
+    const was = e.logsOk;
+    e.logsOk = false;
+    e.logsFailedAt = Date.now();
+    e.logsError = message;
+    // Once per transition, not once per poll: the same refusal every 3 seconds
+    // was ~280k journal lines a day per service and buried everything else.
+    if (!was) return;
+    this.log.warn('rpc endpoint cannot serve eth_getLogs — excluded from log reads, still used for calls', { url: e.url, err: message });
+    this.alerts.fire({
+      kind: 'rpc_unhealthy',
+      severity: 'warn',
+      message: 'RPC endpoint cannot serve eth_getLogs',
+      key: `logs:${e.url}`,
+      fields: { chain: this.config.name, url: e.url, err: message, retryAfterMs: LOGS_RETRY_MS },
+    });
+  }
+
+  private markLogsOk(e: Endpoint): void {
+    if (e.logsOk) return;
+    e.logsOk = true;
+    e.logsError = null;
+    this.log.info('rpc endpoint serves eth_getLogs again', { url: e.url });
   }
 
   /**
@@ -461,14 +547,51 @@ export class ChainClient {
    * survive confirmSentAcrossEndpoints before it can be signed, so a single
    * endpoint answering this is not a trust decision.
    */
-  async scanSent(fromBlock: number, toBlock: number): Promise<SentEvent[]> {
+  async scanSent(
+    fromBlock: number,
+    toBlock: number,
+    /**
+     * Called after each chunk is read, with the chunk's last block and its
+     * events, BEFORE the next chunk is requested. Lets the watcher persist
+     * progress chunk by chunk: a 1.9M-block catch-up that fails at chunk 900
+     * must not throw away the 899 chunks it already read.
+     */
+    onChunk?: (end: number, events: SentEvent[]) => void | Promise<void>,
+  ): Promise<SentEvent[]> {
     const out: SentEvent[] = [];
     for (let start = fromBlock; start <= toBlock; start += this.config.maxBlockRange) {
       const end = Math.min(start + this.config.maxBlockRange - 1, toBlock);
-      const logs = await this.withFailover(`getLogs(${start}..${end})`, (e) => this.sentLogsFrom(e, start, end));
-      out.push(...this.decodeSent(logs));
+      const events = this.decodeSent(await this.logsWithFailover(start, end));
+      out.push(...events);
+      if (onChunk) await onChunk(end, events);
     }
     return out;
+  }
+
+  /**
+   * One chunk of `Sent` logs from the first log-serving endpoint that answers.
+   * A range refusal skips the endpoint for this chunk only; any other failure
+   * takes it out of LOG reads (not out of the chain) until LOGS_RETRY_MS.
+   */
+  private async logsWithFailover(start: number, end: number): Promise<Log[]> {
+    const endpoints = this.logEndpoints;
+    if (endpoints.length === 0) {
+      const why = this.endpoints.map((e) => `${e.host}: ${e.healthy ? (e.logsError ?? 'ok') : (e.lastError ?? 'unhealthy')}`).join('; ');
+      throw new Error(`chain ${this.config.name}: no healthy endpoint serves eth_getLogs (${why})`);
+    }
+    const problems: string[] = [];
+    for (const e of endpoints) {
+      try {
+        const logs = await this.sentLogsFrom(e, start, end);
+        this.markLogsOk(e);
+        return logs;
+      } catch (err) {
+        const text = errorText(err);
+        problems.push(`${e.host}: ${text}`);
+        if (!isRangeRefusal(err)) this.markLogsUnusable(e, `getLogs(${start}..${end}): ${text}`);
+      }
+    }
+    throw new Error(`chain ${this.config.name}: getLogs(${start}..${end}) failed on all ${endpoints.length} log-serving endpoint(s): ${problems.join('; ')}`);
   }
 
   /**
@@ -504,7 +627,10 @@ export class ChainClient {
     blockHash: string,
     requireAll: boolean,
   ): Promise<{ status: 'ok' | 'vanished' | 'quorum_failed' | 'unavailable'; reason: string | null; agreed: number; checked: number }> {
-    const endpoints = this.healthyEndpoints;
+    // Only endpoints that serve logs are asked. One that cannot is not a
+    // witness to a log, and leaving it in made requireRpcQuorum wait on it
+    // forever; it still counts for headers and registry reads.
+    const endpoints = this.logEndpoints;
     const minAgree = this.config.minAgreeingEndpoints;
     if (endpoints.length === 0) return { status: 'unavailable', reason: 'no healthy endpoint', agreed: 0, checked: 0 };
     if (endpoints.length < minAgree) {
@@ -527,6 +653,7 @@ export class ChainClient {
     for (const e of endpoints) {
       try {
         const logs = await this.sentLogsFrom(e, blockNumber, blockNumber);
+        this.markLogsOk(e);
         const events = this.decodeSent(logs);
         const match = events.find((ev) => ev.transferId.toLowerCase() === transferId.toLowerCase());
         if (!match) {
@@ -543,6 +670,9 @@ export class ChainClient {
       } catch (err) {
         errored++;
         disagreements.push(`${e.url}: ${errorText(err)}`);
+        // A one-block read cannot be a range problem: this endpoint does not
+        // serve logs right now. Out of the log set until the retry window.
+        this.markLogsUnusable(e, `getLogs(${blockNumber}): ${errorText(err)}`);
       }
     }
     const checked = agreed + missing + errored;
@@ -683,6 +813,7 @@ export class ChainClient {
       finalityTag: this.config.finalityTag,
       minAgreeingEndpoints: this.config.minAgreeingEndpoints,
       healthyEndpoints: this.healthyEndpoints.length,
+      logEndpoints: this.logEndpoints.length,
       endpoints: this.endpoints.map((e) => ({
         url: e.url,
         host: e.host,
@@ -691,6 +822,8 @@ export class ChainClient {
         lastCheckedAt: e.lastCheckedAt,
         lastOkAt: e.lastOkAt,
         consecutiveFailures: e.consecutiveFailures,
+        logsOk: e.logsOk,
+        logsError: e.logsError,
       })),
     };
   }

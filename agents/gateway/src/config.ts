@@ -93,13 +93,15 @@ export interface GatewayConfig {
   payinHotKey?: string;
   /** deposit-address override per pay-in chain slug (PAYIN_DEPOSIT_<CHAIN>); unset chains use the hot wallet address */
   payinDeposits: Record<string, string>;
-  /** operator-fixed USD price per FMX for pay-in quotes (PAYIN_PRICE_USD, decimal string); unset = wFMX pool price */
+  /** operator-fixed USD price per FMX for pay-in quotes (PAYIN_PRICE_USD, decimal string); unset = the Ferminux DEX pool price */
   payinPriceUsd?: string;
   /** floor for the pool-derived price (PAYIN_MIN_PRICE_USD) */
   payinMinPriceUsd?: string;
-  /** RPC URL per pay-in chain slug (<CHAIN>_RPC_URL); bsc also feeds the PriceFeed's PancakeSwap reads */
+  /** RPC URL(s) per pay-in chain slug (<CHAIN>_RPC_URL, comma-separated for fallbacks); bsc's first URL also feeds the PriceFeed's PancakeSwap reads */
   payinRpcUrls: Record<string, string>;
   bscRpcUrl: string;
+  /** the bridge relayer's liveness report (BRIDGE_STATUS_URL), read for the wFMX note beside the market price */
+  bridgeStatusUrl?: string;
   /** gas sponsorship relayer key (AgentAccount.executeWithSig / factory.create) */
   relayerKey?: string;
   /** audit export signing key; unset = ephemeral key generated at boot */
@@ -130,13 +132,19 @@ export interface GatewayConfig {
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-/** Pay-in chain slugs → default public RPC and env-var name (PAYIN_DEPOSIT_<CHAIN>, <CHAIN>_RPC_URL). */
-const PAYIN_RPC_DEFAULTS: Record<string, string> = {
-  eth: "https://eth.llamarpc.com",
-  bsc: "https://bsc-dataseed.binance.org",
+/** Pay-in chain slugs → default public RPC(s) and env-var name (PAYIN_DEPOSIT_<CHAIN>, <CHAIN>_RPC_URL).
+ * A value may be a comma-separated list: the watcher moves to the next URL after a failed scan. Every
+ * default must serve eth_getLogs with an address filter over a few thousand blocks — the watcher's only way
+ * to see ERC-20 deposits. The 2026-09-24 audit found eth.llamarpc.com (HTTP 525), polygon-rpc.com ("tenant
+ * disabled") and bsc-dataseed.binance.org (-32005 on every eth_getLogs) had never completed a single scan,
+ * so pay-in on Ethereum, BNB Chain and Polygon was silently dead. The replacements below were checked with a
+ * deposit-address getLogs the same day; the watcher also halves its block range when a provider caps it. */
+export const PAYIN_RPC_DEFAULTS: Record<string, string> = {
+  eth: "https://ethereum-rpc.publicnode.com,https://rpc.mevblocker.io",
+  bsc: "https://bsc-rpc.publicnode.com,https://bsc.publicnode.com",
   base: "https://mainnet.base.org",
   arbitrum: "https://arb1.arbitrum.io/rpc",
-  polygon: "https://polygon-rpc.com",
+  polygon: "https://polygon-bor-rpc.publicnode.com,https://polygon-bor.publicnode.com",
   optimism: "https://mainnet.optimism.io",
   avalanche: "https://api.avax.network/ext/bc/C/rpc",
 };
@@ -223,7 +231,9 @@ export function loadConfig(): GatewayConfig {
     payinPriceUsd: /^\d+(\.\d{1,18})?$/.test(process.env.PAYIN_PRICE_USD ?? "") ? process.env.PAYIN_PRICE_USD : undefined,
     payinMinPriceUsd: /^\d+(\.\d{1,18})?$/.test(process.env.PAYIN_MIN_PRICE_USD ?? "") ? process.env.PAYIN_MIN_PRICE_USD : undefined,
     payinRpcUrls,
-    bscRpcUrl: payinRpcUrls.bsc!,
+    // the PancakeSwap price reads take one URL: the first of the bsc list
+    bscRpcUrl: payinRpcUrls.bsc!.split(",")[0]!.trim(),
+    bridgeStatusUrl: /^https?:\/\//.test(process.env.BRIDGE_STATUS_URL ?? "") ? process.env.BRIDGE_STATUS_URL : undefined,
     relayerKey: optionalKey("RELAYER_KEY"),
     gatewaySigningKey: optionalKey("GATEWAY_SIGNING_KEY"),
     oracleKey: optionalKey("ORACLE_KEY"),

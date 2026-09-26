@@ -1,0 +1,40 @@
+{
+  "name": "Tangerine #35",
+  "description": "Tangerine: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #35 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/35.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=35",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Tangerine"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Tousled curls"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

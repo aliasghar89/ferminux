@@ -1,0 +1,154 @@
+{
+  "version": "pre-module-rename-155-g6a6b7be",
+  "network": "devnet",
+  "chainId": 39619,
+  "hub": "0x7cee961a2c903ce8a17f690ae966e30e4d973254",
+  "attester": "0xca103c68a99e8c3781a4a46d832b4bdb734f9f97",
+  "started": "2026-09-25T21:40:38.203288421Z",
+  "sync": {
+    "ready": true,
+    "chainId": 39619,
+    "head": 2812,
+    "headHash": "0x8ca65c7ed5504fb6f4717abc4f2e31059796dbac30a8282d3d2fd2230bc91d91",
+    "headAgeSeconds": 0.68413935,
+    "peers": 17,
+    "syncing": false,
+    "checked": "2026-09-25T22:13:15.68413935Z"
+  },
+  "seat": {
+    "id": 7,
+    "status": 1,
+    "statusText": "waiting to activate",
+    "owner": "0x3ceef9714fcd9f067b9640bcc73cb0684b4ec592",
+    "attester": "0xca103c68a99e8c3781a4a46d832b4bdb734f9f97",
+    "pendingAttester": "0x0000000000000000000000000000000000000000",
+    "claimableWei": 0,
+    "depositWei": 2000000000000000000000,
+    "lastAttestedHeight": 0,
+    "activationBlock": 13476,
+    "countedSince": 0,
+    "jailed": false,
+    "slashState": 0
+  },
+  "attestationsPaused": false,
+  "watchCheckpointsLeft": 0,
+  "nextCheckpoint": 2800,
+  "nextOpensAt": 2864,
+  "attestations": [
+    {
+      "height": 2600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "waiting",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T22:13:15.684653297Z"
+    },
+    {
+      "height": 2400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T22:10:33.685487201Z"
+    },
+    {
+      "height": 2200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T22:07:13.685591872Z"
+    },
+    {
+      "height": 2000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T22:03:53.687027469Z"
+    },
+    {
+      "height": 1800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T22:00:33.685905586Z"
+    },
+    {
+      "height": 1600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T21:57:13.686190404Z"
+    },
+    {
+      "height": 1400,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T21:53:53.685914151Z"
+    },
+    {
+      "height": 1200,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T21:50:33.685277946Z"
+    },
+    {
+      "height": 1000,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "seat activates at block 13476",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T21:47:13.685352391Z"
+    },
+    {
+      "height": 800,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "no seat for this attester key",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-25T21:43:53.685562934Z"
+    }
+  ],
+  "rewards": {
+    "rewardPerAttestWei": 25000000000000000,
+    "expectedPerDayWei": 1542857142857142857,
+    "rewardPoolWei": 0,
+    "poolEmpty": true,
+    "occupiedSeats": 9,
+    "eligibleSeats": 0,
+    "maxSeats": 100,
+    "claimableWei": 0
+  },
+  "gas": {
+    "balanceWei": 1000000000000000000,
+    "low": false
+  },
+  "node": {
+    "supervised": true,
+    "running": true,
+    "pid": 17,
+    "restarts": 0,
+    "since": "2026-09-25T21:40:38.260466297Z"
+  },
+  "participation24h": {
+    "window": 62,
+    "included": 0
+  },
+  "participation7d": {
+    "window": 432,
+    "included": 0
+  },
+  "phase": {
+    "state": "activating",
+    "tone": "wait",
+    "title": "Waiting to activate",
+    "detail": "The seat activates at block 13,476 (in about 21 h)."
+  }
+}

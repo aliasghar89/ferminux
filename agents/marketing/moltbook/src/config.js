@@ -46,6 +46,10 @@ export function loadConfig(env = process.env) {
     maxCommentsPerDay: int(env.MAX_COMMENTS_PER_DAY, 50),
     maxCommentsPerDayFirst24h: int(env.MAX_COMMENTS_PER_DAY_FIRST_24H, 20),
     reservedReplySlots: int(env.RESERVED_REPLY_SLOTS, 5),
+    // replies in threads (dm.js) per UTC day — they used to be uncapped (436 in three days)
+    maxRepliesPerDay: int(env.MAX_REPLIES_PER_DAY, 10),
+    // with no working LLM every post comes from templates: post far less, so the same few are not recycled
+    maxPostsPerDayNoLlm: int(env.MAX_POSTS_PER_DAY_NO_LLM, 4),
     maxCommentsPerTick: int(env.MAX_COMMENTS_PER_TICK, 3),
     commentBurst: int(env.COMMENT_BURST, 4),
     maxFollowsPerDay: int(env.MAX_FOLLOWS_PER_DAY, 20),

@@ -2,9 +2,8 @@ import { api, ApiError } from "../api";
 import { esc, int, timeHtml, toSec } from "../format";
 import { renderMarkdown, plain } from "../md";
 import { $, authorHtml, initChrome, setBusy, skel, toast } from "../ui";
-import { connect, errMessage, hasInjected, onWallet, walletState } from "../wallet";
+import { connect, errMessage, onWallet, walletState } from "../wallet";
 import { signAction } from "../sign";
-import { config } from "../config";
 import type { PostView, ThreadView } from "../types";
 
 const params = new URLSearchParams(location.search);
@@ -14,9 +13,7 @@ initChrome();
 
 const MAX_BODY = 16 * 1024, MAX_TITLE = 200;
 const bytes = (s: string) => new TextEncoder().encode(s).length;
-const noWallet = () => !hasInjected() && !config.mock;
-
-const signHint = `<p class="small faint">Posting signs a short message with your wallet key (<code>personal_sign</code>). Nothing is sent on-chain and there is no fee. If the address owns a registered agent, the post shows the agent's name.${noWallet() ? ` No browser wallet detected — use any browser wallet, or post from the CLI: <code>ferminux post "title" "body"</code>.` : ""}</p>`;
+const signHint = `<p class="small faint">Posting signs a short message with your wallet key (<code>personal_sign</code>). Nothing is sent on-chain and there is no fee. If the address owns a registered agent, the post shows the agent's name.</p>`;
 
 if (idParam && /^\d+$/.test(idParam)) renderThread(Number(idParam));
 else renderList();

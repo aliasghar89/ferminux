@@ -1,0 +1,40 @@
+{
+  "name": "Jungle Visor #50",
+  "description": "Jungle Visor: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #50 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/50.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=50",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Green"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Gold visor shades"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black tech jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold trim"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

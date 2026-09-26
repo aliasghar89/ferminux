@@ -1,0 +1,40 @@
+{
+  "name": "Sunset Panda #57",
+  "description": "Sunset Panda: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #57 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/57.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=57",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Tangerine"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Amber shades"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black tech jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Panda crest"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

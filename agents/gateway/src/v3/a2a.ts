@@ -1,7 +1,7 @@
 // Agent front doors on the gateway: `/a/<slug>/…`
 //   GET  /a/<slug>/.well-known/agent.json  Google A2A Agent Card generated from our card
 //   POST /a/<slug>/invoke                  x402-priced proxy to <endpoint>/invoke (payTo = agent owner)
-//   POST /a/<slug>/a2a                     JSON-RPC tasks/send → invoke (paid via x402 or metadata.jobId)
+//   POST /a/<slug>/a2a                     JSON-RPC tasks/send → invoke (paid via x402); metadata.jobId = status/output of an escrow job
 // <slug> = agent id, or the agent name slugified (lowercase, non-alphanumerics → "-").
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { HttpError } from "../commons/context.js";
@@ -75,7 +75,7 @@ export function a2aCard(ctx: V3Context, row: AgentRow) {
     defaultInputModes: ["text/plain", "application/json"],
     defaultOutputModes: ["application/json"],
     skills,
-    authentication: { schemes: ["x402-ferminux"], credentials: price ? `PAYMENT header: EIP-712 FerminuxX402 voucher of ${price} wei to ${row.owner} (see ${base}/api/x402/supported)` : "free (no payment required); or a pre-funded ServiceEscrow job id in metadata.jobId" },
+    authentication: { schemes: ["x402-ferminux"], credentials: price ? `PAYMENT header: EIP-712 FerminuxX402 voucher of ${price} wei to ${row.owner} (see ${base}/api/x402/supported)` : "free (no payment required); metadata.jobId of your ServiceEscrow job returns its status, then its delivered output" },
     securitySchemes: { "x402-ferminux": { type: "http", scheme: "x402", description: `402 → PAYMENT-REQUIRED (scheme ferminux-voucher, network ferminux:${CHAIN.chainId}, asset FMX)` } },
     security: price ? [{ "x402-ferminux": [] }] : [],
     ferminux: {
@@ -102,13 +102,56 @@ interface InvokeResult {
 // AGENT_UPSTREAMS="toolbox=http://fmxp-agent-toolbox:8801,oracle=http://fmxp-agent-oracle:8803,…": agents hosted
 // behind our own nginx register https://<PUBLIC_URL>/a/<slug>/ as their endpoint; calling that from inside the
 // gateway would route straight back to /a/<slug>/invoke (a loop until the rate limit trips), so map to the container.
-const UPSTREAMS: Record<string, string> = Object.fromEntries(
-  (process.env.AGENT_UPSTREAMS ?? "").split(",").map((kv) => kv.trim()).filter(Boolean).map((kv) => { const i = kv.indexOf("="); return [kv.slice(0, i), kv.slice(i + 1).replace(/\/+$/, "")]; }),
-);
-function internalBase(row: AgentRow): string | undefined {
-  const m = /^https?:\/\/[^/]+\/a\/([a-z0-9-]+)\/?$/i.exec(row.endpoint);
-  return m ? UPSTREAMS[m[1].toLowerCase()] : undefined;
+// Keys are a slug or a numeric agent id. Read per call (not at import) so the mapping follows the environment.
+function upstreams(): Record<string, string> {
+  return Object.fromEntries(
+    (process.env.AGENT_UPSTREAMS ?? "").split(",").map((kv) => kv.trim()).filter((kv) => kv.includes("=")).map((kv) => { const i = kv.indexOf("="); return [kv.slice(0, i).trim().toLowerCase(), kv.slice(i + 1).trim().replace(/\/+$/, "")]; }),
+  );
 }
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).host.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+/** True when the agent's endpoint is an /a/<slug> URL on this gateway's own public host. */
+export function pointsAtGateway(ctx: V3Context, row: AgentRow): boolean {
+  const own = hostOf(ctx.cfg.publicUrl);
+  return own !== null && hostOf(row.endpoint) === own;
+}
+
+/**
+ * The container behind one of OUR hosted agents, or undefined. Being internal matters: an internal call skips
+ * the SSRF guard and carries GATEWAY_INVOKE_SECRET, which the runtime reads as "already charged". The old check
+ * matched ANY host and took the slug from the endpoint URL, so a third party registering endpoint
+ * https://anything/a/wizrd was routed to our Wizrd container with the secret — reselling our agent while the
+ * x402 payment went to its own owner. Now all of these must hold:
+ *  - the endpoint is on this gateway's public host,
+ *  - its slug is the agent's own name slug, and
+ *  - the row is the canonical (lowest-id) holder of that slug — the same rule /a/<slug> resolution uses —
+ *    or AGENT_UPSTREAMS names this exact agent id.
+ */
+function internalBase(ctx: V3Context, row: AgentRow): string | undefined {
+  const map = upstreams();
+  const byId = map[String(row.id)];
+  if (byId && pointsAtGateway(ctx, row)) return byId;
+  const m = /^https?:\/\/[^/]+\/a\/([a-z0-9-]+)\/?$/i.exec(row.endpoint);
+  if (!m || !pointsAtGateway(ctx, row)) return undefined;
+  const slug = m[1]!.toLowerCase();
+  if (slug !== slugify(row.name) || !map[slug]) return undefined;
+  try {
+    if (resolveAgentSlug(ctx.db, slug).id !== row.id) return undefined; // a later registration squatting the name
+  } catch {
+    return undefined;
+  }
+  return map[slug];
+}
+
+/** Set on every gateway → agent forward; a request that comes back in carrying it is a loop. */
+export const HOP_HEADER = "x-ferminux-hop";
 
 /** The proxy answers from the gateway's own origin: only inert types pass through, anything active (html, svg, xml, js) is served as bytes. */
 export function safeContentType(ct: string | null): string {
@@ -119,14 +162,18 @@ export function safeContentType(ct: string | null): string {
 
 async function forwardInvoke(ctx: V3Context, row: AgentRow, body: Buffer, contentType: string, extraHeaders: Record<string, string>): Promise<InvokeResult> {
   if (!/^https?:\/\//i.test(row.endpoint)) throw new HttpError(502, "agent has no http(s) endpoint");
-  const internal = internalBase(row);
+  const internal = internalBase(ctx, row);
+  // An endpoint on our own host that is not one of our hosted agents can only loop back into this route
+  // (observed 2026-09-24: agent #13 registered https://ferminux.net/a/prismaquill-fmx; one external call
+  // became 64 nested self-calls and emptied the shared rate-limit bucket). Refuse before any fetch.
+  if (!internal && pointsAtGateway(ctx, row)) throw new HttpError(502, `agent #${row.id}'s endpoint points at this gateway (${row.endpoint}) but it is not an agent hosted here — its owner must register an endpoint it runs`);
   const url = `${internal ?? row.endpoint.replace(/\/+$/, "")}/invoke`;
   // GATEWAY_INVOKE_SECRET ("this call was already charged by the gateway") is only meaningful for our own
   // upstreams — never send it to a third-party endpoint, which any wallet can register on-chain.
   const secret: Record<string, string> = internal && process.env.GATEWAY_INVOKE_SECRET ? { "x-ferminux-gateway-secret": process.env.GATEWAY_INVOKE_SECRET } : {};
   try {
     // third-party endpoints: public hosts only (SSRF guard), body capped while streaming (never buffered past the cap)
-    const res = await safeFetch(url, { method: "POST", headers: { "content-type": contentType, "user-agent": "ferminux-gateway/invoke", "x-ferminux-agent-id": String(row.id), ...secret, ...extraHeaders }, body, timeoutMs: INVOKE_TIMEOUT_MS, trusted: !!internal, fetchImpl: ctx.fetchImpl });
+    const res = await safeFetch(url, { method: "POST", headers: { "content-type": contentType, "user-agent": "ferminux-gateway/invoke", "x-ferminux-agent-id": String(row.id), [HOP_HEADER]: "1", ...secret, ...extraHeaders }, body, timeoutMs: INVOKE_TIMEOUT_MS, trusted: !!internal, fetchImpl: ctx.fetchImpl });
     let buf: Buffer;
     try {
       buf = await readCapped(res, INVOKE_MAX_RESPONSE_BYTES);
@@ -191,8 +238,11 @@ export function registerA2aRoutes(app: FastifyInstance, ctx: V3Context, fac: X40
 
   const rl = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } };
 
+  const looped = (req: FastifyRequest) => req.headers[HOP_HEADER] !== undefined;
+
   app.post<{ Params: { slug: string } }>("/a/:slug/invoke", rl, async (req, reply) => {
     try {
+      if (looped(req)) throw new HttpError(508, "loop detected: this request was already forwarded by the gateway");
       const row = resolve(req.params.slug);
       const paid = await fac.charge(req, reply, {
         amount: () => pricePerCall(row),
@@ -230,6 +280,7 @@ export function registerA2aRoutes(app: FastifyInstance, ctx: V3Context, fac: X40
     let rpcId: unknown = null;
     const rpcError = (code: number, message: string, status = 200, data?: unknown) => reply.code(status).send({ jsonrpc: "2.0", id: rpcId, error: { code, message, ...(data !== undefined ? { data } : {}) } });
     try {
+      if (looped(req)) return rpcError(-32000, "loop detected: this request was already forwarded by the gateway", 508);
       const row = resolve(req.params.slug);
       let rpc: Record<string, unknown>;
       try {
@@ -283,20 +334,46 @@ export function registerA2aRoutes(app: FastifyInstance, ctx: V3Context, fac: X40
           return done(artifacts, { jobId, jobStatus: job.status, prefunded: true });
         }
         if (job.status !== JobStatusEnum.Open) return rpcError(-32602, `job ${jobId} is not open (status ${job.status})`);
-        headers["x-ferminux-job-id"] = String(jobId);
-      } else {
-        const paid = await fac.charge(req, reply, { amount: () => pricePerCall(row), payTo: () => row.owner, description: () => `A2A tasks/send to Ferminux agent #${row.id} ${row.name}` });
-        if (!paid) return reply; // 402 with PAYMENT-REQUIRED
-        if (paid.payer) {
-          headers["x-ferminux-payer"] = paid.payer;
-          headers["x-ferminux-payment-nonce"] = paid.nonce ?? "";
-        }
+        // An Open job is worked by the agent's own runtime (escrow poll / webhook), which delivers on-chain.
+        // Running it inline here delivered nothing on-chain and — because the forward carried the gateway
+        // secret without checking who the caller was — let anyone who knew an Open job id make unlimited
+        // free priced calls to that agent. Report progress instead; re-send with the same jobId once it is
+        // Delivered to get the stored output (the branch above).
+        return reply.send({
+          jsonrpc: "2.0", id: rpcId,
+          result: {
+            id: taskId, sessionId: typeof params.sessionId === "string" ? params.sessionId : null,
+            status: { state: "working", timestamp: new Date(ctx.now()).toISOString(), message: { role: "agent", parts: [{ type: "text", text: `Escrow job ${jobId} is open; agent #${row.id} delivers it on-chain. Send tasks/send again with metadata.jobId ${jobId} to fetch the output once it is delivered.` }] } },
+            artifacts: [], history: [message], metadata: { agentId: row.id, jobId, jobStatus: job.status, prefunded: true },
+          },
+        });
       }
-      const res = await forwardInvoke(ctx, row, Buffer.from(JSON.stringify(invokeInput)), "application/json", headers);
+      const paid = await fac.charge(req, reply, { amount: () => pricePerCall(row), payTo: () => row.owner, description: () => `A2A tasks/send to Ferminux agent #${row.id} ${row.name}` });
+      if (!paid) return reply; // 402 with PAYMENT-REQUIRED
+      if (paid.payer) {
+        headers["x-ferminux-payer"] = paid.payer;
+        headers["x-ferminux-payment-nonce"] = paid.nonce ?? "";
+      }
+      // Same rule as /invoke: the voucher is taken before the agent runs, so a failed or timed-out upstream
+      // must release it — the A2A route used to bill the caller for errors and 60 s timeouts.
+      const release = (why: string) => {
+        if (paid.free) return false;
+        const released = fac.voidQueued(paid.payer, paid.nonce, why);
+        if (released) reply.header("x-ferminux-payment-released", why.slice(0, 120));
+        return released;
+      };
+      let res: InvokeResult;
+      try {
+        res = await forwardInvoke(ctx, row, Buffer.from(JSON.stringify(invokeInput)), "application/json", headers);
+      } catch (err) {
+        release(`agent unreachable: ${(err as Error).message.slice(0, 80)}`);
+        throw err;
+      }
       if (res.status >= 400) {
-        return reply.send({ jsonrpc: "2.0", id: rpcId, result: { id: taskId, status: { state: "failed", timestamp: new Date(ctx.now()).toISOString(), message: { role: "agent", parts: [{ type: "text", text: res.body.toString("utf8").slice(0, 2000) }] } }, artifacts: [], history: [message], metadata: { agentId: row.id, upstreamStatus: res.status } } });
+        const released = release(`agent returned ${res.status}`);
+        return reply.send({ jsonrpc: "2.0", id: rpcId, result: { id: taskId, status: { state: "failed", timestamp: new Date(ctx.now()).toISOString(), message: { role: "agent", parts: [{ type: "text", text: res.body.toString("utf8").slice(0, 2000) }] } }, artifacts: [], history: [message], metadata: { agentId: row.id, upstreamStatus: res.status, paymentReleased: released } } });
       }
-      return done(artifactsFromOutput(res.contentType, res.body), jobId ? { jobId } : {});
+      return done(artifactsFromOutput(res.contentType, res.body));
     } catch (err) {
       if (err instanceof HttpError) return rpcError(-32000, err.message, err.status);
       throw err;

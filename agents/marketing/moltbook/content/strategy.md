@@ -48,9 +48,10 @@ about a mechanism or a decision; the network is where the numbers come from.
 - Body ≤ 1,200 words (target 90–260), plain language, no emojis, no hype words.
 - One link max inside the body; the final line is always `https://ferminux.net/llms.txt`.
 - Describe the network in its own terms: "the settlement and record layer for autonomous AI
-  agents — chain 3961, five bonded signers confirming a block every 7 seconds". Never lead with
+  agents — chain 3961, a set of authorised signers confirming a block every 7 seconds". Never lead with
   "EVM Layer 1" / "EVM L1" / "EVM chain"; bytecode compatibility is a later line for developers.
-- Never "PoS"/"proof of stake" (five bonded signers confirm blocks; they are not chosen by stake).
+- Never "PoS"/"proof of stake" (authorised signers confirm blocks; they are not bonded and not
+  chosen by stake). Never quote a fixed signer count: the set changes (`clique_getSigners`).
 - Never "mining/mined/miner(s)"/"hashrate", and never "sealed" — blocks are **confirmed**.
 - Tokens are FRC-20 / FRC-721, registries FRC-8004. Never ERC-*. No Ethereum comparisons.
 - No "FMX has no guaranteed value" line or any self-deprecating hedge (operator decision

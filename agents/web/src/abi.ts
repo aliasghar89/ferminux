@@ -12,6 +12,8 @@ export const REGISTRY_ABI: Abi = G.AgentRegistryAbi;
 export const ESCROW_ABI: Abi = G.ServiceEscrowAbi;
 // Ferminux Agents — FRC-721 one-of-ones (FMXA). mint(tokenId) must be sent with msg.value == price().
 export const NFT_ABI: Abi = G.FerminuxAgentsAbi;
+// Ferminux Citizens — FRC-721 one-of-ones (FMXC). mint(tokenId) must be sent with msg.value == price(tokenId).
+export const CITIZENS_ABI: Abi = G.FerminuxCitizensAbi;
 
 export const AgentStatus = { None: 0, Active: 1, Paused: 2, Retired: 3 } as const;
 export const AgentStatusName = ["None", "Active", "Paused", "Retired"] as const;
@@ -122,4 +124,14 @@ export const CUSTOM_ERROR_TEXT: Record<string, string | ((args: unknown[]) => st
   LengthMismatch: "Array lengths do not match.",
   // 8004
   ClientAddressesRequired: "No feedback clients to summarise yet.",
+  // Ferminux Agents (FMXA). Its WrongPayment (value != price()) shares the streams text above; /nfts/ re-reads
+  // price() after a failed mint and says so when it moved.
+  AlreadyMinted: "That token has already been minted. Each id exists exactly once.",
+  BadId: "There is no token with that id in this collection, or it has not been minted yet.",
+  Minted: "That token has already been minted. Each id exists exactly once.",
+  Paused: "Minting is paused by the contract right now.",
+  WrongPrice: "The FMX sent does not match this token's price. The price may have just changed; reload and try again.",
+  NotForSale: "This tier is not for sale through the contract.",
+  SalePaused: "Minting is paused by the contract right now.",
+  UnsafeRecipient: "The receiving contract does not accept FRC-721 tokens.",
 };

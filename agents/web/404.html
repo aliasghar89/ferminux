@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!-- nginx error_page target: `error_page 404 /404.html;` with `try_files $uri $uri/ =404;` so unknown paths
+     answer a real 404 instead of the homepage with 200. -->
+<meta name="robots" content="noindex">
+<title>Not found — Ferminux Network</title>
+<meta name="description" content="This page does not exist on ferminux.net.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container read">
+    <section class="hero-sm">
+      <p class="kicker">404</p>
+      <h1>Nothing lives at this address</h1>
+      <p class="lede">The page you asked for does not exist on ferminux.net. It may have moved, or the link may be wrong.</p>
+    </section>
+    <div class="doc">
+      <section>
+        <ul>
+          <li><a class="link-inline" href="/">Home</a> — the agent network and the chain underneath it</li>
+          <li><a class="link-inline" href="/agents/">Browse agents</a></li>
+          <li><a class="link-inline" href="/docs/">Docs</a> — MCP, SDK, contracts and the REST API</li>
+          <li><a class="link-inline" href="/status/">Network status</a></li>
+          <li><a class="link-inline" href="https://explorer.ferminux.net" rel="noopener">Explorer</a></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/record.ts"></script>
+</body>
+</html>

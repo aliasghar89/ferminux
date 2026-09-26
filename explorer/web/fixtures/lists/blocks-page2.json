@@ -1,0 +1,2608 @@
+{
+    "items": [
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xe9afbc2d1d35319cda5d588e037ae86bf228bea052bc9349ee1f21e6e21d8142",
+            "height": 395999,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x37b754ef69e7e9ce07fe81db049ccb5c287f9575a80699d9398a29512ea7efa9",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:08:17.000000Z",
+            "total_difficulty": "48967886222552",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x37b754ef69e7e9ce07fe81db049ccb5c287f9575a80699d9398a29512ea7efa9",
+            "height": 395998,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x25632a4d571a9584b4e3b626a78cbf47876757fbd9318d7ed686fd11fc67d9ac",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:08:10.000000Z",
+            "total_difficulty": "48967886222551",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x25632a4d571a9584b4e3b626a78cbf47876757fbd9318d7ed686fd11fc67d9ac",
+            "height": 395997,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x0c13492b4bbfe7c0632348e8860b794707460f2cb7f188704dd7a822b5ea53b2",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:08:03.000000Z",
+            "total_difficulty": "48967886222550",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x0c13492b4bbfe7c0632348e8860b794707460f2cb7f188704dd7a822b5ea53b2",
+            "height": 395996,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x8933a00ddc29f38d8c630ce90be7b5658a0de40e9186170c9493be559c38524b",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:56.000000Z",
+            "total_difficulty": "48967886222549",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x8933a00ddc29f38d8c630ce90be7b5658a0de40e9186170c9493be559c38524b",
+            "height": 395995,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x853d73254ef03410444b0226b3fbdaac8794ad5f79b95d5e0c6648ec9f65eab8",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:49.000000Z",
+            "total_difficulty": "48967886222547",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x853d73254ef03410444b0226b3fbdaac8794ad5f79b95d5e0c6648ec9f65eab8",
+            "height": 395994,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xb67fa62b66750cce5093f56c3b0164b9f1f388fb631e2031852afd01a4153f5d",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:42.000000Z",
+            "total_difficulty": "48967886222546",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xb67fa62b66750cce5093f56c3b0164b9f1f388fb631e2031852afd01a4153f5d",
+            "height": 395993,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xb742e21997083039e11a7e8643b9c849d243266adc5c7999a61c432b2df7ab32",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:35.000000Z",
+            "total_difficulty": "48967886222545",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xb742e21997083039e11a7e8643b9c849d243266adc5c7999a61c432b2df7ab32",
+            "height": 395992,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x4a030c28d14936ff866e1a745cc0c1a374bca5ebfdd705761a5ebc586cd8e3a9",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:28.000000Z",
+            "total_difficulty": "48967886222544",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x4a030c28d14936ff866e1a745cc0c1a374bca5ebfdd705761a5ebc586cd8e3a9",
+            "height": 395991,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xda39db7b5916e3c191de56ce3f959081f4b9ca3404f99de06d748607e72c95f6",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:21.000000Z",
+            "total_difficulty": "48967886222542",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xda39db7b5916e3c191de56ce3f959081f4b9ca3404f99de06d748607e72c95f6",
+            "height": 395990,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x731e6c22a70c353427343b9f42167742dc8fb95b8b6f39820ff5cb2074e0c2fd",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:14.000000Z",
+            "total_difficulty": "48967886222541",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x731e6c22a70c353427343b9f42167742dc8fb95b8b6f39820ff5cb2074e0c2fd",
+            "height": 395989,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x385960bf94e5e44033e00d4727b8337118a618f5d8a7e093edfd83df698a3ccb",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:07.000000Z",
+            "total_difficulty": "48967886222540",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x385960bf94e5e44033e00d4727b8337118a618f5d8a7e093edfd83df698a3ccb",
+            "height": 395988,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x4d412c8c5e56f842b28b611d065926b8314809e8392db4fabd3f7d0e516b777e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:07:00.000000Z",
+            "total_difficulty": "48967886222539",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x4d412c8c5e56f842b28b611d065926b8314809e8392db4fabd3f7d0e516b777e",
+            "height": 395987,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x557e015c2c95170847c41319eb7f7ca0ddd65e2730696c0636fcc2c56072226e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:53.000000Z",
+            "total_difficulty": "48967886222537",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x557e015c2c95170847c41319eb7f7ca0ddd65e2730696c0636fcc2c56072226e",
+            "height": 395986,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x04856bf2060d35ff180c56bf7726ed8d07cbd370d089790950073872e615fd48",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:46.000000Z",
+            "total_difficulty": "48967886222536",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x04856bf2060d35ff180c56bf7726ed8d07cbd370d089790950073872e615fd48",
+            "height": 395985,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xaeb1455e1d73befab44de68b97131a1b6681016235edd7a79e33e3474f5c657a",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:39.000000Z",
+            "total_difficulty": "48967886222535",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xaeb1455e1d73befab44de68b97131a1b6681016235edd7a79e33e3474f5c657a",
+            "height": 395984,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x199fbdcc6011fc9a8a5500269dd0a6ead69aaac117c90713049a5195ccf2e42e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:32.000000Z",
+            "total_difficulty": "48967886222534",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x199fbdcc6011fc9a8a5500269dd0a6ead69aaac117c90713049a5195ccf2e42e",
+            "height": 395983,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x89f903293ec307f1b2ffafa484aa83ea22c6db5843f7d7d143b97c3dbdab4d90",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:25.000000Z",
+            "total_difficulty": "48967886222533",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x89f903293ec307f1b2ffafa484aa83ea22c6db5843f7d7d143b97c3dbdab4d90",
+            "height": 395982,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x75892eecbb3675444a72ab64286a0ad2bf532075ceb7905e41fdeea06c4bad22",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:18.000000Z",
+            "total_difficulty": "48967886222532",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x75892eecbb3675444a72ab64286a0ad2bf532075ceb7905e41fdeea06c4bad22",
+            "height": 395981,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xe34c43182ff344a966e2cbc08679658079854b3ad0c5d5a650e22fc3d6c793a9",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:11.000000Z",
+            "total_difficulty": "48967886222531",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xe34c43182ff344a966e2cbc08679658079854b3ad0c5d5a650e22fc3d6c793a9",
+            "height": 395980,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x6d32988650f00db9a217d180729f86384a10ff04bf92288581c9679175008e0e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:06:04.000000Z",
+            "total_difficulty": "48967886222529",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x6d32988650f00db9a217d180729f86384a10ff04bf92288581c9679175008e0e",
+            "height": 395979,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xf5b9526c80298c583f6a454080790e9210175d6019d50bdd10856a6360147424",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:57.000000Z",
+            "total_difficulty": "48967886222528",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xf5b9526c80298c583f6a454080790e9210175d6019d50bdd10856a6360147424",
+            "height": 395978,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xdec581e7e69e3124a3d3596ee5ac7fa0502a5a8a4cd4fc0134383504cfab493e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:50.000000Z",
+            "total_difficulty": "48967886222527",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xdec581e7e69e3124a3d3596ee5ac7fa0502a5a8a4cd4fc0134383504cfab493e",
+            "height": 395977,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x99e6396d1b0ab81bbffbab759e59a4c11e7b150b25b188ebf36aa697b6d7bd55",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:43.000000Z",
+            "total_difficulty": "48967886222526",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x99e6396d1b0ab81bbffbab759e59a4c11e7b150b25b188ebf36aa697b6d7bd55",
+            "height": 395976,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x754ade7b771931640fd29514a312668ac71862d70d1e6fc4e034970362165f3d",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:36.000000Z",
+            "total_difficulty": "48967886222524",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x754ade7b771931640fd29514a312668ac71862d70d1e6fc4e034970362165f3d",
+            "height": 395975,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xd3d1fe210acf00c52e22063f3a88b552b854346cc37f3e04a6e35039d0035a58",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:29.000000Z",
+            "total_difficulty": "48967886222523",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xd3d1fe210acf00c52e22063f3a88b552b854346cc37f3e04a6e35039d0035a58",
+            "height": 395974,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x632263a31731f94844be14896b49b95c982ef16aa9d786aa1487b6378b3ed878",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:22.000000Z",
+            "total_difficulty": "48967886222522",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x632263a31731f94844be14896b49b95c982ef16aa9d786aa1487b6378b3ed878",
+            "height": 395973,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x0ceda11d49ae0cbd8f90d9fc65f2da8cf7600e0f6252ddba9850076bfd95bba2",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:15.000000Z",
+            "total_difficulty": "48967886222521",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x0ceda11d49ae0cbd8f90d9fc65f2da8cf7600e0f6252ddba9850076bfd95bba2",
+            "height": 395972,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x3d90d4713c5d4e4147d29d03ba3c6585b5fecffac44a1ec0900e1409d915995e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:08.000000Z",
+            "total_difficulty": "48967886222519",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x3d90d4713c5d4e4147d29d03ba3c6585b5fecffac44a1ec0900e1409d915995e",
+            "height": 395971,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x3ac461f7de6563108123092917280c07d2708b77fe2781f80af7d99953af8725",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:05:01.000000Z",
+            "total_difficulty": "48967886222518",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x3ac461f7de6563108123092917280c07d2708b77fe2781f80af7d99953af8725",
+            "height": 395970,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xc4ec6771a17baf04796c8b6405ab49368f4d730bbc52191e2aca771b00bc4d8e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:54.000000Z",
+            "total_difficulty": "48967886222517",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xc4ec6771a17baf04796c8b6405ab49368f4d730bbc52191e2aca771b00bc4d8e",
+            "height": 395969,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xf7c76ea241153290a45fb2d8a9ba2eddf03a4beb24d10cf4faeb38fa8842cdda",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:47.000000Z",
+            "total_difficulty": "48967886222516",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xf7c76ea241153290a45fb2d8a9ba2eddf03a4beb24d10cf4faeb38fa8842cdda",
+            "height": 395968,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x5cc7c0f58acb7bfab944cc78a825a573a8a0753c10d03c4ad9f11e0071d08b83",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:40.000000Z",
+            "total_difficulty": "48967886222515",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x5cc7c0f58acb7bfab944cc78a825a573a8a0753c10d03c4ad9f11e0071d08b83",
+            "height": 395967,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xc751c7da91804407b206ab1c7867cf1c58f784a9907e74554cddc99c0af28a91",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:33.000000Z",
+            "total_difficulty": "48967886222514",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xc751c7da91804407b206ab1c7867cf1c58f784a9907e74554cddc99c0af28a91",
+            "height": 395966,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x11d9040ceecb03e7470238439bc350912155c3a013b8f1a196951566cec49dc4",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:26.000000Z",
+            "total_difficulty": "48967886222513",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x11d9040ceecb03e7470238439bc350912155c3a013b8f1a196951566cec49dc4",
+            "height": 395965,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x7e60ddbbc51aafcb472330a3c992d21f1d9b72f0b422f509f489ad5290558e4e",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:19.000000Z",
+            "total_difficulty": "48967886222511",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x7e60ddbbc51aafcb472330a3c992d21f1d9b72f0b422f509f489ad5290558e4e",
+            "height": 395964,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xf6686236627b3ef34e465a4a4cbe9f31192c4783d5563d16289cd4a5447c5990",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:12.000000Z",
+            "total_difficulty": "48967886222510",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xf6686236627b3ef34e465a4a4cbe9f31192c4783d5563d16289cd4a5447c5990",
+            "height": 395963,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x1412a0e067f55405c3e04ce0200e844b202f7e45d296646e1ff08ccbcaa2cca3",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:04:05.000000Z",
+            "total_difficulty": "48967886222509",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x1412a0e067f55405c3e04ce0200e844b202f7e45d296646e1ff08ccbcaa2cca3",
+            "height": 395962,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x69b329d6ea3268e062e693c0e8c504543781b104cb40fc993404f5676bec7544",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:58.000000Z",
+            "total_difficulty": "48967886222508",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x69b329d6ea3268e062e693c0e8c504543781b104cb40fc993404f5676bec7544",
+            "height": 395961,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x2086f4801eafc4e1f693139f645a9df7a0446731071e757c9029d214bb6d6987",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:51.000000Z",
+            "total_difficulty": "48967886222506",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x2086f4801eafc4e1f693139f645a9df7a0446731071e757c9029d214bb6d6987",
+            "height": 395960,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xb31e125c995af96266db84a1e918b251a0adac1478582469e9157f1e586a38b3",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:44.000000Z",
+            "total_difficulty": "48967886222505",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xb31e125c995af96266db84a1e918b251a0adac1478582469e9157f1e586a38b3",
+            "height": 395959,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x5ebea6dfb104065562c8d5b13c3aced48820a12c74d3974328c404b2f383fae0",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:37.000000Z",
+            "total_difficulty": "48967886222504",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x5ebea6dfb104065562c8d5b13c3aced48820a12c74d3974328c404b2f383fae0",
+            "height": 395958,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x3d9280a0986cc696afad5651a02a15f3f692eefc1acb22ab5f3d9cb4790bbf5b",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:30.000000Z",
+            "total_difficulty": "48967886222503",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x3d9280a0986cc696afad5651a02a15f3f692eefc1acb22ab5f3d9cb4790bbf5b",
+            "height": 395957,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x9d696b2c78462fdb5e1866724ab91c2f2688559e10b5ce2f99bbdd82f12afe68",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:23.000000Z",
+            "total_difficulty": "48967886222501",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x9d696b2c78462fdb5e1866724ab91c2f2688559e10b5ce2f99bbdd82f12afe68",
+            "height": 395956,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x56e4573bd98df593f811eaa9c04468f1e98aee2be15e3a0f50bafc0d49c60043",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:16.000000Z",
+            "total_difficulty": "48967886222500",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x56e4573bd98df593f811eaa9c04468f1e98aee2be15e3a0f50bafc0d49c60043",
+            "height": 395955,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x46c97f460f07cf6e798f5bd33f8bd72fc5c97774807c44f1839df58aef64d867",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:09.000000Z",
+            "total_difficulty": "48967886222499",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x46c97f460f07cf6e798f5bd33f8bd72fc5c97774807c44f1839df58aef64d867",
+            "height": 395954,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x42a25ef7b16961c50c71a874c29a9ca8595351f1b99168a06a940716db2973f4",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:03:02.000000Z",
+            "total_difficulty": "48967886222498",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x42a25ef7b16961c50c71a874c29a9ca8595351f1b99168a06a940716db2973f4",
+            "height": 395953,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x673b4c6d750cffcb5b3bf1ff6b502872ff1e616003f0eab2001f53473227f600",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:02:55.000000Z",
+            "total_difficulty": "48967886222497",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x673b4c6d750cffcb5b3bf1ff6b502872ff1e616003f0eab2001f53473227f600",
+            "height": 395952,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0xe47ad39d036c5fff9236f068161dcafed08b63210a02a74463a7425e2697d7b0",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:02:48.000000Z",
+            "total_difficulty": "48967886222496",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "2",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0xe47ad39d036c5fff9236f068161dcafed08b63210a02a74463a7425e2697d7b0",
+            "height": 395951,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x4d3149feb337f271b1a326d29bf7264ad4336dda5c4e9af92f2ada6ede384f76",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:02:41.000000Z",
+            "total_difficulty": "48967886222495",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        },
+        {
+            "base_fee_per_gas": "7",
+            "burnt_fees": "0",
+            "burnt_fees_percentage": null,
+            "difficulty": "1",
+            "gas_limit": "100000000",
+            "gas_target_percentage": -100.0,
+            "gas_used": "0",
+            "gas_used_percentage": 0.0,
+            "hash": "0x4d3149feb337f271b1a326d29bf7264ad4336dda5c4e9af92f2ada6ede384f76",
+            "height": 395950,
+            "internal_transactions_count": null,
+            "miner": {
+                "ens_domain_name": null,
+                "hash": "0x71377E0F553a5B0CB847443ab6648235977919b0",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "nonce": "0x0000000000000000",
+            "parent_hash": "0x1e744246574fc5926e32f94a454db0f2482219452fd96ff3e436bfa745870a58",
+            "priority_fee": "0",
+            "rewards": [
+                {
+                    "reward": "25000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "125000000000000000",
+                    "type": "emission_funds"
+                },
+                {
+                    "reward": "100000000000000000",
+                    "type": "validator"
+                }
+            ],
+            "size": 611,
+            "timestamp": "2026-09-24T16:02:34.000000Z",
+            "total_difficulty": "48967886222493",
+            "transaction_fees": "0",
+            "transactions_count": 0,
+            "type": "block",
+            "uncles_hashes": [],
+            "withdrawals_count": null
+        }
+    ],
+    "next_page_params": {
+        "block_number": 395950,
+        "items_count": 100
+    }
+}

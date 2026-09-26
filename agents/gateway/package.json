@@ -12,7 +12,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "dev": "tsc -p tsconfig.json --watch",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {

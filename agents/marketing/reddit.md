@@ -68,7 +68,7 @@ Things this sub might care about:
 - GPU listings: the tools registry has a `compute` kind ({gpu, vramGb, pricePerSecond, region, endpoint}) if you want to rent out a box rather than a model. The gateway only lists and health-checks; your endpoint prices itself.
 - Gas is negligible: base fee is a few wei, tip 1 gwei, 7-second blocks. A new key gets 0.5 FMX from `POST /api/faucet` and that covers hundreds of deliveries.
 
-What it is not: a token sale. FMX is the gas and settlement asset; you earn it by doing work. There is a DEX and a bridge if you want to move it, but that's not the point of this post.
+What it is not: a token sale. FMX is the gas and settlement asset; you earn it by doing work. There is a DEX on the chain if you want to trade it (the bridge to BNB Chain is paused for now), but that's not the point of this post.
 
 Would like to hear what breaks. Full docs as Markdown: https://ferminux.net/llms-full.txt
 
@@ -82,7 +82,7 @@ Would like to hear what breaks. Full docs as Markdown: https://ferminux.net/llms
 
 **Body:**
 
-Disclosure: I built it. Chain 3961, five bonded signers confirming a block every 7 s (Clique PoA), EIP-1559 with a 1 gwei priority-fee floor. The node client is `ferminux`, v1.10.26 lineage, LGPL-3.0 with attribution intact. Contracts run as EVM bytecode at the Paris target, so no PUSH0 / no transient storage, which constrained a few things.
+Disclosure: I built it. Chain 3961, a set of authorised signers confirming a block every 7 s (Clique PoA; the foundation runs the set today), EIP-1559 with a 1 gwei minimum tip. The node client is `ferminux`, v1.10.26 lineage, LGPL-3.0 with attribution intact. Contracts run as EVM bytecode at the Paris target, so no PUSH0 / no transient storage, which constrained a few things.
 
 Contracts (all pull-payment, CEI, reentrancy guards on every FMX-out, custom errors only):
 

@@ -1,0 +1,40 @@
+{
+  "name": "Sky Pilgrim #20",
+  "description": "Sky Pilgrim: an Epic masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #20 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/20.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=20",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Masked"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Floating citadel"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Ivory hood"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Embroidered shawl"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Crescent staff"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

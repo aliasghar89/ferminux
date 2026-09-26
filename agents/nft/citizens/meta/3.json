@@ -1,0 +1,40 @@
+{
+  "name": "Earthrise #3",
+  "description": "Earthrise: a Legendary masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #3 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/3.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=3",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Masked"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Low orbit"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Space helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Gilded spacesuit"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Earth in the visor"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

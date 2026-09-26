@@ -1,0 +1,85 @@
+/* /blocks and /block/:id (surfaces/explorer.md §5.2, §5.3). Loaded with pages/blocks.ts and pages/block.ts. */
+@import "./common.css";
+
+/* ---------- /blocks ---------- */
+.seg-note{margin:-4px 0 0;font-size:13.5px;color:var(--muted)}
+.newrow{display:flex;margin-left:auto}
+.newpill{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border:1px solid var(--accent-border);border-radius:var(--r-pill);background:var(--accent-soft);color:var(--ink);font:500 13px/1 var(--sans);font-variant-numeric:tabular-nums;cursor:pointer}
+.newpill:hover{border-color:var(--accent)}
+.newpill .status-dot{margin:0;width:7px;height:7px}
+@media(pointer:coarse){.newpill{height:44px}}
+.xblks .tbl-note{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin-top:10px;font-size:12.5px;color:var(--faint);line-height:1.45}
+.xblks .xt td .pill{margin-left:6px;font-size:11px;padding:0 7px}
+.xblks .xt .signer .seal{flex:none}
+
+/* ---------- /block/:id head: h1 with ‹ › beside it ---------- */
+.blk-head .blk-h1row{display:flex;align-items:center;gap:12px;min-width:0}
+.blk-head .blk-h1row h1{min-width:0}
+.pn-nav{display:inline-flex;gap:6px;flex:none}
+.pn{display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid var(--border-strong);border-radius:var(--r);color:var(--ink);background:transparent}
+.pn:hover{border-color:var(--accent);background:var(--surface-2);color:var(--ink)}
+.pn svg{width:18px;height:18px}
+.pn[hidden]{display:none}
+@media(min-width:760px){.pn{width:36px;height:36px}}
+.blk-ident .signer{gap:6px}
+@media(max-width:599px){.blk-ident .sep{display:none}}
+.blk-ident b{font-weight:600;color:var(--ink)}
+.blk-ident a b:hover{color:var(--accent-hover)}
+
+/* ---------- details ---------- */
+.xblk .dl-row dd .hc-full{font-size:13px}
+/* a full address in a detail row wraps instead of running under its copy button */
+.xblk .dl-row dd .hc{white-space:normal;align-items:flex-start}
+/* wide: the address sits on the seal's line, centred like every other item in the value (it fits on one line) */
+@media(min-width:760px){.xblk .dl-row dd .hc{align-items:center}.xblk .dl-row dd .hc>a{align-items:center}}
+.xblk .dl-row dd .hc>a{min-width:0}
+.xblk .dl-row dd .hc .hc-h{overflow-wrap:anywhere;word-break:break-all}
+.blk-ident .signer .hc-h{font:400 var(--fs-hash)/1.2 var(--mono);color:var(--muted)}
+.sig-d{min-width:0;max-width:100%}
+.sig-d>summary{display:inline-flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font:400 var(--fs-hash)/1.4 var(--mono);color:var(--ink)}
+.sig-d>summary::-webkit-details-marker{display:none}
+.sig-d>summary::after{content:"";width:6px;height:6px;border-right:1.5px solid var(--faint);border-bottom:1.5px solid var(--faint);transform:rotate(45deg);margin:-3px 0 0 2px}
+.sig-d[open]>summary::after{transform:rotate(-135deg);margin-top:3px}
+.sig-d pre{margin:8px 0 0;padding:10px 12px;border-radius:var(--r);background:var(--code-bg);border:1px solid var(--hairline);font:400 12.5px/1.55 var(--mono);color:var(--code-ink);white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all}
+.sig-list{display:grid;gap:4px;min-width:0}
+.rw-sum{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px}
+.rw-sum .op{color:var(--faint)}
+.blk-note{margin-bottom:14px}
+.xblk .xt .zero{color:var(--faint)}
+/* phone cards: a cell never grows past its card (the From → To chips shrink instead) */
+@media(max-width:759px){.xblk .xt td,.xblks .xt td{max-width:100%}}
+/* the page stack is an implicit `auto` grid column, which grows to its widest child: pin it to the page */
+@media(max-width:759px){.xblk .xt .pty .hc-n~.hc-h{display:none}}
+
+/* ---------- /block/:id layout: the tx page's 8/4 (details left, rail right) ---------- */
+.blkg{display:grid;gap:20px;grid-template-columns:minmax(0,1fr);min-width:0}
+.blkg-main,.blkg-side{min-width:0}
+.blkg-side{display:grid;gap:16px;align-content:start}
+.blkg-side:empty{display:none}
+@media(min-width:1100px){
+  .blkg{grid-template-columns:minmax(0,8fr) minmax(0,4fr);align-items:start;column-gap:24px}
+  .blkg-side{position:sticky;top:var(--sticky-top)}
+}
+.blk-txs{margin-top:20px}
+.blk-sec{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;font:600 15px/1.4 var(--sans);letter-spacing:0;color:var(--ink)}
+.blk-sec .n{font:400 12.5px/1 var(--mono);color:var(--faint)}
+/* the signer card: a large seal, the name, the turn */
+.blk-sgc .sgc-top{display:flex;align-items:center;gap:12px}
+.seal.seal-lg{--seal:40px;font-size:17px}
+.blk-sgc .sgc-nm{display:block;font:600 17px/1.3 var(--sans);color:var(--ink)}
+.blk-sgc .sgc-nm:hover{color:var(--accent-hover)}
+.blk-sgc .sgc-sub{display:block;font-size:13px;color:var(--muted)}
+.blk-sgc .sgc-sub .mono{font-size:12.5px;color:var(--faint)}
+.blk-big{font-size:22px;font-weight:500;letter-spacing:-.02em;color:var(--ink)}
+.blk-big:hover{color:var(--accent-hover)}
+/* around this block: five rows, this one marked */
+.blk-nb,.blk-mt{list-style:none;margin:0;padding:4px 0}
+.blk-nb>li{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:36px;padding:0 16px;font-size:13.5px}
+.blk-nb>li .num-mono{font-size:13px}
+.blk-nb>li.nb-here{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+.blk-nb>li.nb-here .num-mono{color:var(--ink);font-weight:500}
+.blk-nb>li.nb-next{grid-template-columns:76px minmax(0,1fr);font-size:12.5px}
+.blk-nb .nb-age{font-size:12.5px;color:var(--faint);text-align:right}
+.blk-mt>li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-height:36px;padding:0 16px;font-size:13.5px}
+.blk-mt>li .tx-km{min-width:0;overflow:hidden}
+.blk-mt>li .r{font:400 13px/1 var(--mono);font-variant-numeric:tabular-nums;text-align:right}

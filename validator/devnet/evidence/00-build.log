@@ -1,0 +1,95 @@
+# devnet build 2026-09-25T21:39:36Z
+repo HEAD: c3a277b3491f40629f8169f55a054c7d247e7636
+chain/ and validator/ changed files vs HEAD: 0
+patched <repo>/validator/devnet/build/chain/params/ferminux.go: signers=['0xcAF5F74B41359a78E8E20D5Cba34238F933Bb838', '0xC40303839C512dE7cA00C19b58997C52894912c4', '0x6d06D195212672Dc54454b455c23a51091c6af90'] owners=['0x874D2957B0ae8F9fb5791d4f9A24B53D37e9DA7E', '0xa95C94F7583B2C9728eC12f34E40A860d1bA8e68', '0xb7F12b627979a5aFC3A9Ab08C71A2A37Cab8EcBA'] sink=0xeC53Bcc147C17Ff02773c18767a0Db2E720bEe7a period=1
+--- params diff (the only source change):
+--- chain/params/ferminux.go
++++ chain/params/ferminux.go	2026-09-26 01:39:36
+@@ -4,6 +4,9 @@
+ 
+ package params
+ 
++// *** DEVNET BUILD (validator/devnet, chain id 39619): signers, owners, sink and the
++// block period are devnet values. Never run this binary against any other network. ***
++
+ import (
+ 	"math/big"
+ 
+@@ -69,7 +72,7 @@
+ // genesis extraData, 29 bytes on Ferminux, carries no signer list).
+ const (
+ 	// FerminuxPosaPeriod is the minimum number of seconds between authority blocks.
+-	FerminuxPosaPeriod = 7
++	FerminuxPosaPeriod = 1
+ 
+ 	// FerminuxPosaEpoch is the checkpoint interval: every FerminuxPosaEpoch
+ 	// blocks the header carries the full signer list and pending votes reset.
+@@ -96,11 +99,9 @@
+ 	// snapshot at PosaBlock-1 is created from this list; signer state is never
+ 	// derived from the (signer-less) genesis extraData.
+ 	FerminuxInitialSigners = []common.Address{
+-		common.HexToAddress("0x3322f60aCEA9f88658665E83BeB30a516036187D"),
+-		common.HexToAddress("0xA46A721F25771BB2Be312a63A5D891539fF1de23"),
+-		common.HexToAddress("0x1538249E04c767dFfC50845068C19F633341bB0f"),
+-		common.HexToAddress("0x71377E0F553a5B0CB847443ab6648235977919b0"),
+-		common.HexToAddress("0x8e97f419F388c20E745dFF826587f359C31EF693"),
++		common.HexToAddress("0xcAF5F74B41359a78E8E20D5Cba34238F933Bb838"),
++		common.HexToAddress("0xC40303839C512dE7cA00C19b58997C52894912c4"),
++		common.HexToAddress("0x6d06D195212672Dc54454b455c23a51091c6af90"),
+ 	}
+ 
+ 	// FerminuxTreasury receives 10% of every authority block reward. CONSENSUS
+@@ -124,7 +125,7 @@
+ 	// (owner = the Ferminux multisig) in the same release that sets PosaBlock.
+ 	// FerminuxPosaCheckpointHash stays zero here; release B pins hash(F-1)
+ 	// after the fork is final.
+-	FerminuxRewardSink = common.HexToAddress("0x691E5275BF346FfFa0B30174dDBeDfCC078dd8D6")
++	FerminuxRewardSink = common.HexToAddress("0xeC53Bcc147C17Ff02773c18767a0Db2E720bEe7a")
+ 
+ 	// FerminuxPosaCheckpointHash is the required hash of block PosaBlock-1 (the
+ 	// last Powhash block). Zero disables the check; once the operator pins it
+@@ -147,8 +148,8 @@
+ 	// chain (too few live signers) recovers in one block; see
+ 	// consensus/clique/ferminux.go for the exact byte layout.
+ 	FerminuxBreakGlassOwners = []common.Address{
+-		common.HexToAddress("0x1a143bf911E1E097730f3aA8C809C6B9109019EA"),
+-		common.HexToAddress("0x0fBBa0CC0e4f748Dc2Af25dDD3992700e7FCce15"),
+-		common.HexToAddress("0x11B53110eb83c548b392a56410bF5f959E6F41db"),
++		common.HexToAddress("0x874D2957B0ae8F9fb5791d4f9A24B53D37e9DA7E"),
++		common.HexToAddress("0xa95C94F7583B2C9728eC12f34E40A860d1bA8e68"),
++		common.HexToAddress("0xb7F12b627979a5aFC3A9Ab08C71A2A37Cab8EcBA"),
+ 	}
+ )
+--- toolchain: go version go1.20.14 darwin/arm64
+--- sha256
+dc498b557299059a08d8611602a300d29d8096653686e27a24ef24afa1a9b84e  ferminux
+c407bbabb4574aa52bca92364dddf7231b12a1983ac31571488041f03604f4a7  fmx-validator
+sha256:7a0f90781ff2b8a0c667da1450e995e05372a3c23ebf2dc76fa51b0f3bb20787
+--- image fmxdev:latest built (sha256:7a0f90781ff2b8a0c667da1450e995e05372a3c23ebf2dc76fa51b0f3bb20787)
+Ferminux Node
+Version: 1.10.26-stable
+Architecture: arm64
+Go Version: go1.20.14
+fmx-validator pre-module-rename-157-gc3a277b
+--- genesis hash (fresh init):
+INFO [09-25|21:40:29.084] Successfully wrote genesis state         database=chaindata                      hash=f6427b..a81c31
+INFO [09-25|21:40:29.097] Successfully wrote genesis state         database=lightchaindata                      hash=f6427b..a81c31
+
+# images in use by the running devnet (2026-09-26T02:04:31Z)
+# (two builds of the same sources: chain/ and validator/ have no changes between their HEADs; the
+#  binaries differ only in the embedded VCS stamp and version string. The second build added the
+#  multi-seat hosts' GOMEMLIMIT in docker/host.sh and was used for h1, h2 and the second-machine drill.)
+  image 7a0f90781ff2: fmxd-h1 fmxd-h2
+  image bcae72331f61: fmxd-rpc fmxd-sig1 fmxd-sig2 fmxd-sig3 fmxd-v01 fmxd-v02 fmxd-v03 fmxd-v04 fmxd-v05 fmxd-v06 fmxd-v07 fmxd-v08 fmxd-v09 fmxd-v10 fmxd-v11 fmxd-v12
+  --- image 7a0f90781ff2
+    dc498b557299059a08d8611602a300d29d8096653686e27a24ef24afa1a9b84e  /usr/local/bin/ferminux
+    c407bbabb4574aa52bca92364dddf7231b12a1983ac31571488041f03604f4a7  /usr/local/bin/fmx-validator
+    fmx-validator pre-module-rename-157-gc3a277b
+    85cd5513fcf24173323fc46aa6eaa79a0ba9ef6ad238f5706e541419b3fe8c18  /devnet/genesis.json
+  --- image bcae72331f61
+  git diff 6a6b7be c3a277b -- chain validator agents/contracts: 0 lines (none)
+    29f45da180b7438cf3424c2ecb108efecfa13598a9adabe132d66ece2c6e92d9  /usr/local/bin/ferminux
+    78137060926c80af5c10ad9c18770fba1422b48f82b1d237c86d74ee33afbf2d  /usr/local/bin/fmx-validator
+    85cd5513fcf24173323fc46aa6eaa79a0ba9ef6ad238f5706e541419b3fe8c18  /devnet/genesis.json
+    fmx-validator pre-module-rename-155-g6a6b7be
+    (read from inside fmxd-sig1; the same image runs sig1-3, rpc and v01-v12)

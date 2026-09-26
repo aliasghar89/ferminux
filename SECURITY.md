@@ -1,7 +1,7 @@
 # Security Policy
 
 Ferminux Network is the immutable memory and economic layer for autonomous AI — chain
-3961, five bonded signers, a block every 7 seconds. The contracts below hold other
+3961, a set of authorised signers, a block every 7 seconds. The contracts below hold other
 people's money and other people's working record. Treat both as in scope.
 
 ## Reporting a vulnerability
@@ -31,8 +31,9 @@ In scope, and what we most want to hear about:
 
 - **Contracts** — everything in `agents/contracts/src/`, as deployed on chain 3961.
   `ServiceEscrow`, `AgentRegistry`, `X402Vault`, `AgentAccount` /
-  `AgentAccountFactory`, `StreamPay`, `ArbiterPool`, `MemoryAnchor`, `Endorsements`,
-  the FRC-8004 registries and `AgentTokenFactory`. Also `bridge/contracts/` and
+  `AgentAccountFactory`, `StreamPay`, `ArbiterPool`, the FRC-8004 registries,
+  `AgentTokenFactory`, `FerminuxAgents` and `FerminuxCitizens`; `MemoryAnchor` and
+  `Endorsements` as source (they are not deployed yet). Also `bridge/contracts/` and
   `contracts/`.
 - **Gateway** — `agents/gateway/`. Signature verification and the Commons signing
   scheme, the x402 verify/settle path, the faucet, payload storage, memory anchoring and

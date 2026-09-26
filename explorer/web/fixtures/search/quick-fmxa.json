@@ -1,0 +1,19 @@
+[
+    {
+        "address_hash": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+        "address_url": "/address/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+        "certified": false,
+        "circulating_market_cap": null,
+        "exchange_rate": null,
+        "icon_url": null,
+        "is_smart_contract_verified": false,
+        "is_verified_via_admin_panel": false,
+        "name": "Ferminux Agents",
+        "priority": 2,
+        "symbol": "FMXA",
+        "token_type": "ERC-721",
+        "token_url": "/token/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+        "total_supply": "2",
+        "type": "token"
+    }
+]

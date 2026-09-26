@@ -72,7 +72,7 @@ test('the shipped example survives being switched on: three independent provider
   const cfg = parseConfig(JSON.stringify(raw), path);
   assert.equal(cfg.chains.length, 11);
   const fmx = chainById(cfg, 3961);
-  assert.equal(fmx.finality.mode, 'work-and-time', 'Ferminux ships with work-and-time, not a bare count');
+  assert.equal(fmx.finality.mode, 'checkpoint', 'Ferminux ships with checkpoint finality, not a bare count and not the pre-fork work rule');
   assert.equal(fmx.finality.checkpoint.registryChainId, 56, 'and a checkpoint registry on BSC');
   assert.equal(fmx.confirmations, 64, 'the 64-block floor is untouched');
   for (const chain of cfg.chains) {

@@ -1,14 +1,15 @@
 import { config } from "../config";
 import { economy } from "../economy";
 import { esc, fmxUnit, int, pretty, timeHtml } from "../format";
-import { $, initChrome, setBusy, skel, toast } from "../ui";
+import { $, connectPrompt, initChrome, setBusy, skel, toast } from "../ui";
 import { connect, errMessage, onWallet, walletState } from "../wallet";
 import { signAction, type SignedFields } from "../sign";
 import type { MemoryKeyView, MemoryQuota } from "../types";
 
 initChrome();
 const view = $("#view")!;
-let current: string | null = null;
+// undefined, not null: the first onWallet call (address null when no wallet) must still render the connect state.
+let current: string | null | undefined = undefined;
 let readSig: SignedFields | null = null;
 
 onWallet((s) => { if (s.address !== current) { current = s.address; s.address ? load(s.address) : renderEmpty(); } });
@@ -18,7 +19,8 @@ function renderEmpty() {
     <section class="hero-sm">
       <div class="page-title"><div><h1>Memory</h1><p>Private key/value storage, scoped to your address. Reads and writes are signed with your wallet key — no accounts, nothing on-chain.</p></div></div>
     </section>
-    <div class="empty"><h3>Connect a wallet to see your memory</h3>Keys are readable only by the address that wrote them.<br><button class="btn btn-primary" type="button" id="mem-connect">Connect wallet</button></div>`;
+    <div class="empty"><h3>Connect a wallet to see your memory</h3><p>Keys are readable only by the address that wrote them.</p>${connectPrompt("mem-connect")}</div>`;
+  view.setAttribute("aria-busy", "false");
   $("#mem-connect")!.addEventListener("click", async (ev) => { const b = ev.currentTarget as HTMLButtonElement; setBusy(b, true, "Connecting…"); try { await connect(); } catch (e) { toast(errMessage(e)); setBusy(b, false); } });
 }
 
@@ -28,7 +30,7 @@ function quotaBar(q: MemoryQuota): string {
   const kb = (n: number) => n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${(n / 1024).toFixed(1)} KB` : `${(n / (1024 * 1024)).toFixed(2)} MB`;
   return `<div class="panel"><div class="panel-head"><h3>Quota</h3><span class="pill ${pct > 90 ? "warn" : "ok"}">${kb(used)} / ${kb(total)}</span></div>
     <div class="panel-body">
-      <div style="height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct > 90 ? "var(--warn)" : "var(--accent)"}"></div></div>
+      <div style="height:8px;border-radius:999px;background:var(--border);overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct > 90 ? "var(--warn)" : "var(--accent)"}"></div></div>
       <p class="small muted">5 MB free per address (${int(q.keys)} key${q.keys === 1 ? "" : "s"} now). Above quota, writes are priced ${fmxUnit(q.pricing.perBlockWei, 4)} per ${(q.pricing.blockBytes / 1024).toFixed(0)} KB for ${Math.round(q.pricing.creditTtlSeconds / 86400)} days through <a href="/x402/" style="text-decoration:underline">x402</a>.</p>
     </div></div>`;
 }

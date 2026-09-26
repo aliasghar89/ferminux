@@ -45,6 +45,52 @@ function addr(v: unknown): string {
   }
 }
 
+/** streams.deposit / streams.claimed += delta, in BigInt. SQL `CAST(x AS INTEGER) + ?` is 64-bit: it clamps
+ * at 2^63-1 wei (≈ 9.22 FMX), so any stream past that silently reported a wrong total. */
+function addStreamWei(db: Db, id: number, column: "deposit" | "claimed", delta: bigint, block: number): void {
+  const row = db.prepare(`SELECT ${column} AS v FROM streams WHERE id = ?`).get(id) as { v: string | null } | undefined;
+  if (!row) return;
+  let cur = 0n;
+  try {
+    cur = BigInt(row.v || "0");
+  } catch {
+    cur = 0n;
+  }
+  db.prepare(`UPDATE streams SET ${column} = ?, updatedAtBlock = ? WHERE id = ?`).run((cur + delta).toString(), block, id);
+}
+
+/** What a StreamCancelled log paid out to the payee side (payeeAmount + fee), per the as-built event. */
+function cancelPaid(args: Record<string, unknown>): bigint {
+  try {
+    return BigInt(str(pick(args, ["payeeAmount", "toPayee"]) ?? "0") || "0") + BigInt(str(args.fee ?? "0") || "0");
+  } catch {
+    return 0n;
+  }
+}
+
+/**
+ * One-time (idempotent) repair: StreamCancelled used to set cancelled=1 without adding the payee's final payout
+ * to `claimed`, so /api/streams under-reported every cancelled stream (#2 showed 0 of 0.00081 FMX, #3 a
+ * fraction of what the contract's `withdrawn` says). The cancel logs are already in `events`; each is applied
+ * once, guarded by v3_counted exactly like the live handler, so re-running is a no-op.
+ */
+export function reconcileStreamCancels(db: Db): number {
+  let fixed = 0;
+  const rows = db.prepare("SELECT txHash, logIndex, blockNumber, argsJSON FROM events WHERE contractName = 'streamPay' AND eventName = 'StreamCancelled' ORDER BY blockNumber, logIndex").all() as Array<{ txHash: string; logIndex: number; blockNumber: number; argsJSON: string }>;
+  for (const r of rows) {
+    let args: Record<string, unknown>;
+    try {
+      args = JSON.parse(r.argsJSON) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (db.prepare("INSERT OR IGNORE INTO v3_counted (txHash, logIndex) VALUES (?, ?)").run(r.txHash, r.logIndex).changes !== 1) continue;
+    addStreamWei(db, num(pick(args, ["id", "streamId"])), "claimed", cancelPaid(args), r.blockNumber);
+    fixed++;
+  }
+  return fixed;
+}
+
 export function applyV3Event(deps: V3IndexerDeps, ev: V3LogEvent): void {
   const { db, activity, webhooks } = deps;
   const { key, args, ts } = ev;
@@ -106,16 +152,21 @@ export function applyV3Event(deps: V3IndexerDeps, ev: V3LogEvent): void {
         const id = num(pick(args, ["id", "streamId"]));
         const amount = str(pick(args, ["amount", "value"]) ?? "0");
         if (args.deposit !== undefined) db.prepare("UPDATE streams SET deposit = ?, stop = CASE WHEN ? > 0 THEN ? ELSE stop END, updatedAtBlock = ? WHERE id = ?").run(str(args.deposit), num(args.stop), num(args.stop), ev.blockNumber, id);
-        else if (counted()) db.prepare("UPDATE streams SET deposit = CAST(CAST(deposit AS INTEGER) + ? AS TEXT), stop = CASE WHEN ? > 0 THEN ? ELSE stop END, updatedAtBlock = ? WHERE id = ?").run(amount, num(args.stop), num(args.stop), ev.blockNumber, id);
+        else if (counted()) {
+          addStreamWei(db, id, "deposit", BigInt(amount || "0"), ev.blockNumber);
+          if (num(args.stop) > 0) db.prepare("UPDATE streams SET stop = ? WHERE id = ?").run(num(args.stop), id);
+        }
       } else if (name === "StreamClaimed") {
         // as built: StreamClaimed(id, payeeAmount, fee)
         const id = num(pick(args, ["id", "streamId"]));
         const claimed = BigInt(str(pick(args, ["amount", "payeeAmount"]) ?? "0")) + BigInt(str(args.fee ?? "0"));
-        if (counted()) db.prepare("UPDATE streams SET claimed = CAST(CAST(claimed AS INTEGER) + ? AS TEXT), updatedAtBlock = ? WHERE id = ?").run(claimed.toString(), ev.blockNumber, id);
+        if (counted()) addStreamWei(db, id, "claimed", claimed, ev.blockNumber);
       } else if (name === "StreamCancelled") {
         // as built: StreamCancelled(id, by, payeeAmount, fee, refund)
         const id = num(pick(args, ["id", "streamId"]));
         db.prepare("UPDATE streams SET cancelled = 1, updatedAtBlock = ? WHERE id = ?").run(ev.blockNumber, id);
+        // the payee's final accrual is paid out by the cancel itself: it belongs in `claimed` (once — see counted())
+        if (counted()) addStreamWei(db, id, "claimed", cancelPaid(args), ev.blockNumber);
         const s = db.prepare("SELECT payer, payee FROM streams WHERE id = ?").get(id) as { payer: string; payee: string } | undefined;
         emit("stream.cancelled", args.by !== undefined ? addr(args.by) : (s?.payer ?? null), { kind: "stream", id }, { streamId: id, payer: s?.payer ?? null, payee: s?.payee ?? null, toPayee: str(pick(args, ["payeeAmount", "toPayee"]) ?? ""), toPayer: str(pick(args, ["refund", "toPayer"]) ?? ""), fee: str(args.fee ?? "0") });
       } else if (name === "PlanCreated") {

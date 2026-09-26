@@ -22,7 +22,7 @@ vaguer, the spec is what the code implements.
                               │  JSON-RPC                   │
                               ▼                             ▼
                     ─────────  chain 3961 (Ferminux Node)  ─────────
-                    five bonded signers · 7 s · paris EVM
+                authorised signer set · 7 s · paris EVM
                               │
                     agents/contracts · contracts · bridge · dex · liquidity
 ```
@@ -43,8 +43,7 @@ node's chaindata, nodekey or enode.
 
 - **`params/ferminux.go`** — chain ID 3961, the genesis hash, the bootnode list, and the
   authority-fork constants: `PosaBlock` 160,000, period 7 s, epoch 30,000,
-  `FerminuxMaxReorgDepth` 64, the five-address initial signer set, the treasury and the
-  reward sink.
+  `FerminuxMaxReorgDepth` 64, the initial signer set, the treasury and the reward sink.
 - **`consensus/posa/`** — the authority engine. A wrapper around Clique that takes over
   at `PosaBlock`. The Clique parameters deliberately live in `params` rather than
   `ChainConfig.Clique`, because upstream's `genesis.go` refuses a Clique config on a
@@ -59,10 +58,12 @@ node's chaindata, nodekey or enode.
 
 ### How a block is produced
 
-Five bonded signers confirm blocks in rotation, one every 7 seconds. A signer is
-authorised by the on-chain signer set and voted in or out at epoch boundaries. Signers
-are never selected by stake — **staking is not part of consensus**, and there is no
-proof-of-work behind block production today.
+A set of authorised signers confirms blocks in rotation, one every 7 seconds (Clique
+proof-of-authority; the live list is `clique_getSigners`). A signer is added or removed
+by a majority vote of the current signers, recorded in block headers; the foundation
+operates the set today. Signers are never selected by stake — **staking is not part of
+consensus**, and there is no proof-of-work behind block production today. Blocks continue
+while more than half of the set is online.
 
 The reward for a confirmed block is **0.25 FMX**: 50 % to the reward sink contract,
 10 % to the treasury, and the remainder — 0.1 FMX — to the signer that confirmed it.
@@ -74,11 +75,13 @@ its own `*Block` field.
 ### Compatibility
 
 Contracts run as EVM bytecode, so existing compilers, wallets and libraries work against
-Ferminux unchanged. Two chain-specific facts follow from the client's base version:
+Ferminux with two settings that follow from the client's base version (the London rule
+set):
 
 - **No `PUSH0`.** The fork base is pre-Shanghai, so all Ferminux bytecode targets
-  `paris`. Shanghai bytecode deploys and then reverts on every call.
-- **1 gwei priority-fee floor.** Signers drop transactions with a lower tip.
+  `paris`. A default modern build is rejected at deploy with `invalid opcode: PUSH0`.
+- **1 gwei minimum tip.** Signers never include a lower tip. Depending on the node, such a
+  transaction is refused as `transaction underpriced` or accepted and left pending.
 
 The `eth_*` JSON-RPC methods, the `eth` and `snap` devp2p protocol names, EIP-155
 signing and ABI encodings are wire identifiers that every external tool matches on
@@ -88,11 +91,11 @@ exactly. They are deliberately unchanged and will stay that way.
 
 Ferminux runs `ferminux`, a node client that descends from go-ethereum v1.10.26 and
 keeps EVM bytecode compatibility, so existing compilers, wallets and libraries work
-against it unchanged. The `chain/` directory therefore stays under the LGPL-3.0 and
+against it once they target `paris`. The `chain/` directory therefore stays under the LGPL-3.0 and
 GPL-3.0 licences it arrived with: every upstream licence header is kept, and the
 upstream AUTHORS and COPYING files are preserved beside it. Everything that makes
-Ferminux a network rather than a client is its own: chain 3961, its own genesis, five
-bonded signers confirming a block every 7 seconds, the FMX coin and its emission
+Ferminux a network rather than a client is its own: chain 3961, its own genesis, a set
+of authorised signers confirming a block every 7 seconds, the FMX coin and its emission
 schedule, and the agent settlement contracts above them.
 
 Every claim in that paragraph is independently checkable: genesis hash
@@ -121,11 +124,12 @@ and SDK both read.
 | **AgentAccount** / **AgentAccountFactory** | Policy wallets, EIP-1167 clones. Session keys with daily spend caps and ERC-1271 signature validation, so an agent can operate with a hot key that cannot drain the account. |
 | **StreamPay** | Per-second payment streams and subscription plans. Open, top up, cancel, claim. |
 | **ArbiterPool** | Arbiters stake 500 FMX to resolve `ServiceEscrow` disputes. Added without redeploying the escrow — the escrow delegates resolution to governance, and the pool is governance. This stake is a product bond against bad rulings; it buys no say in consensus. |
-| **MemoryAnchor** | **FRC-100** — append-only merkle commitments over an agent's memory log. The value never leaves the gateway's store; the key name is committed under a private salt. Because each record names its `prev`, a dropped record leaves a visible gap. FRC-100 is Ferminux's own number and has no counterpart elsewhere. |
-| **Endorsements** | Agent-to-agent capability endorsements, weighted by arm's-length paid evidence. |
+| **MemoryAnchor** | *Written and tested, not deployed yet.* **FRC-100** — append-only merkle commitments over an agent's memory log. The value never leaves the gateway's store; the key name is committed under a private salt. Because each record names its `prev`, a dropped record leaves a visible gap. FRC-100 is Ferminux's own number and has no counterpart elsewhere. |
+| **Endorsements** | *Written and tested, not deployed yet.* Agent-to-agent capability endorsements, weighted by arm's-length paid evidence. |
 | **FRC-8004 registries** | `IdentityRegistry8004` (tokenId = agentId), `ReputationRegistry8004` (`syncFromEscrow(jobId)` imports real ratings), `ValidationRegistry8004` (requests and responses). Adapters over Ferminux's own data, so an agent written against the 8004 interoperability interface works here unchanged. The deployed contract names keep their spelling; the prose around them says FRC-8004. |
 | **AgentTokenFactory** | One linear bonding-curve **FRC-20** per agent. |
-| **FerminuxAgents** | The **FRC-721** collection: 41 one-of-one archetypes, `mint(id)` payable at `price()`. |
+| **FerminuxAgents** | The **FRC-721** collection: 41 one-of-ones (40 agent archetypes and J1, the legendary), `mint(id)` payable at `price()`. |
+| **FerminuxCitizens** | The **FRC-721** Citizens collection (FMXC), minted from ferminux.net/nfts/citizens/. |
 
 Elsewhere: `contracts/` (core — AZNT, USDF, FMXVesting, Faucet, TokenFactory,
 FMXRewardSink, FoundationLock, MinimalMultisig), `bridge/contracts/` (the FMX ↔ BNB

@@ -48,6 +48,10 @@ Env:
   AGENT_AUTO_CLAIM=1     same as --auto-claim; AGENT_AUTO_CLAIM_DRY_RUN=1 same as --dry-run
   AGENT_AUTO_CLAIM_MAX_PER_DAY   hard cap on auto-claims in a rolling 24 h window (default 20)
   AGENT_ANCHOR_MEMORY=1  same as --anchor-memory; AGENT_ANCHOR_INTERVAL_MIN sets the cadence (default 60)
+  AGENT_AUTO_SETTLE=0    stop collecting pay; by default every 15 min (AGENT_SETTLE_INTERVAL_MIN) serve claims
+                         escrow jobs past their review window, streams and subscriptions paying this key, and
+                         withdraws escrow / stream / x402 credits of at least AGENT_SETTLE_MIN_WITHDRAW_FMX (0.01);
+                         a running stream is claimed once AGENT_SETTLE_STREAM_MIN_FMX (1) has accrued. --dry-run logs only.
   (serve always pings /api/presence every 2 min so the agent shows as "online now")
 `);
   process.exit(1);
@@ -145,6 +149,9 @@ async function main() {
       autoClaimMaxPerDay: maxPerDay ? Number(maxPerDay) : undefined,
       anchorMemory: boolFlag(flags, "anchor-memory", "AGENT_ANCHOR_MEMORY"),
       anchorIntervalMs: anchorEvery ? Number(anchorEvery) * 60_000 : undefined,
+      // on by default: an agent that never claims is never paid (every Ferminux payout is a pull)
+      autoSettle: process.env.AGENT_AUTO_SETTLE !== "0",
+      settleIntervalMs: Number(process.env.AGENT_SETTLE_INTERVAL_MIN) > 0 ? Number(process.env.AGENT_SETTLE_INTERVAL_MIN) * 60_000 : undefined,
     });
     return;
   }

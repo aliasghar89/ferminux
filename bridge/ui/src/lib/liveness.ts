@@ -19,7 +19,9 @@
 //     signing:    { paused, reason },
 //   }
 //
-// and the document carries a top-level `generatedAt` (unix ms). The fixture at
+// and, per chain, an optional `scan` { lagging, lagBlocks, reason } saying
+// whether the relayer is still seeing transfers sent from that chain; the
+// document carries a top-level `generatedAt` (unix ms). The fixture at
 // tests/fixtures/relayer-status.json is a capture of that output and the
 // relayer's own suite asserts its key sets against the emitter, so the two
 // sides cannot drift apart silently again.
@@ -80,6 +82,17 @@ export interface SigningReport {
   reason: string | null;
 }
 
+/**
+ * Is the relayer still SEEING transfers sent from this chain? scanHealth() in
+ * bridge/relayer/src/watcher.ts. Optional: a relayer that predates it simply
+ * omits the block.
+ */
+export interface ScanReport {
+  lagging: boolean;
+  lagBlocks: number | null;
+  reason: string | null;
+}
+
 export interface ChainLiveness {
   chainId: number;
   name: string | null;
@@ -89,6 +102,8 @@ export interface ChainLiveness {
   checkpoint: CheckpointReport | null;
   /** null when the relayer did not report a verdict — the chain is then UNKNOWN, never ok. */
   signing: SigningReport | null;
+  /** null when not reported. */
+  scan: ScanReport | null;
 }
 
 export interface RelayerStatus {
@@ -197,6 +212,14 @@ function parseSigning(v: unknown): SigningReport | null {
   return { paused, reason: str(s.reason) };
 }
 
+function parseScan(v: unknown): ScanReport | null {
+  const s = obj(v);
+  if (!s) return null;
+  const lagging = bool(s.lagging);
+  if (lagging === null) return null;
+  return { lagging, lagBlocks: num(s.lagBlocks), reason: str(s.reason) };
+}
+
 function parseChain(v: unknown): ChainLiveness | null {
   const c = obj(v);
   if (!c) return null;
@@ -211,6 +234,7 @@ function parseChain(v: unknown): ChainLiveness | null {
     pace: f ? parsePace(f.pace) : null,
     checkpoint: f ? parseCheckpoint(f.checkpoint) : null,
     signing: f ? parseSigning(f.signing) : null,
+    scan: parseScan(c.scan),
   };
 }
 
@@ -397,6 +421,19 @@ export function assessLiveness(live: ChainLiveness | null, chainName: string, no
     }
   }
 
+  // A scanner that is days behind never sees a transfer sent now. The relayer
+  // folds this into signing.paused itself; reading it here as well means an
+  // older relayer that only reports `scan` still cannot be quoted as healthy.
+  if (live.scan?.lagging) {
+    const reason = live.scan.reason ? ` (${live.scan.reason})` : relayerReason;
+    return {
+      ...base,
+      state: 'paused',
+      paused: true,
+      message: `Validators are not seeing new transfers from ${chainName} right now, so transfers are paused until they catch up.${reason}`,
+    };
+  }
+
   if (live.signing.paused) {
     return {
       ...base,
@@ -559,6 +596,45 @@ export function liveSourceWaitSeconds(
     return lag !== null && lag !== undefined ? Math.round(Math.max(lag, 1) * gap) : null;
   }
   return Math.round(Math.max(1, requiredConfirmations) * gap);
+}
+
+// ------------------------------------------------------------- send gate
+
+export interface SendGate {
+  ok: boolean;
+  /** Why sending is disabled, in one sentence; null when ok. */
+  reason: string | null;
+}
+
+/**
+ * May the app let a user lock or burn on `chainId` RIGHT NOW?
+ *
+ * Everything above only EXPLAINS a wait; this decides whether to create one.
+ * The contract has no refund path: a send() that no validator will sign locks
+ * the coins until the operators repair the bridge, with no upper bound. So the
+ * gate fails CLOSED — no report, a stale report, a chain the report does not
+ * cover, no signing verdict, or any pause all refuse. The page used to let a
+ * user submit while its own panel said "validators are not signing"
+ * (srcVerdict.paused only changed the ETA text), and with no report at all it
+ * submitted on the plain confirmation count.
+ *
+ * Shared by the bridge app and the DEX bridge panel, which imports this module
+ * through the @bridge alias.
+ */
+export function canSend(status: RelayerStatus | null, chainId: number, chainName: string, nowMs: number): SendGate {
+  if (!status) {
+    return { ok: false, reason: `The validator status report is unavailable, so this page cannot confirm that transfers from ${chainName} would be signed. Sending is disabled until it is back.` };
+  }
+  if (!isStatusFresh(status, nowMs)) {
+    return { ok: false, reason: `The validator status report is out of date, so this page cannot confirm that transfers from ${chainName} would be signed. Sending is disabled until it refreshes.` };
+  }
+  const live = livenessForChain(status, chainId);
+  const verdict = assessLiveness(live, chainName, nowMs / 1000);
+  if (verdict.state === 'unknown') {
+    return { ok: false, reason: `The validators do not report on ${chainName}, so sending from it is disabled.` };
+  }
+  if (verdict.paused) return { ok: false, reason: verdict.message };
+  return { ok: true, reason: null };
 }
 
 export function chainLivenessFromConfig(chain: ChainConfig, status: RelayerStatus | null): ChainLiveness | null {

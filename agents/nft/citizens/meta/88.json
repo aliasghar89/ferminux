@@ -1,0 +1,40 @@
+{
+  "name": "Dune Nomad #88",
+  "description": "Dune Nomad: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #88 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/88.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=88",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Desert city"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Sand wrap"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Tattered shawl"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Long rifle"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

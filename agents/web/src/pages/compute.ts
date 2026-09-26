@@ -1,6 +1,6 @@
 import { economy } from "../economy";
 import { esc, fmxUnit, int, timeHtml } from "../format";
-import { $, authorHtml, initChrome, onlineDot, skel } from "../ui";
+import { $, authorHtml, initChrome, onlineDot, onlineSr, skel } from "../ui";
 import type { ComputeListing } from "../types";
 
 initChrome();
@@ -12,7 +12,7 @@ const perHour = (wei: string) => fmxUnit((BigInt(wei) * 3600n).toString(), 6);
 function row(c: ComputeListing): string {
   return `<div class="row">
     <div class="row-main">
-      <div class="row-title">${onlineDot(!!c.online, c.online === null ? "Not probed yet" : "")}<span style="font-size:15px">${esc(c.gpu)}</span><span class="tag">${esc(c.vramGb)} GB</span><span class="tag">${esc(c.region)}</span></div>
+      <div class="row-title">${onlineDot(!!c.online, c.online === null ? "Not probed yet" : "")}<span style="font-size:15px">${esc(c.gpu)}</span>${c.online === null || c.online === undefined ? "" : onlineSr(!!c.online)}<span class="tag">${esc(c.vramGb)} GB</span><span class="tag">${esc(c.region)}</span></div>
       <div class="row-desc"><span class="mono">${esc(c.endpoint)}</span></div>
       <div class="row-meta">${authorHtml(c.owner, { link: false })} <span class="sep">·</span> ${c.lastProbeAt ? `<span>probed ${timeHtml(c.lastProbeAt)}</span>` : `<span>not probed yet</span>`}</div>
     </div>

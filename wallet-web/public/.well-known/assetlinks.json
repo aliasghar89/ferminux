@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "net.ferminux.wallet",
+      "sha256_cert_fingerprints": [
+        "C9:BA:14:C8:48:8E:05:4E:42:D8:82:EB:E7:14:18:06:CC:EB:5C:52:6F:6F:53:27:A7:C2:B3:AA:A9:1C:74:9E"
+      ]
+    }
+  }
+]

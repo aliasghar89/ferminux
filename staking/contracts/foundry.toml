@@ -1,0 +1,22 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+
+# Pinned compiler — matches the `pragma solidity ^0.8.24` in all contracts.
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+
+# Ferminux-geth is a fork of geth v1.10.26 (pre-Shanghai): PUSH0 is NOT a valid
+# opcode on chain 3961, so bytecode must target Paris.
+evm_version = "paris"
+
+# Test-suite tuning
+fuzz = { runs = 256 }
+invariant = { runs = 48, depth = 24, fail_on_revert = false }
+
+[fmt]
+line_length = 120

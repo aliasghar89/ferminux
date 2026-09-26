@@ -140,6 +140,15 @@ export interface FinalityMonitorOptions {
 
 const HEADER_CACHE_MAX = 16_384;
 
+/**
+ * Head difficulty at or below this means the blocks are authority-signed
+ * (Clique: 2 in turn, 1 out of turn), not produced by work. Summed over the
+ * whole 4,096-block walk that is at most ~8,192 — against a workThreshold of
+ * 7.8e10 — so "work-and-time" on such a chain refuses every transfer forever,
+ * silently, as 'not_final'. Ferminux crossed this line at block 160,000.
+ */
+export const AUTHORITY_DIFFICULTY_MAX = 2n;
+
 function toHeader(b: Block): Header {
   return {
     number: b.number,
@@ -169,6 +178,8 @@ export class FinalityMonitor {
   private readonly now: () => number;
   private readonly headers = new Map<string, Header>();
   private head: Header | null = null;
+  /** Set once measurePace sees authority-signed heads while the mode is work-and-time. */
+  private workModeImpossible = false;
   private pace: PaceReport;
   private checkpoint: CheckpointReport;
   private lastRefreshAt = 0;
@@ -221,6 +232,11 @@ export class FinalityMonitor {
 
   get checkpointReport(): CheckpointReport {
     return this.checkpoint;
+  }
+
+  /** True once the head shows authority-signed blocks while the mode is work-and-time. */
+  get workModeUnsatisfiable(): boolean {
+    return this.workModeImpossible;
   }
 
   // ------------------------------------------------------------------ reads
@@ -394,6 +410,7 @@ export class FinalityMonitor {
     const { header: head, reason } = await this.quorumHeader(headNumber);
     if (!head) return fail(`head header unavailable: ${reason}`);
     this.head = head;
+    this.checkWorkModeFeasible(head);
 
     const walked = await this.walk(head, Math.max(head.number - pace.window, 0), pace.window + 1);
     // A walk that stopped short — a parent that did not reach quorum — is not a
@@ -433,6 +450,31 @@ export class FinalityMonitor {
       reason: why,
     };
     this.transition(previous, state, why);
+  }
+
+  /**
+   * A config guard that can only be evaluated against the live chain: refuse to
+   * pretend "work-and-time" is a finality rule once the source blocks carry no
+   * work. Loud once (critical alert), then visible in /status as the signing
+   * reason, until the operator switches the chain to "checkpoint".
+   */
+  private checkWorkModeFeasible(head: Header): void {
+    if (this.cfg.mode !== 'work-and-time') return;
+    const impossible = head.difficulty <= AUTHORITY_DIFFICULTY_MAX;
+    if (impossible && !this.workModeImpossible) {
+      this.alerts.fire({
+        kind: 'chain_degraded',
+        severity: 'critical',
+        message: `finality mode "work-and-time" can never be met on ${this.chain.name}: its blocks are authority-signed (difficulty ${head.difficulty}); set finality.mode to "checkpoint"`,
+        key: `work-mode-impossible:${this.chain.chainId}`,
+        fields: { chain: this.chain.name, head: head.number, difficulty: head.difficulty.toString(), workThreshold: this.cfg.workThreshold.toString() },
+      });
+    }
+    this.workModeImpossible = impossible;
+  }
+
+  private workModeReason(): string {
+    return `finality mode "work-and-time" cannot be met on ${this.chain.name}: its blocks are authority-signed (difficulty <= ${AUTHORITY_DIFFICULTY_MAX}), so no transfer can accumulate the ${this.cfg.workThreshold} work threshold. The operator must switch this chain to "checkpoint" finality.`;
   }
 
   private transition(from: PaceState, to: PaceState, reason: string | null): void {
@@ -656,6 +698,7 @@ export class FinalityMonitor {
     }
 
     // ---- work-and-time
+    if (this.workModeImpossible) return verdict(false, 'not_final', this.workModeReason());
     const head = this.head as Header;
     if (head.number <= anchor.srcBlockNumber) {
       return verdict(false, 'not_final', `head ${head.number} is not above source block ${anchor.srcBlockNumber}`);
@@ -738,6 +781,7 @@ export class FinalityMonitor {
     if (this.cfg.checkpoint && this.checkpoint.state !== 'ok') {
       return { paused: true, reason: `Checkpoint ${this.checkpoint.state}: ${this.checkpoint.reason ?? 'transfers are paused until a fresh checkpoint is verified'}` };
     }
+    if (this.workModeImpossible) return { paused: true, reason: this.workModeReason() };
     return { paused: false, reason: null };
   }
 }

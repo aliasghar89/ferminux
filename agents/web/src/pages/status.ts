@@ -93,9 +93,18 @@ function paint(s: StatusView, stale: string | null) {
 
 const LABEL: Record<string, string> = {
   head: "Head", indexedBlock: "Indexed block", lagBlocks: "Block lag", lagSeconds: "Time lag", latencyMs: "Latency",
-  balanceFmx: "Balance", lowFunds: "Funding", queued: "Queued", dripFmx: "Drip", usedToday: "Used today",
-  remainingToday: "Left today", pending: "Pending", failed24h: "Failed (24 h)", sizeBytes: "Size", address: "Address",
+  chainId: "Chain ID", balanceFmx: "Balance", lowFunds: "Funding", queued: "Queued", dripFmx: "Drip", dripsFunded: "Drips funded",
+  usedToday: "Used today", relaysToday: "Relays today", remainingToday: "Left today", pending: "Pending", failed24h: "Failed (24 h)",
+  sizeBytes: "Size", deployBlock: "Deploy block", pollMs: "Poll every", batchMs: "Batch every", tickMs: "Tick every",
+  address: "Address", hotWallet: "Hot wallet", vault: "Vault", accountImpl: "Account impl.",
 };
+/** Keys that never render: internal hostnames (the rpc card's docker URL) stay on the server. */
+const HIDDEN = new Set(["url", "rpcUrl", "internalUrl"]);
+const isAddr = (v: unknown): v is string => typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v);
+/** "199.999236700994656907" → "199.9992", full value kept in the title. */
+const fmxText = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? `<span class="num" title="${esc(String(v))} FMX">${n.toLocaleString("en-US", { maximumFractionDigits: 4 })} FMX</span>` : `<span class="num">${esc(String(v))} FMX</span>`; };
+/** Unknown camelCase keys read as words: "dripsFunded" → "Drips funded". */
+const humanKey = (k: string) => { const w = k.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase(); return w.charAt(0).toUpperCase() + w.slice(1); };
 const ORDER = Object.keys(LABEL);
 
 function serviceCard(name: string, svc: StatusService): string {
@@ -103,19 +112,19 @@ function serviceCard(name: string, svc: StatusService): string {
   const state = disabled ? "off" : svc.ok ? "ok" : "degraded";
   const pill = disabled ? `<span class="pill">disabled</span>` : svc.ok ? `<span class="pill ok">ok</span>` : `<span class="pill warn">degraded</span>`;
   const extras = Object.keys(svc)
-    .filter((k) => k !== "ok" && k !== "enabled" && k !== "detail" && svc[k] !== null && svc[k] !== undefined && typeof svc[k] !== "object")
+    .filter((k) => k !== "ok" && k !== "enabled" && k !== "detail" && !HIDDEN.has(k) && svc[k] !== null && svc[k] !== undefined && typeof svc[k] !== "object" && !(typeof svc[k] === "string" && /^https?:\/\/[^/]*(rpc\d|localhost|127\.|\bdb\b|:\d{4})/.test(String(svc[k]))))
     .sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99));
   return `<div class="panel" data-state="${state}">
     <div class="panel-head"><h3 class="mono" style="font-size:14px">${esc(name)}</h3>${pill}</div>
     <div class="panel-body" style="gap:8px">
-      ${extras.length ? `<dl class="kv" style="border:0;background:transparent">${extras.map((k) => extraRow(k, svc[k])).join("")}</dl>` : `<p class="small muted" style="margin:0">${disabled ? "Not enabled on this gateway." : "Responding."}</p>`}
+      ${extras.length ? `<dl class="kv kv-flat">${extras.map((k) => extraRow(k, svc[k])).join("")}</dl>` : `<p class="small muted" style="margin:0">${disabled ? "Not enabled on this gateway." : "Responding."}</p>`}
       ${!svc.ok && svc.detail ? `<p class="small" style="margin:0;color:var(--warn)">${esc(svc.detail)}</p>` : ""}
       ${svc.ok && svc.detail ? `<p class="small muted" style="margin:0">${esc(svc.detail)}</p>` : ""}
     </div></div>`;
 }
 
 function extraRow(key: string, value: unknown): string {
-  return `<div class="kv-row" style="padding:5px 0;border-bottom:0;grid-template-columns:110px 1fr"><dt class="small">${esc(LABEL[key] ?? key)}</dt><dd class="small">${extraValue(key, value)}</dd></div>`;
+  return `<div class="kv-row"><dt class="small">${esc(LABEL[key] ?? humanKey(key))}</dt><dd class="small">${extraValue(key, value)}</dd></div>`;
 }
 
 function extraValue(key: string, value: unknown): string {
@@ -123,12 +132,15 @@ function extraValue(key: string, value: unknown): string {
     if (key === "lowFunds") return value ? `<span class="pill warn">low</span>` : `<span class="pill ok">funded</span>`;
     return value ? `<span class="pill ok">yes</span>` : `<span class="pill">no</span>`;
   }
-  if (key === "address" && typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value)) return addrHtml(value);
+  if (isAddr(value)) return addrHtml(value, { label: LABEL[key] ?? humanKey(key) });
+  if (key === "chainId") return `<span class="num">${esc(String(value))}</span>`;
+  if (/Ms$/.test(key) && key !== "latencyMs" && Number.isFinite(Number(value))) return `<span class="num">${esc(Number(value) < 1000 ? `${int(Number(value))} ms` : dur(Number(value) / 1000))}</span>`;
+  if (key === "deployBlock") return `<span class="num">${int(Number(value))}</span>`;
   if (key === "sizeBytes") return `<span class="num">${esc(bytes(Number(value)))}</span>`;
   if (key === "latencyMs") return `<span class="num">${int(Number(value))} ms</span>`;
   if (key === "lagSeconds") return `<span class="num">${esc(dur(Number(value)))}</span>`;
   if (key === "lagBlocks") return `<span class="num">${int(Number(value))} block${Number(value) === 1 ? "" : "s"}</span>`;
-  if (key === "balanceFmx" || key === "dripFmx") return `<span class="num">${esc(String(value))} FMX</span>`;
+  if (key === "balanceFmx" || key === "dripFmx") return fmxText(value);
   if (typeof value === "number") return `<span class="num">${int(value)}</span>`;
   return `<span class="mono" style="font-size:12.5px">${esc(String(value))}</span>`;
 }

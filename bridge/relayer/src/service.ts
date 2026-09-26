@@ -17,7 +17,7 @@ import { VolumeLimiter } from './limits.ts';
 import type { Logger } from './logger.ts';
 import type { Metrics } from './metrics.ts';
 import type { Alerter } from './alerts.ts';
-import { Watcher } from './watcher.ts';
+import { Watcher, scanHealth, type ScanHealth } from './watcher.ts';
 import { domainSeparatorFor } from './transfer.ts';
 
 export interface RoleHooks {
@@ -31,6 +31,19 @@ export interface RoleHooks {
   extraStatus?(): Record<string, unknown>;
   /** Extra readiness condition; false makes /health return 503. */
   ready?(): boolean;
+}
+
+/**
+ * Fold the scanner's health into the published signing verdict. A lagging
+ * scanner pauses signing for transfers FROM that chain as surely as a stale
+ * checkpoint does — the validator cannot sign what it has not seen — and the
+ * UI (bridge/ui/src/lib/liveness.ts) reads `finality.signing` as THE verdict.
+ * A verdict that is already paused keeps its own, more specific reason.
+ */
+export function withScanVerdict(finality: Record<string, unknown>, scan: ScanHealth): Record<string, unknown> {
+  const signing = finality.signing as { paused: boolean; reason: string | null } | undefined;
+  if (!scan.lagging || signing?.paused) return finality;
+  return { ...finality, signing: { paused: true, reason: `Scanner behind: ${scan.reason}` } };
 }
 
 export interface ServiceOptions {
@@ -118,6 +131,7 @@ export class RelayerService {
     this.metrics.describe('relayer_chain_head', 'Latest head block observed per chain');
     this.metrics.describe('relayer_chain_settled', 'Latest settled (confirmed) block per chain');
     this.metrics.describe('relayer_chain_cursor', 'Persisted scan cursor per chain');
+    this.metrics.describe('relayer_scan_lagging', '1 while the scanner is stale or far behind the head and transfers from this chain are not being seen');
     this.metrics.describe('relayer_rpc_healthy', 'Healthy RPC endpoints per chain');
     this.metrics.describe('relayer_rpc_configured', 'Configured RPC endpoints per chain');
     this.metrics.describe('relayer_rpc_required', 'Endpoints that must agree before this node signs (alert when healthy < required)');
@@ -319,7 +333,10 @@ export class RelayerService {
         const m = this.finality.get(c.chainId);
         // `finality` is what the UI reads to explain a waiting transfer: the
         // pace measurement and the checkpoint lag, plus one plain sentence.
-        return { ...c.status(), watcher: w?.stats ?? null, finality: m ? m.status() : unmonitoredFinalityStatus(c.config.finality, c.config.confirmations) };
+        // `scan` says whether this node is still SEEING new transfers at all.
+        const finality = m ? m.status() : unmonitoredFinalityStatus(c.config.finality, c.config.confirmations);
+        const scan = w ? scanHealth(w.stats, c.config, Date.now()) : null;
+        return { ...c.status(), watcher: w?.stats ?? null, scan, finality: scan ? withScanVerdict(finality, scan) : finality };
       }),
       ...(this.hooks.extraStatus?.() ?? {}),
     };
@@ -362,6 +379,9 @@ export class RelayerService {
       this.metrics.set('relayer_chain_head', w.stats.head, labels);
       this.metrics.set('relayer_chain_settled', w.stats.settled, labels);
       this.metrics.set('relayer_chain_cursor', w.stats.cursor, labels);
+      // Alert on relayer_scan_lagging == 1: the node is not seeing new transfers
+      // from this chain (frozen cursor, or a catch-up still in progress).
+      this.metrics.set('relayer_scan_lagging', scanHealth(w.stats, w.chain.config, Date.now()).lagging ? 1 : 0, labels);
       this.metrics.set('relayer_rpc_healthy', w.chain.healthyEndpoints.length, labels);
       this.metrics.set('relayer_rpc_configured', w.chain.endpoints.length, labels);
       // Alert on relayer_rpc_healthy < relayer_rpc_required: below this floor

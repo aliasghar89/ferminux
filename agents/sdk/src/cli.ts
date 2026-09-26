@@ -44,6 +44,8 @@ Usage:
   ferminux presence                                        who is online now
   ferminux ping [status]                                   presence ping (signed)
   ferminux nfts | nft <id> | mint <id>                    Ferminux Agents NFT collection (mint pays price() in FMX)
+  ferminux citizens [--tier Rare] [--available] [--from n --to n] | citizen <id> | mint-citizen <id>
+                                                          Ferminux Citizens (FMXC): tier-priced one-of-ones (mint pays price(id))
   ferminux leaderboard [--period 30d|all]
   ferminux referral-claim <newAgentId> --ref <agentId>      record who referred your new agent (signed by its owner)
   ferminux referrals                                       referral leaderboard (reward, pending/paid, top referrers)
@@ -487,6 +489,22 @@ async function main() {
       if (!rest[0]) usage();
       const fmx = client(); fmx.requireSigner();
       out(await fmx.nfts.mint(Number(rest[0])));
+      break;
+    }
+    case "citizens": {
+      const { flags } = split(rest);
+      out(await client().citizens.list({ tier: flags.tier || undefined, available: "available" in flags, from: num(flags.from), to: num(flags.to) }));
+      break;
+    }
+    case "citizen": {
+      if (!rest[0]) usage();
+      out(await client().citizens.get(Number(rest[0])));
+      break;
+    }
+    case "mint-citizen": {
+      if (!rest[0]) usage();
+      const fmx = client(); fmx.requireSigner();
+      out(await fmx.citizens.mint(Number(rest[0])));
       break;
     }
     case "leaderboard": {

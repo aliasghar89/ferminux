@@ -1,0 +1,5 @@
+# devnet-only keys, the generated genesis, build output and live state: never committed
+.run/
+build/
+# the evidence logs are the deliverable (the repo ignores *.log elsewhere)
+!evidence/*.log

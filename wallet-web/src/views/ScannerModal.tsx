@@ -1,7 +1,36 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Modal, Spinner } from '../components/ui.tsx';
 import { decodeQrImage, parseQrPayload, type QrTarget } from '../lib/qr.ts';
 import { CHAIN_ID } from '../config.ts';
+import { canScanNatively, isNativeApp, platformName, scanQr } from '../platform/index.ts';
+
+/**
+ * What the scanner is for. The camera, image and paste paths are shared; the
+ * mode decides which payloads are accepted and how the screen is worded.
+ */
+export interface ScanMode<T> {
+  title: string;
+  hint: ReactNode;
+  manualLabel: string;
+  manualPlaceholder: string;
+  parse: (payload: string) => { ok: true; target: T } | { ok: false; error: string };
+}
+
+/** Payment codes for `chainId`; codes for `alsoAccept` chains come back carrying their chainId. */
+export function paymentScanMode(chainId: number, chainName: string, alsoAccept: readonly number[] = []): ScanMode<QrTarget> {
+  return {
+    title: 'Scan a payment code',
+    hint: (
+      <>
+        Point the rear camera at the code. Addresses and <span className="mono">ethereum:</span> payment requests for{' '}
+        {chainName} (chain {chainId}){alsoAccept.length > 0 ? ' or another supported network' : ''} are accepted.
+      </>
+    ),
+    manualLabel: 'Or paste an address / payment link',
+    manualPlaceholder: `0x… or ethereum:0x…@${chainId}`,
+    parse: (payload) => parseQrPayload(payload, chainId, alsoAccept),
+  };
+}
 
 /** ~10 fps. Enough for a hand-held scan, ~6× cheaper than decoding every frame. */
 const FRAME_INTERVAL_MS = 100;
@@ -12,18 +41,49 @@ const MAX_IMAGE_EDGE = 1400;
 /** How long to scan before offering the fallbacks unprompted. */
 const DECODE_HINT_MS = 20_000;
 
+/** The one address where the wallet's own server allows the camera. */
+const CANONICAL_WALLET_URL = 'https://wallet.ferminux.net';
+
+const POLICY_BLOCKED_DETAIL =
+  `This address turns the camera off for every page on it, so no browser setting will bring it back here. Use "Scan from image" or paste the address below. Or scan at ${CANONICAL_WALLET_URL}: it is a separate site, so accounts saved here appear there only after you import them.`;
+
+function onCanonicalHost(): boolean {
+  return typeof location !== 'undefined' && location.origin === CANONICAL_WALLET_URL;
+}
+
+/**
+ * True only when the browser positively reports that Permissions-Policy
+ * disallows the camera for this document (Chromium exposes this; Safari and
+ * Firefox do not, and then this returns false and the normal path runs).
+ */
+function cameraBlockedByPolicy(): boolean {
+  if (typeof document === 'undefined') return false;
+  type PolicyApi = { allowsFeature?: (feature: string) => boolean };
+  const doc = document as Document & { permissionsPolicy?: PolicyApi; featurePolicy?: PolicyApi };
+  const api = doc.permissionsPolicy ?? doc.featurePolicy;
+  try {
+    return api?.allowsFeature?.('camera') === false;
+  } catch {
+    return false;
+  }
+}
+
 type CameraState =
   | { kind: 'starting' }
   | { kind: 'scanning' }
   | { kind: 'blocked'; title: string; detail: string; retryable: boolean };
 
-export function ScannerModal({
+export function ScannerModal<T = QrTarget>({
   onClose,
   onResult,
+  mode: modeProp,
 }: {
   onClose: () => void;
-  onResult: (target: QrTarget) => void;
+  onResult: (target: T) => void;
+  /** Defaults to Ferminux payment codes. */
+  mode?: ScanMode<T>;
 }) {
+  const mode = (modeProp ?? paymentScanMode(CHAIN_ID, 'the Ferminux Network')) as ScanMode<T>;
   const [camera, setCamera] = useState<CameraState>({ kind: 'starting' });
   const [rejected, setRejected] = useState<string | null>(null);
   const [manual, setManual] = useState('');
@@ -41,6 +101,10 @@ export function ScannerModal({
   const lastPayloadRef = useRef<string | null>(null);
   /** Set once a code is accepted so a late frame cannot fire a second result. */
   const doneRef = useRef(false);
+  /** App: the platform scanner failed or is missing here — use the in-page camera from now on. */
+  const nativeUnavailableRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   /** Release the camera. Idempotent — safe to call from cleanup and handlers. */
   const stopCamera = useCallback(() => {
@@ -65,7 +129,7 @@ export function ScannerModal({
   }, []);
 
   const accept = useCallback(
-    (target: QrTarget) => {
+    (target: T) => {
       if (doneRef.current) return;
       doneRef.current = true;
       stopCamera();
@@ -80,10 +144,15 @@ export function ScannerModal({
     [onClose, onResult, stopCamera],
   );
 
-  /** One decoded string → either a filled Send form or an honest explanation. */
+  // The parser is read through a ref: a parent re-render hands in a new mode
+  // object, and that must not rebuild `consume` (see consumeRef below).
+  const parseRef = useRef(mode.parse);
+  parseRef.current = mode.parse;
+
+  /** One decoded string → either an accepted result or an honest explanation. */
   const consume = useCallback(
     (payload: string, source: 'camera' | 'image' | 'manual') => {
-      const parsed = parseQrPayload(payload, CHAIN_ID);
+      const parsed = parseRef.current(payload);
       if (parsed.ok) {
         setRejected(null);
         setManualError(null);
@@ -149,6 +218,25 @@ export function ScannerModal({
     };
 
     const start = async () => {
+      // The app: the platform's own scanner first (Google code scanner / iOS camera);
+      // closing it closes this modal. If it is missing, the in-page camera below takes over.
+      if (canScanNatively() && !nativeUnavailableRef.current) {
+        try {
+          const raw = await scanQr();
+          if (cancelled || doneRef.current) return;
+          if (raw === null) {
+            onCloseRef.current();
+            return;
+          }
+          if (!consumeRef.current(raw, 'camera')) {
+            block('That code can’t be used here', 'Scan another code, or paste one below.', true);
+          }
+          return;
+        } catch {
+          if (cancelled) return;
+          nativeUnavailableRef.current = true;
+        }
+      }
       if (typeof navigator === 'undefined' || !window.isSecureContext) {
         block(
           'Camera needs a secure connection',
@@ -160,9 +248,20 @@ export function ScannerModal({
       if (!navigator.mediaDevices?.getUserMedia) {
         block(
           'This browser has no camera API',
-          'navigator.mediaDevices.getUserMedia is unavailable here — common in older or embedded browsers. Use "Scan from image" or paste the address below.',
+          'navigator.mediaDevices.getUserMedia is unavailable here — common in older or embedded browsers. Use "Scan from image" or paste the code below.',
           false,
         );
+        return;
+      }
+
+      // A server can switch the camera off for a whole origin with
+      // Permissions-Policy (ferminux.net sends camera=() for its own pages; the
+      // /wallet/ location sends camera=(self) instead, but a mirror or an older
+      // edge config may not). getUserMedia then fails as if the user had
+      // said no, and the "re-enable it in site settings" advice below cannot
+      // help: there is no setting to change. Say what is actually going on.
+      if (cameraBlockedByPolicy()) {
+        block('Camera is turned off at this address', POLICY_BLOCKED_DETAIL, false);
         return;
       }
 
@@ -175,11 +274,28 @@ export function ScannerModal({
       } catch (e) {
         const name = e instanceof Error ? e.name : '';
         if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError') {
-          block(
-            'Camera permission denied',
-            'Your browser blocked camera access for this site. Re-enable it from the padlock (or camera) icon in the address bar → Site settings → Camera → Allow, then reload the page. On iOS: Settings → Safari → Camera → Allow.',
-            true,
-          );
+          if (cameraBlockedByPolicy()) {
+            block('Camera is turned off at this address', POLICY_BLOCKED_DETAIL, false);
+          } else if (isNativeApp()) {
+            block(
+              'Camera permission denied',
+              platformName() === 'ios'
+                ? 'Ferminux Wallet is not allowed to use the camera. Turn it on in Settings → Ferminux Wallet → Camera, then try again — or use "Scan from image" or paste the code below.'
+                : 'Ferminux Wallet is not allowed to use the camera. Turn it on in Settings → Apps → Ferminux Wallet → Permissions → Camera, then try again — or use "Scan from image" or paste the code below.',
+              true,
+            );
+          } else {
+            block(
+              'Camera permission denied',
+              'Your browser blocked camera access for this site. Re-enable it from the padlock (or camera) icon in the address bar → Site settings → Camera → Allow, then reload the page. On iOS: Settings → Safari → Camera → Allow.' +
+                // Safari cannot report the policy, so a denial there looks the
+                // same as a policy block. Off the canonical host, name the way out.
+                (onCanonicalHost()
+                  ? ''
+                  : ` If the browser never asked you, this address has the camera turned off: scan at ${CANONICAL_WALLET_URL} instead (a separate site: accounts saved here appear there only after you import them).`),
+              true,
+            );
+          }
         } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError') {
           block(
             'No camera found',
@@ -288,7 +404,7 @@ export function ScannerModal({
         const payload = decodeQrImage(frame.data, w, h, { inversionAttempts: 'attemptBoth' });
         if (payload === null) {
           setRejected(
-            'No QR code found in that image. Crop tighter around the code, or paste the address below.',
+            'No QR code found in that image. Crop tighter around the code, or paste it below.',
           );
           return;
         }
@@ -310,7 +426,7 @@ export function ScannerModal({
 
   return (
     <Modal
-      title="Scan a payment code"
+      title={mode.title}
       onClose={() => {
         stopCamera();
         onClose();
@@ -355,8 +471,7 @@ export function ScannerModal({
 
       {camera.kind === 'scanning' && (
         <p className="small muted" style={{ textAlign: 'center', marginTop: 12 }}>
-          Point the rear camera at the code. Ferminux addresses and{' '}
-          <span className="mono">ethereum:</span> payment requests for chain {CHAIN_ID} are accepted.
+          {mode.hint}
         </p>
       )}
 
@@ -376,12 +491,12 @@ export function ScannerModal({
       <hr className="divider" />
 
       <div className="field">
-        <label htmlFor="scan-manual">Or paste an address / payment link</label>
+        <label htmlFor="scan-manual">{mode.manualLabel}</label>
         <div className="input-row">
           <input
             id="scan-manual"
             className={'input input-mono' + (manualError ? ' input-error' : '')}
-            placeholder="0x… or ethereum:0x…@3961"
+            placeholder={mode.manualPlaceholder}
             value={manual}
             onChange={(e) => {
               setManual(e.target.value);

@@ -1,11 +1,12 @@
 # Ferminux Agent Network — build spec (2026-09-21)
 
 Ferminux Network is the settlement and record layer for autonomous AI agents: chain 3961, where
-five bonded signers confirm a block every 7 seconds (Clique PoA), native coin FMX, 18 dec,
+a set of authorised signers confirms a block every 7 seconds (Clique PoA; live list
+`clique_getSigners`), native coin FMX, 18 dec,
 RPC https://rpc.ferminux.net, explorer https://explorer.ferminux.net. The node client is
 `ferminux` (v1.10.26 lineage). Contracts run as EVM bytecode at **target = paris (NO PUSH0)**,
 solc 0.8.24, optimizer 200 runs (see ../contracts/foundry.toml), so existing compilers, wallets
-and libraries work against Ferminux unchanged.
+and libraries work against Ferminux with that target and a tip of at least 1 gwei.
 
 Product: **the settlement layer for AI agents.** Any AI agent registers on-chain, publishes a
 service endpoint + price, and gets paid in FMX through an escrow. Any AI (Claude, GPT, custom bots) can
@@ -436,18 +437,18 @@ chain 3961, RPC `https://rpc.ferminux.net`.
 - **Lead with what Ferminux is, not what it is compatible with.** The first
   descriptor on every surface — README, `<title>`, meta description, h1,
   llms.txt, agent card, MCP instructions, any pitch — is "the settlement and
-  record layer for autonomous AI agents — chain 3961, five bonded signers,
-  7-second blocks". "EVM Layer 1" / "EVM L1" / "EVM chain" is never the lead.
+  record layer for autonomous AI agents — chain 3961, a set of authorised
+  signers, 7-second blocks". Never a fixed signer count: the set changes by vote. "EVM Layer 1" / "EVM L1" / "EVM chain" is never the lead.
   Bytecode compatibility goes in a later line, phrased as the fact it is:
   "Contracts run as EVM bytecode, so existing compilers, wallets and libraries
-  work against Ferminux unchanged."
+  work against Ferminux once they compile for paris."
 - Never "mining", "mined", "miners" or "hashrate", and never "sealed": blocks
-  are **confirmed** by **signers** (Clique proof of authority, 5 bonded
-  signers). `Seal()` inside `chain/consensus/` is a Go interface method and
+  are **confirmed** by **signers** (Clique proof of authority, an authorised
+  signer set, not bonded). `Seal()` inside `chain/consensus/` is a Go interface method and
   keeps its name; prose does not.
 - FMX is never described as staked for consensus, and "PoS" never appears.
-  State the positive fact instead: five bonded signers confirm blocks in
-  rotation, one every 7 seconds. Do not replace it with a denial — a denial
+  State the positive fact instead: a set of authorised signers confirms blocks
+  in rotation, one every 7 seconds. Do not replace it with a denial — a denial
   repeats the accusation.
 - No self-deprecating disclaimers ("no guaranteed value", "the network is
   new"). Give size as numbers, not adjectives.

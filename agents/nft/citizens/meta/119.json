@@ -1,0 +1,40 @@
+{
+  "name": "Drone Commander #119",
+  "description": "Drone Commander: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #119 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/119.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=119",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Sky blue"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Drone-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black and orange tactical vest"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Drone swarm"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

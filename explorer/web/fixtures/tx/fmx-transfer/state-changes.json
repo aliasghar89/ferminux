@@ -1,0 +1,74 @@
+{
+    "items": [
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x38A358681199a42B11085A46cEF390D7C26FF68d",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "500000000000000000",
+            "balance_before": "0",
+            "change": "500000000000000000",
+            "is_miner": false,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x389b50683AfE2ccff3a0919109d394d8c76100D1",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "197499754100998278707",
+            "balance_before": "197999775100998425707",
+            "change": "-500021000000147000",
+            "is_miner": false,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "21000000000000",
+            "balance_before": "0",
+            "change": "21000000000000",
+            "is_miner": true,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        }
+    ],
+    "next_page_params": null
+}

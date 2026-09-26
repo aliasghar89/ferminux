@@ -1,0 +1,40 @@
+{
+  "name": "Golden Pharaoh #74",
+  "description": "Golden Pharaoh: an Epic warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #74 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/74.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=74",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Saffron"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Nemes and cobra crown"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Gold and lapis armour"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Winged collar"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

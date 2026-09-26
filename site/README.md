@@ -25,8 +25,8 @@ site/
   `eth_getBlockByNumber latest`, `eth_chainId`, plus `eth_call
   getReserves()` on the FMX/AZNT pair) polled every 7 s. Renders block
   height (pulses on new blocks), base fee, gas limit, chain ID, the live
-  FMX price in AZNT from the DEX pair reserves, the signer count (static)
-  and average block time over the last ~18 headers. RPC endpoint resolution: `?rpc=<url>` query override →
+  FMX price in AZNT from the DEX pair reserves, the authorised signer count
+  (`clique_getSigners`, refreshed every 5 minutes) and average block time over the last ~18 headers. RPC endpoint resolution: `?rpc=<url>` query override →
   `data-rpc` attribute on `<body>` → `https://rpc.ferminux.net`.
   Unreachable RPC degrades to a red dot + "unreachable"; last-known values
   stay on screen. A chain-ID mismatch renders in the warning color.
@@ -115,8 +115,14 @@ Download links point at `/downloads/<asset>` on this host (plus
 |---|---|
 | `ferminux-geth-linux-amd64.tar.gz` | Linux amd64 |
 | `ferminux-geth-linux-arm64.tar.gz` | Linux arm64 |
-| `ferminux-geth-windows-amd64.zip` | Windows amd64 |
 | `ferminux-geth-macos-arm64.tar.gz` | macOS arm64 (Apple Silicon) |
+
+The page does not link a Windows build; it says a tested Windows build is
+coming soon. The `ferminux-geth-windows-amd64.zip` that was on the download
+host was the pre-fork package (it stops at block 159,999). It is withdrawn from
+`/downloads/` and from `SHA256SUMS.txt`, and nginx answers its old URL with
+410 Gone and this advice. A Windows row comes back only when a Windows build
+has been run on Windows and followed the chain past block 160,000.
 
 Asset names must match what `/chain`'s release workflow
 (`.github/workflows/release.yml`) publishes — adjust either side if they

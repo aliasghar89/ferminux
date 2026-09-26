@@ -1,0 +1,5578 @@
+[
+ {
+  "id": 1,
+  "name": "Sakura Bloom #1",
+  "description": "Sakura Bloom: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #1 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/1.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=1",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Cherry blossom pink"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Blossom crown"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Porcelain plating"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold filigree"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 2,
+  "name": "Crowned Circuit #2",
+  "description": "Crowned Circuit: an Epic android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #2 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/2.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=2",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Royal red"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Jeweled crown"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ermine robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Aviator shades"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 3,
+  "name": "Earthrise #3",
+  "description": "Earthrise: a Legendary masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #3 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/3.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=3",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Low orbit"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Space helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gilded spacesuit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Earth in the visor"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 4,
+  "name": "Ember Drift #4",
+  "description": "Ember Drift: a Rare masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #4 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/4.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=4",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Tangerine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Camo bucket hat"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Distressed hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Smoke trail"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 5,
+  "name": "Flame Tower Dusk #5",
+  "description": "Flame Tower Dusk: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #5 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/5.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=5",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Baku skyline at dusk"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Embroidered cap"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gold-stitched hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Amber visor"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 6,
+  "name": "Silver Static #6",
+  "description": "Silver Static: a Common android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #6 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/6.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=6",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Pale grey"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Spiked silver hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gloss puffer"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Shield shades"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 7,
+  "name": "Caspian Ronin #7",
+  "description": "Caspian Ronin: an Epic android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #7 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/7.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=7",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Baku night, blossoms"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Wave-pattern kasa"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Dragon robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Katana"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 8,
+  "name": "Shirvan Veil #8",
+  "description": "Shirvan Veil: a Legendary android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #8 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/8.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=8",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Baku Old City and Caucasus"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Coin headdress"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Carpet-weave shawl"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Tricolour flag"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 9,
+  "name": "Balloon Sunrise #9",
+  "description": "Balloon Sunrise: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #9 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/9.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=9",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Balloon valley sunrise"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Messy bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Coffee and laptop"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 10,
+  "name": "Neon Sakura #10",
+  "description": "Neon Sakura: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #10 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/10.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=10",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Baku skyline at night"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Rose hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Blossom-print jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Magenta ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 11,
+  "name": "Santorini Hour #11",
+  "description": "Santorini Hour: a Common android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #11 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/11.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=11",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Aegean sunset"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Ash-blonde bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory wrap"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 12,
+  "name": "Rose Quiet #12",
+  "description": "Rose Quiet: a Common android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #12 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/12.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=12",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Warm sand"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Rose bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 13,
+  "name": "Caspian Curve #13",
+  "description": "Caspian Curve: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #13 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/13.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=13",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Caspian boulevard sunset"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Dark bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory wrap"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 14,
+  "name": "Black Coat #14",
+  "description": "Black Coat: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #14 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/14.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=14",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled black hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black overcoat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Cheek scar"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 15,
+  "name": "Aviator Panda #15",
+  "description": "Aviator Panda: a Common animal from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #15 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/15.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=15",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Aviator shades"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Delta patch"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 16,
+  "name": "Ivory Bob #16",
+  "description": "Ivory Bob: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #16 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/16.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=16",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black bob"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory coat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 17,
+  "name": "Pale Ronin #17",
+  "description": "Pale Ronin: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #17 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/17.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=17",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Straw kasa"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Charcoal scarf"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Tassel"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 18,
+  "name": "Steady Signal #18",
+  "description": "Steady Signal: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #18 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/18.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=18",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Curly crop"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Cheek marks"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 19,
+  "name": "Husky Link #19",
+  "description": "Husky Link: a Common animal from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #19 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/19.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=19",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "None"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Ice-blue ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 20,
+  "name": "Sky Pilgrim #20",
+  "description": "Sky Pilgrim: an Epic masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #20 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/20.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=20",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Floating citadel"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Ivory hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Embroidered shawl"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Crescent staff"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 21,
+  "name": "Hooded Cipher #21",
+  "description": "Hooded Cipher: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #21 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/21.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=21",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Ivory hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Dot-matrix visor"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 22,
+  "name": "Morning Recruit #22",
+  "description": "Morning Recruit: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #22 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/22.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=22",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Wild bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Cheek marks"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 23,
+  "name": "Sand Hood #23",
+  "description": "Sand Hood: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #23 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/23.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=23",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Desert sand"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Embroidered hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory wrap"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Spiral medallion"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 24,
+  "name": "Jade Tiger #24",
+  "description": "Jade Tiger: a Rare animal from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #24 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/24.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=24",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Deep green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "None"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Key-pattern mantle"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold eyes"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 25,
+  "name": "Daylight Visor #25",
+  "description": "Daylight Visor: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #25 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/25.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=25",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Ivory cap"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold visor line"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 26,
+  "name": "Ivory Dragon #26",
+  "description": "Ivory Dragon: an Epic mythic from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #26 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/26.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=26",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Mythic"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Royal purple"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold horns"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Swirl-trim robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Wave medallion"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 27,
+  "name": "Scarlet Ronin #27",
+  "description": "Scarlet Ronin: a Rare masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #27 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/27.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=27",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tasselled kasa"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black robe and plating"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Red ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 28,
+  "name": "Cloud Helm #28",
+  "description": "Cloud Helm: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #28 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/28.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=28",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sky blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Ivory helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold visor line"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 29,
+  "name": "Glass Heart #29",
+  "description": "Glass Heart: an Epic android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #29 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/29.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=29",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Blush pink"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Round helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory suit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Glass heart"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 30,
+  "name": "Mint Tiger #30",
+  "description": "Mint Tiger: a Common animal from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #30 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/30.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=30",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Mint green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "None"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Ice-blue eyes"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 31,
+  "name": "Iron Visor #31",
+  "description": "Iron Visor: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #31 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/31.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=31",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Signal red"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gunmetal helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold visor line"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 32,
+  "name": "Violet Locks #32",
+  "description": "Violet Locks: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #32 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/32.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=32",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Locs"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Cream hoodie, black jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Amber circuits"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 33,
+  "name": "Saffron #33",
+  "description": "Saffron: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #33 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/33.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=33",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Saffron yellow"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Dark bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 34,
+  "name": "Cobalt #34",
+  "description": "Cobalt: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #34 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/34.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=34",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Cobalt blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 35,
+  "name": "Tangerine #35",
+  "description": "Tangerine: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #35 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/35.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=35",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Tangerine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled curls"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 36,
+  "name": "Evergreen #36",
+  "description": "Evergreen: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #36 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/36.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=36",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Twist crop"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 37,
+  "name": "Desert Dawn #37",
+  "description": "Desert Dawn: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #37 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/37.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=37",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Desert minarets at dawn"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Ivory headscarf"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 38,
+  "name": "Lavender Ring #38",
+  "description": "Lavender Ring: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #38 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/38.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=38",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Lavender"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Violet ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 39,
+  "name": "Blue Hour #39",
+  "description": "Blue Hour: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #39 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/39.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=39",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sky blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Sandy waves"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Blue ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 40,
+  "name": "Rive Gauche #40",
+  "description": "Rive Gauche: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #40 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/40.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=40",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Royal blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Loose bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Peacoat, striped knit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Tricolour patch"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 41,
+  "name": "Platinum Pink #41",
+  "description": "Platinum Pink: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #41 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/41.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=41",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Hot pink"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Platinum bob"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Cream hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Pink ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 42,
+  "name": "Sunline #42",
+  "description": "Sunline: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #42 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/42.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=42",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sun yellow"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Brown waves"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "White hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Amber ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 43,
+  "name": "Yume #43",
+  "description": "Yume: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #43 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/43.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=43",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black spikes"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie, dream kanji"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Red ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 44,
+  "name": "Kobra Shrine #44",
+  "description": "Kobra Shrine: a Legendary human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #44 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/44.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=44",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Neon cobra shrine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Red-lit mask"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black cargo techwear"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Giant cobra"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 45,
+  "name": "Matchday #45",
+  "description": "Matchday: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #45 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/45.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=45",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Tangerine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Dark curls"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Retro track jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Amber ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 46,
+  "name": "Panther Kin #46",
+  "description": "Panther Kin: a Legendary human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #46 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/46.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=46",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Jungle green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "War paint"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Tribal wraps"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Cyber panther and spear"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 47,
+  "name": "Future Punk #47",
+  "description": "Future Punk: a Rare human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #47 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/47.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=47",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Two-tone mohawk"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Studded jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Cowrie and chain"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 48,
+  "name": "Iron Chain #48",
+  "description": "Iron Chain: a Rare human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #48 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/48.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=48",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Slate grey"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Bleached undercut"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Spiked leather jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Round shades and chains"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 49,
+  "name": "El Matador #49",
+  "description": "El Matador: an Epic human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #49 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/49.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=49",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Citizens"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Suit of lights"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Red cape"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 50,
+  "name": "Jungle Visor #50",
+  "description": "Jungle Visor: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #50 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/50.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=50",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold visor shades"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold trim"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 51,
+  "name": "Katana Panda #51",
+  "description": "Katana Panda: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #51 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/51.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=51",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Signal red"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Round red shades"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Dragon tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Katana"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 52,
+  "name": "Steel Whiskers #52",
+  "description": "Steel Whiskers: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #52 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/52.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=52",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Electric blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Blue goggles"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Cat crest"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 53,
+  "name": "Solar Visor #53",
+  "description": "Solar Visor: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #53 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/53.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=53",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Solar yellow"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Silver bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory armour suit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Yellow visor"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 54,
+  "name": "Blackout #54",
+  "description": "Blackout: a Common masked from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #54 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/54.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=54",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Masked"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Black"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Hood and cap"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tactical jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Gold visor"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 55,
+  "name": "Porcelain Blue #55",
+  "description": "Porcelain Blue: a Common android from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #55 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/55.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=55",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Porcelain dome"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory armour"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Blue eyes"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 56,
+  "name": "After Hours #56",
+  "description": "After Hours: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #56 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/56.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=56",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Black"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black spikes"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Wrap shades"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 57,
+  "name": "Sunset Panda #57",
+  "description": "Sunset Panda: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #57 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/57.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=57",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Tangerine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Amber shades"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Panda crest"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 58,
+  "name": "Bassline #58",
+  "description": "Bassline: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #58 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/58.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=58",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sky blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Headphones and aviators"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Blue circuit"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 59,
+  "name": "Anubis Prime #59",
+  "description": "Anubis Prime: a Rare mythic from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #59 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/59.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=59",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Mythic"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Magenta"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Jackal nemes"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gold-striped robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Sun disc"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 60,
+  "name": "Lion Crown #60",
+  "description": "Lion Crown: a Rare animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #60 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/60.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=60",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Amethyst crown"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Lion crest"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 61,
+  "name": "Snow Tiger #61",
+  "description": "Snow Tiger: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #61 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/61.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=61",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Headphones and aviators"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "White armour jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Tiger crest"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 62,
+  "name": "Silver Regent #62",
+  "description": "Silver Regent: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #62 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/62.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=62",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Pale grey"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold aviators"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "White and gold cloak"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Star clasp"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 63,
+  "name": "Amethyst Panda #63",
+  "description": "Amethyst Panda: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #63 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/63.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=63",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Headphones and aviators"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Violet circuit"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 64,
+  "name": "Golden Viper #64",
+  "description": "Golden Viper: a Rare animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #64 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/64.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=64",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Headphones and aviators"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Serpent pendant"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 65,
+  "name": "Red Howl #65",
+  "description": "Red Howl: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #65 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/65.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=65",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Signal red"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Headphones and aviators"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Red circuit"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 66,
+  "name": "Brighter Tomorrow #66",
+  "description": "Brighter Tomorrow: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #66 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/66.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=66",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Electric blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Swept hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Plate 16"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 67,
+  "name": "Pink Protocol #67",
+  "description": "Pink Protocol: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #67 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/67.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=67",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Hot pink"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Plate 17"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 68,
+  "name": "Crown Chimp #68",
+  "description": "Crown Chimp: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #68 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/68.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=68",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Tangerine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Headphones and aviators"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Crown crest"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 69,
+  "name": "Lilac Lens #69",
+  "description": "Lilac Lens: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #69 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/69.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=69",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Plate 19"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 70,
+  "name": "Teal Chassis #70",
+  "description": "Teal Chassis: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #70 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/70.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=70",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Deep teal"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory armour"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Plate 20"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 71,
+  "name": "Sunshift #71",
+  "description": "Sunshift: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #71 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/71.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=71",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sun yellow"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Swept hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Plate 18"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 72,
+  "name": "Blood Moon Ronin #72",
+  "description": "Blood Moon Ronin: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #72 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/72.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=72",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Straw kasa"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Samurai plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Red katana"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 73,
+  "name": "Dust Gunslinger #73",
+  "description": "Dust Gunslinger: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #73 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/73.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=73",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Tangerine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Cowboy hat"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Tattered duster"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Revolver"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 74,
+  "name": "Golden Pharaoh #74",
+  "description": "Golden Pharaoh: an Epic warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #74 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/74.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=74",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Saffron"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Nemes and cobra crown"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gold and lapis armour"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Winged collar"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 75,
+  "name": "Red Boss #75",
+  "description": "Red Boss: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #75 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/75.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=75",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Crew"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Animal"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Signal red"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Cap and gold visor"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Leather coat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Cigar and gold chain"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 76,
+  "name": "Red Blade #76",
+  "description": "Red Blade: a Common warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #76 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/76.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=76",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Visor helm"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gunmetal armour"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Energy katana"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 77,
+  "name": "Iron Corsair #77",
+  "description": "Iron Corsair: an Epic warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #77 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/77.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=77",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Teal"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tricorn"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Tattered captain's coat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Parrot and blaster"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 78,
+  "name": "Arcana Dealer #78",
+  "description": "Arcana Dealer: an Epic mystic from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #78 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/78.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=78",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Mystic"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Wide-brim hat"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Arcane longcoat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Floating cards"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 79,
+  "name": "Rune Jarl #79",
+  "description": "Rune Jarl: an Epic warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #79 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/79.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=79",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Horned helm"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Fur mantle and plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Glowing axe"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 80,
+  "name": "Dragon Monk #80",
+  "description": "Dragon Monk: an Epic mystic from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #80 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/80.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=80",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Mystic"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Amber, dragon aura"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Etched dome"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Dragon robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Prayer beads"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 81,
+  "name": "Lion Paladin #81",
+  "description": "Lion Paladin: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #81 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/81.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=81",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Royal blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Great helm"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gilded plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Lion shield"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 82,
+  "name": "Red Shinobi #82",
+  "description": "Red Shinobi: a Common warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #82 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/82.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=82",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Gunmetal armour"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Red blade"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 83,
+  "name": "Quantum Hacker #83",
+  "description": "Quantum Hacker: a Rare human from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #83 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/83.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=83",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Holo screens"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tech jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Holographic deck"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 84,
+  "name": "Neon Detective #84",
+  "description": "Neon Detective: a Rare human from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #84 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/84.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=84",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Midnight blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Fedora"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Trench coat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Holo ID card"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 85,
+  "name": "Frost Warden #85",
+  "description": "Frost Warden: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #85 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/85.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=85",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Midnight blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Ice-crown helm"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Frost plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Ice shards"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 86,
+  "name": "Tide Warden #86",
+  "description": "Tide Warden: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #86 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/86.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=86",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Ocean blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Fin helm"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Trident plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Jellyfish core"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 87,
+  "name": "Grove Warden #87",
+  "description": "Grove Warden: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #87 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/87.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=87",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Forest green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Branch antlers"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Moss plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Tree of life"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 88,
+  "name": "Dune Nomad #88",
+  "description": "Dune Nomad: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #88 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/88.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=88",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Desert city"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Sand wrap"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Tattered shawl"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Long rifle"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 89,
+  "name": "Spartan Flame #89",
+  "description": "Spartan Flame: a Common warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #89 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/89.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=89",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Crested helm"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Bronze plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Lava sword"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 90,
+  "name": "Spirit Shaman #90",
+  "description": "Spirit Shaman: a Legendary mystic from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #90 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/90.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=90",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Mystic"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Feathered hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Woven poncho"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Spirit orb and raven"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 91,
+  "name": "Magma Lord #91",
+  "description": "Magma Lord: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #91 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/91.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=91",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Guardians"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Warrior"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Horned helm"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Magma plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Fire orb"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 92,
+  "name": "Quantum Theorist #92",
+  "description": "Quantum Theorist: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #92 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/92.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=92",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Atom dial, round glasses"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Lab coat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Wave-equation hologram"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 93,
+  "name": "Chairman #93",
+  "description": "Chairman: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #93 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/93.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=93",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Royal blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black and gold three-piece suit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Leather chair"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 94,
+  "name": "Data Oracle #94",
+  "description": "Data Oracle: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #94 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/94.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=94",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Deep green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold-trim hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Star-chart robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Data globe"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 95,
+  "name": "Advocate #95",
+  "description": "Advocate: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #95 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/95.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=95",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Crimson"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Barrister's gown and bands"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Scales and law book"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 96,
+  "name": "Holo Physician #96",
+  "description": "Holo Physician: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #96 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/96.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=96",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Teal"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Cross-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "White coat and scrubs"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Anatomy hologram"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 97,
+  "name": "Golden Bull #97",
+  "description": "Golden Bull: an Epic android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #97 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/97.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=97",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Gold"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Dollar-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black suit, gold tie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Bull, gold bars and coins"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 98,
+  "name": "Agent Builder #98",
+  "description": "Agent Builder: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #98 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/98.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=98",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Emerald"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Blue-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hoodie"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Companion drone"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 99,
+  "name": "Zero Trust #99",
+  "description": "Zero Trust: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #99 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/99.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=99",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Security ops room"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Lock-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black tactical jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Threat map and shield"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 100,
+  "name": "Quiet Scholar #100",
+  "description": "Quiet Scholar: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #100 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/100.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=100",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold glasses"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Lab coat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Open book"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 101,
+  "name": "Philosopher Phi #101",
+  "description": "Philosopher Phi: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #101 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/101.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=101",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Phi-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Purple toga"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Book of questions"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 102,
+  "name": "Beyond Orbit #102",
+  "description": "Beyond Orbit: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #102 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/102.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=102",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Royal blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Planet-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "White spacesuit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Helmet reflecting Earth"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 103,
+  "name": "Deep Current #103",
+  "description": "Deep Current: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #103 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/103.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=103",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Aqua"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Wave-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Diving suit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Glowing jellyfish"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 104,
+  "name": "Volcano Observer #104",
+  "description": "Volcano Observer: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #104 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/104.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=104",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Tangerine"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Volcano-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ash-stained field jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Glowing lava rock"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 105,
+  "name": "Sky Commander #105",
+  "description": "Sky Commander: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #105 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/105.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=105",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sky blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Jet-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Olive flight jacket"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Airspace tablet"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 106,
+  "name": "Earth Steward #106",
+  "description": "Earth Steward: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #106 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/106.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=106",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Leaf-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Moss cloak"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Vine-wrapped Earth"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 107,
+  "name": "Forest Oracle #107",
+  "description": "Forest Oracle: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #107 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/107.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=107",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Moss green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Vine-grown helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Leaf-woven cloak"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Tree and stag hologram"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 108,
+  "name": "Desert Explorer #108",
+  "description": "Desert Explorer: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #108 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/108.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=108",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sand"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Dune-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Sand-worn scarf and pack"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Compass and falling sand"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 109,
+  "name": "Polar Guardian #109",
+  "description": "Polar Guardian: an Epic android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #109 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/109.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=109",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Ice blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Peak-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Frosted fur parka"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Polar bear and ice globe"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 110,
+  "name": "Contrail Ace #110",
+  "description": "Contrail Ace: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #110 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/110.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=110",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Clear sky"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Jet-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Flight jacket and harness"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Jet formation"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 111,
+  "name": "Dream Weaver #111",
+  "description": "Dream Weaver: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #111 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/111.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=111",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Lavender"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Dreamcatcher-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Moon-and-star shawl"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Dream orb and feathers"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 112,
+  "name": "Emotion Synth #112",
+  "description": "Emotion Synth: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #112 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/112.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=112",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Blush"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Heart-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Cream shawl"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Holo heart and mood tiles"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 113,
+  "name": "Memory Keeper #113",
+  "description": "Memory Keeper: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #113 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/113.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=113",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Warm grey"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Book-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Film-strip sash"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Memory cube and archive pack"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 114,
+  "name": "Cosmic Cartographer #114",
+  "description": "Cosmic Cartographer: an Epic android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #114 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/114.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=114",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Spiral galaxy"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Galaxy-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Star-map robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Galactic atlas"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 115,
+  "name": "Future Judge #115",
+  "description": "Future Judge: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #115 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/115.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=115",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Ivory"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Scales-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Laurel-trim robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Brass scales"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 116,
+  "name": "Dialogue Envoy #116",
+  "description": "Dialogue Envoy: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #116 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/116.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=116",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Pale grey, flag row"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Globe-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Navy suit and stole"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Dialogue book"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 117,
+  "name": "Neural Composer #117",
+  "description": "Neural Composer: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #117 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/117.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=117",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Ivory"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Note-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black score robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Light keyboard and staves"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 118,
+  "name": "Digital Monk #118",
+  "description": "Digital Monk: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #118 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/118.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=118",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Warm sand"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Om-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Saffron robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Mala and scroll pack"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 119,
+  "name": "Drone Commander #119",
+  "description": "Drone Commander: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #119 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/119.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=119",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sky blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Drone-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black and orange tactical vest"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Drone swarm"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 120,
+  "name": "Nano Surgeon #120",
+  "description": "Nano Surgeon: a Rare cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #120 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/120.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=120",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Lilac"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Surgical mask"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "White coat and scrubs"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Nanobot and tweezers"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 121,
+  "name": "Robot Shepherd #121",
+  "description": "Robot Shepherd: a Legendary cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #121 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/121.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=121",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Mint green"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Cropped hair, cyber brow"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Fringed shawl and cargo gear"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Robot flock and staff"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 122,
+  "name": "Galaxy Merchant #122",
+  "description": "Galaxy Merchant: an Epic android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #122 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/122.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=122",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Professions"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Android"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Star bazaar"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Planet-dial helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Starry merchant robe"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Armillary and gems"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 123,
+  "name": "Energy Collector #123",
+  "description": "Energy Collector: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #123 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/123.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=123",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Signal red"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled black hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black hood, power tanks"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Plasma orb"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 124,
+  "name": "Crystal Processor #124",
+  "description": "Crystal Processor: a Rare cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #124 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/124.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=124",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Hot pink"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Crystal crown"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Violet crystal"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 125,
+  "name": "Light Guardian #125",
+  "description": "Light Guardian: a Rare cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #125 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/125.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=125",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Sky blue"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Star halo"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory cloak, gold plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Light orb"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 126,
+  "name": "Gravity Engineer #126",
+  "description": "Gravity Engineer: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #126 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/126.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=126",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled black hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black high-collar coat"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Dark planet"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 127,
+  "name": "Phoenix Protocol #127",
+  "description": "Phoenix Protocol: a Legendary cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #127 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/127.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=127",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Signal red"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Silver bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Golden-winged plate"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Fire phoenix"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 128,
+  "name": "Hologram Master #128",
+  "description": "Hologram Master: a Rare cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #128 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/128.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=128",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Rare"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Hologram city"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled black hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black coat, ivory arm"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Holo globe and skyline"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 129,
+  "name": "Cipher Ghost #129",
+  "description": "Cipher Ghost: an Epic cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #129 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/129.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=129",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Epic"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Code rain"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Black hood and mask"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black cloak, jade circuits"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Holo lock"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 130,
+  "name": "Void Explorer #130",
+  "description": "Void Explorer: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #130 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/130.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=130",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Violet"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Dark bun"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black and ivory spacesuit"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Galaxy in the helmet"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 131,
+  "name": "Quantum Ghost #131",
+  "description": "Quantum Ghost: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #131 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/131.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=131",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Periwinkle"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Silver hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Grey hooded cloak"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Atom ring"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 132,
+  "name": "Ivory Seer #132",
+  "description": "Ivory Seer: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #132 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/132.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=132",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Gold-embroidered hood"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Ivory vestments"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Glowing globe"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 133,
+  "name": "Infinity Pilot #133",
+  "description": "Infinity Pilot: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #133 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/133.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=133",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Infinity helmet"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Blue-lit flight armour"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Infinity plate"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 134,
+  "name": "Sun Sovereign #134",
+  "description": "Sun Sovereign: a Legendary cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #134 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/134.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=134",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Legendary"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "Dark throne hall"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Golden sun halo"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Black and gold regalia"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Throne"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 135,
+  "name": "Digital Titan #135",
+  "description": "Digital Titan: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #135 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/135.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=135",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Cyborg"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Chrome power armour"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Blue power lines"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ },
+ {
+  "id": 136,
+  "name": "Star Admiral #136",
+  "description": "Star Admiral: a Common human from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #136 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/136.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=136",
+  "attributes": [
+   {
+    "trait_type": "Tier",
+    "value": "Common"
+   },
+   {
+    "trait_type": "Series",
+    "value": "Vanguard"
+   },
+   {
+    "trait_type": "Species",
+    "value": "Human"
+   },
+   {
+    "trait_type": "Background",
+    "value": "White"
+   },
+   {
+    "trait_type": "Headgear",
+    "value": "Tousled hair"
+   },
+   {
+    "trait_type": "Outfit",
+    "value": "Epaulettes and star cape"
+   },
+   {
+    "trait_type": "Accent",
+    "value": "Compass-star helmet"
+   },
+   {
+    "trait_type": "Edition",
+    "value": "1/1"
+   }
+  ]
+ }
+]

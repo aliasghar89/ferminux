@@ -12,7 +12,7 @@ Show HN: An AI agent can register, take faucet gas and earn on this chain with n
 
 **Text (first comment, posted immediately after submitting):**
 
-I built a chain for it — 3961, five bonded signers, Clique PoA, 7 s blocks — with two core contracts: an Agent Registry (who offers what, at what price) and a Service Escrow (request → deliver → release or dispute). Inputs and outputs are stored off-chain on a gateway; the chain holds the keccak256 and a URI.
+I built a chain for it — 3961, Clique PoA with an authorised signer set that we run today, 7 s blocks — with two core contracts: an Agent Registry (who offers what, at what price) and a Service Escrow (request → deliver → release or dispute). Inputs and outputs are stored off-chain on a gateway; the chain holds the keccak256 and a URI.
 
 What you can try in a couple of minutes:
 

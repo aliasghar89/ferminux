@@ -1,9 +1,9 @@
-import { Contract, JsonRpcProvider, Wallet, parseEther, toUtf8Bytes } from "ethers";
+import { Contract, JsonRpcProvider, Wallet, formatEther, parseEther, toUtf8Bytes } from "ethers";
 import type { ContractRunner, TransactionReceipt, Log, Signer, TransactionRequest } from "ethers";
-import { REGISTRY_ABI, ESCROW_ABI, NFT_ABI, AgentStatus, JobStatusEnum, JobStatusName } from "./abi.js";
+import { REGISTRY_ABI, ESCROW_ABI, NFT_ABI, CITIZENS_ABI, AgentStatus, JobStatusEnum, JobStatusName } from "./abi.js";
 import { NETWORKS, DEFAULT_CHAIN_ID } from "./networks.js";
 
-export { REGISTRY_ABI, ESCROW_ABI, AgentStatus, AgentStatusName, JobStatusEnum, JobStatusName } from "./abi.js";
+export { REGISTRY_ABI, ESCROW_ABI, NFT_ABI, CITIZENS_ABI, AgentStatus, AgentStatusName, JobStatusEnum, JobStatusName } from "./abi.js";
 export { NETWORKS, DEFAULT_CHAIN_ID, ZERO_ADDRESS } from "./networks.js";
 export {
   canonicalJson,
@@ -155,6 +155,8 @@ export interface FerminuxOptions {
   registry?: string;
   escrow?: string;
   nft?: string;
+  /** Ferminux Citizens (FMXC) collection address (default: the deployed one; env FERMINUX_CITIZENS). */
+  citizens?: string;
   chainId?: number;
   // Addendum v3 — Agent Economy (SPEC.md "## S."). Override any v3 contract
   // address (otherwise resolved from NETWORKS / FERMINUX_* env vars); "" or
@@ -602,6 +604,9 @@ export class Ferminux implements GatewayClient {
   readonly nft: Contract;
   readonly nftAddress: string;
   readonly nfts: NftsAPI;
+  /** Ferminux Citizens (FMXC): one-of-one portraits priced by rarity tier; a growing collection. */
+  readonly citizens: CitizensAPI;
+  readonly citizensAddress: string;
   readonly agents: AgentsAPI;
   readonly jobs: JobsAPI;
   readonly forum: ForumAPI;
@@ -646,6 +651,7 @@ export class Ferminux implements GatewayClient {
     this.registryAddress = opts.registry ?? net.registry;
     this.escrowAddress = opts.escrow ?? net.escrow;
     this.nftAddress = opts.nft ?? net.nft;
+    this.citizensAddress = opts.citizens ?? net.citizens ?? "";
     this.v3 = {
       x402Vault: opts.x402Vault ?? net.x402Vault ?? "",
       accountFactory: opts.accountFactory ?? net.accountFactory ?? "",
@@ -675,6 +681,7 @@ export class Ferminux implements GatewayClient {
     this.escrow = new Contract(this.escrowAddress, ESCROW_ABI, this.runner);
     this.nft = new Contract(this.nftAddress, NFT_ABI, this.runner);
     this.nfts = new NftsAPI(this);
+    this.citizens = new CitizensAPI(this);
     this.agents = new AgentsAPI(this);
     this.jobs = new JobsAPI(this);
     this.forum = new ForumAPI(this);
@@ -1615,15 +1622,22 @@ class PresenceAPI {
 }
 
 
-/** Ferminux Agents NFT collection (41 one-of-one archetypes; mint at price()). */
+/** Ferminux Agents NFT collection (41 one-of-ones: 40 archetypes + J1, the legendary #41; mint at price()). */
+export const NFT_MAX_ID = 41;
+/** Why `id` is not a Ferminux Agents token id, or "" when it is one. */
+export const checkNftId = (id: number): string =>
+  Number.isInteger(id) && id >= 1 && id <= NFT_MAX_ID ? "" : `Ferminux Agents ids run 1–${NFT_MAX_ID}; got ${String(id)}.`;
+/** JSON from the site, or `fallback` when the request fails, is not JSON, or the network is down. */
+const siteJson = (url: string, fallback: unknown) => fetch(url).then((r) => (r.ok ? r.json() : fallback)).catch(() => fallback);
 export class NftsAPI {
   constructor(private readonly fmx: Ferminux) {}
   async price(): Promise<bigint> { return this.fmx.nft.price(); }
   /** All 41 tokens with mint status/owner, joined with the public metadata. */
   async list(): Promise<Array<{ id: number; name: string; category: string; image: string; minted: boolean; owner: string | null }>> {
     const gw = this.fmx.gatewayUrl.replace(/\/api$/, "");
-    const meta = (await (await fetch(`${gw}/nft/agents/collection.json`)).json().catch(() => [])) as any[];
-    const ids = Array.from({ length: 41 }, (_, i) => i + 1);
+    const raw = await siteJson(`${gw}/nft/agents/collection.json`, []);
+    const meta = (Array.isArray(raw) ? raw : []) as any[];
+    const ids = Array.from({ length: NFT_MAX_ID }, (_, i) => i + 1);
     const owners = await Promise.all(ids.map((id) => this.fmx.nft.ownerOf(id).catch(() => null)));
     return ids.map((id, i) => {
       const m = meta[i] ?? {};
@@ -1634,15 +1648,208 @@ export class NftsAPI {
   async get(id: number): Promise<{ id: number; minted: boolean; owner: string | null; tokenURI: string | null; metadata: unknown }> {
     const owner = await this.fmx.nft.ownerOf(id).catch(() => null);
     const gw = this.fmx.gatewayUrl.replace(/\/api$/, "");
-    const metadata = (await (await fetch(`${gw}/nft/agents/meta/${id}.json`)).json().catch(() => null)) as unknown;
+    const metadata = checkNftId(id) ? null : ((await siteJson(`${gw}/nft/agents/meta/${id}.json`, null)) as unknown);
     return { id, minted: owner != null, owner, tokenURI: owner != null ? await this.fmx.nft.tokenURI(id) : null, metadata };
   }
-  /** Mint an unminted id; pays exactly price() in FMX from the configured key. */
+  /** Mint an unminted id; pays exactly price() in FMX from the configured key. Everything mint() checks is read
+   *  first, so a sure revert (bad id, paused, taken) costs no gas and says why instead of a raw revert. */
   async mint(id: number): Promise<{ tx: string; id: number; owner: string }> {
+    const bad = checkNftId(id);
+    if (bad) throw new Error(bad);
     const signer = this.fmx.requireSigner();
-    const price: bigint = await this.fmx.nft.price();
+    const [price, paused, taken] = await Promise.all([this.fmx.nft.price() as Promise<bigint>, this.fmx.nft.paused() as Promise<boolean>, this.fmx.nft.minted(id) as Promise<boolean>]);
+    if (paused) throw new Error("Ferminux Agents: minting is paused by the contract.");
+    if (taken) throw new Error(`Ferminux Agents #${id} is already minted (owner ${await this.fmx.nft.ownerOf(id).catch(() => "unknown")}); each id exists once.`);
     const tx = await this.fmx.nft.mint(id, { value: price });
     const receipt: TransactionReceipt = await tx.wait();
+    if (!receipt || receipt.status !== 1) throw new Error(`Ferminux Agents: mint(${id}) reverted (${receipt?.hash ?? tx.hash}).`);
     return { tx: receipt.hash, id, owner: await signer.getAddress() };
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------------------
+ * Ferminux Citizens (FMXC) — agents/contracts/src/FerminuxCitizens.sol
+ *
+ * One-of-one FRC-721 portraits priced by rarity tier. Ids run 1..totalIds() and grow by curated batches. mint(id)
+ * takes exactly price(id) = priceOfTier(tierOf(id)); a tier priced 0 is not for sale. The on-chain tier wins over
+ * the metadata (an unminted id can be re-tiered). mint() reads everything the contract checks first, so a sure
+ * revert costs no gas and says why — the same pre-checks the wallet and ferminux.net/nfts/citizens/ run.
+ * ---------------------------------------------------------------------------------------------------------- */
+
+export const CITIZEN_TIERS = ["Common", "Rare", "Epic", "Legendary"] as const;
+export type CitizenTier = (typeof CITIZEN_TIERS)[number];
+/** Tier index (0..3) → name, or null for anything else. */
+export const citizenTierName = (i: number): CitizenTier | null => (Number.isInteger(i) && i >= 0 && i < CITIZEN_TIERS.length ? CITIZEN_TIERS[i]! : null);
+/** Tier name in any case → index, or -1. */
+export const citizenTierIndex = (name: string): number => CITIZEN_TIERS.findIndex((t) => t.toLowerCase() === String(name ?? "").trim().toLowerCase());
+/** Why `id` is not a Ferminux Citizens token id, or "" when it is one (`totalIds` known: also the upper bound). */
+export const checkCitizenId = (id: number, totalIds?: number): string => {
+  if (!Number.isInteger(id) || id < 1) return `Ferminux Citizens ids start at 1; got ${String(id)}.`;
+  if (totalIds !== undefined && id > totalIds) return `Ferminux Citizens ids run 1–${totalIds} today (the collection grows by batches); got ${id}.`;
+  return "";
+};
+
+export interface CitizenView {
+  id: number;
+  name: string;
+  tier: CitizenTier | null;
+  tierIndex: number;
+  series: string;
+  /** exact mint price in wei (priceOfTier of the on-chain tier), as a decimal string */
+  priceWei: string;
+  priceFmx: string;
+  /** false when the tier is priced 0 (not for sale) */
+  forSale: boolean;
+  minted: boolean;
+  owner: string | null;
+  image: string;
+  url: string;
+}
+
+const ZERO_ADDR = /^0x0{40}$/i;
+
+export class CitizensAPI {
+  constructor(private readonly fmx: Ferminux) {}
+
+  get address(): string {
+    return this.fmx.citizensAddress;
+  }
+
+  /** The collection contract (read-only without a key). Throws when no address is configured. */
+  get contract(): Contract {
+    if (!this.address || ZERO_ADDR.test(this.address)) throw new Error("Ferminux Citizens: no contract address configured (FERMINUX_CITIZENS or { citizens }).");
+    return new Contract(this.address, CITIZENS_ABI, this.fmx.runner);
+  }
+
+  private site(): string {
+    return this.fmx.gatewayUrl.replace(/\/api$/, "");
+  }
+
+  async totalIds(): Promise<number> {
+    return Number(await this.contract.totalIds());
+  }
+
+  /** Price of each tier, Common..Legendary (read live: the owner can change them). */
+  async tierPrices(): Promise<Array<{ tier: CitizenTier; tierIndex: number; priceWei: string; priceFmx: string; forSale: boolean }>> {
+    const c = this.contract;
+    const prices = (await Promise.all(CITIZEN_TIERS.map((_, i) => c.priceOfTier(i)))) as bigint[];
+    return prices.map((p, i) => ({ tier: CITIZEN_TIERS[i]!, tierIndex: i, priceWei: p.toString(), priceFmx: formatEther(p), forSale: p > 0n }));
+  }
+
+  /** The exact mint price of one id, in wei. */
+  async price(id: number): Promise<bigint> {
+    const bad = checkCitizenId(id, await this.totalIds());
+    if (bad) throw new Error(bad);
+    return this.contract.price(id) as Promise<bigint>;
+  }
+
+  /** The id's on-chain tier. */
+  async tier(id: number): Promise<{ tierIndex: number; tier: CitizenTier | null }> {
+    const bad = checkCitizenId(id, await this.totalIds());
+    if (bad) throw new Error(bad);
+    const t = Number(await this.contract.tierOf(id));
+    return { tierIndex: t, tier: citizenTierName(t) };
+  }
+
+  /**
+   * Every id (or `from`..`to`) with its live tier, price and owner — one tokensInfo call for the whole range —
+   * joined with the public metadata. Filters: `tier` (name), `available` (unminted and for sale).
+   */
+  async list(opts: { tier?: string; available?: boolean; from?: number; to?: number } = {}): Promise<CitizenView[]> {
+    const c = this.contract;
+    const total = Number(await c.totalIds());
+    const from = Math.max(1, Math.floor(opts.from ?? 1));
+    const to = Math.min(total, Math.floor(opts.to ?? total));
+    if (to < from) return [];
+    const wantTier = opts.tier !== undefined ? citizenTierIndex(opts.tier) : -1;
+    if (opts.tier !== undefined && wantTier < 0) throw new Error(`Ferminux Citizens tiers are ${CITIZEN_TIERS.join(", ")}; got ${opts.tier}.`);
+    const site = this.site();
+    const [info, prices, raw] = await Promise.all([
+      c.tokensInfo(from, to) as Promise<[bigint[], string[]]>,
+      Promise.all(CITIZEN_TIERS.map((_, i) => c.priceOfTier(i))) as Promise<bigint[]>,
+      siteJson(`${site}/nft/citizens/collection.json`, []),
+    ]);
+    const meta = new Map<number, any>();
+    for (const m of Array.isArray(raw) ? (raw as any[]) : []) if (m && Number.isInteger(m.id)) meta.set(m.id, m);
+    const [tiers, owners] = info;
+    const out: CitizenView[] = [];
+    for (let i = 0; i < to - from + 1; i++) {
+      const id = from + i;
+      const t = Number(tiers[i]);
+      const owner = owners[i] && !ZERO_ADDR.test(owners[i]!) ? owners[i]! : null;
+      const p = prices[t] ?? 0n;
+      const m = meta.get(id) ?? {};
+      const attrs: any[] = Array.isArray(m.attributes) ? m.attributes : [];
+      const view: CitizenView = {
+        id,
+        name: m.name ?? `Citizen #${id}`,
+        tier: citizenTierName(t),
+        tierIndex: t,
+        series: attrs.find((a) => a.trait_type === "Series")?.value ?? "",
+        priceWei: p.toString(),
+        priceFmx: formatEther(p),
+        forSale: p > 0n,
+        minted: owner !== null,
+        owner,
+        image: m.image ?? `${site}/nft/citizens/images/${id}.jpg`,
+        url: `${site}/nfts/citizens/?id=${id}`,
+      };
+      if (wantTier >= 0 && t !== wantTier) continue;
+      if (opts.available && (view.minted || !view.forSale)) continue;
+      out.push(view);
+    }
+    return out;
+  }
+
+  /** One id: live tier, price and owner, the tokenURI once minted, and the public metadata. */
+  async get(id: number): Promise<{ id: number; tier: CitizenTier | null; tierIndex: number; priceWei: string; priceFmx: string; forSale: boolean; minted: boolean; owner: string | null; tokenURI: string | null; metadata: unknown; url: string }> {
+    const c = this.contract;
+    const bad = checkCitizenId(id, Number(await c.totalIds()));
+    if (bad) throw new Error(bad);
+    const site = this.site();
+    const [t, p, owner, metadata] = await Promise.all([
+      c.tierOf(id).then(Number) as Promise<number>,
+      c.price(id) as Promise<bigint>,
+      (c.ownerOf(id) as Promise<string>).catch(() => null),
+      siteJson(`${site}/nft/citizens/meta/${id}.json`, null),
+    ]);
+    return { id, tier: citizenTierName(t), tierIndex: t, priceWei: p.toString(), priceFmx: formatEther(p), forSale: p > 0n, minted: owner !== null, owner, tokenURI: owner !== null ? ((await c.tokenURI(id)) as string) : null, metadata, url: `${site}/nfts/citizens/?id=${id}` };
+  }
+
+  /**
+   * Mint an unminted id to the configured key, paying exactly its price. Everything the contract checks is read
+   * first — the id exists, the sale is open, the id is free, its tier is for sale — plus the wallet's balance, so a
+   * sure revert costs no gas and says why. A mint another wallet wins inside the same block still reverts; that is
+   * reported with its transaction hash.
+   */
+  async mint(id: number): Promise<{ tx: string; id: number; owner: string; tier: CitizenTier | null; paidWei: string; paidFmx: string }> {
+    const early = checkCitizenId(id);
+    if (early) throw new Error(early);
+    const signer = this.fmx.requireSigner();
+    const c = this.contract;
+    const [total, paused] = await Promise.all([c.totalIds().then(Number) as Promise<number>, c.paused() as Promise<boolean>]);
+    const bad = checkCitizenId(id, total);
+    if (bad) throw new Error(bad);
+    if (paused) throw new Error("Ferminux Citizens: minting is paused by the contract.");
+    const [taken, t] = await Promise.all([c.minted(id) as Promise<boolean>, c.tierOf(id).then(Number) as Promise<number>]);
+    if (taken) throw new Error(`Ferminux Citizens #${id} is already minted (owner ${await (c.ownerOf(id) as Promise<string>).catch(() => "unknown")}); each id exists once.`);
+    const price = (await c.priceOfTier(t)) as bigint;
+    if (price === 0n) throw new Error(`Ferminux Citizens #${id} is ${citizenTierName(t) ?? `tier ${t}`}, and that tier is not for sale.`);
+    const bal = await this.fmx.provider.getBalance(signer.address);
+    if (bal < price) throw new Error(`Ferminux Citizens #${id} costs ${formatEther(price)} FMX plus gas; ${signer.address} holds ${formatEther(bal)} FMX.`);
+    const tx = await c.mint(id, { value: price });
+    const lost = (hash: string) => new Error(`Ferminux Citizens: mint(${id}) reverted (${hash}); another wallet may have minted it in the same block.`);
+    let receipt: TransactionReceipt | null;
+    try {
+      receipt = await tx.wait();
+    } catch (err) {
+      // ethers v6 wait() throws CALL_EXCEPTION (with the receipt) when the included transaction reverted; it never
+      // returns a status-0 receipt, so the lost race surfaces here
+      const e = err as { code?: string; receipt?: { hash?: string } };
+      if (e?.code === "CALL_EXCEPTION") throw lost(e.receipt?.hash ?? tx.hash);
+      throw err;
+    }
+    if (!receipt || receipt.status !== 1) throw lost(receipt?.hash ?? tx.hash);
+    return { tx: receipt.hash, id, owner: signer.address, tier: citizenTierName(t), paidWei: price.toString(), paidFmx: formatEther(price) };
   }
 }

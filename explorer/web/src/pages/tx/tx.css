@@ -1,0 +1,172 @@
+/* Transaction pages (/tx/:hash, /txs): classes the shared stylesheet doesn't have yet (surfaces/explorer.md §4.13,
+   §4.15, §5.4, §5.5). Tokens only; the one hue is the Ferminux green, the warn coral marks failure. Loaded with the
+   tx page chunks; a candidate to fold into styles/explorer.css. Nothing here loops (the pending dot is shared). */
+
+/* ---------- head ---------- */
+.tx-pills{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:12px}
+.tx-pills .mchip{max-width:24ch}
+
+/* ---------- layout: main (story + overview), side (agents, block), tabs ---------- */
+.txg{display:grid;gap:20px;grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "side" "tabs";min-width:0}
+.txg-top{grid-area:top;display:grid;gap:16px;min-width:0}
+.txg-side{grid-area:side;min-width:0;align-content:start}
+.txg-side>[data-slot]{display:grid;gap:16px}
+.txg-tabs{grid-area:tabs;min-width:0}
+[data-slot][hidden]{display:none}
+@media(min-width:1100px){
+  .txg{grid-template-columns:minmax(0,8fr) minmax(0,4fr);grid-template-areas:"top side" "tabs side";align-items:start;column-gap:24px}
+  .txg-side{position:sticky;top:var(--sticky-top)}
+}
+
+/* ---------- story card + job rail (§4.13) ---------- */
+.story{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);padding:16px 20px;box-shadow:var(--elev-1);min-width:0}
+.story.skel{min-height:58px;display:flex;align-items:center}
+.story-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px 16px;min-width:0}
+.story-s{font-size:16px;line-height:1.6;color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.story-s .hc{vertical-align:baseline}
+.story-s b{font-weight:600}
+.story-s code,.tx-ev-line code{background:var(--surface-2);font-size:13px}
+.story-s code.sel{color:var(--faint)}
+.story-top .prov{flex:none;margin-top:4px}
+.story-more{margin-top:8px}
+.story-more .link-arrow{font-size:13.5px}
+.story-job{margin-top:14px;padding-top:14px;border-top:1px solid var(--hairline)}
+@media(max-width:599px){.story{padding:14px 16px}.story-top{flex-direction:column}.story-s{font-size:15.5px}}
+
+.job-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font:500 14px/1.5 var(--sans);letter-spacing:0;color:var(--ink);margin-bottom:12px}
+.job-h .faint{font-weight:400}
+.rail{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 12px}
+/* desktop: dots on one line joined by the connector, the words under each dot */
+.step{position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"dot" "nm" "tm" "tx";row-gap:2px;min-width:0;font-size:13.5px}
+.step .dot{grid-area:dot;width:12px;height:12px;margin-bottom:8px;border-radius:50%;box-sizing:border-box;background:transparent;box-shadow:inset 0 0 0 1px var(--border-strong)}
+.step.done .dot{background:var(--accent);box-shadow:none}
+.step.current .dot{background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.step.warn .dot{background:var(--warn-soft);box-shadow:inset 0 0 0 1.5px var(--warn)}
+.step .nm{grid-area:nm;font-weight:600;color:var(--ink)}
+.step.todo .nm{color:var(--muted);font-weight:500}
+.step.warn .nm{color:var(--warn)}
+.step .tm{grid-area:tm;font:400 12.5px/1.4 var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.step .tx{grid-area:tx;font-size:12.5px}
+.step .tx a{color:var(--muted)}
+.step .tx a:hover{color:var(--accent-hover)}
+.step .this{font:500 11px/1.6 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+/* connector: 2 px from this dot to the next, green between two done steps, a hairline otherwise */
+.step:not(:last-child)::after{content:"";position:absolute;top:5px;left:20px;right:-4px;height:2px;background:var(--border);border-radius:1px}
+.step.done:has(+ .step.done)::after{background:var(--accent)}
+@media(max-width:759px){
+  .rail{grid-template-columns:1fr;gap:14px}
+  .step{grid-template-columns:12px minmax(0,1fr);grid-template-areas:"dot nm" "dot tm" "dot tx";column-gap:12px}
+  .step .dot{margin:4px 0 0}
+  .step:not(:last-child)::after{top:22px;bottom:-12px;left:5px;right:auto;width:2px;height:auto}
+}
+.job-links{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px}
+.job-links .link-arrow{font-size:13px}
+
+/* ---------- overview extras ---------- */
+.dl-row dd .line{flex-basis:100%;font-size:12.5px;margin-top:-2px}
+.revert{flex-basis:100%;color:var(--warn);font-size:13px;overflow-wrap:anywhere}
+.tx-party{min-width:0;max-width:100%}
+.tx-party .hc{white-space:normal;flex-wrap:wrap;max-width:100%}
+.tx-party .hc>a{flex-wrap:wrap;min-width:0;max-width:100%}
+.tx-party .hc-h{overflow-wrap:anywhere;word-break:break-all;white-space:normal;font-size:13.5px}
+.tt-lines{list-style:none;margin:0;padding:0;display:grid;gap:6px;width:100%}
+.tt-lines li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0}
+.tt-tok{font-weight:500;color:var(--ink)}
+.tx-pos{color:var(--ok)}
+.tx-neg{color:var(--warn)}
+
+/* ---------- input: decoded table + raw block (§4.15) ---------- */
+.tx-input{flex:1 1 100%;min-width:0;max-width:100%;display:grid;gap:12px}
+.dec{min-width:0}
+.dec-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.dec-h .fn{font-size:14px;font-weight:500;background:var(--surface-2);padding:2px 8px}
+.dec-sig{margin:6px 0 8px;font-size:12px;overflow-wrap:anywhere}
+.args{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
+.args th,.args td{padding:6px 10px 6px 0;border-top:1px solid var(--hairline);text-align:left;vertical-align:top}
+.args tr:first-child>th,.args tr:first-child>td{border-top:0}
+.args .a-n{font:500 12.5px/1.5 var(--mono);color:var(--muted);white-space:nowrap}
+.args .a-t{font:400 12px/1.6 var(--mono);color:var(--faint);white-space:nowrap}
+.args .a-v{width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.args .a-v .hc{white-space:normal;flex-wrap:wrap}
+.args .a-v .hc-h{overflow-wrap:anywhere;word-break:break-all;white-space:normal}
+.args.nested{margin:0;background:var(--surface-2);border-radius:var(--r);padding:0 8px}
+.args.nested th,.args.nested td{padding:4px 8px 4px 0}
+.arg-arr{margin:0;padding-left:22px;display:grid;gap:2px}
+.arg-arr>li::marker{font:400 11px var(--mono);color:var(--faint)}
+.tx-wrap{overflow-wrap:anywhere;word-break:break-all}
+.mono.str{color:var(--code-str);font-size:12.5px}
+@media(max-width:599px){
+  .args,.args tbody,.args tr{display:block}
+  .args tr{padding:6px 0;border-top:1px solid var(--hairline)}
+  .args tr:first-child{border-top:0}
+  .args th,.args td{display:inline;border:0;padding:0}
+  .args .a-t{margin-left:6px}
+  .args .a-v{display:block;margin-top:2px}
+}
+.raw-in{min-width:0;max-width:100%}
+.raw-in .code-head{flex-wrap:wrap}
+.raw-ctl{display:inline-flex;align-items:center;gap:8px}
+.raw-ctl .seg button{height:28px;font-size:12px;padding:0 10px}
+@media(pointer:coarse){.raw-ctl .seg button{height:44px}}
+pre.raw{max-height:320px;margin:0;white-space:pre;font-size:12.5px;line-height:1.6}
+pre.raw[data-v="utf8"]{white-space:pre-wrap;word-break:break-all}
+pre.raw[hidden]{display:none}
+@media(max-width:599px){pre.raw{max-height:240px;font-size:12px;padding:12px 14px}}
+
+/* ---------- tabs: events, token transfers, balance changes ---------- */
+.tx-tabs{min-width:0}
+.tx-tabs .note{margin-bottom:12px;font-size:13.5px}
+.evs{display:grid;gap:8px}
+.tx-ev{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px;min-width:0;box-shadow:var(--elev-1)}
+.tx-ev-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;min-height:28px}
+.tx-ev-i{font-size:12.5px;color:var(--faint)}
+.tx-ev-n{font-size:13px;font-weight:600;background:var(--surface-2);color:var(--ink)}
+.tx-ev-line{margin:6px 0 4px;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.tx-ev .args{margin-top:6px}
+.tx-ev-raw{margin:6px 0 0;display:grid;gap:4px;font-size:12.5px}
+.tx-ev-raw>div{display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px}
+.tx-ev-raw dt{font:500 11px/1.8 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.tx-ev-raw dd{margin:0;color:var(--code-ink)}
+@media(max-width:599px){.tx-ev{padding:10px 12px}.tx-ev-raw>div{grid-template-columns:1fr;gap:0}}
+.more-row{margin-top:12px}
+
+/* ---------- side column (.side-card / .side-body are global: explorer.css) ---------- */
+.blk-n a{font-size:22px;font-weight:500;letter-spacing:-.02em;color:var(--ink)}
+.blk-n a:hover{color:var(--accent-hover)}
+.tx-ag-list{list-style:none;margin:0;padding:0}
+.tx-ag{padding:12px 16px;border-top:1px solid var(--hairline);display:grid;gap:6px}
+.tx-ag:first-child{border-top:0}
+.tx-ag-top{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.tx-ag-g{color:var(--faint);flex:none}
+.tx-ag-n{font-weight:600;color:var(--ink)}
+.tx-ag-st{margin-left:auto;display:inline-flex;align-items:center;font-size:12.5px;color:var(--muted)}
+.tx-ag-st .status-dot{margin-right:6px;width:7px;height:7px}
+.tx-ag-facts{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:13px;color:var(--muted)}
+.tx-ag-facts b{font-weight:500;color:var(--ink)}
+.tx-ag-links{display:flex;flex-wrap:wrap;gap:4px 16px}
+.tx-ag-links .link-arrow{font-size:13px}
+
+/* ---------- pending (§5.5 States) ---------- */
+.pend{display:grid;gap:14px}
+.pend-line{display:flex;align-items:baseline;gap:4px;font-size:15px;color:var(--ink)}
+.pend-line .status-dot{flex:none;position:relative;top:-1px}
+
+/* ---------- /txs ---------- */
+.txs-ident{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.txs-ident b{font-weight:500;color:var(--ink)}
+.txs-stats .v{display:block;margin-top:6px}
+.txs-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.txs-filters .seg-row{margin:0;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.txs-filters .seg-row::-webkit-scrollbar{display:none}
+.txs-filters .seg{flex:none}
+.fresh-row:empty{display:none}
+.fresh-row{margin-bottom:-8px}
+.fresh-btn .status-dot{margin-right:0}
+/* full-address chips flow as text, so the copy button follows the last characters instead of taking a line */
+.tx-party .hc,.tx-party .hc>a,.args .a-v .hc,.args .a-v .hc>a{display:inline}
+.tx-party .hc .hc-g,.tx-party .hc .seal,.args .a-v .hc .hc-g,.args .a-v .hc .seal{vertical-align:-2px;margin-right:6px}
+.tx-party .hc .hc-n,.tx-party .hc .hc-id,.args .a-v .hc .hc-n,.args .a-v .hc .hc-id{margin-right:6px}
+.tx-party .hc .cp,.args .a-v .hc .cp{vertical-align:middle;margin-left:2px}
+@media(max-width:759px){
+  .txs-filters .seg-row:last-child{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+}

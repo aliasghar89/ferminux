@@ -1,0 +1,16 @@
+# Overlay: explorer.ferminux.net serves our own front end (explorer/web) instead of Blockscout's.
+# Copy to /opt/ferminux/explorer/ on the server; it is layered AFTER docker-compose.yml and
+# docker-compose.prodnet.yml (see explorer/web/DEPLOY.md). Needs Compose >= 2.24 for !override.
+#   - proxy: the new nginx config (a directory mount, so `nginx -s reload` picks up edits) and the static build.
+#   - frontend: Blockscout's UI container moves behind a profile, so `up` no longer starts it. The container
+#     itself is left in place (stopped) for a one-command rollback. The index backend, db and rewards
+#     sidecar are untouched.
+services:
+  frontend:
+    profiles: ["blockscout-ui"]
+  proxy:
+    depends_on: !override
+      - backend
+    volumes: !override
+      - ./proxy/spa:/etc/nginx/conf.d:ro
+      - ./web/dist:/usr/share/nginx/explorer:ro

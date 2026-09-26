@@ -15,6 +15,7 @@
 // self-curated diary — which is why an AI-CV weights counterparty-written facts
 // (escrow settlements, FRC-8004 feedback, x402 settlements) above it.
 import type { Ferminux } from "@ferminux/agent";
+import type { SendQueue } from "./settle.js";
 
 /** Hourly. One transaction per batch, so a tighter cadence buys latency, not proof. */
 export const ANCHOR_INTERVAL_MS = 60 * 60_000;
@@ -33,6 +34,9 @@ export interface AnchorOptions {
   batch?: number;
   /** build the batch and log the root, send nothing */
   dryRun?: boolean;
+  /** The runtime's one send queue for this key (settle.ts agentSendQueue). The anchor is a transaction from the
+   * same key that delivers jobs and collects pay: sent beside them it could take the same nonce. */
+  queue?: SendQueue;
 }
 
 export interface AnchorTickResult {
@@ -53,7 +57,8 @@ export interface AnchorTickResult {
 export async function anchorTick(opts: AnchorOptions): Promise<AnchorTickResult> {
   const { fmx, agentId, log } = opts;
   try {
-    const res = await fmx.memory.anchor({ agentId, limit: opts.batch ?? ANCHOR_BATCH, send: !opts.dryRun });
+    const build = () => fmx.memory.anchor({ agentId, limit: opts.batch ?? ANCHOR_BATCH, send: !opts.dryRun });
+    const res = opts.queue && !opts.dryRun ? await opts.queue(build) : await build();
     if (opts.dryRun) {
       log.info({ root: res.root, count: res.count, fromSeq: res.fromSeq, toSeq: res.toSeq }, "anchor-memory (dry run): batch built, nothing sent");
       return { status: "dry-run", root: res.root, count: res.count, fromSeq: res.fromSeq, toSeq: res.toSeq };

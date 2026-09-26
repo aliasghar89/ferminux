@@ -19,11 +19,12 @@ binary.
 |---|---|
 | ChainID / NetworkID | 3961 (0xF79) — the built-in default |
 | Coin | FMX |
-| Consensus | Clique proof-of-authority from block 160,000 (`PosaBlock`): five bonded signers confirm blocks in rotation (`consensus/posa`). Blocks below 160,000 are the chain's proof-of-work history (Powhash), which the client still validates. |
+| Consensus | Clique proof-of-authority from block 160,000 (`PosaBlock`): a set of authorised signers confirms blocks in rotation (`consensus/posa`; the live list is `clique_getSigners`). Signers are added or removed by a majority vote of the current set. Blocks below 160,000 are the chain's earlier history (Powhash), which the client still validates. |
 | Block period | 7 s (`FerminuxPosaPeriod`); epoch 30,000 blocks |
 | Block reward | 6 FMX below block 20,000, then 1 FMX halving every 4,500,000 blocks (`consensus/powhash/ferminux.go`). From block 160,000 the reward is a quarter of that schedule (0.25 FMX today): 50% to the reward sink contract, 10% to the treasury, the rest to the signer |
 | Genesis | baked in — hash `0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf`, identical to `../genesis/genesis.json` |
-| Fees | EIP-1559 from block 0, 1 gwei initial base fee |
+| Fees | EIP-1559 from block 0, 1 gwei initial base fee. The signers include only transactions that tip at least 1 gwei |
+| EVM rule set | London (no Shanghai or Cancun opcodes): compile contracts with `evm_version = "paris"` |
 | Premine | 30M FMX in genesis, inside the 100M cap |
 
 ## What was changed vs upstream
@@ -78,8 +79,9 @@ ferminux
 ferminux init --datadir ~/.ferminux ../genesis/genesis.json
 ```
 
-`ferminux-geth` and `geth` run the same binary. Only the authorised signers seal
-blocks; any other node validates and serves the chain.
+`ferminux-geth` and `geth` run the same binary. Only the authorised signers confirm
+blocks; any other node validates and serves the chain. Running a node does not make it a
+signer.
 
 ## Test
 

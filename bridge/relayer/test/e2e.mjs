@@ -735,6 +735,9 @@ async function phaseRoundTrip() {
 
   const recipient = new Wallet(ACCOUNTS.recipient.key, state.b.provider);
   const bridgeB = new Contract(state.bridgeB, BRIDGE_ABI, recipient);
+  // BridgeToken.burn only destroys what the holder approved the bridge to
+  // spend, so sending wFMX home is approve -> send, exactly as the UI does it.
+  await (await wfmx.connect(recipient).approve(state.bridgeB, amount)).wait();
   const receipt = await (await bridgeB.send(state.wfmx, amount, CHAIN_A, ACCOUNTS.user.address)).wait();
   const parsed = receipt.logs
     .filter((l) => l.topics[0] === SENT_TOPIC)

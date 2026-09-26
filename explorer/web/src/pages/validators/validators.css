@@ -1,0 +1,17 @@
+/* Local styles for the validators pages (src/pages/validators*, src/pages/validators/*): a hidden-by-default
+   feature (Step 1 checkpoint attestation, scratchpad/validators/PLAN.md §3), so this chunk only loads once
+   VALIDATORS_ENABLED routes here. Prefix .vd- keeps it out of every other page's way. Inputs and .btn are
+   the global components (components.css); nothing here redefines them. */
+.vd-lookup-f{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.vd-lookup-f input{flex:1 1 160px;min-width:0}
+.vd-lookup-f .btn{flex:0 0 auto}
+
+/* the participation strip on a seat page: one cell per recent checkpoint, oldest to newest, left to right */
+.vd-part{display:flex;flex-wrap:wrap;gap:4px;list-style:none;margin:0;padding:0}
+.vd-part li{width:15px;height:15px;border-radius:4px;background:var(--surface-2);border:1px solid var(--border)}
+.vd-part li.hit{background:var(--ok-soft);border-color:var(--ok-border)}
+.vd-part li.miss{background:var(--warn-soft);border-color:var(--warn-border)}
+.vd-part-key{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12.5px;color:var(--faint)}
+.vd-part-key i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.vd-part-key .hit{background:var(--ok-soft);border:1px solid var(--ok-border)}
+.vd-part-key .miss{background:var(--warn-soft);border:1px solid var(--warn-border)}

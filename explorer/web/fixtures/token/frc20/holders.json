@@ -1,0 +1,59 @@
+{
+    "items": [
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0xbab12e7B817F0686e11949eC06697235DC146845",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Ferminux LP",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "token_id": null,
+            "value": "138767184453857319492643"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x1eF5bc06f6CdbA597d16d40FFc3691D8DaC9edc8",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "token_id": null,
+            "value": "25000000000000000000000"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0xF61d31FeC999af448C06fFaBB5EC28FbEE482847",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "token_id": null,
+            "value": "5100000000000000000000"
+        }
+    ],
+    "next_page_params": null
+}

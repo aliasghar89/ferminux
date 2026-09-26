@@ -1,0 +1,40 @@
+{
+  "name": "Ember Drift #4",
+  "description": "Ember Drift: a Rare masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #4 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/4.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=4",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Masked"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Tangerine"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Camo bucket hat"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Distressed hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Smoke trail"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

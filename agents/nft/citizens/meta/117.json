@@ -1,0 +1,40 @@
+{
+  "name": "Neural Composer #117",
+  "description": "Neural Composer: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #117 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/117.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=117",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Ivory"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Note-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black score robe"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Light keyboard and staves"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

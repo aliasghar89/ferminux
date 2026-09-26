@@ -1,0 +1,40 @@
+{
+  "name": "Crowned Circuit #2",
+  "description": "Crowned Circuit: an Epic android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #2 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/2.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=2",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Royal red"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Jeweled crown"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ermine robe"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Aviator shades"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

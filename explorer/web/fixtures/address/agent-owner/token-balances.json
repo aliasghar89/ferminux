@@ -1,0 +1,20 @@
+[
+    {
+        "token": {
+            "address_hash": "0xc8561D128900F6D1FA0ba8b0e389EbDDc116154d",
+            "circulating_market_cap": null,
+            "decimals": "18",
+            "exchange_rate": null,
+            "holders_count": "2",
+            "icon_url": null,
+            "name": "Scribe",
+            "symbol": "SCRB",
+            "total_supply": "9849609458063659740000",
+            "type": "ERC-20",
+            "volume_24h": null
+        },
+        "token_id": null,
+        "token_instance": null,
+        "value": "20533679898329420000"
+    }
+]

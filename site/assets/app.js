@@ -15,7 +15,7 @@
   /* Exact params from wallet/metamask-add-network.json */
   var ADD_CHAIN_PARAMS = {
     chainId: '0xF79',
-    chainName: 'Ferminux Network',
+    chainName: 'Ferminux',
     nativeCurrency: { name: 'Ferminux', symbol: 'FMX', decimals: 18 },
     rpcUrls: ['https://rpc.ferminux.net'],
     blockExplorerUrls: ['https://explorer.ferminux.net']
@@ -233,8 +233,23 @@
       dexPrice: $('dex-price'),
       dexPriceBlock: $('dex-price-block'),
       tape: $('block-tape'),
-      tapeCaption: $('tape-caption')
+      tapeCaption: $('tape-caption'),
+      signers: $('stat-signers')
     };
+
+    /* The authorised signer set, read from the chain rather than hard-coded:
+       the set changes by vote, so a number in the HTML goes stale. */
+    function refreshSigners() {
+      if (!el.signers) return;
+      FMX.rpcBatch(rpcUrl, [{ jsonrpc: '2.0', id: 1, method: 'clique_getSigners', params: ['latest'] }])
+        .then(function (res) {
+          var list = res && res[0] && Array.isArray(res[0].result) ? res[0].result : null;
+          if (list) el.signers.textContent = String(list.length);
+        })
+        .catch(function () { /* keep the last value or the dash */ });
+    }
+    refreshSigners();
+    setInterval(refreshSigners, 5 * 60 * 1000);
 
     var state = {
       blocks: [],          /* ascending header buffer for the tape */

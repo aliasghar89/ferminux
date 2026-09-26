@@ -1,0 +1,40 @@
+{
+  "name": "Dream Weaver #111",
+  "description": "Dream Weaver: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #111 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/111.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=111",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Lavender"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Dreamcatcher-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Moon-and-star shawl"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Dream orb and feathers"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "Silver Regent #62",
+  "description": "Silver Regent: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #62 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/62.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=62",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Pale grey"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Gold aviators"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "White and gold cloak"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Star clasp"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

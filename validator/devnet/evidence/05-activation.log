@@ -1,0 +1,144 @@
+
+## before activation (seat 2 activates at 13456) (2026-09-25T22:13:48Z, block 2845)
+head 2846  seats 10  occupied 9  eligible 0  pool 0.0 FMX  rate 0.025 FMX
+id  state      owner         attester      activation  eligibleFrom counted  lastAttested  claimable   deposit  unjail  unbondEnd slash
+1   EXITING    owner-v01     att-v01       13452       99852        0        0             0.0         2000.0   0       173948    NONE
+2   PENDING    owner-v02     att-v02       13456       99856        0        0             0.0         2000.0   0       0         NONE
+3   PENDING    owner-v03     att-v03       13460       99860        0        0             0.0         2000.0   0       0         NONE
+4   PENDING    owner-v04     att-v04       13464       99864        0        0             0.0         2000.0   0       0         NONE
+5   PENDING    owner-v05     att-v05       13468       99868        0        0             0.0         2000.0   0       0         NONE
+6   PENDING    owner-v06     att-v06       13472       99872        0        0             0.0         2000.0   0       0         NONE
+7   PENDING    owner-v07     att-v07       13476       99876        0        0             0.0         2000.0   0       0         NONE
+8   PENDING    owner-v08     att-v08       13480       99880        0        0             0.0         2000.0   0       0         NONE
+9   PENDING    owner-v09     att-v09       13484       99884        0        0             0.0         2000.0   0       0         NONE
+10  PENDING    owner-v10     att-v10       13488       99888        0        0             0.0         2000.0   0       0         NONE
+  --- v02:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Waiting to activate
+                 The seat activates at block 13,456 (in about 21 h).
+      attester   att-v02(0x98ec92..)
+      hub        HUB(0x7cEE96..)
+      node       head 2846, 1 s old, 13 peers, ready to sign
+      process    running=yes pid=16 restarts=0
+      seat       #2 waiting to activate, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0000 FMX
+                 the reward pool is empty: attestations count but earn nothing until it is refilled
+      attested   0 of the last 62 checkpoints (24 h), 0 of 432 (7 days)
+      gas        1.0000 FMX
+      next       checkpoint 2800, signing opens at block 2864
+           2600  waiting   seat activates at block 13456
+           2400  missed    seat activates at block 13456
+           2200  missed    seat activates at block 13456
+           2000  missed    seat activates at block 13456
+           1800  missed    seat activates at block 13456
+           1600  missed    seat activates at block 13456
+           1400  missed    seat activates at block 13456
+           1200  missed    seat activates at block 13456
+  --- v05:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Waiting to activate
+                 The seat activates at block 13,468 (in about 21 h).
+      attester   att-v05(0x701080..)
+      hub        HUB(0x7cEE96..)
+      node       head 2844, 1 s old, 17 peers, ready to sign
+      process    running=yes pid=16 restarts=0
+      seat       #5 waiting to activate, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0000 FMX
+                 the reward pool is empty: attestations count but earn nothing until it is refilled
+      attested   0 of the last 62 checkpoints (24 h), 0 of 432 (7 days)
+      gas        1.0000 FMX
+      next       checkpoint 2800, signing opens at block 2864
+           2600  waiting   seat activates at block 13468
+           2400  missed    seat activates at block 13468
+           2200  missed    seat activates at block 13468
+           2000  missed    seat activates at block 13468
+           1800  missed    seat activates at block 13468
+           1600  missed    seat activates at block 13468
+           1400  missed    seat activates at block 13468
+           1200  missed    seat activates at block 13468
+  first checkpoint after activation: 13600 (window 13664..13850)
+
+## after the first checkpoint window closed (2026-09-26T01:17:15Z, block 13852)
+head 13852  seats 10  occupied 9  eligible 0  pool 0.0 FMX  rate 0.025 FMX
+id  state      owner         attester      activation  eligibleFrom counted  lastAttested  claimable   deposit  unjail  unbondEnd slash
+1   EXITING    owner-v01     att-v01       13452       99852        0        0             0.0         2000.0   0       173948    NONE
+2   ACTIVE     owner-v02     att-v02       13456       99856        0        13600         0.0         2000.0   0       0         NONE
+3   ACTIVE     owner-v03     att-v03       13460       99860        0        13600         0.0         2000.0   0       0         NONE
+4   ACTIVE     owner-v04     att-v04       13464       99864        0        13600         0.0         2000.0   0       0         NONE
+5   ACTIVE     owner-v05     att-v05       13468       99868        0        13600         0.0         2000.0   0       0         NONE
+6   ACTIVE     owner-v06     att-v06       13472       99872        0        13600         0.0         2000.0   0       0         NONE
+7   ACTIVE     owner-v07     att-v07       13476       99876        0        13600         0.0         2000.0   0       0         NONE
+8   ACTIVE     owner-v08     att-v08       13480       99880        0        13600         0.0         2000.0   0       0         NONE
+9   ACTIVE     owner-v09     att-v09       13484       99884        0        13600         0.0         2000.0   0       0         NONE
+10  ACTIVE     owner-v10     att-v10       13488       99888        0        13600         0.0         2000.0   0       0         NONE
+h 13400 seat 2 included 13472 (h+72) reward 0.0 tx 0xd3de7d48eca1506c32196c5721e19e4c5cc73ffd4e6160f48b77a30df55e36c8
+h 13400 seat 5 included 13478 (h+78) reward 0.0 tx 0xa5cb446f9b1d24d9f33cb4513b10e5de5f3fefa175fad3dbdee53d5094f0b0b3
+h 13400 seat 8 included 13485 (h+85) reward 0.0 tx 0xe91a598f01bb7297b976b4335a8f429ebed20552155ac8b54b7eaa8ccccb99a0
+h 13400 seat 3 included 13488 (h+88) reward 0.0 tx 0x5544d653a2056093b0002c7e965331ccc2fd0897da66314c81db3fe3a8e2b429
+h 13400 seat 4 included 13488 (h+88) reward 0.0 tx 0x006c13cc9afb7939c1d7d44f7828d6fc0c56343b4c469323dc1e13018a1b602e
+h 13400 seat 7 included 13496 (h+96) reward 0.0 tx 0x444bc380f2fbdf907ad317b9ea51192a136417def88d610cfb07c07b1e06f70f
+h 13400 seat 6 included 13498 (h+98) reward 0.0 tx 0xee32c5ae402260551e80b05f6cd47355cb424deaed0aaaf490530cb596b340af
+h 13400 seat 9 included 13502 (h+102) reward 0.0 tx 0x6b6258ec1c494a95a7141cba6dc45b9cbf09a04b4f69fcb7d9e6e9afd85e4b98
+h 13400 seat 10 included 13510 (h+110) reward 0.0 tx 0x5eaa11006281d5841af99d161e683f38627bdc6b89d7feb1eda8fe54b2c2131b
+h 13600 seat 10 included 13666 (h+66) reward 0.0 tx 0xf2eedc0c47597d64ec89e78bbf2800520a8c3bc88d26a34654c2770fd4d709cb
+h 13600 seat 3 included 13666 (h+66) reward 0.0 tx 0x2dfefe2cfc939cf9a234daf8fa20e9d6fbd7a0509753b743629e83df4cefae58
+h 13600 seat 9 included 13666 (h+66) reward 0.0 tx 0xf06c8404d69b8a89add18954b0b0d87a735fa645a3413fc679b869d8bff654cb
+h 13600 seat 2 included 13666 (h+66) reward 0.0 tx 0x01d2db87b773e17e4beba9336be3f2509d0dba6cbfe448ae225855975665b34d
+h 13600 seat 7 included 13666 (h+66) reward 0.0 tx 0xcd53730e9ed06319d1280571d3ffa136de5ab3ed6a17fc9ee70f01570fc23614
+h 13600 seat 6 included 13666 (h+66) reward 0.0 tx 0xae65971d099e2987b6e4be57e7ca05c49e5e28d7d55ef110b85f5f8c0081faff
+h 13600 seat 5 included 13666 (h+66) reward 0.0 tx 0xada7a1c7c5f0446d9bfde4c45a0d7b4b165569cb15ea1935d766076b60437235
+h 13600 seat 4 included 13666 (h+66) reward 0.0 tx 0x4778e92d4781232893703444fbde638930d72b9ab6d574ea9316b1c74d6c3abd
+h 13600 seat 8 included 13667 (h+67) reward 0.0 tx 0x40e6fc3616d81928fdbf6c96af4769b5857395e5d07e6fafc7c37366d06f871c
+  --- v02:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Attesting
+                 Last included checkpoint: 13,600. Counts toward certification
+                 after 7 days active. The reward pool is empty: attestations still
+                 count but earn nothing until it is refilled.
+      attester   att-v02(0x98ec92..)
+      hub        HUB(0x7cEE96..)
+      node       head 13852, 1 s old, 13 peers, ready to sign
+      process    running=yes pid=16 restarts=0
+      seat       #2 active, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0000 FMX
+                 the reward pool is empty: attestations count but earn nothing until it is refilled
+      attested   1 of the last 62 checkpoints (24 h), 1 of 432 (7 days)
+      gas        0.9998 FMX
+      next       checkpoint 13800, signing opens at block 13864
+          13600  included  
+          13400  included  
+          13200  missed    seat activates at block 13456
+          13000  missed    seat activates at block 13456
+          12800  missed    seat activates at block 13456
+          12600  missed    seat activates at block 13456
+          12400  missed    seat activates at block 13456
+          12200  missed    seat activates at block 13456
+  --- v05:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Attesting
+                 Last included checkpoint: 13,600. Counts toward certification
+                 after 7 days active. The reward pool is empty: attestations still
+                 count but earn nothing until it is refilled.
+      attester   att-v05(0x701080..)
+      hub        HUB(0x7cEE96..)
+      node       head 13852, 1 s old, 17 peers, ready to sign
+      process    running=yes pid=16 restarts=0
+      seat       #5 active, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0000 FMX
+                 the reward pool is empty: attestations count but earn nothing until it is refilled
+      attested   1 of the last 62 checkpoints (24 h), 1 of 432 (7 days)
+      gas        0.9998 FMX
+      next       checkpoint 13800, signing opens at block 13864
+          13600  included  
+          13400  included  
+          13200  missed    seat activates at block 13468
+          13000  missed    seat activates at block 13468
+          12800  missed    seat activates at block 13468
+          12600  missed    seat activates at block 13468
+          12400  missed    seat activates at block 13468
+          12200  missed    seat activates at block 13468
+  ok: 9 active seats (2-10) attested checkpoint 13600, each inside [h+64, h+250]
+  dashboard of v07: evidence/dashboards/v07-attesting-empty-pool-desktop.png, -phone.png, .txt, -api-status.json
+<<< step activation done (block 13861, fails so far 0)
+
+>>> step stop-j (2026-09-26T01:17:24Z, block 13861)

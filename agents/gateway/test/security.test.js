@@ -284,6 +284,35 @@ test("v3 indexer: increment handlers apply a replayed log exactly once (reorg re
   assert.equal(db.prepare("SELECT votes FROM arbiter_cases WHERE id = 3").get().votes, 2);
 });
 
+// 2026-09-24 audit: /api/streams showed claimed "0" for cancelled stream #2 (on-chain withdrawn 0.00081 FMX): the
+// cancel's payout never reached `claimed`. Also: SQL CAST(... AS INTEGER) clamps at 2^63-1 wei (≈ 9.22 FMX).
+test("v3 indexer: StreamCancelled adds the payee payout to claimed once; big totals stay exact; reconcile repairs old rows", async () => {
+  const { reconcileStreamCancels } = await import("../dist/v3/indexer-v3.js");
+  const db = openMemoryDb();
+  const activity = new ActivityBus(db, () => 1_758_400_000_000);
+  const webhooks = new WebhookBus(db, () => 1_758_400_000_000, async () => new Response("ok"));
+  const deps = { db, activity, webhooks };
+  const ev = (name, args, logIndex, tx = "0x" + "cd".repeat(32)) => ({ key: "streamPay", parsed: { name }, args, blockNumber: 20, txHash: tx, logIndex, ts: 1_758_400_000 });
+  applyV3Event(deps, ev("StreamOpened", { id: "3", payer: alice.address, payee: bob.address, ratePerSec: "2314814814815", deposit: "200000000000000000", start: "1", stop: "86401" }, 0));
+  applyV3Event(deps, ev("StreamClaimed", { id: "3", payeeAmount: "79398148148177", fee: "1620370370313" }, 1));
+  applyV3Event(deps, ev("StreamCancelled", { id: "3", by: alice.address, payeeAmount: "63518518518496", fee: "1296296296296", refund: "1" }, 2));
+  applyV3Event(deps, ev("StreamCancelled", { id: "3", by: alice.address, payeeAmount: "63518518518496", fee: "1296296296296", refund: "1" }, 2)); // replay
+  assert.equal(db.prepare("SELECT claimed, cancelled FROM streams WHERE id = 3").get().claimed, "145833333333282", "matches getStream(3).withdrawn on chain");
+  // > 2^63 wei
+  applyV3Event(deps, ev("StreamOpened", { id: "4", payer: alice.address, payee: bob.address, ratePerSec: "1", deposit: "50000000000000000000", start: "1", stop: "2" }, 3));
+  applyV3Event(deps, ev("StreamToppedUp", { id: "4", amount: "50000000000000000000" }, 4));
+  applyV3Event(deps, ev("StreamClaimed", { id: "4", payeeAmount: "12000000000000000000", fee: "0" }, 5));
+  const big = db.prepare("SELECT deposit, claimed FROM streams WHERE id = 4").get();
+  assert.equal(big.deposit, "100000000000000000000");
+  assert.equal(big.claimed, "12000000000000000000");
+  // an old cancel that was indexed before the fix: in `events`, not in v3_counted, claimed still 0
+  db.prepare("INSERT INTO streams (id, payer, payee, ratePerSec, deposit, start, stop, cancelled, txOpened, updatedAtBlock) VALUES (2, ?, ?, '1', '1000000000000000', 1, 2, 1, '0x0', 1)").run(alice.address, bob.address);
+  db.prepare("INSERT INTO events (txHash, logIndex, blockNumber, contractName, eventName, argsJSON, ts) VALUES (?, 0, 30, 'streamPay', 'StreamCancelled', ?, 1)").run("0x" + "ef".repeat(32), JSON.stringify({ id: "2", by: alice.address, payeeAmount: "793981481481476", fee: "16203703703704", refund: "1" }));
+  assert.equal(reconcileStreamCancels(db), 1);
+  assert.equal(db.prepare("SELECT claimed FROM streams WHERE id = 2").get().claimed, "810185185185180");
+  assert.equal(reconcileStreamCancels(db), 0, "idempotent");
+});
+
 test("payload store never serves active content from the gateway origin", async (t) => {
   const { app, inject } = await setup();
   t.after(() => app.close());

@@ -15,9 +15,11 @@ import {
   encryptVault,
   decryptVault,
   verifyVaultPassword,
+  checkDevicePassword,
   vaultWithLabel,
   vaultWithActive,
   vaultWithExported,
+  setWithExported,
   vaultWithoutAccount,
   vaultWithHdAccount,
   vaultWithImportedAccount,
@@ -31,6 +33,7 @@ import {
   encryptToKeystore,
   keystoreHasMnemonic,
   keystoreAddress,
+  keystoreKdfIsStrong,
 } from '../src/lib/wallet.ts';
 import { deriveHdAccount, defaultHdLabel } from '../src/lib/accounts.ts';
 import { Wallet } from 'ethers';
@@ -151,6 +154,23 @@ test('vault: seedKeystore is reused instead of re-running scrypt', async () => {
 
 /* ---------------- wrong password ---------------- */
 
+test('vault: an imported seed keystore with a cheap KDF is re-encrypted, not kept', async () => {
+  // A keystore file from elsewhere can carry any scrypt cost; the vault must not inherit a cheaper one.
+  const set = { accounts: [hdAccount(0)], activeId: null, mnemonic: PHRASE };
+  set.activeId = set.accounts[0].id;
+  const cheap = await encryptSeedKeystore(PHRASE, PASSWORD, { scryptN: 1 << 10 });
+  assert.equal(keystoreKdfIsStrong(cheap, N), false);
+  const vault = await encryptVault(set, PASSWORD, { scryptN: N, seedKeystore: cheap });
+  assert.notEqual(vault.seed, cheap, 'the weak file was not stored verbatim');
+  assert.equal(JSON.parse(vault.seed).Crypto.kdfparams.n, N);
+  const { set: back } = await decryptVault(vault, PASSWORD);
+  assert.equal(back.mnemonic, PHRASE);
+  // The wallet's own default cost is what production requires.
+  assert.equal(keystoreKdfIsStrong(cheap), false);
+  assert.equal(keystoreKdfIsStrong(JSON.stringify({ crypto: { kdf: 'pbkdf2', kdfparams: { c: 1 } } })), false);
+  assert.equal(keystoreKdfIsStrong(JSON.stringify({ crypto: { kdf: 'scrypt', kdfparams: { n: 131072, r: 8, p: 1 } } })), true);
+});
+
 test('vault: a wrong password is rejected, not partially applied', async () => {
   const vault = await encryptVault(mixedSet(), PASSWORD, { scryptN: N });
   await assert.rejects(decryptVault(vault, 'not the password'), WrongPasswordError);
@@ -170,6 +190,17 @@ test('vault: verifyVaultPassword answers without unlocking', async () => {
   const vault = await encryptVault(mixedSet(), PASSWORD, { scryptN: N });
   assert.equal(await verifyVaultPassword(vault, PASSWORD), true);
   assert.equal(await verifyVaultPassword(vault, 'wrong'), false);
+});
+
+test('vault: a key leaves a remembered wallet only with the device password', async () => {
+  // Export and "stop storing" go through this gate: an unlocked screen is not proof of who holds it.
+  const vault = await encryptVault(mixedSet(), PASSWORD, { scryptN: N });
+  assert.equal(await checkDevicePassword(vault, PASSWORD), null);
+  assert.match(await checkDevicePassword(vault, 'attacker-chosen-pw'), /not the password this device/);
+  assert.match(await checkDevicePassword(vault, ''), /Enter the password/);
+  assert.match(await checkDevicePassword(vault, undefined), /Enter the password/);
+  // Nothing stored: there is no device password to ask for.
+  assert.equal(await checkDevicePassword(null, undefined), null);
 });
 
 test('vault: one account encrypted under another password does not lock out the rest', async () => {
@@ -448,4 +479,19 @@ test('migration: a broken localStorage write leaves the v1 keystore in place', a
   assert.ok(vault, 'the session still opens from the in-memory upgrade');
   assert.equal(store.get(LEGACY_KEYSTORE_KEY), legacy, 'nothing is deleted when the write failed');
   delete globalThis.window;
+});
+
+test('setWithExported: marks one account of the CURRENT session; a locked or forgotten session stays null', () => {
+  const a = { id: 'a1', kind: 'imported', index: null, label: 'Payroll', address: '0x' + '11'.repeat(20), privateKey: '0x' + '22'.repeat(32), backup: 'none' };
+  const b = { ...a, id: 'a2', label: 'Ops', backup: 'none' };
+  const set = { accounts: [a, b], activeId: 'a1', mnemonic: null };
+  const next = setWithExported(set, 'a2');
+  assert.equal(next.accounts[1].backup, 'file');
+  assert.equal(next.accounts[0].backup, 'none', 'only the exported account');
+  assert.equal(set.accounts[1].backup, 'none', 'the input is not mutated');
+  // The share sheet closed after the idle lock (or Forget) had already cleared the session:
+  // the update must not bring the keys back.
+  assert.equal(setWithExported(null, 'a2'), null);
+  // An account removed meanwhile: nothing changes.
+  assert.equal(setWithExported(set, 'gone'), set);
 });

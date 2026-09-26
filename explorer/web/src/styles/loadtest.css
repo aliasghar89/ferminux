@@ -1,0 +1,28 @@
+/* Wizrd load test labels (src/loadtest.ts). A dashed outline in the neutral --info tone: the "declared, not
+   organic" look of the provenance ladder (components.css .prov.declared), never the chain's green and never
+   the error coral. Mono uppercase like every kind label; the DOM text stays "Wizrd load test". */
+.lt-chip{display:inline-flex;align-items:center;flex:none;font:500 11px/1.6 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:0 6px;border:1px dashed var(--border-strong);border-radius:var(--r-xs);color:var(--info);background:transparent;white-space:nowrap;vertical-align:middle}
+a.lt-chip{text-decoration:none}
+a.lt-chip:hover{border-color:var(--info);color:var(--ink)}
+a.lt-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* in a list row the chip sits where the method chip would; the kind word follows where there is room
+   (the home feed's kind column is narrow: there the chip alone, the word kept for screen readers) */
+.tx-km .lt-chip+.kword{margin-left:6px}
+.xhome .tx-km .lt-kw{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tx-pills .lt-chip{font-size:11.5px;padding:1px 8px}
+/* the note beside network totals: one run of text, the chip inline at its start */
+.lt-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0;font-size:12.5px;color:var(--faint);line-height:1.6}
+.lt-line:empty,.lt-line[hidden]{display:none}
+.lt-line a{color:var(--muted)}
+.lt-text .lt-chip{margin-right:4px}
+.lt-text .num-mono{color:var(--muted)}
+/* the address banner and the tx input note */
+.lt-banner .link-arrow{margin-left:auto}
+.lt-input{margin:0 0 8px;font-size:13px;color:var(--muted)}
+.lt-input .lt-chip{margin-right:6px}
+@media (max-width:720px){
+  .lt-banner .link-arrow{margin-left:0}
+}
+/* /txs: under the 24 h stats row; /accounts: above the list */
+.txs-lt{margin-top:8px}
+.acc-lt{margin:0 0 12px}

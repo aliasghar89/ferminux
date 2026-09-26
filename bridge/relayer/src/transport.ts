@@ -8,11 +8,17 @@
 //
 // Two modes, usable together:
 //
-//   http        each validator serves GET /signatures?transferId=… over TLS on
-//               its own host, under its own control. The submitter polls the
+//   http        each validator serves GET /signatures?transferId=… on its own
+//               host, under its own control. The submitter polls the
 //               validators it is configured for. This is the multi-party mode:
 //               validator 1, 2 and 3 are three machines with three custodians,
 //               and the submitter has no key material of theirs at all.
+//               The relayer speaks PLAIN HTTP (http.ts is node:http only): it
+//               does not terminate TLS itself. A peer across the public
+//               internet must be reached over a tunnel (WireGuard) or through
+//               a TLS terminator in front of its port — otherwise the peer
+//               bearer token and every /status and /transfers answer cross
+//               the wire in cleartext. A signature itself needs no secrecy.
 //
 //   shared-dir  each validator writes <dir>/<transferId>/<signer>.json. Fine for
 //               a single-operator deployment (all roles, one host or one NFS

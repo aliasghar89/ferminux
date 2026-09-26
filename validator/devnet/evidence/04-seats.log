@@ -1,0 +1,33 @@
+
+## refused deposits (2026-09-25T21:44:47Z, block 1104)
+  ok: openSeat from a premine wallet on the deny list refused: REVERTED: Denied()
+  ok: openSeat with 1,999 FMX refused: REVERTED: WrongDeposit()
+
+## bucket 1: ten seats opened now (the 10-a-day churn limit) (2026-09-25T21:44:47Z, block 1104)
+  seat 1  machine v01  owner owner-v01(0x2B1dE3..)  attester att-v01(0x0040d6..)  enode 0x9fb959092feb74e4..  openSeat tx=0x90b98d599ac1bba347ce3c4b41cef53d6f2c98426a70bbc2d1b1ccf692cd6a08 block=1109 status=1 gas=315694
+  seat 2  machine v02  owner owner-v02(0x9C2b45..)  attester att-v02(0x98ec92..)  enode 0x5bdb39527e612b67..  openSeat tx=0x8a8a52d97c744ea72cd12a1f97956e09a21da8254bbf23b4ccd35555bc612ceb block=1113 status=1 gas=212418
+  seat 3  machine v03  owner owner-v03(0x4410dE..)  attester att-v03(0x48f51c..)  enode 0x3358e25b27905b06..  openSeat tx=0x956ae0f82682f9dd741c9b9adb20ed7de225de7967458d4575fe5e73fb2f912a block=1117 status=1 gas=212462
+  seat 4  machine v04  owner owner-v04(0x5B7B2c..)  attester att-v04(0x3a367e..)  enode 0xe55fac078a2b7fb0..  openSeat tx=0xd3092fbe3a2402649210ae7364014b2b4c30d26e70fef53dd2c4163b3b27e335 block=1121 status=1 gas=212418
+  seat 5  machine v05  owner owner-v05(0x88d0D0..)  attester att-v05(0x701080..)  enode 0x1ac92a4b6cb37a44..  openSeat tx=0x7b77da3fad3afcb095e4e7deb2cd04a09de9e6249cd1d022f6509842c2ccc1f7 block=1125 status=1 gas=212442
+  seat 6  machine v06  owner owner-v06(0x30f1a5..)  attester att-v06(0x9fe7fe..)  enode 0xc174e35ab6999ff1..  openSeat tx=0x98d9c40a9a168841c8b17ac2d63afa0e08348fa0af42861bac26960ed393b678 block=1129 status=1 gas=212410
+  seat 7  machine v07  owner owner-v07(0x3ceef9..)  attester att-v07(0xca103c..)  enode 0x63cc14182b0ebf21..  openSeat tx=0xadb0f800a38db7507a4f9a0fd854cc4eba15b6dee89d8085859dbe172ece0250 block=1133 status=1 gas=212430
+  seat 8  machine v08  owner owner-v08(0x39afD1..)  attester att-v08(0x8439f0..)  enode 0x401fef10e115c1c1..  openSeat tx=0x4eee7714109c9adc6e57ace3da3889221979b63b2ea64bf53ed85596142e27ba block=1137 status=1 gas=212462
+  seat 9  machine v09  owner owner-v09(0xB13DA3..)  attester att-v09(0x1f0eda..)  enode 0x5ac8254154031147..  openSeat tx=0x81b767397c0480e8069acec85bd703a2f0e50ea86f72b57cc2d2fa2f3626b81f block=1141 status=1 gas=212430
+  seat 10  machine v10  owner owner-v10(0xc75957..)  attester att-v10(0x827f39..)  enode 0x8dfc75ed940ce126..  openSeat tx=0x13df3a873f99bcbcd7b41f18d6ba05f7478bbebebee8f129a9c5f47ee5012864 block=1145 status=1 gas=212418
+head 1145  seats 10  occupied 10  eligible 0  pool 0.0 FMX  rate 0.025 FMX
+id  state      owner         attester      activation  eligibleFrom counted  lastAttested  claimable   deposit  unjail  unbondEnd slash
+1   PENDING    owner-v01     att-v01       13452       99852        0        0             0.0         2000.0   0       0         NONE
+2   PENDING    owner-v02     att-v02       13456       99856        0        0             0.0         2000.0   0       0         NONE
+3   PENDING    owner-v03     att-v03       13460       99860        0        0             0.0         2000.0   0       0         NONE
+4   PENDING    owner-v04     att-v04       13464       99864        0        0             0.0         2000.0   0       0         NONE
+5   PENDING    owner-v05     att-v05       13468       99868        0        0             0.0         2000.0   0       0         NONE
+6   PENDING    owner-v06     att-v06       13472       99872        0        0             0.0         2000.0   0       0         NONE
+7   PENDING    owner-v07     att-v07       13476       99876        0        0             0.0         2000.0   0       0         NONE
+8   PENDING    owner-v08     att-v08       13480       99880        0        0             0.0         2000.0   0       0         NONE
+9   PENDING    owner-v09     att-v09(0x1F0Eda..) 13484       99884        0        0             0.0         2000.0   0       0         NONE
+10  PENDING    owner-v10     att-v10       13488       99888        0        0             0.0         2000.0   0       0         NONE
+  ok: openSeat reusing an attester key that already holds a seat (KeyUsed) refused: REVERTED: KeyUsed()
+  bucket 1 activates from block 13456 (seat 2)
+<<< step seats-b1 done (block 1146, fails so far 0)
+
+>>> step exit-x (2026-09-25T21:45:29Z, block 1146)

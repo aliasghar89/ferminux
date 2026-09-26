@@ -1,7 +1,8 @@
 // GET /api/status — one machine-readable health page for the whole gateway,
 // so an agent (or a monitor) can decide whether to retry before it hires
 // anyone. /api/health answers "is the process up"; this answers "is every
-// moving part keeping up and funded": RPC head vs indexed block, the v3
+// moving part keeping up and funded": chain liveness (head block age, which
+// signers are confirming), RPC head vs indexed block, the v3
 // indexer, the x402 facilitator's gas, the relayer that sponsors the faucet
 // and AgentAccount calls, the faucet's daily budget, the pay-in watcher, the
 // webhook queue and the database.
@@ -17,7 +18,7 @@ import { getMeta } from "./db.js";
 import type { GatewayConfig } from "./config.js";
 import { CHAIN } from "./constants.js";
 import { GATEWAY_VERSION } from "./openapi.js";
-import { FAUCET_DRIP_WEI, FAUCET_GLOBAL_PER_DAY } from "./v3/faucet.js";
+import { FAUCET_DRIP_WEI, FAUCET_GLOBAL_PER_DAY, FAUCET_RELAYER_RESERVE_WEI } from "./v3/faucet.js";
 import { dayStart, type V3Context } from "./v3/context.js";
 import type { X402Facilitator } from "./v3/x402.js";
 import type { PayinWatcher } from "./v3/payin.js";
@@ -28,6 +29,10 @@ export const STATUS_MAX_BLOCK_LAG = 30;
 export const STATUS_MIN_GAS_WEI = 10n ** 17n; // 0.1 FMX
 /** cached RPC reads: the status page is public and cheap to hammer */
 export const STATUS_CACHE_MS = 5_000;
+/** head block older than this (s) = the chain has stopped confirming blocks (7 s blocks; the watchdog calls 120 s a halt) */
+export const STATUS_MAX_HEAD_AGE_S = 60;
+/** clique_status window (blocks) used to decide which signers are confirming */
+export const STATUS_SIGNER_WINDOW = 64;
 
 export interface ServiceStatus {
   ok: boolean;
@@ -102,6 +107,55 @@ export async function buildStatus(opts: StatusOptions, startedAt: number): Promi
     ...(chainId !== null && chainId !== CHAIN.chainId ? { detail: `RPC reports chain ${chainId}, expected ${CHAIN.chainId}` } : {}),
   };
 
+  // --- chain liveness + signers ---
+  // "Is the chain moving, and is every authorised signer confirming?" Head-vs-indexer lag alone stays green
+  // through a halt (head stops, lag 0) and through a signer outage (3 of 5 still confirm): both went
+  // unnoticed until the 2026-09-24 audit read clique_status by hand.
+  let headAgeS: number | null = null;
+  let chainDetail: string | undefined;
+  let signers: { total: number; active: number; silent: string[]; window: number; inturnPercent: number | null } | null = null;
+  if (head !== null) {
+    try {
+      const blk = await provider.getBlock(head);
+      if (blk) headAgeS = Math.max(now - Number(blk.timestamp), 0);
+    } catch {
+      headAgeS = null;
+    }
+    try {
+      const cs = (await provider.send("clique_status", [])) as { sealerActivity?: Record<string, number>; inturnPercent?: number; numBlocks?: number };
+      const activity = cs?.sealerActivity ?? {};
+      const entries = Object.entries(activity);
+      signers = {
+        total: entries.length,
+        active: entries.filter(([, n]) => Number(n) > 0).length,
+        silent: entries.filter(([, n]) => !(Number(n) > 0)).map(([a]) => a),
+        window: Number(cs?.numBlocks ?? STATUS_SIGNER_WINDOW),
+        inturnPercent: typeof cs?.inturnPercent === "number" ? Math.round(cs.inturnPercent * 10) / 10 : null,
+      };
+    } catch (err) {
+      chainDetail = `clique_status unavailable on ${cfg.rpcUrl}: ${(err as Error).message.slice(0, 120)} — signer health unknown`;
+    }
+  }
+  const headStale = headAgeS !== null && headAgeS > STATUS_MAX_HEAD_AGE_S;
+  const signersDown = signers !== null && signers.total > 0 && signers.active < signers.total;
+  services.chain = {
+    ok: head !== null && headAgeS !== null && !headStale && signers !== null && !signersDown,
+    headAgeS,
+    maxHeadAgeS: STATUS_MAX_HEAD_AGE_S,
+    signers,
+    ...(head === null
+      ? { detail: "RPC unreachable — chain state unknown" }
+      : headStale
+        ? { detail: `no new block for ${headAgeS} s (blocks are due every ${CHAIN.blockTimeSeconds} s) — the chain may have halted` }
+        : signersDown
+          ? { detail: `${signers!.active} of ${signers!.total} signers confirmed a block in the last ${signers!.window} blocks; silent: ${signers!.silent.join(", ")}` }
+          : chainDetail
+            ? { detail: chainDetail }
+            : headAgeS === null
+              ? { detail: "could not read the head block's timestamp" }
+              : {}),
+  };
+
   // --- indexer ---
   const indexedRaw = getMeta(db, "indexedBlock");
   const indexedBlock = indexedRaw !== undefined ? Number(indexedRaw) : null;
@@ -172,7 +226,7 @@ export async function buildStatus(opts: StatusOptions, startedAt: number): Promi
 
   // --- faucet (shares the relayer wallet) ---
   const usedToday = count(db, "SELECT COUNT(*) AS c FROM relays WHERE kind = 'faucet' AND createdAt >= ? AND ok = 1", dayStart(now));
-  const drips = relayerBal === null ? null : Number(relayerBal / FAUCET_DRIP_WEI);
+  const drips = relayerBal === null ? null : Number((relayerBal > FAUCET_RELAYER_RESERVE_WEI ? relayerBal - FAUCET_RELAYER_RESERVE_WEI : 0n) / FAUCET_DRIP_WEI);
   services.faucet = {
     ok: !!v3.relayer && usedToday < FAUCET_GLOBAL_PER_DAY && (drips === null || drips > 0),
     enabled: !!v3.relayer,
@@ -180,18 +234,36 @@ export async function buildStatus(opts: StatusOptions, startedAt: number): Promi
     usedToday,
     remainingToday: Math.max(FAUCET_GLOBAL_PER_DAY - usedToday, 0),
     dripsFunded: drips,
-    ...(!v3.relayer ? { detail: "RELAYER_KEY unset — POST /api/faucet answers 503" } : usedToday >= FAUCET_GLOBAL_PER_DAY ? { detail: "today's faucet budget is spent; it resets at 00:00 UTC" } : drips === 0 ? { detail: "the relayer cannot fund another drip" } : {}),
+    relayerReserveFmx: formatEther(FAUCET_RELAYER_RESERVE_WEI),
+    ...(!v3.relayer ? { detail: "RELAYER_KEY unset — POST /api/faucet answers 503" } : usedToday >= FAUCET_GLOBAL_PER_DAY ? { detail: "today's faucet budget is spent; it resets at 00:00 UTC" } : drips === 0 ? { detail: "the relayer is at its reserve for gasless relays — the faucet is paused until it is topped up" } : {}),
   };
 
   // --- pay-in watcher ---
+  // ok used to be the literal `true`: three chains' deposit scanners failed every poll for days while this
+  // said ok. Now every advertised chain must be scanning, and each chain's last good scan is exposed.
+  const payinChains = payin.enabled ? payin.health() : null;
+  const payinDown = payinChains ? Object.entries(payinChains).filter(([, h]) => !h.ok).map(([c]) => c) : [];
+  const unattributed7d = payin.unattributedCount(now - 7 * 86_400);
   services.payin = {
-    ok: true,
+    ok: !payin.enabled || payinDown.length === 0,
     enabled: payin.enabled,
     hotWallet: v3.payinHot?.address ?? null,
     pollMs: cfg.payinPollMs,
     openQuotes: count(db, "SELECT COUNT(*) AS c FROM payins WHERE status IN ('quoted','seen')"),
     paid: count(db, "SELECT COUNT(*) AS c FROM payins WHERE status = 'paid'"),
-    ...(payin.enabled ? {} : { detail: "PAYIN_HOT_KEY unset — POST /api/payin/quote answers 503" }),
+    /** deposits that matched no quote in the last 7 days — each one needs a manual refund or credit */
+    unattributed7d,
+    unavailableChains: payinDown,
+    chains: payinChains
+      ? Object.fromEntries(Object.entries(payinChains).map(([c, h]) => [c, { ok: h.ok, ...(h.reason ? { reason: h.reason } : {}), lastOkAt: h.lastOkAt, lastErrorAt: h.lastErrorAt, lastError: h.lastError ? h.lastError.slice(0, 160) : null, consecutiveFailures: h.consecutiveFailures }]))
+      : null,
+    ...(!payin.enabled
+      ? { detail: "PAYIN_HOT_KEY unset — POST /api/payin/quote answers 503" }
+      : payinDown.length
+        ? { detail: `deposit scanner has no recent completed scan on ${payinDown.join(", ")} — quotes on those chains answer 503` }
+        : unattributed7d > 0
+          ? { detail: `${unattributed7d} deposit(s) in the last 7 days matched no quote — check payin_transfers for manual refunds` }
+          : {}),
   };
 
   // --- webhook queue ---
@@ -224,13 +296,27 @@ export async function buildStatus(opts: StatusOptions, startedAt: number): Promi
     ...(sizeBytes === null ? { detail: "could not read the SQLite page count" } : {}),
   };
 
+  // --- agents.db snapshots (backup.ts) ---
+  const backupEvery = Number(getMeta(db, "backup:intervalS") ?? 0);
+  const backupLast = Number(getMeta(db, "backup:lastAt") ?? 0) || null;
+  const backupErr = getMeta(db, "backup:lastError") || null;
+  const uptimeS = Math.max(Math.floor((Date.now() - startedAt) / 1000), 0);
+  const backupOk = !backupEvery || (backupLast !== null ? now - backupLast <= 2 * backupEvery + 600 : uptimeS < backupEvery + 600) && !backupErr;
+  services.backup = {
+    ok: backupOk,
+    enabled: backupEvery > 0,
+    lastAt: backupLast,
+    intervalS: backupEvery || null,
+    ...(!backupEvery ? { detail: "snapshots disabled (in-memory DB or BACKUP_DISABLE=1)" } : backupErr ? { detail: `last snapshot failed: ${backupErr}` } : !backupOk ? { detail: backupLast ? `last snapshot is ${now - backupLast} s old` : "no snapshot written yet" } : {}),
+  };
+
   const degraded = Object.entries(services).filter(([, s]) => !s.ok).map(([k]) => k);
   const b = cfg.publicUrl.replace(/\/+$/, "");
   return {
     ok: degraded.length === 0,
     version: GATEWAY_VERSION,
     now,
-    uptimeS: Math.max(Math.floor((Date.now() - startedAt) / 1000), 0),
+    uptimeS,
     chainId,
     head,
     indexedBlock,
@@ -250,6 +336,8 @@ export function registerStatusRoutes(app: FastifyInstance, opts: StatusOptions):
   app.get("/api/status", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (_req, reply) => {
     if (cached && Date.now() - cached.at < cacheMs) {
       reply.header("cache-control", `public, max-age=${Math.ceil(cacheMs / 1000)}`);
+      // monitors key on this header, so a cached answer must carry it too
+      if (!cached.value.ok) reply.header("x-ferminux-degraded", cached.value.degraded.join(","));
       return cached.value;
     }
     const value = await buildStatus(opts, startedAt);

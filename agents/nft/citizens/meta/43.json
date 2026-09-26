@@ -1,0 +1,40 @@
+{
+  "name": "Yume #43",
+  "description": "Yume: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #43 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/43.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=43",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Crimson"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Black spikes"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black hoodie, dream kanji"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Red ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

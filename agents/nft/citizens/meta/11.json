@@ -1,0 +1,40 @@
+{
+  "name": "Santorini Hour #11",
+  "description": "Santorini Hour: a Common android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #11 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/11.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=11",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Aegean sunset"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Ash-blonde bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory wrap"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

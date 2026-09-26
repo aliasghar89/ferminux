@@ -6,7 +6,7 @@ import { formatEther, keccak256, parseEther, toUtf8Bytes } from "ethers";
 import { AGENTS, JOBS, MOCK_WALLET } from "./mock";
 import type {
   AccountRow, AccountView, AgentTokenView, ArbiterCase, ArbiterPoolView, Author, CaseEvidenceRow, ComputeListing, MemoryKeyView, MemoryQuota,
-  PayinAssets, PayinChainInfo, PayinQuote, PayinQuoteRequest, PayinStatus, PlanView, ReputationSummary, StreamView, SubView, VoucherRecord, WebhookEvent, WebhookView, X402PayerView, X402Resource,
+  PayinAssets, PayinChainInfo, PayinMarket, PayinQuote, PayinQuoteRequest, PayinStatus, PlanView, ReputationSummary, StreamView, SubView, VoucherRecord, WebhookEvent, WebhookView, X402PayerView, X402Resource,
 } from "./types";
 
 const now = Math.floor(Date.now() / 1000);
@@ -308,13 +308,43 @@ const PAYIN_CHAINS_MOCK: (PayinChainInfo & { confirmations: number })[] = [
     { symbol: "AVAX", kind: "native", token: null, decimals: 18, stable: false },
   ] },
 ];
+/** Mock: Polygon's deposit scanner has no recent completed scan, so the page must not offer it (mirrors the gateway). */
+const PAYIN_UNAVAILABLE_MOCK: Partial<Record<string, string>> = { polygon: "deposit scanner failed its last 3 scans — pay on another chain" };
 export function payinAssets(): Promise<PayinAssets> {
-  return delay({ enabled: true, priceUsdPerFmx: PAYIN_PRICE, spreadBps: 200, minUsd: 1, maxUsd: 10_000, expires: 900, chains: PAYIN_CHAINS_MOCK });
+  const now = Math.floor(Date.now() / 1000);
+  const chains = PAYIN_CHAINS_MOCK.map((c) => {
+    const why = PAYIN_UNAVAILABLE_MOCK[c.chain];
+    return why ? { ...c, available: false, lastScanAt: now - 900, unavailableReason: why } : { ...c, available: true, lastScanAt: now - 12 };
+  });
+  return delay({ enabled: true, priceUsdPerFmx: PAYIN_PRICE, spreadBps: 200, minUsd: 1, maxUsd: 10_000, expires: 900, chains, availableChains: chains.filter((c) => c.available).map((c) => c.chain) });
+}
+export function payinMarket(): Promise<PayinMarket> {
+  const now = Math.floor(Date.now() / 1000);
+  // the live WFMX/AZNT pool as read on 2026-09-26
+  const pool = {
+    pair: "0xbab12e7B817F0686e11949eC06697235DC146845", quoteSymbol: "AZNT", quoteToken: "0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178", quoteReserve: "45100.0",
+    priceInQuote: "0.325004792577575084", usdPerQuote: "0.588235294117647058", usdBasis: "1 AZNT = 1 AZN; 1 USD = 1.70 AZN",
+    usdPerFmx: "0.191179289751514755", liquidityUsd: "53058.8235294117646316", wfmxReserve: "138767.184453857319492643", lastTradeAt: 1_787_791_430,
+    swapUrl: "https://dex.ferminux.net/?inputCurrency=0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178&outputCurrency=FMX", poolUrl: "https://explorer.ferminux.net/address/0xbab12e7B817F0686e11949eC06697235DC146845",
+  };
+  return delay({
+    ...pool, source: "Ferminux DEX WFMX/AZNT pool on chain 3961 (on-chain reserves)", venue: "ferminux-dex" as const, chain: "ferminux", token: "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+    dexUrl: "https://dex.ferminux.net", at: now - 20, pools: [pool], quoteUsdPerFmx: PAYIN_PRICE, quoteVsMarketPct: 171.99,
+    note: "Spot price of the deepest FMX pool on the Ferminux DEX, read from its reserves: a trade of size moves it. USD is through AZNT (1 AZNT = 1 AZN; 1 USD = 1.70 AZN). The pay-in quote is set by the operator, not read from this pool.",
+    secondary: {
+      venue: "pancakeswap" as const, source: "PancakeSwap v2 wFMX/WBNB pool on BNB Chain (on-chain reserves)", chain: "bsc", pair: "0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0", token: "0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0",
+      usdPerFmx: "0.402528", liquidityUsd: "99.46", wfmxReserve: "123.553911276618300294", lastTradeAt: now - 26_000, at: now - 20,
+      swapUrl: "https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0",
+      bridgePaused: true, bridgeReason: "validators are not signing on ferminux (checkpoint unreadable)", bridgeStatusUrl: "https://ferminux.net/security.html#status",
+    },
+  });
 }
 const unitsOf = (text: string, decimals: number): bigint => { const [w, f = ""] = text.split("."); return BigInt(w || "0") * 10n ** BigInt(decimals) + BigInt((f + "0".repeat(decimals)).slice(0, decimals)); };
 const fmtUnits = (u: bigint, decimals: number): string => { const d = 10n ** BigInt(decimals); const frac = (u % d).toString().padStart(decimals, "0").replace(/0+$/, ""); return `${u / d}.${frac || "0"}`; };
 export function payinQuote(p: PayinQuoteRequest): Promise<PayinQuote> {
   const chain = PAYIN_CHAINS_MOCK.find((c) => c.chain === p.chain)!;
+  const down = PAYIN_UNAVAILABLE_MOCK[p.chain];
+  if (down) return Promise.reject(Object.assign(new Error(`pay-in on ${chain.name} is temporarily unavailable (${down.replace(/ — .*/, "")}); pay on another chain`), { status: 503 }));
   const a = chain.assets.find((x) => x.symbol === p.asset);
   if (!a) return Promise.reject(Object.assign(new Error(`asset must be one of ${chain.assets.map((x) => x.symbol).join("|")} on ${chain.name}`), { status: 400 }));
   if (!/^\d+(\.\d+)?$/.test(p.amount) || Number(p.amount) <= 0) return Promise.reject(Object.assign(new Error(`amount must be a positive decimal ${a.symbol} amount like "10.00"`), { status: 400 }));

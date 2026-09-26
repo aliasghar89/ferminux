@@ -1,0 +1,40 @@
+{
+  "name": "Hologram Master #128",
+  "description": "Hologram Master: a Rare cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #128 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/128.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=128",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Vanguard"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Cyborg"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Hologram city"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Tousled black hair"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black coat, ivory arm"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Holo globe and skyline"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

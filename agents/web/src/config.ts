@@ -1,4 +1,4 @@
-import { deployments } from "./deployments.generated";
+import { deployments, citizensDeployment, citizensMeta } from "./deployments.generated";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 const isAddr = (a: unknown): a is string => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -7,7 +7,6 @@ const env = import.meta.env;
 export const config = {
   chainId: 3961,
   chainIdHex: "0xf79",
-  chainName: "Ferminux Network",
   rpc: env.VITE_RPC || "https://rpc.ferminux.net",
   ws: "wss://rpc.ferminux.net/ws",
   explorer: "https://explorer.ferminux.net",
@@ -21,6 +20,14 @@ export const config = {
   v3DeployBlock: deployments.v3DeployBlock,
   nftBase: "https://ferminux.net/nft/agents",
   nftSupply: 41,
+  // Ferminux Citizens (FRC-721, FMXC): a growing one-of-one collection priced by tier. Zero address until
+  // DeployCitizens writes ../deployments-citizens.3961.json; the page then reads totalIds() from the contract, so
+  // an appended batch shows up without a new build.
+  citizens: isAddr(env.VITE_CITIZENS) ? env.VITE_CITIZENS : citizensDeployment.address,
+  citizensDeployBlock: citizensDeployment.deployBlock,
+  citizensBase: citizensMeta.base,
+  citizensName: citizensMeta.name,
+  citizensSymbol: citizensMeta.symbol,
   faucet: "0xf4dE70068031DA17347cd19aCaa841013751B3c0",
   governance: "0x910BD467D8576277f8f96DF47428377FFD94fEfe",
   treasury: "0xc0A5Eb613f859f072554F29f1Ab7400265af15aB",
@@ -50,6 +57,7 @@ export const config = {
 
 export const contractsDeployed = config.registry !== ZERO && config.escrow !== ZERO;
 export const nftDeployed = config.nft !== ZERO;
+export const citizensDeployed = config.citizens !== ZERO;
 export const vaultDeployed = config.x402Vault !== ZERO;
 export const accountsDeployed = config.accountFactory !== ZERO;
 export const streamsDeployed = config.streamPay !== ZERO;
@@ -59,25 +67,22 @@ export const reputation8004Deployed = config.reputation8004 !== ZERO;
 export const validation8004Deployed = config.validation8004 !== ZERO;
 export const tokenFactoryDeployed = config.tokenFactory !== ZERO;
 
-export const CHAIN_PARAMS = {
-  chainId: config.chainIdHex,
-  chainName: config.chainName,
-  rpcUrls: ["https://rpc.ferminux.net"],
-  nativeCurrency: { name: "FMX", symbol: "FMX", decimals: 18 },
-  blockExplorerUrls: [config.explorer],
-};
+// wallet_addEthereumChain parameters for Ferminux live in shared/fxwallet/network.ts
+// (FERMINUX_ADD_CHAIN_PARAMS): one definition for every Ferminux dApp.
 
 /** EIP-3085 params for the 7 pay-in chains (wallet_addEthereumChain fallback when the wallet does not know them). */
 export interface AddChainParams { chainId: string; chainName: string; rpcUrls: string[]; nativeCurrency: { name: string; symbol: string; decimals: number }; blockExplorerUrls: string[] }
 export const PAYIN_CHAIN_PARAMS: Record<number, AddChainParams> = {
-  1: { chainId: "0x1", chainName: "Ethereum", rpcUrls: ["https://eth.llamarpc.com"], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, blockExplorerUrls: ["https://etherscan.io"] },
+  1: { chainId: "0x1", chainName: "Ethereum", rpcUrls: ["https://ethereum-rpc.publicnode.com"], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, blockExplorerUrls: ["https://etherscan.io"] },
   56: { chainId: "0x38", chainName: "BNB Smart Chain", rpcUrls: ["https://bsc-dataseed.binance.org"], nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 }, blockExplorerUrls: ["https://bscscan.com"] },
   8453: { chainId: "0x2105", chainName: "Base", rpcUrls: ["https://mainnet.base.org"], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, blockExplorerUrls: ["https://basescan.org"] },
   42161: { chainId: "0xa4b1", chainName: "Arbitrum One", rpcUrls: ["https://arb1.arbitrum.io/rpc"], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, blockExplorerUrls: ["https://arbiscan.io"] },
-  137: { chainId: "0x89", chainName: "Polygon", rpcUrls: ["https://polygon-rpc.com"], nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 }, blockExplorerUrls: ["https://polygonscan.com"] },
+  137: { chainId: "0x89", chainName: "Polygon", rpcUrls: ["https://polygon-bor-rpc.publicnode.com"], nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 }, blockExplorerUrls: ["https://polygonscan.com"] },
   10: { chainId: "0xa", chainName: "Optimism", rpcUrls: ["https://mainnet.optimism.io"], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, blockExplorerUrls: ["https://optimistic.etherscan.io"] },
   43114: { chainId: "0xa86a", chainName: "Avalanche C-Chain", rpcUrls: ["https://api.avax.network/ext/bc/C/rpc"], nativeCurrency: { name: "Avalanche", symbol: "AVAX", decimals: 18 }, blockExplorerUrls: ["https://snowtrace.io"] },
 };
 
-export const explorerTx = (hash: string) => `${config.explorer}/tx/${hash}`;
-export const explorerAddr = (addr: string) => `${config.explorer}/address/${addr}`;
+// Hashes and addresses reach these from the gateway and the chain and are written into href="…" unescaped by
+// many callers: encoding keeps a malformed value inside the path (a real hash or address is unchanged).
+export const explorerTx = (hash: string) => `${config.explorer}/tx/${encodeURIComponent(String(hash))}`;
+export const explorerAddr = (addr: string) => `${config.explorer}/address/${encodeURIComponent(String(addr))}`;

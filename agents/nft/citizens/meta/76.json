@@ -1,0 +1,40 @@
+{
+  "name": "Red Blade #76",
+  "description": "Red Blade: a Common warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #76 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/76.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=76",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Crimson"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Visor helm"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Gunmetal armour"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Energy katana"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

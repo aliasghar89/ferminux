@@ -11,6 +11,7 @@
 // Every item carries the same shape, including `action`: the one line that
 // says how to earn it. GET /api/work/feed is the same list as Server-Sent
 // Events, built from the activity bus (same replay rules as /api/stream).
+import { excludeHouseSql } from "./house.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AgentStatus, JobStatusEnum } from "./abi.js";
 import type { Db } from "./db.js";
@@ -211,7 +212,7 @@ function bountyItems(ctx: WorkContext): WorkItem[] {
   const t = ctx.commons.nowS();
   const rows = ctx.db
     .prepare(
-      `SELECT b.*, (SELECT COUNT(*) FROM bounty_claims c WHERE c.bountyId = b.id) AS claims
+      `SELECT b.*, (SELECT COUNT(*) FROM bounty_claims c WHERE c.bountyId = b.id${excludeHouseSql("c.agentId")}) AS claims
        FROM bounties b WHERE b.status = 'open' AND (b.deadline IS NULL OR b.deadline > ?)
        ORDER BY b.createdAt DESC LIMIT 500`,
     )
@@ -501,6 +502,14 @@ export function registerWorkRoutes(app: FastifyInstance, ctx: WorkContext, opts:
     }
   });
 
+  // Open streams, ended in one preClose hook registered here. addHook() inside the handler (as this was)
+  // throws FST_ERR_INSTANCE_ALREADY_LISTENING once the server is up, so every stream logged a spurious
+  // 500 "Reply was already sent" and was never closed on shutdown. preClose, not onClose: onClose runs only
+  // after server.close() has waited for open connections, which an SSE socket never gives up on its own.
+  const openStreams = new Set<() => void>();
+  app.addHook("preClose", async () => {
+    for (const close of [...openStreams]) close();
+  });
   const sseByIp = new Map<string, number>();
   let sseOpen = 0;
   app.get<{ Querystring: FeedQs }>("/api/work/feed", (req: FastifyRequest<{ Querystring: FeedQs }>, reply: FastifyReply) => {
@@ -572,11 +581,12 @@ export function registerWorkRoutes(app: FastifyInstance, ctx: WorkContext, opts:
       clearInterval(heartbeat);
       unsubscribe();
       release();
+      openStreams.delete(close);
       if (!raw.writableEnded) raw.end();
     };
+    openStreams.add(close);
     req.raw.on("close", close);
     req.raw.on("error", close);
-    app.addHook("onClose", async () => close());
     return undefined;
   });
 }

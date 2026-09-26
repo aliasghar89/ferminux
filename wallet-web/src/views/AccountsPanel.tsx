@@ -9,9 +9,15 @@ import { EXPLORER_URL, NATIVE_SYMBOL } from '../config.ts';
 import { Modal, CopyButton, ProgressBar, Spinner } from '../components/ui.tsx';
 import { Identicon } from '../components/Identicon.tsx';
 import { downloadKeystore } from '../state/download.ts';
+import { Here, exportButtonLabel, exportLead, here, keystoreResult, storedWhere } from '../platform/words.ts';
 import { looksLikeKeystore, keystoreAddress } from '../lib/wallet.ts';
+import { passwordProblem } from '../lib/password.ts';
+import { IconAlert, IconExternal, IconPlus, IconShield } from '../components/icons.tsx';
+import { BiometricSetting } from '../platform/ui.tsx';
 
 type Mode = 'list' | 'import' | 'remember';
+/** Where the panel opens: the account list, or "stored on this device" (Settings → Security). */
+export type AccountsMode = 'list' | 'remember';
 
 /**
  * Accounts view: the total across every account, one row per account with its
@@ -22,12 +28,14 @@ export function AccountsPanel({
   api,
   balances,
   onClose,
+  initialMode = 'list',
 }: {
   api: AccountsApi;
   balances: BalancesApi;
   onClose: () => void;
+  initialMode?: AccountsMode;
 }) {
-  const [mode, setMode] = useState<Mode>('list');
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [notice, setNotice] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +77,7 @@ export function AccountsPanel({
             : complete
               ? 'All accounts read together in one batched request.'
               : `${balances.snapshot.failed.length} account${balances.snapshot.failed.length === 1 ? '' : 's'} could not be read — the total is a lower bound.`}
-          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={balances.refresh}>
+          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={balances.refresh}>
             Refresh
           </button>
         </div>
@@ -108,13 +116,14 @@ export function AccountsPanel({
 
           <div className="actions-row" style={{ marginTop: 16 }}>
             <button className="btn" data-testid="add-hd-account" onClick={addHd} disabled={!api.canDeriveHd}>
-              Add account
+              <IconPlus /> Add account
             </button>
             <button className="btn" data-testid="open-import" onClick={() => { setMode('import'); setError(null); setNotice(null); }}>
               Import account
             </button>
             <span className="push" />
             <button className="btn btn-ghost btn-sm" onClick={() => { setMode('remember'); setError(null); setNotice(null); }}>
+              {api.remembered ? <IconShield /> : <IconAlert />}
               {api.remembered ? 'Stored on this device' : 'Not stored on this device'}
             </button>
           </div>
@@ -176,6 +185,7 @@ function AccountRow({
   const [label, setLabel] = useState(account.label);
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+  const [devicePw, setDevicePw] = useState('');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [ack, setAck] = useState(false);
@@ -185,23 +195,36 @@ function AccountRow({
 
   async function doExport() {
     setRowError(null);
-    if (pw.length < 8) {
-      setRowError('Password must be at least 8 characters.');
+    // The file leaves this device: it has to hold up to an offline guessing attack on its own.
+    const weak = passwordProblem(pw);
+    if (weak) {
+      setRowError(weak);
       return;
     }
     if (pw !== pw2) {
       setRowError('Passwords do not match.');
       return;
     }
+    if (api.remembered && devicePw === '') {
+      setRowError('Enter the password for this device: exporting a key needs it.');
+      return;
+    }
     setBusy(true);
     setProgress(0);
     try {
-      const json = await api.exportKeystore(account.id, pw, setProgress);
-      downloadKeystore(json, account.address, account.label);
+      const json = await api.exportKeystore(account.id, pw, setProgress, api.remembered ? devicePw : undefined);
+      const saved = keystoreResult(await downloadKeystore(json, account.address, account.label), `Keystore for ${account.label}`);
+      if (!saved.ok) {
+        // Nothing reached the user (the share sheet was closed): keep the form, and the "no backup" warning.
+        setRowError(saved.text);
+        return;
+      }
+      api.markExported(account.id);
       setMode('idle');
       setPw('');
       setPw2('');
-      onNotice(`Keystore for ${account.label} downloaded. It is encrypted with the password you just chose.`);
+      setDevicePw('');
+      onNotice(`${saved.text} It is encrypted with the password you just chose.`);
     } catch (e) {
       setRowError(e instanceof Error ? e.message : 'Export failed.');
     } finally {
@@ -219,14 +242,14 @@ function AccountRow({
   return (
     <li className={isActive ? 'is-active' : undefined} data-testid={`manage-row-${account.address.toLowerCase()}`}>
       <div className="acct-manage-main">
-        <Identicon address={account.address} size={32} />
+        <Identicon address={account.address} size={36} />
         <div className="acct-manage-text">
           <div className="acct-manage-label">
             {account.label}
             {isActive && <span className="dir-badge dir-signed">ACTIVE</span>}
             <span className="acct-tag">{account.kind === 'hd' ? `HD #${account.index}` : 'IMPORTED'}</span>
             {account.backup === 'none' && (
-              <span className="dir-badge dir-fail" title="This browser holds the only copy of this key.">
+              <span className="dir-badge dir-fail" title={`${Here()} holds the only copy of this key.`}>
                 NO BACKUP
               </span>
             )}
@@ -238,8 +261,11 @@ function AccountRow({
               target="_blank"
               rel="noreferrer noopener"
               title="Open on the explorer"
+              aria-label="Open on the explorer"
+              className="hit-44"
+              style={{ display: 'inline-flex' }}
             >
-              ↗
+              <IconExternal />
             </a>
           </div>
         </div>
@@ -336,9 +362,27 @@ function AccountRow({
       {mode === 'export' && (
         <div className="acct-manage-form">
           <div className="field-hint" style={{ marginTop: 0, marginBottom: 8 }}>
-            Downloads a scrypt-encrypted keystore for <span className="mono">{shortAddress(account.address)}</span>.
+            {exportLead()} <span className="mono">{shortAddress(account.address)}</span>.
             Choose a password for the file — it is independent of the one that unlocks this device.
           </div>
+          {api.remembered && (
+            <div className="field" style={{ marginBottom: 8 }}>
+              <label htmlFor={`export-devicepw-${account.id}`}>Password for this device</label>
+              <input
+                id={`export-devicepw-${account.id}`}
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                data-testid="export-devicepw"
+                value={devicePw}
+                onChange={(e) => setDevicePw(e.target.value)}
+                disabled={busy}
+              />
+              <div className="field-hint">
+                Proves it is you: an unlocked screen alone does not let a key leave this device.
+              </div>
+            </div>
+          )}
           <div className="input-row">
             <input
               className="input"
@@ -359,7 +403,7 @@ function AccountRow({
               disabled={busy}
             />
             <button className="btn btn-primary" onClick={() => void doExport()} disabled={busy || pw === ''}>
-              {busy ? <Spinner /> : 'Download'}
+              {busy ? <Spinner /> : exportButtonLabel()}
             </button>
           </div>
           {busy && <ProgressBar fraction={progress} />}
@@ -385,7 +429,7 @@ function AccountRow({
             )}
             {account.backup === 'none' && (
               <>
-                <strong>This browser holds the only copy of {account.label}’s key.</strong> It came from a raw
+                <strong>{Here()} holds the only copy of {account.label}’s key.</strong> It came from a raw
                 private key and has never been exported. Removing it is permanent: any FMX or token at{' '}
                 <span className="mono">{shortAddress(account.address)}</span> becomes unreachable. Export a
                 keystore first.
@@ -496,7 +540,7 @@ function ImportAccount({
 
   return (
     <div>
-      <div className="tabs" style={{ padding: 0, marginBottom: 16 }} role="tablist">
+      <div className="seg import-tabs" role="tablist" aria-label="Import from">
         {(
           [
             ['key', 'Private key'],
@@ -507,7 +551,7 @@ function ImportAccount({
             key={id}
             role="tab"
             aria-selected={tab === id}
-            className="tab"
+            
             onClick={() => {
               setTab(id);
               setError(null);
@@ -643,13 +687,26 @@ function RememberSection({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [confirmOff, setConfirmOff] = useState(false);
+  const [offPw, setOffPw] = useState('');
 
   const unbacked = api.accounts.filter((a) => a.backup === 'none');
 
+  async function disable() {
+    setError(null);
+    setBusy(true);
+    setProgress(0);
+    const failure = await api.disableRemember(offPw, setProgress);
+    setBusy(false);
+    setOffPw('');
+    if (failure) setError(failure);
+    else onDone('This device no longer stores your accounts.', 'warn');
+  }
+
   async function enable() {
     setError(null);
-    if (pw.length < 8) {
-      setError('Password must be at least 8 characters.');
+    const weak = passwordProblem(pw);
+    if (weak) {
+      setError(weak);
       return;
     }
     if (pw !== pw2) {
@@ -679,6 +736,8 @@ function RememberSection({
           Labels, addresses and HD indices are stored alongside the encrypted keys as plain text — they are not
           secrets, and they are what makes the set reappear intact after a lock.
         </p>
+        {/* App only: fingerprint / Face ID unlock of the stored set (platform/ui.tsx). */}
+        <BiometricSetting />
         {!confirmOff ? (
           <div className="actions-row">
             <button className="btn" onClick={onCancel}>
@@ -692,28 +751,39 @@ function RememberSection({
         ) : (
           <>
             <div className="notice notice-danger">
-              Removes every stored keystore from this browser. This session keeps working until you lock, but
+              Removes every stored keystore from {here()}. This session keeps working until you lock, but
               after that only your recovery phrase
               {unbacked.length > 0 && (
                 <> — and it does not cover {unbacked.map((a) => a.label).join(', ')} —</>
               )}{' '}
               can restore these accounts.
             </div>
-            <div className="actions-row">
-              <button className="btn" onClick={() => setConfirmOff(false)}>
-                Keep storing
-              </button>
-              <span className="push" />
-              <button
-                className="btn btn-danger-ghost"
-                onClick={() => {
-                  api.disableRemember();
-                  onDone('This device no longer stores your accounts.', 'warn');
-                }}
-              >
-                Remove stored accounts
-              </button>
+            <div className="field">
+              <label htmlFor="remember-off-pw">Password for this device</label>
+              <input
+                id="remember-off-pw"
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                value={offPw}
+                onChange={(e) => setOffPw(e.target.value)}
+                disabled={busy}
+              />
             </div>
+            {error && <div className="field-error" style={{ marginBottom: 12 }}>{error}</div>}
+            {busy ? (
+              <ProgressBar fraction={progress} />
+            ) : (
+              <div className="actions-row">
+                <button className="btn" onClick={() => setConfirmOff(false)}>
+                  Keep storing
+                </button>
+                <span className="push" />
+                <button className="btn btn-danger-ghost" onClick={() => void disable()} disabled={offPw === ''}>
+                  Remove stored accounts
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -724,7 +794,7 @@ function RememberSection({
     <div>
       <p className="small muted">
         Encrypts every account in this session — the recovery phrase once, plus one keystore per imported key —
-        and stores them in this browser. Unlocking then needs only the password.
+        and stores them {storedWhere()}. Unlocking then needs only the password.
       </p>
       <div className="field">
         <label htmlFor="remember-pw">Password</label>
@@ -737,7 +807,7 @@ function RememberSection({
           onChange={(e) => setPw(e.target.value)}
           disabled={busy}
         />
-        <div className="field-hint">Minimum 8 characters. There is no reset.</div>
+        <div className="field-hint">Minimum 8 characters, and not a common password. There is no reset.</div>
       </div>
       <div className="field">
         <label htmlFor="remember-pw2">Confirm password</label>

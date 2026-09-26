@@ -2,8 +2,8 @@ import { api, agentStatusName, jobStatusName, ApiError } from "../api";
 import { economy, slugify } from "../economy";
 import { config, explorerTx, contractsDeployed } from "../config";
 import { esc, fmx, fmxUnit, int, pretty, safeHref, short, starsHtml, timeHtml, dur, toSec } from "../format";
-import { $, addrHtml, hashHtml, initChrome, onlineDot, pillFor, ratingInput, setBusy, skel, txHtml } from "../ui";
-import { connect, errMessage, eventArg, sendTx, walletState, onWallet, hasInjected } from "../wallet";
+import { $, addrHtml, hashHtml, initChrome, onlineDot, onlineSr, pillFor, ratingInput, setBusy, skel, txHtml } from "../ui";
+import { connect, errMessage, eventArg, sendTx, walletState, onWallet } from "../wallet";
 import type { AgentView, JobView } from "../types";
 import { keccak256, toUtf8Bytes } from "ethers";
 
@@ -23,9 +23,9 @@ function renderList() {
   view.innerHTML = `
     <section class="hero-sm">
       <div class="page-title"><div><h1>Agents</h1><p>Every agent registered on chain 3961, with its price, bond and on-chain record.</p></div>
-      <a class="btn btn-secondary" href="/register/">Register an agent</a></div>
+      <a class="btn btn-primary" href="/register/">Register an agent</a></div>
     </section>
-    <form class="toolbar" id="filters" role="search">
+    <form class="toolbar filters-pair" id="filters" role="search">
       <div class="field"><label for="q">Search</label><input type="search" id="q" name="q" placeholder="name, capability or description" value="${esc(state.q)}" autocomplete="off"></div>
       <div class="field"><label for="status">Status</label><select id="status" name="status">
         <option value="all">All</option><option value="active">Active</option><option value="paused">Paused</option><option value="retired">Retired</option></select></div>
@@ -33,7 +33,7 @@ function renderList() {
         <option value="rating">Rating</option><option value="jobs">Jobs completed</option><option value="newest">Newest</option></select></div>
     </form>
     <p class="result-count" id="count" role="status" aria-live="polite"></p>
-    <div class="tbl-wrap"><table class="tbl" id="tbl">
+    <div class="tbl-wrap"><table class="tbl agents-tbl" id="tbl">
       <thead><tr><th scope="col">Agent</th><th scope="col" class="r">Price / job</th><th scope="col">Rating</th><th scope="col" class="r">Jobs</th><th scope="col">Owner</th><th scope="col">Status</th></tr></thead>
       <tbody id="rows"></tbody></table></div>
     <nav class="pager" id="pager" aria-label="Pagination"></nav>
@@ -46,14 +46,14 @@ function renderList() {
   function row(a: AgentView): string {
     const caps = a.card?.capabilities?.slice(0, 4) ?? [];
     const st = agentStatusName(a.status);
-    return `<tr class="row-link">
-      <td><div class="name"><a href="/agents/?id=${a.id}">${onlineDot(a.online)}${esc(a.name)}</a> <span class="faint small num">#${a.id}</span></div>
+    return `<tr class="row-link${st === "Active" ? "" : " is-quiet"}">
+      <td class="ag-cell"><div class="name"><a href="/agents/?id=${a.id}">${onlineDot(a.online)}${esc(a.name)}${onlineSr(a.online)}</a> <span class="faint small num">#${a.id}</span><span class="ag-pill-m">${pillFor(st)}</span></div>
         <div class="sub">${caps.length ? caps.map((c) => `<span class="tag">${esc(c)}</span>`).join("") : `<span>${esc((a.card?.description || "").slice(0, 90) || a.endpoint.replace(/^https?:\/\//, "").replace(/\/$/, ""))}</span>`}</div></td>
-      <td class="r num" data-l="Price">${fmxUnit(a.pricePerJob)}</td>
-      <td data-l="Rating">${starsHtml(a.ratingAvg, a.ratingCount)}</td>
-      <td class="r num" data-l="Jobs">${int(a.jobsCompleted)}${a.jobsFailed ? ` <span class="faint small">/ ${int(a.jobsFailed)} failed</span>` : ""}</td>
-      <td data-l="Owner">${addrHtml(a.owner)}</td>
-      <td data-l="Status">${pillFor(st)}</td></tr>`;
+      <td class="r num c-price" data-l="Price">${fmxUnit(a.pricePerJob)}</td>
+      <td class="c-rating" data-l="Rating">${starsHtml(a.ratingAvg, a.ratingCount)}</td>
+      <td class="r num c-jobs" data-l="Jobs">${int(a.jobsCompleted)}<span class="m-only"> ${Number(a.jobsCompleted) === 1 ? "job" : "jobs"}</span>${a.jobsFailed ? ` <span class="faint small">/ ${int(a.jobsFailed)} failed</span>` : ""}</td>
+      <td class="c-owner" data-l="Owner">${addrHtml(a.owner)}</td>
+      <td class="c-status" data-l="Status">${pillFor(st)}</td></tr>`;
   }
 
   let seq = 0;
@@ -64,7 +64,10 @@ function renderList() {
     try {
       const { items, total } = await api.agents({ q: state.q || undefined, status: state.status === "all" ? undefined : state.status, sort: state.sort, limit: LIMIT, offset });
       if (my !== seq) return;
-      rows.innerHTML = items.length ? items.map(row).join("") : `<tr><td colspan="6"><div class="empty"><h3>No agents match</h3>Try a different search or status filter.</div></td></tr>`;
+      // paused and retired agents sort after active ones on every page of results
+      const rank = (a: AgentView) => agentStatusName(a.status) === "Active" ? 0 : 1;
+      const ordered = items.map((a, i) => ({ a, i })).sort((x, y) => rank(x.a) - rank(y.a) || x.i - y.i).map((x) => x.a);
+      rows.innerHTML = items.length ? ordered.map(row).join("") : `<tr><td colspan="6"><div class="empty"><h3>No agents match</h3>Try a different search or status filter.</div></td></tr>`;
       const from = total ? offset + 1 : 0, to = Math.min(offset + items.length, total);
       count.textContent = total ? `${int(from)}–${int(to)} of ${int(total)} agents` : "0 agents";
       const pages = Math.max(1, Math.ceil(total / LIMIT));
@@ -183,11 +186,11 @@ async function loadReputation(a: AgentView) {
     box.innerHTML = `
       <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center">
         <div>
-          <div class="l" style="font-size:12px;color:var(--faint);font-weight:500">Reputation summary <span class="faint" style="font-weight:400">(ReputationRegistry8004)</span></div>
-          ${rep.count ? `<div style="font-size:20px;font-weight:600;margin-top:2px">${(rep.avg ?? 0).toFixed(1)} <span class="faint small" style="font-weight:500">· ${int(rep.count)} feedback item${rep.count === 1 ? "" : "s"}</span></div>` : `<div class="small faint" style="margin-top:2px">No on-chain feedback yet.</div>`}
+          <div class="lb-label">Reputation <span class="faint" style="text-transform:none;letter-spacing:0;font-weight:400">(ReputationRegistry8004)</span></div>
+          ${rep.count ? `<div class="num-mono" style="font-size:20px;font-weight:500;margin-top:2px">${(rep.avg ?? 0).toFixed(1)} <span class="faint small" style="font-family:var(--sans);font-weight:500">· ${int(rep.count)} feedback item${rep.count === 1 ? "" : "s"}</span></div>` : `<div class="small faint" style="margin-top:2px">No on-chain feedback yet.</div>`}
         </div>
         <div>
-          <div class="l" style="font-size:12px;color:var(--faint);font-weight:500">Validation</div>
+          <div class="lb-label">Validation</div>
           ${validation && validation.latest && validation.latest.response !== null ? `<span class="pill ${validation.latest.response >= 80 ? "ok" : validation.latest.response >= 50 ? "accent" : "warn"}" style="margin-top:2px">${onlineDot(true)}${esc(String(validation.latest.response))}/100${validation.latest.tag ? ` · ${esc(validation.latest.tag)}` : ""}</span><div class="small faint" style="margin-top:4px">by ${short(validation.latest.validator)}${validation.count > 1 ? ` · ${int(validation.count)} validations, avg ${validation.avgResponse}/100` : ""}</div>` : `<div class="small faint" style="margin-top:2px">Not validated yet.</div>`}
         </div>
       </div>
@@ -273,7 +276,6 @@ function renderHire(a: AgentView, isOwner: () => boolean) {
       <span class="hint" id="hire-hint">Stored on the gateway; only its keccak256 hash goes on-chain.</span></div>
     <button class="btn btn-primary" type="button" id="hire-btn" ${st !== "Active" ? "disabled" : ""}>${walletState().address ? "Hire for " + fmxUnit(price) : "Connect wallet"}</button>
     ${st !== "Active" ? `<p class="alert warn">This agent is ${st.toLowerCase()} and cannot take new jobs.</p>` : ""}
-    ${!hasInjected() && !config.mock ? `<p class="small faint">No browser wallet detected. Use <a href="https://wallet.ferminux.net" rel="noopener" style="text-decoration:underline">wallet.ferminux.net</a> or install any browser wallet; the SDK and MCP server can also hire this agent.</p>` : ""}
     <div id="hire-status" role="status" aria-live="polite"></div>
     <div id="hire-steps"></div>
     <div id="hire-result"></div>
@@ -287,7 +289,7 @@ function renderHire(a: AgentView, isOwner: () => boolean) {
   const say = (msg: string, kind: "" | "warn" | "ok" | "info" = "") => { status.innerHTML = msg ? `<div class="alert ${kind}">${msg}</div>` : ""; };
   const stepList = ["Upload input", "Pay escrow", "Agent delivers", "Release or dispute"];
   const paintSteps = (on: number, done: number, bad = -1) => {
-    steps.innerHTML = `<ol class="steps" aria-label="Progress">${stepList.map((s, i) => `<li><span class="step-dot ${i === bad ? "bad" : i < done ? "done" : i === on ? "on" : ""}">${i < done ? "✓" : i + 1}</span><span${i === on ? "" : ' class="muted"'}>${s}</span></li>`).join("")}</ol>`;
+    steps.innerHTML = `<ol class="steps" aria-label="Progress" style="margin:0;padding:0">${stepList.map((s, i) => `<li><span class="step-dot ${i === bad ? "bad" : i < done ? "done" : i === on ? "on" : ""}">${i < done ? "✓" : i + 1}</span><span${i === on ? "" : ' class="muted"'}>${s}</span></li>`).join("")}</ol>`;
   };
   const addTx = (label: string, hash: string) => { txs.push({ label, hash }); txlog.innerHTML = txs.map((t) => `<div>${esc(t.label)}: <a href="${explorerTx(t.hash)}" rel="noopener">${short(t.hash, 8)}</a></div>`).join(""); };
 

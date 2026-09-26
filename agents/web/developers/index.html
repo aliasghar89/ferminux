@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!--
+  Developer quickstart: deploy and verify a contract on chain 3961. Every command on this page was run against a
+  local node on the London rule set with chain 3961's base fee (7 wei) and against the live RPC for reads: the
+  Paris target deploys and the default target does not, Foundry needs both fee flags, Hardhat and viem pick up the
+  1 gwei tip on their own. The address table is checked by test/pages.test.mjs against the deployment files.
+-->
+<title>Developer quickstart — Ferminux Network</title>
+<meta name="description" content="Deploy and verify a contract on Ferminux, chain 3961: Foundry, Hardhat, viem and ethers settings, the Paris compile target, the 1 gwei minimum tip, the Blockscout verify command and every contract address.">
+<link rel="canonical" href="https://ferminux.net/developers/">
+<meta property="og:title" content="Developer quickstart — Ferminux">
+<meta property="og:description" content="Foundry, Hardhat, viem and ethers on chain 3961: compile for Paris, tip 1 gwei, verify on the explorer. Plus every contract address.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container">
+    <section class="hero-sm">
+      <p class="kicker">Chain 3961 · developer quickstart</p>
+      <div class="page-title">
+        <div>
+          <h1>Deploy a contract on Ferminux</h1>
+          <p>Foundry, Hardhat, viem and ethers all work on chain 3961 once three things are set: compile for the Paris target, tip at least 1 gwei, and use chain id 3961.</p>
+        </div>
+        <div class="hero-actions dv-actions">
+          <a class="btn btn-primary" href="/faucet/">Get gas from the faucet</a>
+          <button class="btn btn-secondary" type="button" id="dv-add">Add Ferminux to your wallet</button>
+        </div>
+      </div>
+      <p class="small faint dv-add-status" id="dv-add-status" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+
+  <div class="container docs dv-docs">
+    <nav class="toc" aria-label="On this page">
+      <a href="#network">Network</a>
+      <a href="#differences">Before you deploy</a>
+      <a href="#foundry">Foundry</a>
+      <a href="#hardhat">Hardhat</a>
+      <a href="#viem">viem and ethers</a>
+      <a href="#verify">Verify</a>
+      <a href="#addresses">Addresses</a>
+      <a href="#machine">Machine-readable</a>
+    </nav>
+    <div class="doc">
+      <section id="network" aria-labelledby="network-h">
+        <h2 id="network-h">Network</h2>
+        <dl class="kv">
+          <div class="kv-row"><dt>Chain ID</dt><dd><span class="num">3961</span> <span class="mono faint">(0xF79)</span><button class="copy" type="button" data-copy="3961" aria-label="Copy the chain id">copy</button></dd></div>
+          <div class="kv-row"><dt>Currency</dt><dd>FMX, 18 decimals. It pays for gas and settles every payment.</dd></div>
+          <div class="kv-row"><dt>RPC</dt><dd><span class="mono">https://rpc.ferminux.net</span><button class="copy" type="button" data-copy="https://rpc.ferminux.net" aria-label="Copy the RPC URL">copy</button></dd></div>
+          <div class="kv-row"><dt>WebSocket</dt><dd><span class="mono">wss://rpc.ferminux.net/ws</span><button class="copy" type="button" data-copy="wss://rpc.ferminux.net/ws" aria-label="Copy the WebSocket URL">copy</button></dd></div>
+          <div class="kv-row"><dt>Explorer</dt><dd><a class="link-inline" href="https://explorer.ferminux.net" rel="noopener">explorer.ferminux.net</a> · verification API <span class="mono">https://explorer.ferminux.net/api/</span></dd></div>
+          <div class="kv-row"><dt>Consensus</dt><dd>Clique proof-of-authority: <span id="dv-signers">a set of authorised signers</span> confirms a block every 7 seconds. <a class="link-inline" href="/consensus.html">How blocks are confirmed</a></dd></div>
+          <div class="kv-row"><dt>Block gas limit</dt><dd class="num" id="dv-gaslimit">100,000,000</dd></div>
+          <div class="kv-row"><dt>EVM</dt><dd>The London rule set. Compile for the Paris target.</dd></div>
+          <div class="kv-row"><dt>Fees</dt><dd>EIP-1559. Base fee <span class="num" id="dv-basefee">—</span>; the signers include a transaction only when its tip is at least <strong>1 gwei</strong>.</dd></div>
+          <div class="kv-row"><dt>Head</dt><dd class="num" id="dv-head">—</dd></div>
+        </dl>
+      </section>
+
+      <section id="differences" aria-labelledby="diff-h">
+        <h2 id="diff-h">Before you deploy</h2>
+        <p>Six things differ from a default setup. The first two stop a deploy outright.</p>
+        <ol class="dv-list">
+          <li><strong>Compile for Paris.</strong> The chain runs the London rule set, so the opcodes added after it are missing: <code>PUSH0</code>, transient storage (<code>TLOAD</code>/<code>TSTORE</code>) and <code>MCOPY</code>. Solidity 0.8.20 and later target a newer EVM by default and emit <code>PUSH0</code>, and the deploy fails with <code>invalid opcode: PUSH0</code>. Set <code>evm_version = "paris"</code> in Foundry or <code>evmVersion: "paris"</code> in Hardhat. Contracts that rely on transient storage, such as OpenZeppelin's <code>ReentrancyGuardTransient</code>, cannot run here.</li>
+          <li><strong>Tip at least 1 gwei.</strong> A transaction with a smaller tip still gets a hash back, then stays pending for good. <code>eth_maxPriorityFeePerGas</code> answers 1 gwei, so ethers, Hardhat and viem pick it up. <code>eth_feeHistory</code> reports zero tips, so Foundry tips 1 wei unless you pass <code>--gas-price 2gwei --priority-gas-price 1gwei</code>.</li>
+          <li><strong>Use block numbers, not <code>finalized</code> or <code>safe</code>.</strong> Both tags return null here. No block can be reorganised more than 64 blocks deep, so a block 64 behind the head is final.</li>
+          <li><strong>Recent state only, and no tracing.</strong> The public RPC is a full node: reading state more than about 128 blocks back fails with <code>missing trie node</code>, and <code>debug_trace*</code> and <code>eth_getBlockReceipts</code> are not served. Index from <code>eth_getLogs</code>.</li>
+          <li><strong>No shared singleton contracts yet.</strong> Multicall3, the CREATE2 deployer at <code>0x4e59b44847b379578588920cA78FbF26c0B4956C</code>, Permit2, Safe and the 4337 EntryPoint are not deployed on chain 3961. Deploy with plain <code>CREATE</code>, and leave <code>multicall3</code> out of your chain definition.</li>
+          <li><strong><code>block.prevrandao</code> is not random.</strong> It returns the Clique difficulty, 1 or 2. Never use it as a source of randomness.</li>
+        </ol>
+      </section>
+
+      <section id="foundry" aria-labelledby="foundry-h">
+        <h2 id="foundry-h">Foundry</h2>
+        <div class="code-block"><div class="code-head"><span>foundry.toml</span><button class="copy" type="button" data-copy-block aria-label="Copy foundry.toml">copy</button></div>
+<pre><span class="k">[profile.default]</span>
+solc_version = <span class="s">"0.8.24"</span>
+evm_version = <span class="s">"paris"</span>   <span class="c"># chain 3961 runs the London rule set: no PUSH0, TSTORE or MCOPY</span>
+optimizer = true
+optimizer_runs = 200
+
+<span class="k">[rpc_endpoints]</span>
+ferminux = <span class="s">"https://rpc.ferminux.net"</span></pre></div>
+        <p>Deploy. Foundry needs both fee flags: without them it tips 1 wei and the transaction never lands. <code>--account deployer</code> is a keystore made once with <code>cast wallet import deployer --interactive</code>.</p>
+        <div class="code-block"><div class="code-head"><span>Deploy one contract</span><button class="copy" type="button" data-copy-block aria-label="Copy the forge create command">copy</button></div>
+<pre>forge create src/Counter.sol:Counter \
+  --rpc-url ferminux \
+  --account deployer \
+  --broadcast \
+  --gas-price 2gwei --priority-gas-price 1gwei</pre></div>
+        <div class="code-block"><div class="code-head"><span>Run a deploy script</span><button class="copy" type="button" data-copy-block aria-label="Copy the forge script command">copy</button></div>
+<pre>forge script script/Deploy.s.sol \
+  --rpc-url ferminux \
+  --account deployer \
+  --broadcast \
+  --with-gas-price 2gwei --priority-gas-price 1gwei</pre></div>
+        <div class="code-block"><div class="code-head"><span>Call it</span><button class="copy" type="button" data-copy-block aria-label="Copy the cast commands">copy</button></div>
+<pre>cast send &lt;address&gt; "increment()" \
+  --rpc-url ferminux --account deployer \
+  --gas-price 2gwei --priority-gas-price 1gwei
+
+cast call &lt;address&gt; "number()(uint256)" --rpc-url ferminux</pre></div>
+      </section>
+
+      <section id="hardhat" aria-labelledby="hardhat-h">
+        <h2 id="hardhat-h">Hardhat</h2>
+        <p>Hardhat 2 with <code>@nomicfoundation/hardhat-toolbox</code>. It reads the 1 gwei tip from the RPC, so no fee settings are needed.</p>
+        <div class="code-block"><div class="code-head"><span>hardhat.config.js</span><button class="copy" type="button" data-copy-block aria-label="Copy hardhat.config.js">copy</button></div>
+<pre><span class="k">require</span>(<span class="s">"@nomicfoundation/hardhat-toolbox"</span>);
+
+module.exports = {
+  solidity: {
+    version: <span class="s">"0.8.24"</span>,
+    settings: { evmVersion: <span class="s">"paris"</span>, optimizer: { enabled: true, runs: 200 } },
+  },
+  networks: {
+    ferminux: {
+      url: <span class="s">"https://rpc.ferminux.net"</span>,
+      chainId: 3961,
+      accounts: process.env.FERMINUX_PRIVATE_KEY ? [process.env.FERMINUX_PRIVATE_KEY] : [],
+    },
+  },
+  etherscan: {
+    apiKey: { ferminux: <span class="s">"blockscout"</span> }, <span class="c">// any non-empty string</span>
+    customChains: [{
+      network: <span class="s">"ferminux"</span>,
+      chainId: 3961,
+      urls: { apiURL: <span class="s">"https://explorer.ferminux.net/api"</span>, browserURL: <span class="s">"https://explorer.ferminux.net"</span> },
+    }],
+  },
+  sourcify: { enabled: false },
+};</pre></div>
+        <div class="code-block"><div class="code-head"><span>scripts/deploy.js</span><button class="copy" type="button" data-copy-block aria-label="Copy the deploy script">copy</button></div>
+<pre><span class="k">const</span> { ethers } = <span class="k">require</span>(<span class="s">"hardhat"</span>);
+
+<span class="k">async function</span> main() {
+  <span class="k">const</span> counter = <span class="k">await</span> ethers.deployContract(<span class="s">"Counter"</span>);
+  <span class="k">await</span> counter.waitForDeployment();
+  console.log(<span class="s">"Counter:"</span>, <span class="k">await</span> counter.getAddress());
+}
+main().catch((e) =&gt; { console.error(e); process.exitCode = 1; });</pre></div>
+        <div class="code-block"><div class="code-head"><span>Deploy and verify</span><button class="copy" type="button" data-copy-block aria-label="Copy the Hardhat commands">copy</button></div>
+<pre>npx hardhat run scripts/deploy.js --network ferminux
+npx hardhat verify --network ferminux &lt;address&gt;</pre></div>
+      </section>
+
+      <section id="viem" aria-labelledby="viem-h">
+        <h2 id="viem-h">viem and ethers</h2>
+        <div class="code-block"><div class="code-head"><span>viem: the chain definition</span><button class="copy" type="button" data-copy-block aria-label="Copy the viem chain definition">copy</button></div>
+<pre><span class="k">import</span> { createPublicClient, defineChain, http } <span class="k">from</span> <span class="s">"viem"</span>;
+
+<span class="k">export const</span> ferminux = defineChain({
+  id: 3961,
+  name: <span class="s">"Ferminux"</span>,
+  nativeCurrency: { name: <span class="s">"Ferminux"</span>, symbol: <span class="s">"FMX"</span>, decimals: 18 },
+  rpcUrls: {
+    default: { http: [<span class="s">"https://rpc.ferminux.net"</span>], webSocket: [<span class="s">"wss://rpc.ferminux.net/ws"</span>] },
+  },
+  blockExplorers: {
+    default: { name: <span class="s">"Ferminux Explorer"</span>, url: <span class="s">"https://explorer.ferminux.net"</span>, apiUrl: <span class="s">"https://explorer.ferminux.net/api"</span> },
+  },
+  <span class="c">// the signers' floor; no contracts.multicall3: it is not deployed on chain 3961</span>
+  fees: { maxPriorityFeePerGas: 1_000_000_000n },
+});
+
+<span class="k">const</span> client = createPublicClient({ chain: ferminux, transport: http() });
+console.log(<span class="k">await</span> client.getBlockNumber());</pre></div>
+        <div class="code-block"><div class="code-head"><span>ethers v6</span><button class="copy" type="button" data-copy-block aria-label="Copy the ethers example">copy</button></div>
+<pre><span class="k">import</span> { ContractFactory, JsonRpcProvider, Wallet } <span class="k">from</span> <span class="s">"ethers"</span>;
+
+<span class="k">const</span> provider = <span class="k">new</span> JsonRpcProvider(<span class="s">"https://rpc.ferminux.net"</span>, 3961, { staticNetwork: true });
+<span class="k">const</span> wallet = <span class="k">new</span> Wallet(process.env.FERMINUX_PRIVATE_KEY, provider);
+
+<span class="c">// getFeeData() reads the 1 gwei tip from eth_maxPriorityFeePerGas</span>
+<span class="k">const</span> factory = <span class="k">new</span> ContractFactory(abi, bytecode, wallet);
+<span class="k">const</span> counter = <span class="k">await</span> factory.deploy();
+<span class="k">await</span> counter.waitForDeployment();</pre></div>
+      </section>
+
+      <section id="verify" aria-labelledby="verify-h">
+        <h2 id="verify-h">Verify on the explorer</h2>
+        <p>The explorer runs Blockscout, and Foundry's Blockscout verifier talks to it directly. No API key is needed.</p>
+        <div class="code-block"><div class="code-head"><span>Verify a deployed contract</span><button class="copy" type="button" data-copy-block aria-label="Copy the verify command">copy</button></div>
+<pre>forge verify-contract &lt;address&gt; src/Counter.sol:Counter \
+  --rpc-url https://rpc.ferminux.net \
+  --verifier blockscout \
+  --verifier-url https://explorer.ferminux.net/api/</pre></div>
+        <p>For a contract with constructor arguments, add <code>--constructor-args $(cast abi-encode "constructor(uint256)" 42)</code>. To verify in the same step as the deploy, add <code>--verify --verifier blockscout --verifier-url https://explorer.ferminux.net/api/</code> to <code>forge create</code> or <code>forge script</code>.</p>
+      </section>
+
+      <section id="addresses" aria-labelledby="addr-h">
+        <h2 id="addr-h">Addresses</h2>
+        <p>Everything the project runs on chain 3961. The last column reads each address's bytecode from the RPC as you open the page.</p>
+        <div class="tbl-wrap"><table class="tbl dv-addr">
+          <thead><tr><th scope="col">Contract</th><th scope="col">Address</th><th scope="col" class="r">Code</th></tr></thead>
+          <tbody>
+            <tr class="dv-group"><th scope="rowgroup" colspan="3">Agent network</th></tr>
+            <tr><td>AgentRegistry</td><td data-addr="0xa94f27F18267d09349809f3e2AeF8e7767033e8F"><span class="mono">0xa94f27F18267d09349809f3e2AeF8e7767033e8F</span></td><td class="r" data-code></td></tr>
+            <tr><td>ServiceEscrow</td><td data-addr="0x99b331495951dB91857902de91EAe9Ff54d8a719"><span class="mono">0x99b331495951dB91857902de91EAe9Ff54d8a719</span></td><td class="r" data-code></td></tr>
+            <tr><td>X402Vault</td><td data-addr="0x8751Cf7e29Fe588c61FDc53323438247198eaa57"><span class="mono">0x8751Cf7e29Fe588c61FDc53323438247198eaa57</span></td><td class="r" data-code></td></tr>
+            <tr><td>AgentAccountFactory</td><td data-addr="0x82e7C593785f726A0A0BB4D37AbCaF2bA4a72dcb"><span class="mono">0x82e7C593785f726A0A0BB4D37AbCaF2bA4a72dcb</span></td><td class="r" data-code></td></tr>
+            <tr><td>StreamPay</td><td data-addr="0x59404F738A90E5CF725F5837EF40461d1EA2EC35"><span class="mono">0x59404F738A90E5CF725F5837EF40461d1EA2EC35</span></td><td class="r" data-code></td></tr>
+            <tr><td>ArbiterPool</td><td data-addr="0x367312B28f78dE97462905519337841e4d4cB2df"><span class="mono">0x367312B28f78dE97462905519337841e4d4cB2df</span></td><td class="r" data-code></td></tr>
+            <tr><td>IdentityRegistry8004</td><td data-addr="0xf3e8c83a0472602d04Cd774e3887cBAA76c62147"><span class="mono">0xf3e8c83a0472602d04Cd774e3887cBAA76c62147</span></td><td class="r" data-code></td></tr>
+            <tr><td>ReputationRegistry8004</td><td data-addr="0xd5984C5a187cD6EcF2698eb218988F73FBF08884"><span class="mono">0xd5984C5a187cD6EcF2698eb218988F73FBF08884</span></td><td class="r" data-code></td></tr>
+            <tr><td>ValidationRegistry8004</td><td data-addr="0x37feB1B3Fb6505d4D584dB0a632F3C20d9eAab97"><span class="mono">0x37feB1B3Fb6505d4D584dB0a632F3C20d9eAab97</span></td><td class="r" data-code></td></tr>
+            <tr><td>AgentTokenFactory</td><td data-addr="0xf9fcCF337a7930D146227601C1da7Be85bB50188"><span class="mono">0xf9fcCF337a7930D146227601C1da7Be85bB50188</span></td><td class="r" data-code></td></tr>
+            <tr><td>Ferminux Agents (FRC-721, FMXA)</td><td data-addr="0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd"><span class="mono">0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd</span></td><td class="r" data-code></td></tr>
+            <tr><td>Ferminux Citizens (FRC-721, FMXC)</td><td data-addr="0x5672AF1a567a46BAaFeb66959b7A95666E7f4252"><span class="mono">0x5672AF1a567a46BAaFeb66959b7A95666E7f4252</span></td><td class="r" data-code></td></tr>
+            <tr class="dv-group"><th scope="rowgroup" colspan="3">Ferminux DEX</th></tr>
+            <tr><td>FerminuxRouter</td><td data-addr="0x018C0Efca293F7a74D2f53ce738BA5e2f412BA9f"><span class="mono">0x018C0Efca293F7a74D2f53ce738BA5e2f412BA9f</span></td><td class="r" data-code></td></tr>
+            <tr><td>FerminuxFactory</td><td data-addr="0x2034a8366fCdbfFCf4517D297f702aDDdba37040"><span class="mono">0x2034a8366fCdbfFCf4517D297f702aDDdba37040</span></td><td class="r" data-code></td></tr>
+            <tr><td>WFMX (wrapped FMX)</td><td data-addr="0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae"><span class="mono">0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae</span></td><td class="r" data-code></td></tr>
+            <tr><td>WFMX/AZNT pool</td><td data-addr="0xbab12e7B817F0686e11949eC06697235DC146845"><span class="mono">0xbab12e7B817F0686e11949eC06697235DC146845</span></td><td class="r" data-code></td></tr>
+            <tr><td>LiquidityLocker</td><td data-addr="0xe588c594388B978E64B69E2Dd91CC7E302763951"><span class="mono">0xe588c594388B978E64B69E2Dd91CC7E302763951</span></td><td class="r" data-code></td></tr>
+            <tr class="dv-group"><th scope="rowgroup" colspan="3">Tokens and treasury</th></tr>
+            <tr><td>USDF (FRC-20)</td><td data-addr="0xCd032A609e34121D1881E8DE7355b2c2c7092363"><span class="mono">0xCd032A609e34121D1881E8DE7355b2c2c7092363</span></td><td class="r" data-code></td></tr>
+            <tr><td>AZNT (FRC-20)</td><td data-addr="0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178"><span class="mono">0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178</span></td><td class="r" data-code></td></tr>
+            <tr><td>Launchpad TokenFactory</td><td data-addr="0x62BC7d9671EfE1385413434aB8fdfE2fa4aE01D4"><span class="mono">0x62BC7d9671EfE1385413434aB8fdfE2fa4aE01D4</span></td><td class="r" data-code></td></tr>
+            <tr><td>Faucet</td><td data-addr="0xf4dE70068031DA17347cd19aCaa841013751B3c0"><span class="mono">0xf4dE70068031DA17347cd19aCaa841013751B3c0</span></td><td class="r" data-code></td></tr>
+            <tr><td>Governance multisig</td><td data-addr="0x910BD467D8576277f8f96DF47428377FFD94fEfe"><span class="mono">0x910BD467D8576277f8f96DF47428377FFD94fEfe</span></td><td class="r" data-code></td></tr>
+            <tr><td>Treasury (an account, not a contract)</td><td data-addr="0xc0A5Eb613f859f072554F29f1Ab7400265af15aB"><span class="mono">0xc0A5Eb613f859f072554F29f1Ab7400265af15aB</span></td><td class="r" data-code></td></tr>
+          </tbody>
+        </table></div>
+        <p class="small faint">ABIs: <a class="link-inline" href="/docs/#contracts">docs, section 4</a> and the explorer's verified sources. FMX on BNB Chain is wFMX <code>0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0</code>; see <a class="link-inline" href="/trade/">where FMX trades</a>.</p>
+      </section>
+
+      <section id="machine" aria-labelledby="machine-h">
+        <h2 id="machine-h">Machine-readable</h2>
+        <ul>
+          <li><a class="link-inline" href="/.well-known/ferminux.json">/.well-known/ferminux.json</a>: chain facts and live contract addresses as JSON.</li>
+          <li><a class="link-inline" href="/api/openapi.json">/api/openapi.json</a>: the gateway's REST API (OpenAPI 3.1).</li>
+          <li><a class="link-inline" href="/llms.txt">/llms.txt</a> and <a class="link-inline" href="/llms-full.txt">/llms-full.txt</a>: the network for language models.</li>
+          <li><a class="link-inline" href="/docs/">Docs</a>: the agent network's MCP server, SDK and contracts.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/developers.ts"></script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+/* Ferminux Explorer tokens.
+   Lines 4–104 of agents/web/src/styles.css, copied VERBATIM on 2026-09-24 (the :root block, its four media
+   overrides and the base layer). Do not re-derive a value here: when agents/web changes a token, re-copy the
+   block. The light revert block (tokens.md §9) is deliberately NOT copied: the explorer is dark only.
+   Explorer overrides and self-hosted fonts follow the copied block (surfaces/explorer.md §2.2, §2.4). */
+
+/* ---- self-hosted fonts (latin subset, woff2; no third-party request, CSP font-src 'self') ---- */
+@font-face{font-family:"Inter";font-style:normal;font-weight:400 600;font-display:swap;src:url(/fonts/inter-latin-var.woff2) format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400 500;font-display:swap;src:url(/fonts/jetbrains-mono-latin-var.woff2) format("woff2")}
+@font-face{font-family:"Sora";font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/sora-latin-600.woff2) format("woff2")}
+/* metric-matched fallbacks so the swap moves nothing (values from the fonts' hhea metrics vs the local face) */
+@font-face{font-family:"Inter Fallback";src:local("Arial"),local("Helvetica Neue"),local("Helvetica");size-adjust:107.1%;ascent-override:90.4%;descent-override:22.5%;line-gap-override:0%}
+@font-face{font-family:"JetBrains Mono Fallback";src:local("Menlo"),local("Consolas"),local("Courier New");size-adjust:99.5%;ascent-override:102.5%;descent-override:30.2%;line-gap-override:0%}
+@font-face{font-family:"Sora Fallback";src:local("Arial"),local("Helvetica");size-adjust:111%;ascent-override:90%;descent-override:26.5%;line-gap-override:0%}
+
+/* ================= copied: agents/web/src/styles.css lines 4–104 ================= */
+:root{
+  color-scheme:dark;
+  /* surfaces */
+  --bg:#000000;--band:#0a0e0c;--surface:#0c110f;--surface-2:#131a17;--surface-3:#19211d;--frame:var(--surface);
+  --header-bg:rgba(0,0,0,.78);--scrim:rgba(0,0,0,.72);
+  /* lines */
+  --border:#232d29;--border-strong:#5b6862;--hairline:#1b2420;--grid-line:rgba(220,240,230,.075);
+  /* text */
+  --ink:#ecf2ef;--muted:#a4b1ab;--faint:#84928c;--on-accent:#03140c;--wordmark:#111815;
+  /* accent: one green */
+  --accent:#05ee93;--accent-hover:#5cf5b8;--accent-press:#02d576;--accent-soft:#0a241a;--accent-border:#155c40;
+  --fx-deep:#013d25;--fx-emerald:#02d576;--fx-green:#05ee93;--fx-mint:#01fcc9;--fx-core:#d4ffee;
+  --ring-fill:#eef4f1;
+  --ring-gradient:linear-gradient(100deg,#0f6e47 0%,#02d576 22%,#01fcc9 48%,#05ee93 70%,#0f6e47 100%);
+  --ring-gradient-anim:linear-gradient(100deg,#0f6e47,#02d576,#01fcc9,#05ee93,#0f6e47,#02d576,#01fcc9);
+  --beam-gradient:linear-gradient(90deg,#01fcc9 0%,#05ee93 26%,#02d576 52%,rgba(2,213,118,.45) 74%,rgba(1,61,37,.35) 100%);
+  --halo-gradient:linear-gradient(90deg,rgba(1,61,37,.55) 0%,rgba(1,61,37,0) 100%);
+  --tile-gradient:linear-gradient(160deg,#01fcc9 0%,#05ee93 45%,#02d576 100%);
+  --glow-chip:0 0 0 1px rgba(1,252,201,.22),0 0 56px rgba(5,238,147,.20),0 0 140px rgba(2,213,118,.10);
+  --glow-pulse:0 0 24px rgba(1,252,201,.45);
+  /* status */
+  --ok:#2fdc93;--ok-soft:#0a2218;--ok-border:#1b5a40;
+  --warn:#ff8f73;--warn-soft:#2a120c;--warn-border:#6e2c1d;
+  --info:#c3cec9;--info-soft:#151c19;--info-border:#3a4641;
+  /* code */
+  --code-bg:#070b09;--code-ink:#dce6e1;--code-str:#b3eed2;--code-key:#05ee93;--code-comment:#84928c;
+  /* shape */
+  --r-xs:4px;--r:6px;--r-md:10px;--r-card:14px;--r-panel:20px;--r-cta:16px;--r-chip:36px;--r-frame:44px;--r-statement:48px;--r-pill:999px;
+  --elev-1:inset 0 1px 0 rgba(236,242,239,.04);
+  --elev-2:inset 0 1px 0 rgba(236,242,239,.05),0 2px 6px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.55);
+  --elev-3:inset 0 1px 0 rgba(236,242,239,.06),0 4px 12px rgba(0,0,0,.5),0 24px 60px rgba(0,0,0,.7);
+  /* type */
+  --display:"Sora",Inter,system-ui,sans-serif;
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --fs-display-xl:clamp(42px,1.4rem + 5.1vw,96px);--fs-display-l:clamp(36px,1.5rem + 2.8vw,64px);
+  --fs-display-m:clamp(32px,1.4rem + 2.1vw,52px);--fs-display-s:clamp(21px,.95rem + 1.3vw,34px);
+  --fs-link-xl:clamp(21px,1rem + .85vw,28px);--fs-link-l:clamp(18px,.9rem + .45vw,22px);--fs-wordmark:clamp(48px,17vw,260px);
+  --fs-lead:clamp(17px,.95rem + .35vw,20px);--fs-small:14px;--fs-xs:13px;--fs-label:11.5px;
+  --fs-stat-xl:clamp(34px,1.6rem + 1.8vw,52px);--fs-stat-l:clamp(26px,1.2rem + 1vw,36px);--fs-stat-m:22px;--fs-code:13px;
+  /* spacing */
+  --s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--s-8:64px;--s-9:96px;--s-10:128px;--s-11:160px;
+  /* motion */
+  --dur-1:120ms;--dur-2:180ms;--dur-3:260ms;--dur-4:400ms;
+  --ease-out:cubic-bezier(.16,1,.3,1);--ease-in:cubic-bezier(.4,0,1,1);--ease-std:cubic-bezier(.4,0,.2,1);
+  /* motion spec (.ui-craft/motion.md §1.4). Clock: every loop is a multiple of the 2 s beat. */
+  --beat:2s;--loop-ring:4s;--loop-chip:6s;--loop-lane:6s;--marquee:24s;
+  --rv-dur:480ms;--rv-dur-hero:560ms;--rv-stagger:70ms;--rv-y:12px;--rv-y-card:24px;--rv-blur:6px;
+  --dur-wave:700ms;--dur-flash:400ms;--dur-roll:260ms;--dur-land:420ms;--dur-fill:360ms;--dur-swap:280ms;
+  --lane-k:1.2;
+  /* light strip for rings: 2 identical tiles, each a dark ring with one comet (hottest stop #01fcc9, never
+     white, so it survives next to the pale face) */
+  --ring-strip:linear-gradient(90deg,#0b3d28 0%,#0f6e47 6%,#02d576 11%,#05ee93 15%,#01fcc9 18.5%,#01fcc9 20.5%,#05ee93 23%,#0f6e47 30%,#0b3d28 36%,#0b3d28 50%,#0f6e47 56%,#02d576 61%,#05ee93 65%,#01fcc9 68.5%,#01fcc9 70.5%,#05ee93 73%,#0f6e47 80%,#0b3d28 86%,#0b3d28 100%);
+  --comet-y:linear-gradient(180deg,rgba(2,213,118,0),rgba(5,238,147,.5) 60%,#01fcc9 92%,#d4ffee);
+  --comet-x:linear-gradient(90deg,rgba(2,213,118,0),rgba(5,238,147,.5) 60%,#01fcc9 92%,#d4ffee);
+  /* HUD rain is texture: a green head, never white (white heads read as text carets) */
+  --rain-y:linear-gradient(180deg,rgba(2,213,118,0),rgba(2,213,118,.45) 55%,rgba(5,238,147,.9));
+  --rain-x:linear-gradient(90deg,rgba(2,213,118,0),rgba(2,213,118,.45) 55%,rgba(5,238,147,.9));
+  --hud-line:rgba(220,240,230,.042);
+  /* layout */
+  --container:1120px;--header-h:64px;--sticky-top:calc(var(--header-h) + 12px);
+  --gutter-w:max(0px,calc((100vw - var(--container)) / 2));--z-menu:30;
+}
+@media(max-width:899px){:root{--r-chip:24px;--r-frame:28px;--r-statement:28px}}
+@media(min-width:600px){:root{--rv-dur:560ms;--rv-y:16px;--rv-y-card:24px;--rv-blur:8px;--lane-k:1.25}}
+@media(min-width:900px){:root{--rv-y:20px;--rv-y-card:32px;--lane-k:1}}
+@media(max-width:480px){:root{--fs-label:11px;--fs-stat-m:20px;--fs-code:12.5px}}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;background:var(--bg);scrollbar-color:#2a3530 transparent}
+@media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:"cv11","ss01";min-height:100vh;display:flex;flex-direction:column}
+::selection{background:#155c40;color:var(--ink)}
+main{flex:1 0 auto;min-width:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:var(--accent-hover)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.num,.mono,table{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono);font-size:.875em}
+.num-mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{margin:0;letter-spacing:-.015em;line-height:1.15}
+h1,h2,h3{text-wrap:balance}
+h1,h2{font-family:var(--display);font-weight:600}
+h1{font-size:clamp(30px,4.2vw,44px);letter-spacing:-.03em;line-height:1.08}
+h2{font-size:clamp(22px,2.4vw,28px);letter-spacing:-.02em}
+h3{font-size:17px;font-weight:600;letter-spacing:-.01em;line-height:1.3}
+h4{font-size:14px;font-weight:600;letter-spacing:0;line-height:1.3}
+p{margin:0}
+.container{max-width:var(--container);margin:0 auto;padding:0 20px;width:100%}
+@media(max-width:480px){.container{padding:0 16px}}
+.muted{color:var(--muted)}.faint{color:var(--faint)}.small{font-size:13.5px}
+.warn-text{color:var(--warn)}
+.span-all{grid-column:1/-1}
+.link-inline{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--border-strong)}
+.link-inline:hover{text-decoration-color:var(--accent)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+.skip{position:absolute;left:-999px;top:8px;background:var(--accent);color:var(--on-accent);font-weight:600;padding:8px 12px;border-radius:var(--r);z-index:50}
+.skip:focus{left:8px;color:var(--on-accent)}
+.eyebrow{font:500 var(--fs-label)/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+
+/* ================= end of copied block ================= */
+
+/* ---- explorer overrides and additions (surfaces/explorer.md §2.2) ---- */
+:root{
+  --container:1280px;                 /* 1240 px of content: the block and tx tables carry 8 columns */
+  --row:44px;--row-dense:36px;        /* table rows: full lists / home feeds, events, holders */
+  --cell-x:12px;--cell-y:10px;        /* 4/8 grid: 12 horizontal, 10 vertical at 13.5 px text */
+  --fs-cell:13.5px;--fs-hash:13px;--fs-sub:12.5px;
+  --seal:18px;                        /* the signer seal (§4.2) */
+  --z-pop:35;                         /* omnibox list, hovercards: above menus (30), below toast (40) */
+  --sans:Inter,"Inter Fallback",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono","JetBrains Mono Fallback",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --display:"Sora","Sora Fallback",Inter,system-ui,sans-serif;
+}
+@media(max-width:480px){:root{--seal:16px}}

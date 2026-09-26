@@ -1,0 +1,40 @@
+{
+  "name": "Flame Tower Dusk #5",
+  "description": "Flame Tower Dusk: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #5 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/5.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=5",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Baku skyline at dusk"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Embroidered cap"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Gold-stitched hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Amber visor"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

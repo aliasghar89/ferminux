@@ -1,0 +1,179 @@
+{
+    "items": [
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Ferminux Manat",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "block_hash": "0x130ac9fefc7392533c36b58607371a74111e7c9af28c1f8987207c557b8f3dc5",
+            "block_number": 82711,
+            "data": "0x0000000000000000000000000000000000000000000000000000000000d356a7",
+            "decoded": null,
+            "index": 0,
+            "smart_contract": null,
+            "topics": [
+                "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                "0x000000000000000000000000f61d31fec999af448c06ffabb5ec28fbee482847",
+                "0x000000000000000000000000bab12e7b817f0686e11949ec06697235dc146845",
+                null
+            ],
+            "transaction_hash": "0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Wrapped FMX",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "block_hash": "0x130ac9fefc7392533c36b58607371a74111e7c9af28c1f8987207c557b8f3dc5",
+            "block_number": 82711,
+            "data": "0x0000000000000000000000000000000000000000000000024dd13e7ee4bf52a5",
+            "decoded": null,
+            "index": 1,
+            "smart_contract": null,
+            "topics": [
+                "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                "0x000000000000000000000000bab12e7b817f0686e11949ec06697235dc146845",
+                "0x000000000000000000000000018c0efca293f7a74d2f53ce738ba5e2f412ba9f",
+                null
+            ],
+            "transaction_hash": "0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0xbab12e7B817F0686e11949eC06697235DC146845",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Ferminux LP",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "block_hash": "0x130ac9fefc7392533c36b58607371a74111e7c9af28c1f8987207c557b8f3dc5",
+            "block_number": 82711,
+            "data": "0x000000000000000000000000000000000000000000001d62958a60bad9d69c230000000000000000000000000000000000000000000000000000000a802b6300",
+            "decoded": null,
+            "index": 2,
+            "smart_contract": null,
+            "topics": [
+                "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1",
+                null,
+                null,
+                null
+            ],
+            "transaction_hash": "0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0xbab12e7B817F0686e11949eC06697235DC146845",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Ferminux LP",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "block_hash": "0x130ac9fefc7392533c36b58607371a74111e7c9af28c1f8987207c557b8f3dc5",
+            "block_number": 82711,
+            "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d356a70000000000000000000000000000000000000000000000024dd13e7ee4bf52a50000000000000000000000000000000000000000000000000000000000000000",
+            "decoded": null,
+            "index": 3,
+            "smart_contract": null,
+            "topics": [
+                "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+                "0x000000000000000000000000018c0efca293f7a74d2f53ce738ba5e2f412ba9f",
+                "0x000000000000000000000000018c0efca293f7a74d2f53ce738ba5e2f412ba9f",
+                null
+            ],
+            "transaction_hash": "0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Wrapped FMX",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "block_hash": "0x130ac9fefc7392533c36b58607371a74111e7c9af28c1f8987207c557b8f3dc5",
+            "block_number": 82711,
+            "data": "0x0000000000000000000000000000000000000000000000024dd13e7ee4bf52a5",
+            "decoded": null,
+            "index": 4,
+            "smart_contract": null,
+            "topics": [
+                "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+                "0x000000000000000000000000018c0efca293f7a74d2f53ce738ba5e2f412ba9f",
+                null,
+                null
+            ],
+            "transaction_hash": "0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Wrapped FMX",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "block_hash": "0x130ac9fefc7392533c36b58607371a74111e7c9af28c1f8987207c557b8f3dc5",
+            "block_number": 82711,
+            "data": "0x0000000000000000000000000000000000000000000000024dd13e7ee4bf52a5",
+            "decoded": null,
+            "index": 5,
+            "smart_contract": null,
+            "topics": [
+                "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                "0x000000000000000000000000018c0efca293f7a74d2f53ce738ba5e2f412ba9f",
+                "0x0000000000000000000000000000000000000000000000000000000000000000",
+                null
+            ],
+            "transaction_hash": "0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f"
+        }
+    ],
+    "next_page_params": null
+}

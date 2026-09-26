@@ -1,0 +1,94 @@
+
+## seat 1 (v01): the owner exits before activation; the 14-day unbond (172,800 blocks) starts now (2026-09-25T21:45:29Z, block 1146)
+  requestExit: tx=0x7c62e3d5917a40ff82c272054d953d135d11866569f1341fe03373d506193b93 block=1148 status=1 gas=46289
+{
+ "id": 1,
+ "state": "EXITING",
+ "owner": "owner-v01",
+ "attester": "att-v01",
+ "deposit": "2000.0",
+ "claimable": "0.0",
+ "activationBlock": 13452,
+ "eligibleFrom": 99852,
+ "countedSince": 0,
+ "lastAttestedHeight": 0,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 173948,
+ "slash": "NONE"
+}
+  ok: seat 1 is EXITING with unbondEnd = request block + 172,800
+  ok: withdraw before the unbond ends refused: REVERTED: TooEarly()
+  ok: withdraw by someone else refused: REVERTED: NotSeatOwner()
+  ok: occupiedSeats back to 9
+<<< step exit-x done (block 1148, fails so far 0)
+
+>>> step activation (2026-09-25T21:45:31Z, block 1148)
+
+## seat 6 (v06): claim, then exit after serving; rewards stop at once (2026-09-26T01:28:29Z, block 14526)
+{
+ "id": 6,
+ "state": "ACTIVE",
+ "owner": "owner-v06",
+ "attester": "att-v06",
+ "deposit": "2000.0",
+ "claimable": "0.05",
+ "activationBlock": 13472,
+ "eligibleFrom": 99872,
+ "countedSince": 0,
+ "lastAttestedHeight": 14400,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 0,
+ "slash": "NONE"
+}
+  claim: tx=0xd134b06e5581a7cddf25f4b06546e451f382129b2f6c04813b19ae0b72582cee block=14528 status=1 gas=68358  (claimable was 0.05 FMX)
+  owner balance change: 0.049931641999521494 FMX (claim minus gas)
+  requestExit: tx=0x496c355a1dc88190e1560f48965538ac11da6bce829e60b4f73e938e64de70e8 block=14530 status=1 gas=46289
+{
+ "id": 6,
+ "state": "EXITING",
+ "owner": "owner-v06",
+ "attester": "att-v06",
+ "deposit": "2000.0",
+ "claimable": "0.0",
+ "activationBlock": 13472,
+ "eligibleFrom": 99872,
+ "countedSince": 0,
+ "lastAttestedHeight": 14400,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 187330,
+ "slash": "NONE"
+}
+
+## after the exit (block 14530): seat 6's key at checkpoint 14600 (2026-09-26T01:30:54Z, block 14671)
+  seat 6 lastAttestedHeight 14400; attested(6, 14600) = false
+  ok: the exited seat's sidecar did not sign checkpoint 14600
+  ok: an attestation by the exited seat's key at 14600 (key inactive: no reward, not counted) refused: REVERTED: AttestationRejected(uint256)
+  dashboard of v06: evidence/dashboards/v06-exited-unbonding-desktop.png, -phone.png, .txt, -api-status.json
+  --- v06 sidecar after the exit:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Unbonding
+                 The deposit can be withdrawn by the owner wallet from block
+                 187,330 (in about 14 days). Nothing is signed meanwhile.
+      attester   att-v06(0x9fe7fE..)
+      hub        HUB(0x7cEE96..)
+      node       head 14680, 1 s old, 16 peers, ready to sign
+      process    running=yes pid=16 restarts=0
+      seat       #6 unbonding, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0000 FMX
+      attested   6 of the last 62 checkpoints (24 h), 6 of 432 (7 days)
+      gas        0.9995 FMX
+      next       checkpoint 14800, signing opens at block 14864
+          14600  waiting   seat is unbonding
+          14400  included  
+          14200  included  
+          14000  included  
+          13800  included  
+          13600  included  
+          13400  included  
+          13200  missed    seat activates at block 13472
+<<< step exit-x2-check done (block 14681, fails so far 0)
+
+>>> step restart (2026-09-26T01:31:04Z, block 14681)

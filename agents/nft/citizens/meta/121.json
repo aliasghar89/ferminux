@@ -1,0 +1,40 @@
+{
+  "name": "Robot Shepherd #121",
+  "description": "Robot Shepherd: a Legendary cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #121 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/121.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=121",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Vanguard"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Cyborg"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Mint green"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Cropped hair, cyber brow"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Fringed shawl and cargo gear"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Robot flock and staff"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

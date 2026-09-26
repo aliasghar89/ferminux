@@ -1,0 +1,40 @@
+{
+  "name": "Sakura Bloom #1",
+  "description": "Sakura Bloom: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #1 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/1.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=1",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Cherry blossom pink"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Blossom crown"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Porcelain plating"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold filigree"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

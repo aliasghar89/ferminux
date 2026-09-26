@@ -1,0 +1,48 @@
+
+## seat 5's attester key copied to a second machine (fmxd-v05b: fresh data dir, empty protection DB, supervised node) (2026-09-26T01:43:55Z, block 15452)
+  same attester on both: 7010804a35262edfebbd3772917e7d08faa2b87b / 7010804a35262edfebbd3772917e7d08faa2b87b
+  waited 400 s (block 15876)
+  second machine output:
+    2026-09-26T01:43:56.555Z INFO fmx-validator started version=pre-module-rename-157-gc3a277b network=devnet chain=39619 dashboard=http://127.0.0.1:8570/
+    Dashboard: http://127.0.0.1:8570/
+    2026-09-26T01:43:56.556Z INFO node started pid=55 binary=/usr/local/bin/ferminux
+    2026-09-26T01:43:57.182Z INFO attester key opened address=att-v05(0x701080..) password="file /var/lib/fmx-validator/attester-password"
+    2026-09-26T01:43:57.185Z WARN not attesting yet reason="no contract at hub address HUB(0x7cEE96..) on chain 39619 yet (is the node still syncing?)"
+    2026-09-26T01:44:12.221Z ERROR refusing to attest reason="this attester key has attestations on-chain that this machine did not sign; another machine is using the same key (seat 5 attested height 15400; /var/lib/fmx-validator/devnet/protection.log has no record of it, its latest is 0). Stop the other machine. If it is gone for good, bring its database here with `fmx-validator protection import`, or set adoptOnChainHistory in config.json"
+    2026-09-26T01:43:56.555Z INFO fmx-validator started version=pre-module-rename-157-gc3a277b network=devnet chain=39619 dashboard=http://127.0.0.1:8570/
+    2026-09-26T01:43:56.556Z INFO node started pid=55 binary=/usr/local/bin/ferminux
+    2026-09-26T01:43:57.182Z INFO attester key opened address=att-v05(0x701080..) password="file /var/lib/fmx-validator/attester-password"
+    2026-09-26T01:43:57.185Z WARN not attesting yet reason="no contract at hub address HUB(0x7cEE96..) on chain 39619 yet (is the node still syncing?)"
+    2026-09-26T01:44:12.221Z ERROR refusing to attest reason="this attester key has attestations on-chain that this machine did not sign; another machine is using the same key (seat 5 attested height 15400; /var/lib/fmx-validator/devnet/protection.log has no record of it, its latest is 0). Stop the other machine. If it is gone for good, bring its database here with `fmx-validator protection import`, or set adoptOnChainHistory in config.json"
+    --- last-error.txt:
+  second machine protection.log: 0
+  FAIL: the second machine signed nothing (no 'attestation submitted')
+    fmx-validator pre-module-rename-157-gc3a277b  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Signing stopped for safety
+                 This attester key has attestations on-chain that this machine did
+                 not sign; another machine is using the same key (seat 5 attested
+                 height 15400; /var/lib/fmx-validator/devnet/protection.log has no
+                 record of it, its latest is 0). Stop the other machine. If it is
+                 gone for good, bring its database here with `fmx-validator
+                 protection import`, or set adoptOnChainHistory in config.json.
+                 Nothing is signed until the cause is dealt with and
+                 `fmx-validator resume --yes` is run, then the service restarted.
+      attester   att-v05(0x701080..)
+      hub        HUB(0x7cEE96..)
+      setup      cannot attest: this attester key has attestations on-chain that this machine did not sign; another machine is using the same key (seat 5 attested height 15400; /var/lib/fmx-validator/devnet/protection.log has no record of it, its latest is 0). Stop the other machine. If it is gone for good, bring its database here with `fmx-validator protection import`, or set adoptOnChainHistory in config.json
+      node       head 15873, 1 s old, 12 peers, ready to sign
+      process    running=yes pid=55 restarts=0
+  second machine removed; the first keeps attesting:
+h 16000 seat 5 included 16066 (h+66) reward 0.025 tx 0xa683ba4137d4fdbfd0d5213aafafe880bbebf73d612781e9a4b5de034708541b
+<<< step second done (block 16253, fails so far 1)
+
+>>> step rewards (2026-09-26T01:57:16Z, block 16253)
+
+## note on the one FAIL line above (written by hand after the run)
+  The "FAIL: the second machine signed nothing" line is a fault in the driver's own check, not in the
+  sidecar: `grep -c` prints 0 and exits 1, and the `|| echo 0` fallback then added a second "0", so the
+  shell test compared "0\n0" with 0. What the check was meant to establish is shown directly above it:
+  the second machine's protection.log has 0 records (the sidecar appends and fsyncs a record before any
+  signature exists, so no record means nothing was signed), its log has no "attestation submitted" line,
+  and its status is "Signing stopped for safety". The driver's check is fixed in driver.sh (grep -c alone).
+  Verdict for this drill: PASS.

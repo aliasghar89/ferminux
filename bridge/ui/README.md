@@ -377,8 +377,8 @@ location /bridge/ {
   table (`RELAYER_CONFIRMATIONS`, `src/config.ts`) copied from the relayer's own
   config, because the relayer is authoritative: it re-reads the source log at
   its configured depth and will not attest a moment sooner. Ferminux is the
-  deepest wait in the set — 64 blocks, ~7.5 minutes — because it is Ethash PoW
-  with no finality gadget, so a shallower number here would understate reorg
+  deepest wait in the set — 64 blocks, ~7.5 minutes — because it is Clique
+  proof-of-authority with no finality gadget (64 is also the deepest reorg a node accepts), so a shallower number here would understate reorg
   risk and show "executing" long before a validator has signed anything.
 - **The remaining-capacity figure is advisory.** It is read from the chain each
   poll and drained locally in between, exactly as described above; the contract

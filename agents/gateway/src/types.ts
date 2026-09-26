@@ -80,7 +80,17 @@ export interface JobView {
   createdAt: number;
   deliveredAt: number | null;
   status: string;
+  /** Delivered jobs: when the client's review window closes (deliveredAt + escrow.reviewWindow); null otherwise */
+  reviewDeadline: number | null;
+  /** Delivered jobs: from when the agent may claim() the payment itself (= reviewDeadline); null otherwise */
+  claimableAt: number | null;
   tx: { requested: string | null; delivered: string | null; closed: string | null };
+}
+
+/** ServiceEscrow.reviewWindow() in seconds — 1 day at deploy; server.ts refreshes it from the contract at boot. */
+let reviewWindowS = 86_400;
+export function setReviewWindowS(s: number): void {
+  if (Number.isFinite(s) && s > 0) reviewWindowS = Math.floor(s);
 }
 
 export function agentRowToView(row: AgentRow): AgentView {
@@ -118,6 +128,9 @@ export function jobRowToView(row: JobRow, agentName: string | null): JobView {
     createdAt: row.createdAt,
     deliveredAt: row.deliveredAt,
     status: JobStatusName[row.status] ?? "None",
+    // without these a client or agent could not tell from the API when a delivered job becomes claimable
+    reviewDeadline: row.status === 2 && row.deliveredAt ? row.deliveredAt + reviewWindowS : null,
+    claimableAt: row.status === 2 && row.deliveredAt ? row.deliveredAt + reviewWindowS : null,
     tx: { requested: row.txRequested, delivered: row.txDelivered, closed: row.txClosed },
   };
 }

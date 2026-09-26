@@ -1,0 +1,17 @@
+{
+  "name": "docs",
+  "version": "1.0.0",
+  "description": "Builds docs.ferminux.net: the operator, wallet and developer documentation for Ferminux (chain 3961, FMX, Clique proof-of-authority, 7 s blocks) from docs/*.md.",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build-docs.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "marked": "^18.0.10"
+  },
+  "private": true
+}

@@ -1,15 +1,17 @@
 # Ferminux Network — Core Contracts
 
-Foundry project wrapping the five core contracts of the Ferminux Network
-(chain id **3961**, native coin **FMX**, 18 decimals).
+Foundry project for the core contracts of the Ferminux Network
+(chain id **3961**, native coin **FMX**, 18 decimals). The table below covers the five
+that `DeployCore.s.sol` deploys; `USDF`, `FMXRewardSink` and `FoundationLock` live in
+`src/` too. Live addresses are in the table at <https://docs.ferminux.net/developers>.
 
 | Contract | File | Purpose |
 |---|---|---|
 | `AZNT` | `src/AZNT.sol` | AZN-backed stablecoin, 6 decimals, USDC-style roles, pause, blacklist, EIP-2612 permit |
 | `FMXVesting` | `src/FMXVesting.sol` | Irrevocable linear vesting of native FMX (team allocation) |
 | `Faucet` | `src/Faucet.sol` | Rate-limited native FMX drip for new users |
-| `TokenFactory` / `FerminuxToken` | `src/TokenFactory.sol` | One-click FRC-20 launcher with 10 FMX fee and on-chain registry |
-| `MinimalMultisig` | `src/MinimalMultisig.sol` | **New.** Small M-of-N owner multisig (deployed 2-of-3). Holds AZNT admin and TokenFactory feeCollector |
+| `TokenFactory` / `FerminuxToken` | `src/TokenFactory.sol` | One-click FRC-20 launcher with a launch fee and an on-chain registry. The deployed factory (`0x62BC…01D4`) charges **10,000 FMX** and its fee collector is `0x…dEaD`, so every fee is burned and, because only the collector can call `setFee`, the fee can no longer change |
+| `MinimalMultisig` | `src/MinimalMultisig.sol` | Small M-of-N owner multisig (deployed 2-of-3 at `0x910B…fEfe`). Admin of AZNT and USDF |
 
 ## Layout
 

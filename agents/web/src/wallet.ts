@@ -1,7 +1,10 @@
 import { BrowserProvider, Contract, JsonRpcProvider, type ContractTransactionResponse, type InterfaceAbi, type TransactionReceipt, type Log, type EventLog } from "ethers";
-import { CHAIN_PARAMS, config, contractsDeployed, nftDeployed, type AddChainParams } from "./config";
+import { PAYIN_CHAIN_PARAMS, config, contractsDeployed, nftDeployed, type AddChainParams } from "./config";
 import { CUSTOM_ERROR_TEXT, ESCROW_ABI, NFT_ABI, REGISTRY_ABI } from "./abi";
 import type { TypedDataDomain, TypedDataField } from "ethers";
+import { createWalletConnector, type Connection, type Eip1193Provider, type WalletConnector } from "../../../shared/fxwallet/connector.ts";
+import { ChainSetupError, FERMINUX_ADD_CHAIN_PARAMS, ensureFerminuxChain } from "../../../shared/fxwallet/network.ts";
+import { openWalletChooser } from "./walletChooser";
 
 export interface WalletState { address: string | null; chainId: number | null; hasProvider: boolean }
 const state: WalletState = { address: null, chainId: null, hasProvider: false };
@@ -20,7 +23,90 @@ export const walletState = () => state;
 export function onWallet(cb: (s: WalletState) => void) { listeners.add(cb); cb(state); return () => listeners.delete(cb); }
 function emit() { listeners.forEach((l) => l({ ...state })); }
 
+/** A browser extension / in-app wallet injected window.ethereum. */
 export const hasInjected = () => typeof window !== "undefined" && !!window.ethereum;
+
+/* ==================== the wallet choice ==================== */
+// Ferminux Wallet (popup; a tab on phones) first, then every injected wallet,
+// then WalletConnect only when the build has VITE_WC_PROJECT_ID — without one
+// the package is not bundled and no relay is contacted. Every call below goes
+// to the provider the user chose, not to window.ethereum.
+const WC_PROJECT_ID: string = import.meta.env.VITE_WC_PROJECT_ID ?? "";
+let connectorRef: WalletConnector | null = null;
+let boundProvider: Eip1193Provider | null = null;
+
+/** The site's wallet connector (created on first use). */
+export function walletConnector(): WalletConnector {
+  if (!connectorRef) {
+    // Reads for the pay-in chains go to their public RPCs; Ferminux to ours.
+    const rpcUrls: Record<number, string[]> = { [config.chainId]: [config.rpc] };
+    for (const [id, p] of Object.entries(PAYIN_CHAIN_PARAMS)) rpcUrls[Number(id)] = p.rpcUrls;
+    connectorRef = createWalletConnector({
+      appName: "Ferminux",
+      // Override only to test against a local wallet build.
+      walletUrl: import.meta.env.VITE_FXWALLET_URL || undefined,
+      rpcUrls,
+      theme: "dark",
+      walletConnect: WC_PROJECT_ID
+        ? {
+            projectId: WC_PROJECT_ID,
+            load: () => import("@walletconnect/ethereum-provider"),
+            rpcMap: { [config.chainId]: config.rpc },
+            metadata: { name: "Ferminux", description: "The memory and economic layer for autonomous AI", url: location.origin, icons: [] },
+          }
+        : null,
+    });
+    connectorRef.subscribe(syncFromConnector);
+  }
+  return connectorRef;
+}
+
+/** The connected wallet's EIP-1193 provider, or null. */
+function active(): Eip1193Provider | null {
+  return connectorRef?.current()?.provider ?? null;
+}
+function requireActive(): Eip1193Provider {
+  const eth = active();
+  if (!eth) throw new WalletError("Connect a wallet first.");
+  return eth;
+}
+
+/** Mirror the connector (account switch, chain switch, disconnect, revoke) into walletState. */
+function syncFromConnector() {
+  const c = connectorRef?.current() ?? null;
+  const address = c?.accounts[0] ?? null;
+  const chainId = c ? c.chainId || state.chainId : state.chainId;
+  // A signer is bound to one provider and one chain; rebuild it after either changes.
+  if ((c?.provider ?? null) !== boundProvider || chainId !== state.chainId) browserProvider = null;
+  boundProvider = c?.provider ?? null;
+  if (address === state.address && chainId === state.chainId) return;
+  state.address = address;
+  state.chainId = chainId;
+  emit();
+}
+
+/** Show the chooser (unless a wallet is already connected) and return the connection. */
+async function chooseWallet(): Promise<Connection> {
+  const c = walletConnector();
+  const current = c.current();
+  if (current && current.accounts.length > 0) return current;
+  return openWalletChooser({
+    connector: c,
+    handoff: () => isMobile() && !hasInjected(),
+    onHandoff: showMobileWalletChooser,
+    describeError: (e) => errMessage(e, "The wallet did not connect."),
+    cancelled: () => new WalletError("Connection cancelled."),
+  });
+}
+
+/** Forget the connected wallet on this site (and, for Ferminux Wallet, in the wallet too). */
+export async function disconnect(): Promise<void> {
+  await walletConnector().disconnect();
+  syncFromConnector();
+}
+
+/** Display name of the connected wallet ("Ferminux Wallet", "MetaMask", …), or null. */
+export const connectedWalletName = (): string | null => connectorRef?.current()?.choice.name ?? null;
 export const isMobile = () => typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
 /** Mobile browsers have no injected wallet: the page must be opened inside the wallet's own browser. */
@@ -72,7 +158,7 @@ function errCode(e: any): number | undefined { return e?.code ?? e?.data?.origin
 async function waitForChain(target: number, ms = 8000): Promise<number> {
   const until = Date.now() + ms; let c = 0;
   while (Date.now() < until) {
-    try { c = parseInt(await window.ethereum.request({ method: "eth_chainId" }), 16); } catch { /* retry */ }
+    try { c = parseInt(String(await requireActive().request({ method: "eth_chainId" })), 16); } catch { /* retry */ }
     if (c === target) return c;
     await new Promise((r) => setTimeout(r, 300));
   }
@@ -84,76 +170,55 @@ export function readProvider(): JsonRpcProvider {
   return readProv;
 }
 
-function attachEvents() {
-  const eth = window.ethereum; if (!eth || eth.__fmxBound) return; eth.__fmxBound = true;
-  eth.on?.("accountsChanged", (accs: string[]) => { state.address = accs[0] || null; emit(); });
-  eth.on?.("chainChanged", (c: string) => { state.chainId = parseInt(c, 16); emit(); });
-}
-
-/** Silently pick up an already-authorised account (no prompt). */
+/** Silently pick up an already-authorised wallet (no prompt). */
 export async function restore(): Promise<WalletState> {
   if (MOCK && !hasInjected()) { state.address = await mockWallet(); state.chainId = config.chainId; state.hasProvider = true; emit(); return state; }
-  if (!(await waitForInjected())) return state;
-  state.hasProvider = true; attachEvents();
-  try {
-    const accs: string[] = await window.ethereum.request({ method: "eth_accounts" });
-    state.address = accs[0] || null;
-    const c: string = await window.ethereum.request({ method: "eth_chainId" }); state.chainId = parseInt(c, 16);
-  } catch { /* ignore */ }
+  const c = walletConnector();
+  state.hasProvider = true;
+  let conn = await c.restore();
+  // Before the chooser existed, an extension that had already authorised this
+  // site was picked up on load; keep that for people who never chose again.
+  if (!conn && (await waitForInjected())) {
+    try {
+      const accs = (await window.ethereum.request({ method: "eth_accounts" })) as string[];
+      // Only when window.ethereum is the one injected wallet: with two extensions the first listed may
+      // not be the one that authorised the site, and connecting it would prompt on page load.
+      const injectedChoices = c.choices().filter((x) => x.kind === "injected");
+      if (accs?.length && injectedChoices.length === 1) conn = await c.connect(injectedChoices[0]!.id);
+    } catch { /* stay disconnected */ }
+  }
+  syncFromConnector();
   emit(); return state;
 }
 
 export class WalletError extends Error {}
 
-/** Prompt to connect and make sure the wallet is on chain 3961. */
+/** Prompt to connect (the wallet chooser) and make sure the wallet is on chain 3961. */
 export async function connect(): Promise<string> {
   if (MOCK && !hasInjected()) { state.address = await mockWallet(); state.chainId = config.chainId; state.hasProvider = true; emit(); return state.address!; }
-  if (!(await waitForInjected())) {
-    if (isMobile()) { showMobileWalletChooser(); throw new WalletError("Open this page inside your wallet app (MetaMask, Trust Wallet or Coinbase Wallet) to connect."); }
-    throw new WalletError("No wallet detected. Install MetaMask (or another EIP-1193 wallet), or use wallet.ferminux.net.");
-  }
-  state.hasProvider = true; attachEvents();
-  let accs: string[];
-  try { accs = await window.ethereum.request({ method: "eth_requestAccounts" }); }
-  catch (e) {
-    if (errCode(e) === -32002) throw new WalletError("A connection request is already open in your wallet — switch to the wallet app and approve it.");
-    throw new WalletError(errMessage(e, "Connection request was rejected in the wallet."));
-  }
-  if (!accs?.length) throw new WalletError("The wallet returned no account.");
-  state.address = accs[0];
+  const conn = await chooseWallet();
+  if (!conn.accounts.length) throw new WalletError("The wallet returned no account.");
+  state.hasProvider = true;
+  state.address = conn.accounts[0]!;
   await ensureChain();
-  browserProvider = new BrowserProvider(window.ethereum);
+  browserProvider = new BrowserProvider(conn.provider as never);
   emit(); return state.address;
 }
 
 export async function ensureChain(): Promise<void> {
   if (MOCK && !hasInjected()) return;
-  const current: string = await window.ethereum.request({ method: "eth_chainId" });
-  state.chainId = parseInt(current, 16);
-  if (state.chainId === config.chainId) return;
-  const addChain = async () => {
-    try { await window.ethereum.request({ method: "wallet_addEthereumChain", params: [CHAIN_PARAMS] }); }
-    catch (e2) {
-      if (errCode(e2) === -32002) throw new WalletError("The wallet is already asking you to add Ferminux Network — approve it in the wallet app, then try again.");
-      throw new WalletError(errMessage(e2, "Adding Ferminux Network to the wallet was rejected."));
-    }
-  };
+  const eth = requireActive();
+  // Switch, add Ferminux when the wallet has never seen it (most phone wallets
+  // over WalletConnect), and over WalletConnect wait until the session carries
+  // chain 3961 — see shared/fxwallet/network.ts.
   try {
-    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: config.chainIdHex }] });
-  } catch (e: any) {
-    const code = errCode(e);
-    if (code === 4902 || code === -32603 || /unrecognized|not added|add(ed)? this chain|Unrecognized chain/i.test(String(e?.message))) {
-      await addChain();
-      // Some mobile wallets add without switching; ask once more, ignoring "already pending".
-      if ((await waitForChain(config.chainId, 2500)) !== config.chainId) {
-        try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: config.chainIdHex }] }); } catch { /* handled by the wait below */ }
-      }
-    } else if (code === -32002) {
-      throw new WalletError("The wallet is already asking you to switch networks — approve it in the wallet app, then try again.");
-    } else throw new WalletError(errMessage(e, "Switching to Ferminux Network was rejected."));
+    await ensureFerminuxChain(eth);
+  } catch (e) {
+    if (e instanceof ChainSetupError) throw new WalletError(e.message);
+    throw new WalletError(errMessage(e, "Switching to Ferminux Network was rejected."));
   }
-  state.chainId = await waitForChain(config.chainId);
-  if (state.chainId !== config.chainId) throw new WalletError("The wallet is not on Ferminux Network (chain 3961) yet. Switch networks in the wallet and try again.");
+  state.chainId = config.chainId;
+  browserProvider = null;
   emit();
 }
 
@@ -162,46 +227,37 @@ export async function ensureChain(): Promise<void> {
 /** Connect (prompt) WITHOUT switching to 3961 — for flows that transact on another chain first (pay-in). */
 export async function connectAnyChain(): Promise<string> {
   if (MOCK && !hasInjected()) { state.address = await mockWallet(); state.chainId = config.chainId; state.hasProvider = true; emit(); return state.address!; }
-  if (!(await waitForInjected())) {
-    if (isMobile()) { showMobileWalletChooser(); throw new WalletError("Open this page inside your wallet app (MetaMask, Trust Wallet or Coinbase Wallet) to connect."); }
-    throw new WalletError("No wallet detected. Install MetaMask (or another EIP-1193 wallet), or send the payment manually from any wallet.");
-  }
-  state.hasProvider = true; attachEvents();
-  let accs: string[];
-  try { accs = await window.ethereum.request({ method: "eth_requestAccounts" }); }
-  catch (e) {
-    if (errCode(e) === -32002) throw new WalletError("A connection request is already open in your wallet — switch to the wallet app and approve it.");
-    throw new WalletError(errMessage(e, "Connection request was rejected in the wallet."));
-  }
-  if (!accs?.length) throw new WalletError("The wallet returned no account.");
-  state.address = accs[0];
-  try { state.chainId = parseInt(await window.ethereum.request({ method: "eth_chainId" }), 16); } catch { /* ignore */ }
-  browserProvider = new BrowserProvider(window.ethereum);
+  const conn = await chooseWallet();
+  if (!conn.accounts.length) throw new WalletError("The wallet returned no account.");
+  state.hasProvider = true;
+  state.address = conn.accounts[0]!;
+  try { state.chainId = parseInt(String(await conn.provider.request({ method: "eth_chainId" })), 16); } catch { /* ignore */ }
+  browserProvider = new BrowserProvider(conn.provider as never);
   emit(); return state.address;
 }
 
 /**
- * Switch the injected wallet to `chainId` (e.g. 56 BNB Chain, 8453 Base); when the wallet does not know
+ * Switch the connected wallet to `chainId` (e.g. 56 BNB Chain, 8453 Base); when the wallet does not know
  * the chain, `wallet_addEthereumChain` with `params` and switch again. Resolves once the wallet reports it.
  */
 export async function switchToChain(chainId: number, params: AddChainParams): Promise<void> {
-  if (!hasInjected()) throw new WalletError("No wallet detected.");
+  const eth = requireActive();
   const hex = "0x" + chainId.toString(16);
   let current = 0;
-  try { current = parseInt(await window.ethereum.request({ method: "eth_chainId" }), 16); } catch { /* ask anyway */ }
+  try { current = parseInt(String(await eth.request({ method: "eth_chainId" })), 16); } catch { /* ask anyway */ }
   if (current !== chainId) {
     try {
-      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] });
+      await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] });
     } catch (e: any) {
       const code = errCode(e);
       if (code === 4902 || code === -32603 || /unrecognized|not added|add(ed)? this chain|Unrecognized chain/i.test(String(e?.message))) {
-        try { await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ ...params, chainId: hex }] }); }
+        try { await eth.request({ method: "wallet_addEthereumChain", params: [{ ...params, chainId: hex }] }); }
         catch (e2) {
           if (errCode(e2) === -32002) throw new WalletError(`The wallet is already asking you to add ${params.chainName} — approve it in the wallet app, then try again.`);
           throw new WalletError(errMessage(e2, `Adding ${params.chainName} to the wallet was rejected.`));
         }
         if ((await waitForChain(chainId, 2500)) !== chainId) {
-          try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] }); } catch { /* handled by the wait below */ }
+          try { await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] }); } catch { /* handled by the wait below */ }
         }
       } else if (code === -32002) {
         throw new WalletError("The wallet is already asking you to switch networks — approve it in the wallet app, then try again.");
@@ -209,6 +265,7 @@ export async function switchToChain(chainId: number, params: AddChainParams): Pr
     }
   }
   state.chainId = await waitForChain(chainId);
+  browserProvider = null;
   if (state.chainId !== chainId) throw new WalletError(`The wallet is not on ${params.chainName} yet. Switch networks in the wallet and try again.`);
   emit();
 }
@@ -218,13 +275,12 @@ export async function switchToChain(chainId: number, params: AddChainParams): Pr
  * gas and picks fees). Returns the tx hash; every failure becomes a plain-language WalletError.
  */
 export async function sendRawTransaction(tx: { to: string; value?: bigint; data?: string }): Promise<string> {
-  if (!hasInjected()) throw new WalletError("No wallet detected.");
   const from = state.address || (await connectAnyChain());
   const params: Record<string, string> = { from, to: tx.to };
   if (tx.value !== undefined && tx.value > 0n) params.value = "0x" + tx.value.toString(16);
   if (tx.data && tx.data !== "0x") params.data = tx.data;
   let hash: string;
-  try { hash = await window.ethereum.request({ method: "eth_sendTransaction", params: [params] }); }
+  try { hash = String(await requireActive().request({ method: "eth_sendTransaction", params: [params] })); }
   catch (e) { throw new WalletError(errMessage(e, "The wallet did not send the transaction.")); }
   if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new WalletError("The wallet returned an unexpected transaction hash.");
   return hash;
@@ -235,26 +291,26 @@ export async function sendRawTransaction(tx: { to: string; value?: bigint; data?
  * preflight balance checks on external (non-3961) chains, where `readProvider()`/`getBalance` don't apply.
  */
 export async function ethCall(to: string, data: string): Promise<string> {
-  if (!hasInjected()) throw new WalletError("No wallet detected.");
-  return window.ethereum.request({ method: "eth_call", params: [{ to, data }, "latest"] });
+  return String(await requireActive().request({ method: "eth_call", params: [{ to, data }, "latest"] }));
 }
 
 /** Native-coin balance (wei) of `address` on whatever chain the injected provider is currently on. */
 export async function nativeBalanceOf(address: string): Promise<bigint> {
-  if (!hasInjected()) throw new WalletError("No wallet detected.");
-  const hex: string = await window.ethereum.request({ method: "eth_getBalance", params: [address, "latest"] });
+  const hex = String(await requireActive().request({ method: "eth_getBalance", params: [address, "latest"] }));
   return BigInt(hex);
 }
 
 export async function addNetwork(): Promise<void> {
-  if (!hasInjected()) throw new WalletError("No wallet detected. Install MetaMask, or use wallet.ferminux.net.");
-  await window.ethereum.request({ method: "wallet_addEthereumChain", params: [CHAIN_PARAMS] });
+  // The connected wallet first (Ferminux Wallet knows 3961 already); otherwise the browser's own wallet.
+  const eth = active() ?? (hasInjected() ? window.ethereum : null);
+  if (!eth) throw new WalletError("No wallet detected. Install MetaMask, or use wallet.ferminux.net.");
+  await eth.request({ method: "wallet_addEthereumChain", params: [FERMINUX_ADD_CHAIN_PARAMS] });
 }
 
 export async function signer() {
   if (!state.address) await connect();
   await ensureChain();
-  if (!browserProvider) browserProvider = new BrowserProvider(window.ethereum);
+  if (!browserProvider) browserProvider = new BrowserProvider(requireActive() as never);
   const s = await browserProvider.getSigner();
   // Ferminux signers keep geth's 1 gwei tip floor while the base fee is a few
   // wei; a wallet that follows raw fee history can suggest a 1 wei tip and the
@@ -279,11 +335,10 @@ export async function personalSign(message: string, address?: string): Promise<s
     await new Promise((r) => setTimeout(r, 500));
     return "0x" + Array.from(crypto.getRandomValues(new Uint8Array(65))).map((b) => b.toString(16).padStart(2, "0")).join("");
   }
-  if (!hasInjected()) throw new WalletError("No wallet detected. Install MetaMask (or another EIP-1193 wallet) to sign.");
   const from = address || state.address || (await connect());
   try {
     const hex = "0x" + Array.from(new TextEncoder().encode(message)).map((b) => b.toString(16).padStart(2, "0")).join("");
-    const sig: string = await window.ethereum.request({ method: "personal_sign", params: [hex, from] });
+    const sig = String(await requireActive().request({ method: "personal_sign", params: [hex, from] }));
     if (!/^0x[0-9a-fA-F]{130}$/.test(sig)) throw new WalletError("The wallet returned an unexpected signature.");
     return sig;
   } catch (e) { throw new WalletError(errMessage(e, "Signing was rejected in the wallet.")); }
@@ -438,6 +493,7 @@ export function errMessage(e: unknown, fallback = "Something went wrong."): stri
   const code = err.code ?? err.info?.error?.code ?? err.error?.code;
   const msg: string = String(err.shortMessage || err.reason || err.info?.error?.message || err.error?.message || err.message || "");
   if (code === 4001 || code === "ACTION_REJECTED" || /user rejected|user denied/i.test(msg)) return "You rejected the request in the wallet. Nothing was sent.";
+  if (code === 4100) return "The wallet no longer lets this site use that account (it was disconnected or revoked). Connect again.";
   if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(msg)) return "Not enough FMX in the wallet for this amount plus gas. Get gas from the faucet or top up at wallet.ferminux.net.";
   if (code === "CALL_EXCEPTION" || /execution reverted|revert/i.test(msg)) {
     // ethers v6 decodes custom errors (when the ABI carries them) into err.revert = { name, args }

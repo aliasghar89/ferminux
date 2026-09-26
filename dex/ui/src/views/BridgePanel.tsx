@@ -38,7 +38,18 @@ import {
   quoteTransfer,
 } from '@bridge/lib/amounts.ts';
 import type { ChainConfig } from '@bridge/config.ts';
-import { BSC, FERMINUX, bridgeReady, otherChain, switchTo } from '../lib/bridgeChains.ts';
+import { assessLiveness, livenessForChain } from '@bridge/lib/liveness.ts';
+import {
+  BRIDGE_APP_URL,
+  BSC,
+  FERMINUX,
+  RELAYER_STATUS_URL,
+  bridgeReady,
+  otherChain,
+  switchTo,
+} from '../lib/bridgeChains.ts';
+import { bridgeGate } from '../lib/bridgeGate.ts';
+import { useBridgeStatus } from '../state/useBridgeStatus.ts';
 import { Notice, Spinner, StatRow } from '../components/ui.tsx';
 import type { WalletSession } from '../state/useWallet.ts';
 
@@ -79,6 +90,7 @@ export function BridgePanel({ wallet }: { wallet: WalletSession }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'edit' });
 
   const ready = bridgeReady();
+  const relayer = useBridgeStatus(RELAYER_STATUS_URL, ready);
 
   // --- read both ends -------------------------------------------------------
   const load = useCallback(async () => {
@@ -139,8 +151,27 @@ export function BridgePanel({ wallet }: { wallet: WalletSession }) {
       decimals,
       symbol: srcEntry.meta.symbol,
       isNative: srcEntry.meta.isNative,
+      // The quote already knows how to refuse a paused bridge or rail; it only
+      // has to be told. Both flags are read on every load above.
+      bridgePaused: cfg.paused,
+      tokenPaused: rail.paused || srcEntry.paused,
     });
   }, [srcEntry, rail, cfg, amountWei, usage, decimals]);
+
+  // --- can the far side actually deliver? -------------------------------------
+  // Caps and pause flags say whether the SOURCE bridge accepts a deposit. They do
+  // not say whether validators will sign it. See lib/bridgeGate.ts.
+  const srcVerdict = relayer.status
+    ? assessLiveness(livenessForChain(relayer.status, src.chainId), src.short, Date.now() / 1000)
+    : null;
+  const gate = bridgeGate({
+    srcName: src.short,
+    bridgePaused: cfg ? cfg.paused : null,
+    tokenPaused: rail ? rail.paused || (srcEntry?.paused ?? false) : null,
+    reportUsable: relayer.status !== null,
+    reportError: relayer.settled ? relayer.error : 'checking the validators\u2019 status report',
+    srcVerdict,
+  });
 
   const needsApproval =
     srcEntry !== null &&
@@ -170,7 +201,7 @@ export function BridgePanel({ wallet }: { wallet: WalletSession }) {
   }
 
   async function submit() {
-    if (!srcEntry || !wallet.wallet || !recipient.ok || !quote?.ok) return;
+    if (!gate.open || !srcEntry || !wallet.wallet || !recipient.ok || !quote?.ok) return;
     const eth = wallet.wallet.provider;
 
     // 1. the wallet must be on the source chain — for the return leg this is
@@ -178,7 +209,7 @@ export function BridgePanel({ wallet }: { wallet: WalletSession }) {
     if (!onSrcChain) {
       setPhase({ kind: 'switching' });
       try {
-        await switchTo(src);
+        await switchTo(src, wallet.eip1193 ?? undefined);
       } catch (err) {
         setPhase({ kind: 'error', message: err instanceof Error ? err.message : 'Network switch declined.' });
         return;
@@ -259,7 +290,9 @@ export function BridgePanel({ wallet }: { wallet: WalletSession }) {
 
   const sendLabel = !wallet.wallet
     ? 'Connect a wallet'
-    : phase.kind === 'switching'
+    : !gate.open && !busy
+      ? 'Bridging unavailable'
+      : phase.kind === 'switching'
       ? 'Switching network…'
       : phase.kind === 'approving'
         ? 'Approving…'
@@ -281,6 +314,25 @@ export function BridgePanel({ wallet }: { wallet: WalletSession }) {
         {loadError && (
           <Notice kind="danger" role="alert">
             Could not read the bridge on {src.short}: {loadError}
+          </Notice>
+        )}
+
+        {/* Rendered before the registry read finishes: whether the validators
+            are signing does not depend on it, and a user should not have to
+            wait for two RPCs to learn the route is closed. */}
+        {!gate.open && relayer.settled && (
+          <div data-testid="bridge-gate">
+            <Notice kind="warn" role="status">
+              <strong>Bridging is unavailable from {src.short} right now.</strong> {gate.reason}{' '}
+              <a href={BRIDGE_APP_URL} target="_blank" rel="noopener noreferrer">
+                Bridge status ↗
+              </a>
+            </Notice>
+          </div>
+        )}
+        {gate.open && gate.note && (
+          <Notice kind="plain" role="status">
+            {gate.note}
           </Notice>
         )}
 
@@ -422,7 +474,7 @@ export function BridgePanel({ wallet }: { wallet: WalletSession }) {
               <button
                 type="button"
                 className="btn btn-primary btn-lg btn-block"
-                disabled={busy || !wallet.wallet || !quote?.ok || !recipient.ok || amountWei === 0n}
+                disabled={busy || !gate.open || !wallet.wallet || !quote?.ok || !recipient.ok || amountWei === 0n}
                 onClick={() => void submit()}
               >
                 {sendLabel}

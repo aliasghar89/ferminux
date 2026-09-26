@@ -1,0 +1,40 @@
+{
+  "name": "Crown Chimp #68",
+  "description": "Crown Chimp: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #68 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/68.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=68",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Tangerine"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Headphones and aviators"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black tech jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Crown crest"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

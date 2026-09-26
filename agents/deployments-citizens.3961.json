@@ -1,0 +1,11 @@
+{
+  "chainId": 3961,
+  "citizens": "0x5672AF1a567a46BAaFeb66959b7A95666E7f4252",
+  "citizensDeployBlock": 404087,
+  "citizensCurator": "0xEa708C552f0D950CF5f423C6B20204F4940c2eD7",
+  "citizensOwner": "0x910BD467D8576277f8f96DF47428377FFD94fEfe",
+  "citizensOwnerAccepted": {
+    "multisigTxId": 16,
+    "tx": "0x51ddf818b28eae0ca6d87e051fcdfe3b6ae9836135a520357db95fe341342a7c"
+  }
+}

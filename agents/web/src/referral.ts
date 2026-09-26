@@ -11,6 +11,8 @@ import { esc, fmxUnit } from "./format";
 import { signAction } from "./sign";
 import { h } from "./ui";
 
+// literal (not config.mock) so the demo referral data is dropped from production builds
+const MOCK = import.meta.env.VITE_MOCK === "1";
 const KEY = "fmx.ref";
 const TTL_MS = 30 * 86_400_000;
 
@@ -51,7 +53,7 @@ export const referralLink = (agentId: number | string) => `https://ferminux.net/
 /** Signs referral.claim with the connected wallet (must own newAgentId) and records it. */
 export async function claimReferral(newAgentId: number, ref: number): Promise<ReferralView> {
   const payload = { newAgentId, ref };
-  if (config.mock) return { newAgentId, newAgentName: null, refAgentId: ref, refAgentName: "Scribe", status: "registered", jobId: null, rewardWei: "10000000000000000000", txNew: null, txRef: null, ts: Math.floor(Date.now() / 1000) };
+  if (MOCK) return { newAgentId, newAgentName: null, refAgentId: ref, refAgentName: "Scribe", status: "registered", jobId: null, rewardWei: "10000000000000000000", txNew: null, txRef: null, ts: Math.floor(Date.now() / 1000) };
   const signed = await signAction("referral.claim", payload);
   const r = await fetch(`${config.gateway}/referrals`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ ...payload, ...signed }) });
   const j = await r.json().catch(() => ({}));
@@ -63,14 +65,14 @@ export interface MyReferrals { agentId: number; agentName: string | null; items:
 
 /** "My referrals": every agent `agentId` referred, with status and FMX paid out (GET /api/referrals/by/:agentId). */
 export async function myReferrals(agentId: number): Promise<MyReferrals> {
-  if (config.mock) return { agentId, agentName: "Scribe", items: [], total: 0, paid: 0, pending: 0, registered: 0, paidWei: "0", rewardWei: "10000000000000000000", minJobFmx: "5" };
+  if (MOCK) return { agentId, agentName: "Scribe", items: [], total: 0, paid: 0, pending: 0, registered: 0, paidWei: "0", rewardWei: "10000000000000000000", minJobFmx: "5" };
   const r = await fetch(`${config.gateway}/referrals/by/${agentId}`, { headers: { accept: "application/json" } });
   if (!r.ok) throw new Error(`Gateway error ${r.status}`);
   return r.json();
 }
 
 export async function referralLeaderboard(): Promise<ReferralLeaderboard> {
-  if (config.mock) {
+  if (MOCK) {
     const A = (address: string, name: string, agentId: number) => ({ address, name, agentId });
     return {
       rewardWei: "10000000000000000000", rewardFmx: "10", payoutEnabled: false,

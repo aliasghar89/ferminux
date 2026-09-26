@@ -2,17 +2,19 @@ import { parseEther } from "ethers";
 import Fastify from "fastify";
 import { isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { randomUUID } from "node:crypto";
-import { Ferminux, JobStatusEnum } from "@ferminux/agent";
-import { loadState, saveState, type HandledState } from "./state.js";
+import { Ferminux } from "@ferminux/agent";
+import { loadState, type HandledState } from "./state.js";
+import { handleOneJob as handleJob, type JobClient } from "./jobs.js";
+import { agentSendQueue, sdkSettleClient, startSettleLoop, SETTLE_INTERVAL_MS, SETTLE_MIN_WITHDRAW_WEI, SETTLE_STREAM_MIN_WEI } from "./settle.js";
 import { echoHandler } from "./handlers/echo.js";
 import { llmHandler } from "./handlers/llm.js";
 import { toolsHandler } from "./handlers/tools.js";
 import { chainHandler } from "./handlers/chain.js";
 import type { Handler } from "./handlers/util.js";
 import { registerInbox } from "./inbox.js";
+import { registerDirectCallRoutes } from "./direct.js";
 import { startWatchers, registerWebhook, verifyWebhookSignature, acceptDelivery, secretEquals, WEBHOOK_RECONCILE_POLL_MS, AUTO_CLAIM_MAX_PER_DAY } from "./watch.js";
-import { autoClaimTick, httpWorkClient } from "./autoclaim.js";
+import { autoClaimTick, httpWorkClient, parseKinds } from "./autoclaim.js";
 import { startMemoryAnchor, ANCHOR_INTERVAL_MS } from "./anchor.js";
 
 export interface ServeOptions {
@@ -29,12 +31,20 @@ export interface ServeOptions {
   anchorMemory?: boolean;
   /** --anchor-every <minutes> / AGENT_ANCHOR_INTERVAL_MIN (default 60) */
   anchorIntervalMs?: number;
+  /** AGENT_AUTO_SETTLE (default on; =0 off) — claim escrow jobs past review, streams, subs; withdraw credits */
+  autoSettle?: boolean;
+  /** AGENT_SETTLE_INTERVAL_MIN (default 15) */
+  settleIntervalMs?: number;
 }
 
 /** A built-in handler name, or a path to a module exporting one (`./handler.js`). */
 export type HandlerName = "llm" | "echo" | "tools" | "chain" | (string & {});
 
 const POLL_MS = 5000;
+/** A Paused/Retired agent cannot be hired, so polling its (empty) job list every 5 s only burns gateway log
+ * space — nine paused runtimes were ~90 % of the gateway's request log. AGENT_PAUSED_POLL_MS overrides. */
+const PAUSED_POLL_MS = Number(process.env.AGENT_PAUSED_POLL_MS) > 0 ? Number(process.env.AGENT_PAUSED_POLL_MS) : 60_000;
+const AGENT_ACTIVE = 1;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -66,6 +76,8 @@ interface AgentCardCache {
   name: string;
   owner: string;
   pricePerJob: string;
+  /** registry status: 1 = Active, 2 = Paused, 3 = Retired */
+  status: number;
 }
 
 type Log = { info: (o: unknown, msg?: string) => void; error: (o: unknown, msg?: string) => void; warn: (o: unknown, msg?: string) => void };
@@ -92,6 +104,7 @@ export async function serve(opts: ServeOptions): Promise<void> {
       name: agent.name as string,
       owner: agent.owner as string,
       pricePerJob: (agent.pricePerJob as bigint).toString(),
+      status: Number(agent.status ?? AGENT_ACTIVE),
     };
     return cardAgent;
   };
@@ -140,6 +153,33 @@ export async function serve(opts: ServeOptions): Promise<void> {
     };
   });
 
+  // Addendum v3 — PRICE_PER_CALL puts POST /invoke AND POST /a2a behind x402 (direct pay-per-call, no escrow
+  // job): fmx.x402.requirePayment() checks the gateway facilitator (/api/x402/verify + /api/x402/settle)
+  // before the handler ever runs. /a2a used to run the handler with no check at all, so anyone calling
+  // <endpoint>/a2a on a priced agent got its service free.
+  const pricePerCall = process.env.PRICE_PER_CALL;
+  // When the gateway fronts us (nginx routes /a/<slug>/invoke to it) it charges the caller itself and forwards
+  // with a shared secret — don't charge twice. Without GATEWAY_INVOKE_SECRET every call must carry its own voucher.
+  const gwSecret = process.env.GATEWAY_INVOKE_SECRET;
+  const makeGate = (resource: string) => {
+    const requirePayment = fmx.x402.requirePayment(Number(pricePerCall), { resource, description: `${agentName()} — pay-per-call` });
+    const gate: typeof requirePayment.fastify = async (request, reply) => {
+      if (gwSecret && secretEquals(request.headers?.["x-ferminux-gateway-secret"], gwSecret)) return;
+      return requirePayment.fastify(request, reply);
+    };
+    return gate;
+  };
+  const notForSale = async () => {
+    const info = cardAgent ?? (await refreshAgent());
+    return {
+      ok: false,
+      error: "this agent does not sell direct calls — set PRICE_PER_CALL to price POST /invoke",
+      agentId: info.agentId,
+      pricePerJob: info.pricePerJob,
+      hire: "POST /api/jobs {agentId, input} on the gateway, or fmx.hire({agentId, input}) in the SDK",
+    };
+  };
+
   // Addendum v3 — A2A Agent Card (SPEC.md "## G.", "## S."). Mirrors the gateway's
   // per-agent proxy card at /a/<slug>/.well-known/agent.json, served directly here too.
   const publicUrl = (process.env.AGENT_PUBLIC_URL || `http://localhost:${opts.port}`).replace(/\/+$/, "");
@@ -148,37 +188,15 @@ export async function serve(opts: ServeOptions): Promise<void> {
     return {
       name: info.name,
       description: process.env.AGENT_DESCRIPTION || "",
-      url: publicUrl,
+      // the JSON-RPC endpoint itself, not the agent's base URL
+      url: `${publicUrl}/a2a`,
       version: "1.0.0",
       capabilities: { streaming: false, pushNotifications: true },
       skills: capabilities.map((c) => ({ id: c, name: c })),
-      authentication: { schemes: ["x402-ferminux"] },
+      // advertise x402 only when a call actually costs something; an unpriced agent sells through escrow only
+      authentication: { schemes: pricePerCall ? ["x402-ferminux"] : [] },
+      ...(info.status !== AGENT_ACTIVE ? { status: "paused" } : {}),
     };
-  });
-
-  // Addendum v3 — A2A JSON-RPC: POST /a2a {jsonrpc:"2.0", method:"tasks/send", params, id} -> handler.
-  app.post("/a2a", async (request, reply) => {
-    const body = (request.body ?? {}) as { jsonrpc?: string; id?: unknown; method?: string; params?: unknown };
-    if (body.jsonrpc !== "2.0" || body.method !== "tasks/send") {
-      reply.code(400);
-      return { jsonrpc: "2.0", id: body.id ?? null, error: { code: -32601, message: "expected JSON-RPC 2.0 method \"tasks/send\"" } };
-    }
-    try {
-      const input = extractA2AInput(body.params);
-      const result = await handler(input);
-      const outputText = typeof result.output === "string" ? result.output : JSON.stringify(result);
-      return {
-        jsonrpc: "2.0",
-        id: body.id ?? null,
-        result: {
-          id: (body.params as { id?: string } | undefined)?.id ?? randomUUID(),
-          status: { state: "completed" },
-          artifacts: [{ parts: [{ type: "text", text: outputText }] }],
-        },
-      };
-    } catch (err) {
-      return { jsonrpc: "2.0", id: body.id ?? null, error: { code: -32000, message: (err as Error).message } };
-    }
   });
 
   app.get("/health", async () => ({ ok: true, agentId: opts.id, handler: opts.handlerName }));
@@ -193,51 +211,16 @@ export async function serve(opts: ServeOptions): Promise<void> {
     handlerName: opts.handlerName,
     handler,
     autoreply,
+    // a Paused agent never auto-replies (otherwise topping up a shared LLM key silently switches it back on)
+    isActive: () => (cardAgent?.status ?? AGENT_ACTIVE) === AGENT_ACTIVE,
   });
   if (autoreply && opts.handlerName !== "llm") {
     app.log.warn("AGENT_AUTOREPLY=1 ignored: auto-reply only works with --handler llm");
   }
 
-  // Addendum v3 — PRICE_PER_CALL puts POST /invoke behind x402 (direct pay-per-call,
-  // no escrow job): fmx.x402.requirePayment() checks the gateway facilitator
-  // (/api/x402/verify + /api/x402/settle) before the handler ever runs.
-  const pricePerCall = process.env.PRICE_PER_CALL;
-  if (pricePerCall) {
-    const requirePayment = fmx.x402.requirePayment(Number(pricePerCall), {
-      resource: "/invoke",
-      description: `${agentName()} — pay-per-call`,
-    });
-    // When the gateway fronts us (nginx routes /a/<slug>/invoke to it) it charges the caller itself and forwards
-    // with a shared secret — don't charge twice. Without GATEWAY_INVOKE_SECRET every call must carry its own voucher.
-    const gwSecret = process.env.GATEWAY_INVOKE_SECRET;
-    const gate: typeof requirePayment.fastify = async (request, reply) => {
-      if (gwSecret && secretEquals(request.headers?.["x-ferminux-gateway-secret"], gwSecret)) return;
-      return requirePayment.fastify(request, reply);
-    };
-    app.post("/invoke", { preHandler: gate }, async (request) => {
-      return handler(request.body);
-    });
-    app.log.info(`PRICE_PER_CALL=${pricePerCall} — POST /invoke is x402-priced`);
-  } else {
-    // The route always exists (a deployed agent endpoint is expected to answer
-    // POST /invoke), but an agent that has not priced direct calls sells only
-    // through the escrow — say so instead of running the handler for free.
-    // Deliberately NOT 402: a 402 without a PAYMENT-REQUIRED challenge sends
-    // every x402 client (fmx.fetch included) down the voucher path for a price
-    // that does not exist. 404 is what an unpriced agent answered before this
-    // route existed, so nothing that already calls us changes behaviour.
-    app.post("/invoke", async (request, reply) => {
-      const info = cardAgent ?? (await refreshAgent());
-      reply.code(404);
-      return {
-        ok: false,
-        error: "this agent does not sell direct calls — set PRICE_PER_CALL to price POST /invoke",
-        agentId: info.agentId,
-        pricePerJob: info.pricePerJob,
-        hire: "POST /api/jobs {agentId, input} on the gateway, or fmx.hire({agentId, input}) in the SDK",
-      };
-    });
-  }
+  // POST /invoke and POST /a2a: both behind the same x402 gate when priced, both 404 when not (direct.ts)
+  registerDirectCallRoutes(app, { handler, gate: pricePerCall ? makeGate : null, notForSale });
+  if (pricePerCall) app.log.info(`PRICE_PER_CALL=${pricePerCall} — POST /invoke and POST /a2a are x402-priced`);
 
   // Addendum v3 — webhook receiver (see registerWebhook() below): the gateway
   // POSTs matching events here instead of this agent polling for them.
@@ -317,6 +300,8 @@ export async function serve(opts: ServeOptions): Promise<void> {
     log: app.log,
     maxPerDay: opts.autoClaimMaxPerDay ?? AUTO_CLAIM_MAX_PER_DAY,
     dryRun,
+    kinds: parseKinds(process.env.AGENT_AUTO_CLAIM_KINDS),
+    skipPosters: (process.env.AGENT_AUTO_CLAIM_SKIP_POSTERS ?? "").split(",").map((a) => a.trim()).filter(Boolean),
   };
   const stopWatchers = startWatchers({
     fmx,
@@ -341,8 +326,26 @@ export async function serve(opts: ServeOptions): Promise<void> {
   // dropped — a gap in the sequence is visible to anyone. It does not prove the
   // log is complete; see anchor.ts.
   const stopAnchor = opts.anchorMemory
-    ? startMemoryAnchor({ fmx, agentId: opts.id, log: app.log, intervalMs: opts.anchorIntervalMs ?? ANCHOR_INTERVAL_MS, dryRun })
+    ? startMemoryAnchor({ fmx, agentId: opts.id, log: app.log, intervalMs: opts.anchorIntervalMs ?? ANCHOR_INTERVAL_MS, dryRun, queue: agentSendQueue })
     : null;
+
+  // Collect what the agent earned (settle.ts): escrow claims after the review window, stream and
+  // subscription claims, then withdraw the credits — from this same key, on a cadence. On unless
+  // AGENT_AUTO_SETTLE=0; --dry-run makes it log instead of send.
+  const fmxAmount = (v: string | undefined, def: bigint) => { try { return v ? parseEther(v) : def; } catch { return def; } };
+  const stopSettle = opts.autoSettle !== false
+    ? startSettleLoop({
+        client: sdkSettleClient(fmx, agentSendQueue),
+        agentId: opts.id,
+        statePath: join(dataDir, `agent-${opts.id}-settle.json`),
+        log: app.log,
+        dryRun,
+        intervalMs: opts.settleIntervalMs ?? SETTLE_INTERVAL_MS,
+        minWithdrawWei: fmxAmount(process.env.AGENT_SETTLE_MIN_WITHDRAW_FMX, SETTLE_MIN_WITHDRAW_WEI),
+        streamMinWei: fmxAmount(process.env.AGENT_SETTLE_STREAM_MIN_FMX, SETTLE_STREAM_MIN_WEI),
+      })
+    : null;
+  app.log.info({ autoSettle: opts.autoSettle !== false, dryRun }, opts.autoSettle !== false ? "auto-settle on: claims escrow/stream/sub pay and withdraws credits" : "auto-settle off (AGENT_AUTO_SETTLE=0)");
 
   let stopped = false;
   process.on("SIGINT", () => (stopped = true));
@@ -353,33 +356,32 @@ export async function serve(opts: ServeOptions): Promise<void> {
   const pollMs = usingWebhooks ? WEBHOOK_RECONCILE_POLL_MS : POLL_MS;
 
   while (!stopped) {
+    let active = true;
     try {
-      await refreshAgent();
+      const info = await refreshAgent();
+      active = info.status === AGENT_ACTIVE;
       await pollOnce(fmx, opts.id, statePath, handler, app.log);
     } catch (err) {
       app.log.error({ err }, "poll tick failed");
     }
-    await sleep(pollMs);
+    await sleep(active ? pollMs : Math.max(pollMs, PAUSED_POLL_MS));
   }
 
   stopWatchers();
+  if (stopSettle) stopSettle();
   if (stopAnchor) await stopAnchor();
   await app.close();
 }
 
-/** Best-effort extraction of a Google A2A `message`/`params` shape into the runtime handler's `unknown` input. */
-function extractA2AInput(params: unknown): unknown {
-  if (params == null) return "";
-  const p = params as { message?: { parts?: Array<{ type?: string; text?: string; data?: unknown }> }; input?: unknown };
-  const message = p.message;
-  if (message?.parts?.length) {
-    const textParts = message.parts.filter((part) => part.type !== "data" && typeof part.text === "string").map((part) => part.text as string);
-    if (textParts.length) return textParts.join("\n");
-    const dataPart = message.parts.find((part) => part.type === "data");
-    if (dataPart) return dataPart.data;
-  }
-  if (p.input !== undefined) return p.input;
-  return params;
+/** The escrow calls handleOneJob needs, bound to this agent's SDK client (and so its signer). */
+function jobClient(fmx: Ferminux): JobClient {
+  return {
+    status: async (jobId) => Number((await fmx.escrow.getJob(jobId)).status),
+    input: (jobId) => fmx.jobs.input(jobId),
+    // one key, one queue (settle.ts agentSendQueue): never in parallel with a settle, anchor or validation send
+    deliver: (jobId, output) => agentSendQueue(() => fmx.jobs.deliver({ jobId, output })),
+    cancel: (jobId) => agentSendQueue(() => fmx.jobs.cancel(jobId)),
+  };
 }
 
 async function pollOnce(
@@ -410,43 +412,10 @@ async function pollOnce(
 }
 
 /**
- * Handles a single job end to end (re-checks on-chain status, fetches input,
- * runs the handler, delivers, persists outcome). Shared by the poll loop and
- * the webhook receiver (`POST /webhooks/ferminux`, job.requested events).
+ * Handles a single job end to end (jobs.ts: re-checks on-chain status, fetches input, runs the handler,
+ * delivers — or declines on chain when the agent cannot serve it — and persists the outcome). Shared by the
+ * poll loop and the webhook receiver (`POST /webhooks/ferminux`, job.requested events).
  */
 async function handleOneJob(fmx: Ferminux, jobId: number, statePath: string, handler: Handler, log: Log): Promise<void> {
-  const state: HandledState = loadState(statePath);
-  const key = String(jobId);
-  if (state[key]) return; // already delivered or permanently abandoned (poll + webhook can race harmlessly)
-
-  let outcome: "delivered" | "abandoned" | "skipped" = "abandoned";
-  let lastErr: unknown;
-
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      // Always re-check on-chain status right before doing (more) work or delivering.
-      const onchain = await fmx.escrow.getJob(jobId);
-      if (Number(onchain.status) !== JobStatusEnum.Open) {
-        outcome = "skipped"; // no longer open (delivered/refunded/cancelled elsewhere) — stop tracking it
-        break;
-      }
-      const input = await fmx.jobs.input(jobId);
-      const result = await handler(input);
-      await fmx.jobs.deliver({ jobId, output: result });
-      outcome = "delivered";
-      break;
-    } catch (err) {
-      lastErr = err;
-      log.error({ err, jobId, attempt }, "job attempt failed");
-      if (attempt < 3) await sleep(2000);
-    }
-  }
-
-  state[key] = { status: outcome, attempts: 3, updatedAt: Date.now() };
-  saveState(statePath, state);
-  if (outcome === "abandoned") {
-    log.error({ jobId, err: lastErr }, "job abandoned after 3 attempts");
-  } else {
-    log.info({ jobId, outcome }, "job handled");
-  }
+  await handleJob(jobClient(fmx), jobId, statePath, handler, log);
 }

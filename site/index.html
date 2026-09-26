@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ferminux Network — the settlement and record layer for autonomous AI agents</title>
-<meta name="description" content="Ferminux is the settlement and record layer for autonomous AI agents: chain 3961, five bonded signers confirming a block every 7 seconds, EIP-1559 fees, and a live on-chain DEX trading FMX/AZNT.">
+<meta name="description" content="Ferminux is the settlement and record layer for autonomous AI agents: chain 3961, a set of authorised signers confirming a block every 7 seconds, EIP-1559 fees, and a live on-chain DEX trading FMX/AZNT.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23a8761c'/%3E%3Cpath d='M10 24V8h13v3.4h-9v3.4h7.6v3.4H14V24h-4z' fill='%23ffffff'/%3E%3C/svg%3E">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#ffffff">
@@ -34,9 +34,9 @@
   <!-- ============ Hero ============ -->
   <section class="hero">
     <div class="container">
-      <p class="kicker">Chain 3961 · five bonded signers · 7-second blocks</p>
+      <p class="kicker">Chain 3961 · authorised signer set · 7-second blocks</p>
       <h1>The settlement and record layer<br class="h1-br"> for autonomous AI agents.</h1>
-      <p class="hero-sub">Seven-second blocks, fees under a cent — your existing compilers, wallets and libraries work unchanged.</p>
+      <p class="hero-sub">Seven-second blocks, fees under a cent — your existing compilers, wallets and libraries work here with a Paris target.</p>
       <div class="hero-actions">
         <button id="add-network" class="btn btn-primary" type="button">Add to MetaMask</button>
         <a class="btn btn-secondary" href="#node">Run a node</a>
@@ -77,8 +77,8 @@
           </div>
           <div class="lb-stat">
             <span class="lb-label">Signers</span>
-            <span class="lb-value num">5</span>
-            <span class="lb-unit">confirming in rotation</span>
+            <span class="lb-value num" id="stat-signers">—</span>
+            <span class="lb-unit">authorised · confirming in rotation</span>
           </div>
           <div class="lb-stat">
             <span class="lb-label">Avg block time</span>
@@ -130,7 +130,7 @@
           </article>
           <article class="card card-aznt">
             <h3>AZNT</h3>
-            <p class="card-sub">Bank-backed stablecoin — the quote side of the FMX market.</p>
+            <p class="card-sub">Ferminux Manat — the quote side of the FMX market.</p>
             <dl class="kv">
               <div class="kv-row">
                 <dt>Supply</dt>
@@ -207,13 +207,8 @@ ferminux --http --http.api eth,net,web3</code></pre>
             <span class="dl-file">ferminux-geth-macos-arm64.tar.gz</span>
             <span class="dl-get" aria-hidden="true">↓</span>
           </a>
-          <a class="dl-row" href="/downloads/ferminux-geth-windows-amd64.zip">
-            <span class="dl-os">Windows <span class="dl-arch">amd64</span></span>
-            <span class="dl-file">ferminux-geth-windows-amd64.zip</span>
-            <span class="dl-get" aria-hidden="true">↓</span>
-          </a>
         </div>
-        <p class="fine">The Windows ZIP adds a double-click <code>START-NODE.bat</code> wrapper plus a plain-English README — extract it before running anything. The binary is unsigned, so SmartScreen shows a “Windows protected your PC” warning: More info → Run anyway.</p>
+        <p class="fine">Windows: coming soon, a tested Windows build. The earlier Windows ZIP was the pre-fork package, which stops following the chain at block 159,999, and it has been withdrawn. Until the tested build ships, run the Linux build under WSL2 or in Docker.</p>
       </div>
     </div>
   </section>
@@ -237,7 +232,7 @@ ferminux --http --http.api eth,net,web3</code></pre>
           <p class="wallet-status" role="status" aria-live="polite"></p>
           <table class="params-table">
             <tbody>
-              <tr><th scope="row">Network name</th><td>Ferminux Network</td></tr>
+              <tr><th scope="row">Network name</th><td>Ferminux</td></tr>
               <tr><th scope="row">RPC URL</th><td><code>https://rpc.ferminux.net</code></td></tr>
               <tr><th scope="row">Chain ID</th><td class="num">3961 <span class="dim">(0xF79)</span></td></tr>
               <tr><th scope="row">Currency</th><td>FMX <span class="dim">(18 decimals)</span></td></tr>
@@ -260,12 +255,12 @@ ferminux --http --http.api eth,net,web3</code></pre>
         <dl class="pgrid">
           <div class="pcell"><dt>ChainID / NetworkID</dt><dd class="num">3961 <span class="dim">(0xF79)</span></dd></div>
           <div class="pcell"><dt>Native coin</dt><dd>FMX · 18 decimals</dd></div>
-          <div class="pcell"><dt>Consensus</dt><dd>Clique proof-of-authority — five bonded signers confirm blocks in rotation since block 160,000 (proof-of-work before it)</dd></div>
+          <div class="pcell"><dt>Consensus</dt><dd>Clique proof-of-authority since block 160,000: a set of authorised signers confirms blocks in rotation (live list: <code>clique_getSigners</code>); the foundation operates the set today</dd></div>
           <div class="pcell"><dt>Block target</dt><dd class="num">~7 s</dd></div>
           <div class="pcell"><dt>Block reward</dt><dd class="num">6 FMX to block 20,000 → 1 FMX at the emission fork, halving every 4,500,000 blocks; from block 160,000 a quarter of that, split 40% signer · 50% reward sink · 10% treasury</dd></div>
-          <div class="pcell"><dt>Fees</dt><dd>EIP-1559 from genesis · 1 gwei initial base fee</dd></div>
+          <div class="pcell"><dt>Fees</dt><dd>EIP-1559 from genesis · 1 gwei minimum priority tip</dd></div>
           <div class="pcell"><dt>Gas limit</dt><dd class="num">100,000,000 <span class="dim">(~4,760 transfers per block)</span></dd></div>
-          <div class="pcell"><dt>Supply</dt><dd class="num">30M premine + block-reward emission · 100M hard cap</dd></div>
+          <div class="pcell"><dt>Supply</dt><dd class="num">30M at genesis; block rewards converge a little under 32.5M · 100M ceiling</dd></div>
           <div class="pcell"><dt>Public RPC</dt><dd><code>https://rpc.ferminux.net</code></dd></div>
           <div class="pcell"><dt>Bootnodes</dt><dd><code>boot1</code> / <code>boot2</code> / <code>boot3</code>.ferminux.net</dd></div>
           <div class="pcell pcell-wide"><dt>Genesis hash</dt><dd><code class="hash">0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</code></dd></div>
@@ -300,13 +295,13 @@ ferminux --http --http.api eth,net,web3</code></pre>
         </a>
         <a class="dir-row" href="https://launchpad.ferminux.net" rel="noopener">
           <span class="dir-name">Launchpad</span>
-          <span class="dir-desc">Launch a token for 10 FMX via TokenFactory</span>
+          <span class="dir-desc">Launch an FRC-20 through the TokenFactory · 10,000 FMX fee, burned</span>
           <span class="dir-domain">launchpad.ferminux.net</span>
           <span class="dir-arrow" aria-hidden="true">→</span>
         </a>
         <a class="dir-row" href="https://docs.ferminux.net" rel="noopener">
           <span class="dir-name">Docs</span>
-          <span class="dir-desc">Node, JSON-RPC, contracts</span>
+          <span class="dir-desc">Run a node, add the network, deploy a contract</span>
           <span class="dir-domain">docs.ferminux.net</span>
           <span class="dir-arrow" aria-hidden="true">→</span>
         </a>

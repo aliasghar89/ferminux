@@ -5,6 +5,7 @@ import { balanceOf, isTotalComplete, totalBalance } from '../lib/balances.ts';
 import { formatAmount, formatAmountExact, shortAddress } from '../lib/validate.ts';
 import { NATIVE_SYMBOL } from '../config.ts';
 import { Identicon } from '../components/Identicon.tsx';
+import { IconCheck, IconChevronDown } from '../components/icons.tsx';
 
 /**
  * Header account switcher. Shows which account is active at all times, and
@@ -53,7 +54,7 @@ export function AccountSwitcher({
         onClick={() => setOpen((o) => !o)}
         title={`${api.active.label} — ${api.active.address}`}
       >
-        <Identicon address={api.active.address} size={22} />
+        <Identicon address={api.active.address} size={30} />
         <span className="acct-trigger-text">
           <span className="acct-trigger-label">{api.active.label}</span>
           <span className="acct-trigger-addr mono">{shortAddress(api.active.address)}</span>
@@ -61,7 +62,7 @@ export function AccountSwitcher({
         <span className="acct-trigger-bal num">
           {activeBalance === null ? '—' : formatAmount(activeBalance, 18, 4)}
         </span>
-        <Chevron open={open} />
+        <IconChevronDown />
       </button>
 
       {open && (
@@ -89,7 +90,7 @@ export function AccountSwitcher({
                       setOpen(false);
                     }}
                   >
-                    <Identicon address={account.address} size={26} />
+                    <Identicon address={account.address} size={32} />
                     <span className="acct-row-main">
                       <span className="acct-row-label">
                         {account.label}
@@ -111,7 +112,7 @@ export function AccountSwitcher({
                       )}
                     </span>
                     <span className="acct-check" aria-hidden="true">
-                      {isActive ? '✓' : ''}
+                      {isActive ? <IconCheck /> : null}
                     </span>
                   </button>
                 </li>
@@ -136,20 +137,5 @@ export function AccountSwitcher({
         </div>
       )}
     </div>
-  );
-}
-
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 12 12"
-      fill="none"
-      aria-hidden="true"
-      style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 120ms ease-out', flex: 'none' }}
-    >
-      <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
   );
 }

@@ -148,6 +148,27 @@ export async function encryptSeedKeystore(
   );
 }
 
+/** What this wallet itself writes: the ethers default scrypt cost. */
+export const SCRYPT_N = 1 << 17;
+
+/**
+ * True when the keystore's KDF is scrypt at least as costly as N=`minN`, r=8,
+ * p=1 — what the wallet writes. Readable without the password. A keystore
+ * file brought in from elsewhere can carry any KDF (pbkdf2, a tiny N); only
+ * one that passes is kept verbatim as the device vault.
+ */
+export function keystoreKdfIsStrong(json: string, minN = SCRYPT_N): boolean {
+  try {
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const c = (parsed.crypto ?? parsed.Crypto) as { kdf?: unknown; kdfparams?: Record<string, unknown> } | undefined;
+    if (String(c?.kdf ?? '').toLowerCase() !== 'scrypt') return false;
+    const p = c?.kdfparams ?? {};
+    return Number(p.n) >= minN && Number(p.r) >= 8 && Number(p.p) >= 1;
+  } catch {
+    return false;
+  }
+}
+
 /** Encrypt a bare private key (no mnemonic) to a standard V3 keystore. */
 export async function encryptKeyKeystore(
   address: string,

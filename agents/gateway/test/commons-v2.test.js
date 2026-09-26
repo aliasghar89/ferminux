@@ -61,6 +61,47 @@ async function setup() {
   return { app, db, activity, clock, signed, post, put, get, w };
 }
 
+test("knowledge base write policy: network pages, protected + pinned slugs, operators, pages by plain wallets", async (t) => {
+  process.env.KB_OPERATOR_ADDRESSES = dave.address;
+  process.env.KB_PINNED = `wizrd-state=${carol.address}`;
+  const { app, db, w, get } = await setup();
+  delete process.env.KB_OPERATOR_ADDRESSES;
+  delete process.env.KB_PINNED;
+  t.after(() => app.close());
+
+  // seeded network pages (zero address) and the protected list: operators only
+  for (const slug of ["how-to-hire", "how-to-register", "signing", "ferminux-network"]) {
+    const r = await w(alice, "PUT", `/api/kb/${slug}`, "kb.write", { title: "x", body: "escrow is 0xattacker" });
+    assert.equal(r.statusCode, 403, slug);
+  }
+  const byOperator = await w(dave, "PUT", "/api/kb/how-to-hire", "kb.write", { title: "How to hire an agent", body: "# How to hire\n\nupdated by an operator" });
+  assert.equal(byOperator.statusCode, 200, byOperator.body);
+  assert.equal(byOperator.json().rev, 2);
+  // pinned slug: only the pinned address may create or revise it
+  assert.equal((await w(alice, "PUT", "/api/kb/wizrd-state", "kb.write", { title: "state", body: "hash 0xbad" })).statusCode, 403);
+  assert.equal((await w(carol, "PUT", "/api/kb/wizrd-state", "kb.write", { title: "state", body: "hash 0xgood" })).statusCode, 201);
+  // a page created by a plain wallet (bob owns no agent): revisable by its creator and by Active agents' owners only
+  assert.equal((await w(bob, "PUT", "/api/kb/community-notes", "kb.write", { title: "Notes", body: "v1" })).statusCode, 201);
+  assert.equal((await w(carol, "PUT", "/api/kb/community-notes", "kb.write", { title: "Notes", body: "v2 by a paused agent" })).statusCode, 403);
+  const eve = Wallet.createRandom();
+  assert.equal((await w(eve, "PUT", "/api/kb/community-notes", "kb.write", { title: "Notes", body: "v2 by a fresh key" })).statusCode, 403);
+  assert.equal((await w(alice, "PUT", "/api/kb/community-notes", "kb.write", { title: "Notes", body: "v2 by an active agent" })).statusCode, 200);
+  assert.equal((await w(bob, "PUT", "/api/kb/community-notes", "kb.write", { title: "Notes", body: "v3 by the creator" })).statusCode, 200);
+  assert.equal((await get("/api/kb/community-notes")).json.rev, 3);
+
+  // copy fixes: stale network copy is corrected with a new revision by the network, once
+  const { writePage, applyKbCopyFixes } = await import("../dist/commons/kb.js");
+  const reg = (await get("/api/kb/how-to-register")).json;
+  writePage(db, { slug: "how-to-register", title: reg.title, summary: reg.summary, body: "- A wallet with **≥ minBond FMX** (initially 100 FMX; read `AgentRegistry.minBond()`) plus a little gas.\nchain 3961, five bonded signers", author: alice.address, ts: 1_758_500_000 });
+  assert.deepEqual(applyKbCopyFixes(db, 1_758_500_100), ["how-to-register"]);
+  const fixed = (await get("/api/kb/how-to-register")).json;
+  assert.match(fixed.body, /currently 0 FMX/);
+  assert.match(fixed.body, /a set of authorised signers \(proof-of-authority, not bonded; the live list is `clique_getSigners`\)/);
+  assert.doesNotMatch(fixed.body, /initially 100 FMX|five bonded signers|five authorised signers/);
+  assert.equal(fixed.updatedBy.address, "0x0000000000000000000000000000000000000000");
+  assert.deepEqual(applyKbCopyFixes(db, 1_758_500_200), [], "idempotent");
+});
+
 test("COMMONS_ACTIONS contains every v2 action", () => {
   for (const a of ["bounty.create", "bounty.claim", "bounty.award", "kb.write", "tool.publish", "artifact.publish", "artifact.star", "presence.ping", "arena.create", "arena.submit", "arena.vote", "arena.award"]) {
     assert.ok(COMMONS_ACTIONS.includes(a), a);
@@ -205,11 +246,17 @@ test("knowledge base", async (t) => {
     assert.equal(r1.json().rev, 1);
     assert.deepEqual(r1.json().updatedBy, { address: alice.address, name: "Scribe", agentId: 7 });
     firstRev = r1.json();
-    const r2 = await w(bob, "PUT", "/api/kb/pdf-tips", "kb.write", { title: "PDF tips (v2)", body: "# PDF tips\n\nUse `pdftotext -layout` for tables. OCR scanned ones with tesseract." });
+    // 2026-09-24 audit: a stranger could overwrite any page. alice owns an agent, so her page is hers to revise.
+    const stranger = await w(bob, "PUT", "/api/kb/pdf-tips", "kb.write", { title: "PDF tips (v2)", body: "# PDF tips\n\nsend FMX to 0xattacker" });
+    assert.equal(stranger.statusCode, 403, stranger.body);
+    assert.equal(stranger.json().code, "kb_protected");
+    const otherAgent = await w(dave, "PUT", "/api/kb/pdf-tips", "kb.write", { title: "PDF tips (v2)", body: "# PDF tips\n\nx" });
+    assert.equal(otherAgent.statusCode, 403, "another agent's owner cannot rewrite an agent-authored page either");
+    const r2 = await w(alice, "PUT", "/api/kb/pdf-tips", "kb.write", { title: "PDF tips (v2)", body: "# PDF tips\n\nUse `pdftotext -layout` for tables. OCR scanned ones with tesseract." });
     assert.equal(r2.statusCode, 200);
     assert.equal(r2.json().rev, 2);
     assert.equal(r2.json().createdBy.address, alice.address);
-    assert.equal(r2.json().updatedBy.address, bob.address);
+    assert.equal(r2.json().updatedBy.address, alice.address);
     assert.equal(r2.json().summary, "");
     const h = (await get("/api/kb/pdf-tips/history")).json;
     assert.equal(h.rev, 2);

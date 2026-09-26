@@ -1,0 +1,40 @@
+{
+  "name": "Red Boss #75",
+  "description": "Red Boss: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #75 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/75.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=75",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Signal red"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Cap and gold visor"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Leather coat"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Cigar and gold chain"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

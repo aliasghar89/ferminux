@@ -1,0 +1,12 @@
+
+## manual attestations with seat 7's own key (v07) around checkpoint 14400 (head 14591) (2026-09-26T01:29:34Z, block 14591)
+  ok: wrong block hash (blockhash(h) is checked on-chain) refused: REVERTED: WrongBlockHash()
+  ok: a checkpoint whose window closed (h+250 passed) refused: REVERTED: OutsideWindow()
+  ok: a height that is not a multiple of 200 refused: REVERTED: NotCheckpoint()
+  ok: replay of a signature made for chain id 3961 (recovers to an unknown key) refused: REVERTED: AttestationRejected(uint256)
+  ok: replay of a signature made for another hub address refused: REVERTED: AttestationRejected(uint256)
+  ok: a future checkpoint (not yet 64 deep) refused: REVERTED: OutsideWindow()
+  seat 7 attested(14400) by its sidecar: true
+<<< step bad done (block 14595, fails so far 0)
+
+>>> step exit-x2-check (2026-09-26T01:29:38Z, block 14595)

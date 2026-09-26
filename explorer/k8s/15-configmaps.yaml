@@ -33,6 +33,10 @@ data:
   API_V2_ENABLED: "true"
   NETWORK_PATH: "/"
   EIP_1559_ELASTICITY_MULTIPLIER: "2"
+  # network totals recounted every 5 min (defaults 2 h / 30 min / 1 h; costs: envs/backend.env)
+  CACHE_TXS_COUNT_PERIOD: "5m"
+  CACHE_ADDRESS_COUNT_PERIOD: "5m"
+  CACHE_TRANSACTIONS_24H_STATS_PERIOD: "5m"
   # --- self-hosted: no external integrations ---
   DISABLE_EXCHANGE_RATES: "true"
   MICROSERVICE_SC_VERIFIER_ENABLED: "false"

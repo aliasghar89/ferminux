@@ -13,9 +13,54 @@ Three tabs:
 
 | Tab | What it does |
 |---|---|
-| **Swap** | Token in / token out with a live quote from `FerminuxRouter.getAmountsOut`, price impact as a percentage, slippage and deadline settings, minimum-received, the route for multi-hop, and an approve-then-swap flow with allowance checks |
+| **Swap** | Token in / token out with a live quote from `FerminuxRouter.getAmountsOut`, price impact as a percentage, slippage and deadline settings, minimum-received, the route for multi-hop, and an approve-then-swap flow with allowance checks; below it, **FMX markets** |
 | **Liquidity** | Add at the pool's ratio (or set the opening price as the first depositor), your positions with pooled amounts and share of pool, and remove with a percentage slider |
-| **Pools** | Every pair in the factory with reserves and price, and — read from `LiquidityLocker` — a **LOCKED** badge saying how much of the LP supply is time-locked and until when |
+| **Pools** | **FMX markets**, then every pair in the factory with reserves and price, and — read from `LiquidityLocker` — a **LOCKED** badge saying how much of the LP supply is time-locked and until when |
+
+**FMX markets** lists FMX against each first-party token (AZNT, USDF): the
+pool's price, reserves, last trade and a Swap link where a pool exists, and
+**no pool yet** where it does not, so a missing market is visible rather than
+absent. WFMX has its own line: it is FMX at 1:1, not a market.
+
+**Deep links** open a tab with a pair selected, with the parameter names every
+V2-style front end uses:
+
+```
+https://dex.ferminux.net/?inputCurrency=0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178&outputCurrency=FMX
+https://dex.ferminux.net/?outputCurrency=FMX          # FMX's counterpart in, FMX out
+https://dex.ferminux.net/?tab=pools
+```
+
+A value is an address or a symbol (`FMX`/`native`, `WFMX`, or a first-party
+symbol). A link can only select a token the app already lists and never
+imports one; a symbol only ever selects a first-party token, so a copied name
+cannot land a buyer on an impostor. ferminux.net and ferminux.com link "Swap on
+Ferminux DEX" this way.
+
+## Why FMX trades here first, and PancakeSwap second
+
+FMX is the native coin of chain 3961, and this DEX runs on chain 3961. A swap
+here settles native FMX into the buyer's own address in one 7-second block,
+with no bridge and no wrapped IOU in between, against a pool whose LP is locked
+in `LiquidityLocker` until 2027-08-20 (lock #0: all of the WFMX/AZNT LP but
+the 1,000-wei minimum). It has been live since 2026-08-20.
+
+PancakeSwap only ever traded **wFMX**, the bridge's IOU on BNB Chain. It was
+used because that is where buyers already hold BNB and USDT, and because the
+first public market was planned there. It is thinner (about $100 of depth
+against about $53,000 here on 2026-09-26), and while the bridge validators are
+not signing, wFMX cannot become native FMX at all. So every Ferminux surface
+now quotes this DEX as FMX's market, and mentions PancakeSwap only as "also
+traded on BNB Chain", with the bridge's live state. The one thing the BNB
+Chain pool still does that this DEX cannot is get FMX a price on public
+trackers: DexScreener and CoinGecko read BNB Chain pools, and neither reads
+chain 3961 (see `infra/listings/README.md`).
+
+What this DEX still lacks is a **USD pool and an on-ramp to it**. Its only
+pool is WFMX/AZNT (AZNT = 1 AZN), all 500,000 USDF sit in the treasury, and
+nobody outside the project holds AZNT or USDF. So a buyer arriving with USDC,
+USDT or BNB cannot trade here directly yet: the pay-in at ferminux.net/buy-fmx
+is the way in until a WFMX/USDF pool is seeded and USDF can be bought.
 
 The LOCKED badge is the point of the Pools tab. It is how a buyer checks that
 the liquidity behind a token cannot be pulled.
@@ -27,7 +72,7 @@ dex/ui/
 ├── index.html
 ├── vite.config.ts            base './', dev/preview on port 8602
 ├── src/
-│   ├── config.ts             addresses (SHIP EMPTY), chain id, RPC, explorer, thresholds
+│   ├── config.ts             chain-3961 addresses, chain id, RPC, explorer, thresholds
 │   ├── App.tsx               shell: header, tabs, RPC/wallet status, footer
 │   ├── styles.css            institutional dark: one accent, 6px radius, tabular numerals
 │   ├── lib/                  the data layer — NO browser globals except wallet.ts
@@ -40,13 +85,15 @@ dex/ui/
 │   │   ├── swap.ts           quoting through the router + execution
 │   │   ├── liquidity.ts      add / remove / create-pair + positions
 │   │   ├── locker.ts         LiquidityLocker reads — the LOCKED badge
+│   │   ├── deeplink.ts       ?inputCurrency=…&outputCurrency=…&tab=… → the pair to select
 │   │   ├── tokens.ts         the token model + ERC-20 reads/approvals
 │   │   ├── rpc.ts            ordered RPC fallback with a health probe
-│   │   └── wallet.ts         injected EIP-1193 wallet (the ONLY browser-only module)
+│   │   ├── connector.ts      the wallet choice: Ferminux Wallet, injected, WalletConnect
+│   │   └── wallet.ts         EIP-1193 wallet helpers (browser-only, with connector.ts)
 │   ├── state/                React hooks over the data layer
-│   ├── views/                SwapPanel, AddLiquidity, PositionsPanel, PoolsPanel, TokenSelect, TradeSettings
+│   ├── views/                SwapPanel, FmxMarkets, AddLiquidity, PositionsPanel, PoolsPanel, TokenSelect, TradeSettings
 │   └── components/ui.tsx     Modal, Notice, StatRow, TxStatus, links
-├── tests/                    32 unit tests (node:test, no chain)
+├── tests/                    75 unit tests (node:test, no chain)
 └── scripts/
     ├── check-dist.mjs        build guard: no unexpected external URL in dist/
     ├── e2e.mjs               real-chain data-layer test on anvil :8602
@@ -60,11 +107,12 @@ touches only `window.ethereum`.
 
 ## Configure
 
-`src/config.ts` ships with the four DEX addresses **empty and clearly marked**,
-because the Ferminux AMM has not been deployed to chain 3961 — `dex/contracts`
-has only ever been deployed to a local devnet. With them empty the app renders a
-plain "Not configured" screen listing exactly what is missing rather than
-pointing users at a guessed address.
+`src/config.ts` defaults to the Ferminux AMM on chain 3961 (deployed
+2026-08-20: factory `0x2034…7040`, router `0x018C…A9f`, WFMX `0x8a9A…77Ae`,
+locker `0xe588…3951`). A devnet build overrides all four; an override set to an
+empty string blanks that address, and the app then renders a plain "Not
+configured" screen listing exactly what is missing rather than pointing users
+at a guessed address.
 
 | Variable | Meaning |
 |---|---|
@@ -75,6 +123,7 @@ pointing users at a guessed address.
 | `VITE_RPC_URLS` | comma-separated fallback list (default `https://rpc.ferminux.net,https://ferminux.net/rpc`) |
 | `VITE_CHAIN_ID` | default `3961` |
 | `VITE_EXPLORER_URL` | default `https://explorer.ferminux.net` |
+| `VITE_WC_PROJECT_ID` | adds WalletConnect to the wallet choice; unset = not bundled (see `shared/fxwallet/README.md`) |
 
 ```sh
 VITE_FACTORY_ADDRESS=0x… \
@@ -84,8 +133,9 @@ VITE_LOCKER_ADDRESS=0x… \
   npm run build
 ```
 
-AZNT (`0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178`, 6 decimals) is preloaded in
-the token list; WFMX is added from the configured address; everything else comes
+AZNT (`0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178`, 6 decimals) and USDF
+(`0xCd032A609e34121D1881E8DE7355b2c2c7092363`, 6 decimals) are preloaded from
+the shared registry (`shared/tokens.ts`); WFMX is added from the configured address; everything else comes
 from the factory's own pair list, plus any token the user imports by address.
 
 ## Commands
@@ -100,13 +150,14 @@ npm install          # 79 packages
 npm run dev          # dev server on http://127.0.0.1:8602
 npm run build        # tsc --noEmit && vite build && node scripts/check-dist.mjs
 npm run preview      # serve dist/ on 8602
-npm test             # 32 unit tests, no chain needed
+npm test             # 75 unit tests, no chain needed
 npm run e2e          # real anvil on :8602 — deploys the AMM and drives the app's lib modules
 npm run ui           # headless-browser check of the built app (skips cleanly without playwright/chromium)
 ```
 
 Port 8602 is this component's assigned port and is shared by the dev server, the
-e2e anvil and the ui-check anvil, so only one of them can run at a time. The
+e2e anvil and the ui-check anvil, so only one of them can run at a time;
+`DEX_TEST_PORT=<port>` moves the e2e and ui-check anvil when 8602 is taken. The
 ui-check's static file server takes an OS-assigned ephemeral port.
 
 `npm run e2e` and `npm run ui` need `anvil` (foundry) on `PATH` and a
@@ -132,7 +183,12 @@ links, an XML namespace, ethers' Polygon fee-plugin and IPFS-gateway constants)
 that are never fetched on chain 3961. They are allowlisted **by name** in
 `scripts/check-dist.mjs`, so any *new* external host fails the build.
 
-### `npm test` — 32 unit tests, 0 failures (194 ms)
+### `npm test` — 75 unit tests, 0 failures
+
+The table covers the math, amounts and routing files; `tests/deeplink.test.mjs`
+(3) pins the deep-link rules above, and the token, handoff and bridge-gate
+files cover the shared registry, the phone hand-off and the bridge tab.
+
 
 | File | Tests | What it pins down |
 |---|---:|---|
@@ -154,7 +210,7 @@ contract (6 decimals), then drives `src/lib/*` — the same modules the UI impor
   ✓  1. port 8602 is free
   ✓  2. anvil up on :8602 (chain-id 3961)
   ✓  3. connectRpc skipped the dead endpoint and health-probed the live one
-  ✓  4. src/config.ts ships with factory/router/WFMX/locker EMPTY (no guessed addresses)
+  ✓  4. src/config.ts ships with factory/router/WFMX/locker all set to well-formed addresses
   ✓  5. deployed WFMX 0x5FbDB231… factory 0xe7f1725E… router 0x9fE46736… locker 0xCf7Ed3Ac…
   ✓  6. deployed SEED (18 decimals) and AZNT (6 decimals) and minted the deployer a balance
   ✓  7. token metadata read through the app cache: SEED (18) and AZNT (6)
@@ -194,7 +250,7 @@ The e2e deploys from `../contracts/out/*` with ethers rather than running
 `../contracts/broadcast/…/3961/run-latest.json`, and that project is not this
 component's to modify.
 
-### `npm run ui` — 18 browser assertions, all passing
+### `npm run ui` — 19 browser assertions, all passing
 
 Builds the real bundle against a devnet (two pools seeded, 60% of one pool's LP
 locked for a year), serves it, and drives it in headless Chromium with a
@@ -206,20 +262,21 @@ so the page really signs and really mines.
   ✓  2. devnet ready: 2 pools seeded, 60% of the SEED/FMX LP locked for a year
   ✓  3. built the production bundle against the devnet addresses
   ✓  4. shell rendered; footer reports a live block height from the devnet
-  ✓  5. Pools: 2 pools, LOCKED badge with share + unlock date, lock breakdown expanded
-  ✓  6. Swap: 5 FMX quoted live through the router → 9.96006981 SEED, impact 0.39%
-  ✓  7. Swap settings: slippage presets and the deadline update the quote and the header
-  ✓  8. a 200 FMX trade raises the >3% price-impact warning
-  ✓  9. a 1200 FMX trade raises the >10% danger notice
-  ✓ 10. connected the injected wallet; the header shows the account
-  ✓ 11. the >10% confirmation modal really blocks until "I understand" is typed
-  ✓ 12. token selector filtered to AZNT and switched the output token
-  ✓ 13. swapped 5 FMX in the browser: +9.960069 SEED confirmed on chain
-  ✓ 14. Liquidity: 2 positions with share of pool, remove-slider quote, and the locked-LP list
-  ✓ 15. picking a pair with no pool shows the first-depositor explanation and the acknowledgement
-  ✓ 16. at 390px wide the page does not scroll horizontally
-  ✓ 17. no console errors or unhandled page exceptions during the whole run
-  ✓ 18. the shipped default (no addresses) renders the "Not configured" screen naming all four
+  ✓  5. Bridge tab mounts across the @bridge alias, shows Ferminux → BSC, gates on a wallet and on relayer liveness
+  ✓  6. Pools: 2 pools, LOCKED badge with share + unlock date, lock breakdown expanded
+  ✓  7. Swap: 5 FMX quoted live through the router → 9.96006981 SEED, impact 0.39%
+  ✓  8. Swap settings: slippage presets and the deadline update the quote and the header
+  ✓  9. a 200 FMX trade raises the >3% price-impact warning
+  ✓ 10. a 1200 FMX trade raises the >10% danger notice
+  ✓ 11. connected the injected wallet; the header shows the account
+  ✓ 12. the >10% confirmation modal really blocks until "I understand" is typed
+  ✓ 13. token selector filtered to AZNT and switched the output token
+  ✓ 14. swapped 5 FMX in the browser: +9.960069 SEED confirmed on chain
+  ✓ 15. Liquidity: 2 positions with share of pool, remove-slider quote, and the locked-LP list
+  ✓ 16. picking a pair with no pool shows the first-depositor explanation and the acknowledgement
+  ✓ 17. at 390px wide the page does not scroll horizontally
+  ✓ 18. no console errors or unhandled page exceptions during the whole run
+  ✓ 19. a build with blanked addresses renders the "Not configured" screen naming all four
 ```
 
 Screenshots are written to a temp directory and the path is printed. The script
@@ -284,9 +341,12 @@ session-only).
 
 ## Not done / known limits
 
-- **Nothing is deployed.** The addresses in `src/config.ts` are empty and no
-  transaction has been sent to chain 3961 from this component. Every number
-  above comes from a local anvil.
+- **One live pool.** On chain 3961 the factory holds a single pair, WFMX/AZNT
+  (`0xbab1…6845`): 138,767.18 WFMX against 45,100 AZNT on 2026-09-26, 0.3250
+  AZNT per FMX, eight swaps since 2026-08-20, all from one address the
+  deployer funded with AZNT, the last on 2026-08-27. There is no WFMX/USDF pool. The numbers under **Results**
+  come from a local anvil; the live pool was exercised on an anvil fork of
+  chain 3961 (both swap directions, signed in the page).
 - The pool list loads **every** pair and then one lock summary per pair on each
   refresh (3 calls per pool). That is fine for tens of pools; a few hundred
   would want incremental loading and a multicall.

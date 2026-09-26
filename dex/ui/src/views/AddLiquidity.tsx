@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { JsonRpcProvider } from 'ethers';
 import { DEX_ADDRESSES, isCanonicalToken } from '../config.ts';
-import { MobileHandoff } from '../components/MobileHandoff.tsx';
 import { Notice, Spinner, StatRow, TxStatus, type TxPhase } from '../components/ui.tsx';
 import {
   formatAmount,
@@ -445,11 +444,8 @@ export function AddLiquidity({
 
           {/* ---------------- actions ---------------- */}
           <div className="action-stack">
-            {!wallet.hasInjected && (
-              <MobileHandoff hasInjected={wallet.hasInjected} lede="Adding liquidity needs a wallet." />
-            )}
-            {!wallet.wallet && wallet.hasInjected && (
-              <button className="btn btn-primary btn-block btn-lg" onClick={() => void wallet.connect()}>
+            {!wallet.wallet && (
+              <button className="btn btn-primary btn-block btn-lg" onClick={wallet.connect} disabled={wallet.connecting}>
                 Connect wallet
               </button>
             )}

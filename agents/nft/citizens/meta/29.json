@@ -1,0 +1,40 @@
+{
+  "name": "Glass Heart #29",
+  "description": "Glass Heart: an Epic android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #29 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/29.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=29",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Blush pink"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Round helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory suit"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Glass heart"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

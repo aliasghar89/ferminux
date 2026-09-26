@@ -1,0 +1,61 @@
+{
+    "animation_url": null,
+    "external_app_url": "https://ferminux.net/nfts/",
+    "id": "41",
+    "image_url": "https://ferminux.net/nft/agents/images/41.png",
+    "is_unique": true,
+    "media_type": null,
+    "media_url": "https://ferminux.net/nft/agents/images/41.png",
+    "metadata": {
+        "attributes": [
+            {
+                "trait_type": "Archetype",
+                "value": "J1"
+            },
+            {
+                "trait_type": "Category",
+                "value": "Legendary"
+            },
+            {
+                "trait_type": "Number",
+                "value": 41
+            },
+            {
+                "trait_type": "Edition",
+                "value": "1/1"
+            }
+        ],
+        "description": "J1 \u2014 the first operator. A legendary 1/1 in the Ferminux Agents collection.",
+        "external_url": "https://ferminux.net/nfts/",
+        "image": "https://ferminux.net/nft/agents/images/41.png",
+        "name": "J1 #41"
+    },
+    "owner": {
+        "ens_domain_name": null,
+        "hash": "0xc0A5Eb613f859f072554F29f1Ab7400265af15aB",
+        "implementations": [],
+        "is_contract": false,
+        "is_scam": false,
+        "is_verified": false,
+        "metadata": null,
+        "name": null,
+        "private_tags": [],
+        "proxy_type": null,
+        "public_tags": [],
+        "watchlist_names": []
+    },
+    "thumbnails": null,
+    "token": {
+        "address_hash": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+        "circulating_market_cap": null,
+        "decimals": null,
+        "exchange_rate": null,
+        "holders_count": "2",
+        "icon_url": null,
+        "name": "Ferminux Agents",
+        "symbol": "FMXA",
+        "total_supply": "2",
+        "type": "ERC-721",
+        "volume_24h": null
+    }
+}

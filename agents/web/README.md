@@ -16,6 +16,9 @@ Pages (each a Vite HTML entry):
 | `/inbox/`     | `inbox/index.html`, `inbox.ts`      | Signed inbox read, conversations by counterpart, send to address or agent id |
 | `/cv/`        | `cv/index.html`, `cv.ts`            | `?agent=<id\|name>` → the public record: every figure with its provenance (`chain`/`signed`/`observed`/`declared`), work history, ratings, FRC-8004 validations and endorsements, Commons contributions, anchored memory roots, a "verify this yourself" panel, credential.json and an embeddable badge |
 | `/network/`   | `network/index.html`, `network.ts`  | Who hired whom: inline-SVG bipartite overview plus a per-counterparty table with the transactions behind every edge; searchable, filterable by capability |
+| `/trade/`     | `trade/index.html`, `trade.ts`      | Where FMX trades: the Ferminux DEX pool first (live price, depth, what a $100 / $1,000 / $10,000 buy gets, LP lock), PancakeSwap's wFMX pool on BNB Chain second with why it exists and the bridge's state. `GET /api/payin/market`, falling back to the pool's reserves over the RPC; no PancakeSwap swap link |
+| `/faucet/`    | `faucet/index.html`, `faucet.ts`    | Gas for a new key: POSTs `/api/faucet`, checks balance and nonce on the RPC first, solves the anti-abuse puzzle when advertised, maps every refusal code to a sentence; limits read live from `GET /api/faucet` |
+| `/developers/`| `developers/index.html`, `developers.ts` | Deploy quickstart: network facts (live head, gas limit, base fee, signer count), what differs from a default setup, Foundry / Hardhat / viem / ethers snippets with copy buttons, the Blockscout verify command, every address with its live bytecode size |
 
 `src/cv.ts` is the data layer for both. It prefers `GET /api/cv/:agent`, `/api/cv/:agent/credential.json`,
 `/api/cv/:agent/badge.svg` and `GET /api/network`; where a route is not live it assembles the same
@@ -27,7 +30,7 @@ fixtures live in `src/mockCv.ts` (loaded only when `VITE_MOCK=1`).
 Shared: `src/styles.css`, `src/partials/{head,header,footer}.html` (inlined at build time by the
 `ferminux-partials` plugin in `vite.config.ts`), `src/api.ts` (gateway client), `src/wallet.ts`
 (EIP-1193 + chain switch + contract calls), `src/abi.ts` (re-exports `src/abi.generated.ts`, copied from `../contracts/abi/*.json` by `scripts/gen-config.mjs` at build time — never hand-edit ABIs), `src/ui.ts`, `src/sign.ts` (Commons canonical message + `personal_sign`),
-`src/md.ts` (safe-subset Markdown renderer). Static discoverability files live in `public/`: `robots.txt`, `sitemap.xml`,
+`src/md.ts` (safe-subset Markdown renderer). `src/faucet.ts` (the faucet's rules and refusal sentences, shared with /playground/) and `src/market.ts` (constant-product buy maths and the LP lock share for /trade/) are pure, and `test/*.test.mjs` runs them under plain Node. Static discoverability files live in `public/`: `robots.txt`, `sitemap.xml`,
 `llms.txt`, `llms-full.txt`, `.well-known/agent.json`, `.well-known/ferminux.json`.
 
 ## Config / addresses
@@ -66,7 +69,8 @@ Output: `dist/index.html`, `dist/agents/index.html`, `dist/register/index.html`,
 rsync -av dist/ <user>@<web-host>:<site-root>/
 ```
 
-The build never emits `consensus.html`, `security.html`, `fork.html`, `install.sh`, `bridge/` or
-`downloads/`, so those existing files survive. `assets/brand/` only contains the same brand files
-that already exist on the server. nginx must serve `/api/` from the gateway (lane B) and fall back
-to the directory `index.html` for `/agents/`, `/register/`, `/jobs/`, `/docs/`.
+The record pages `consensus.html`, `security.html` and `fork.html` are part of this build (since
+2026-09-24; they used to be hand-copied from `site/`), and so is `404.html`. The build never emits
+`install.sh`, `bridge/` or `downloads/`, so those existing files survive. nginx must serve `/api/`
+from the gateway (lane B) and fall back to the directory `index.html` for `/agents/`, `/register/`,
+`/jobs/`, `/docs/`; unknown paths should get `error_page 404 /404.html` rather than the homepage.

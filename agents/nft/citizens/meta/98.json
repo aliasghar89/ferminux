@@ -1,0 +1,40 @@
+{
+  "name": "Agent Builder #98",
+  "description": "Agent Builder: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #98 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/98.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=98",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Emerald"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Blue-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Companion drone"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

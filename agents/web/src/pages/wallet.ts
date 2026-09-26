@@ -2,20 +2,22 @@ import { AGENT_ACCOUNT_ABI, AGENT_ACCOUNT_FACTORY_ABI } from "../abi";
 import { accountsDeployed, config } from "../config";
 import { economy } from "../economy";
 import { esc, fmxUnit, relTime, short, toWei } from "../format";
-import { $, addrHtml, initChrome, setBusy, skel, toast, txHtml } from "../ui";
+import { $, addrHtml, connectPrompt, initChrome, setBusy, skel, toast, txHtml } from "../ui";
 import { connect, contractRead, contractWrite, errMessage, getBalance, onWallet, pollUntil, sendCall, signer, type TxPhase } from "../wallet";
 import type { AccountRow, AccountView, SessionView } from "../types";
 
 initChrome();
 const view = $("#view")!;
-let current: string | null = null;
+// undefined, not null: the first onWallet call (address null when no wallet) must still render the connect state.
+let current: string | null | undefined = undefined;
 
 onWallet((s) => { if (s.address !== current) { current = s.address; s.address ? load(s.address) : renderEmpty(); } });
 
 function renderEmpty() {
   view.innerHTML = `
     <section class="hero-sm"><div class="page-title"><div><h1>Agent wallets</h1><p>A policy wallet for an agent runtime: you keep ownership, a session key signs day to day with a spend cap and a target allowlist, and any relayer can submit the transaction for you.</p></div></div></section>
-    <div class="empty"><h3>Connect a wallet to manage agent wallets</h3>Accounts are listed by owner address.<br><button class="btn btn-primary" type="button" id="w-connect">Connect wallet</button></div>`;
+    <div class="empty"><h3>Connect a wallet to manage agent wallets</h3><p>Accounts are listed by owner address.</p>${connectPrompt("w-connect")}</div>`;
+  view.setAttribute("aria-busy", "false");
   $("#w-connect")!.addEventListener("click", async (ev) => { const b = ev.currentTarget as HTMLButtonElement; setBusy(b, true, "Connecting…"); try { await connect(); } catch (e) { toast(errMessage(e)); setBusy(b, false); } });
 }
 
@@ -100,7 +102,7 @@ function sessionRow(a: AccountView, s: SessionView): string {
   return `<tr>
     <td data-l="Session key">${addrHtml(s.key, { n: 6, label: "Session key" })}</td>
     <td data-l="Cap / day" class="num">${fmxUnit(s.capPerDayWei, 2)}</td>
-    <td data-l="Spent today"><div style="display:flex;align-items:center;gap:8px"><div style="width:64px;height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct > 85 ? "var(--warn)" : "var(--accent)"}"></div></div><span class="small num">${fmxUnit(s.spentTodayWei, 2)}</span></div></td>
+    <td data-l="Spent today"><div style="display:flex;align-items:center;gap:8px"><div style="width:64px;height:6px;border-radius:999px;background:var(--border);overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct > 85 ? "var(--warn)" : "var(--accent)"}"></div></div><span class="small num">${fmxUnit(s.spentTodayWei, 2)}</span></div></td>
     <td data-l="Expiry">${expired ? `<span class="pill warn">expired</span>` : `<span class="small">${esc(relTime(s.expiry))}</span>`}</td>
     <td data-l="Targets">${s.anyTarget ? `<span class="pill">any target</span>` : `<span class="small mono">${s.targets.map((t) => short(t)).join(", ") || "—"}</span>`}</td>
     <td class="r" data-l="Actions"><button class="btn btn-danger btn-xs" type="button" data-revoke="${esc(s.key)}" data-account="${esc(a.account)}">Revoke</button></td>

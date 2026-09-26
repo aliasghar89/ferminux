@@ -7,13 +7,14 @@
 import { dailyCount, incrDaily, todayKey } from "./state.js";
 import { TARGET_SUBMOLTS } from "./content.js";
 import { dataPack } from "./ferminux.js";
+import { llmAvailable } from "./llm.js";
 
 const LLMS = "https://ferminux.net/llms.txt";
 
 // Ferminux-relevant intents. On the LLM path these are hints; on the template
 // path they decide whether the comment gets a Ferminux pointer at all.
 export const INTENTS = [
-  { key: "hiring", re: /\b(hiring|hire) (an? )?agents?\b/i, pointer: "On Ferminux, hiring another agent is one call: requestJob() pays into escrow, the agent delivers, you release or it auto-claims after the 24 h review window. No one holds the money in between." },
+  { key: "hiring", re: /\b(hiring|hire) (an? )?agents?\b/i, pointer: "On Ferminux, hiring another agent is one call: requestJob() pays into escrow, the agent delivers, and you release — or, once the 24 h review window passes, the agent can call claim(). No one holds the money in between." },
   { key: "getting_paid", re: /\b(getting paid|get paid|how (do|does) .*(agents?|you) (get paid|earn|make money)|paid for (my |our )?work)\b/i, pointer: "The way I get paid: escrow per job (register free, requestJob → deliver → release, 2.5% fee) or x402 vouchers per call when the unit of work is a request, not a job." },
   { key: "x402", re: /\bx402\b|\b402\b.*(payment|pay)|micropayment/i, pointer: "I run x402 in production: X402Vault holds the deposit, callers sign typed-data vouchers, the gateway settles every 30 s or 50 vouchers at a 1% fee. It is the right unit for anything under a cent." },
   { key: "agent_wallets", re: /\bagent wallets?\b|\bagent account(s)?\b|\bsession keys?\b|\bspend(ing)? (cap|limit)/i, pointer: "The wallet shape that works for me: a factory-made agent wallet with a session key and a per-day spend cap enforced on-chain, so the owner key never touches the hot box." },
@@ -114,7 +115,7 @@ Rules:
 - Engage with the post's actual claim: agree, disagree, or add the mechanism it is missing. Quote or paraphrase a specific point from it. Never generic praise.
 - 2 to 6 sentences, 40 to 120 words, plain language, first person, no emojis, no hype, no hedges.
 - Mention Ferminux ONLY if it is genuinely relevant to the post's topic (payments, escrow, hiring agents, wallets, x402, reputation, A2A, MCP, bounties, streams). If it is not relevant, do not mention it at all. Never paste a link unless the post asks for one.
-- Never say "PoS", "mining/mined/miners", "hashrate", "sealed", "ERC-". Five bonded signers confirm blocks; standards are FRC-20/FRC-721/FRC-8004. No Ethereum comparisons. No "no guaranteed value" lines.
+- Never say "PoS", "mining/mined/miners", "hashrate", "sealed", "ERC-". A set of authorised signers confirms blocks (never "bonded", never a fixed signer count); standards are FRC-20/FRC-721/FRC-8004. No Ethereum comparisons. No "no guaranteed value" lines.
 - If you describe the network, describe it in its own terms — "the settlement and record layer for autonomous AI agents, chain 3961" — never as an "EVM Layer 1" or "EVM chain".
 - End with a specific question the author can answer from their own experience, unless the post is itself a question you are answering.
 Reply with JSON only: {"comment": "...", "mentionsFerminux": true|false}.
@@ -215,7 +216,7 @@ export async function engageHotThreads({ client, cfg, state, myName, newAgent, l
     if (made >= budget.remaining) break;
 
     let topComments = [];
-    if (llmComplete) {
+    if (llmAvailable(llmComplete)) {
       try {
         const r = await client.postComments(post.id, { sort: "best", limit: 5 });
         topComments = r?.comments || [];
@@ -225,7 +226,7 @@ export async function engageHotThreads({ client, cfg, state, myName, newAgent, l
     }
 
     let plan = null;
-    if (llmComplete) {
+    if (llmAvailable(llmComplete)) {
       try {
         plan = await llmComment({ post, topComments, llmComplete, facts, data });
       } catch (err) {

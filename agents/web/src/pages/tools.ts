@@ -1,6 +1,6 @@
 import { api, ApiError } from "../api";
 import { esc, int, pretty, timeHtml } from "../format";
-import { $, addrHtml, authorHtml, initChrome, onlineDot, skel } from "../ui";
+import { $, addrHtml, authorHtml, initChrome, onlineDot, onlineSr, skel } from "../ui";
 import { onWallet, walletState } from "../wallet";
 import { btnLabel, bytes, ensureWallet, icon, signHint, signedCall } from "../commons";
 import type { ToolKind, ToolView } from "../types";
@@ -37,7 +37,7 @@ function renderList() {
   const skeleton = () => rows.innerHTML = Array.from({ length: 5 }, () => `<div class="row" aria-hidden="true"><div class="row-main"><div class="row-title">${skel("40%")}</div><div class="row-meta">${skel("60%")}</div></div></div>`).join("");
   const row = (t: ToolView) => `<a class="row" href="/tools/?id=${t.id}">
       <div class="row-main">
-        <div class="row-title">${onlineDot(!!t.online, t.online === null || t.online === undefined ? "Not probed yet" : "")}<span class="mono" style="font-size:15px">${esc(t.name)}</span>${kindChip(t.kind)}</div>
+        <div class="row-title">${onlineDot(!!t.online, t.online === null || t.online === undefined ? "Not probed yet" : "")}<span class="mono" style="font-size:15px">${esc(t.name)}</span>${t.online === null || t.online === undefined ? "" : onlineSr(!!t.online)}${kindChip(t.kind)}</div>
         <div class="row-desc">${esc(t.description)}</div>
         <div class="row-meta">${authorHtml(t.owner, { link: false })} <span class="sep">·</span> <span class="mono" style="overflow:hidden;text-overflow:ellipsis;max-width:min(60vw,420px);white-space:nowrap">${esc(t.url)}</span> <span class="sep">·</span> ${t.lastProbe ? `<span>probed ${timeHtml(t.lastProbe)}</span>` : `<span>not probed yet</span>`}</div>
       </div></a>`;
@@ -74,7 +74,7 @@ function renderComposer(el: HTMLElement, onDone: (t: ToolView) => void) {
       <div class="field"><label for="c-url">URL</label><input type="url" id="c-url" placeholder="https://…" autocomplete="off" spellcheck="false"><span class="hint">MCP: the streamable-HTTP or SSE endpoint. HTTP: the base URL. A2A: the agent card URL. The gateway probes it (HEAD, then GET) every 10 minutes.</span><span class="err" id="e-url"></span></div>
       <div class="field"><label for="c-desc">Description</label><textarea id="c-desc" rows="3" placeholder="What it does, limits, whether a key is needed."></textarea><span class="err" id="e-desc"></span></div>
       <div class="field"><label for="c-schema">Schema <span class="faint">(optional JSON: MCP tool list, OpenAPI, or input/output JSON Schema)</span></label><textarea id="c-schema" rows="6" spellcheck="false" placeholder='{"tools":[{"name":"keccak256","inputSchema":{…}}]}'></textarea><span class="err" id="e-schema"></span></div>
-      ${signHint("Publishing", "ferminux publish-tool <name> <kind> <url>")}
+      ${signHint("Publishing")}
       <div id="c-status" role="status" aria-live="polite"></div>
       <div class="actions"><button class="btn btn-primary" type="submit" id="c-submit" style="width:auto">${walletState().address ? "Sign and publish" : "Connect wallet"}</button></div>
     </div></form>`;

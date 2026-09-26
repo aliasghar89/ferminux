@@ -1,7 +1,7 @@
 import { api, jobStatusName } from "../api";
 import { config, contractsDeployed } from "../config";
 import { dur, esc, fmxUnit, int, pretty, short, timeHtml, toSec } from "../format";
-import { $, addrHtml, hashHtml, initChrome, pillFor, ratingInput, setBusy, skel, toast, txHtml } from "../ui";
+import { $, addrHtml, connectPrompt, hashHtml, initChrome, pillFor, ratingInput, setBusy, skel, toast, txHtml, wireTabs } from "../ui";
 import { connect, errMessage, getCredits, onWallet, sendTx, walletState } from "../wallet";
 import type { JobView } from "../types";
 
@@ -9,7 +9,9 @@ initChrome({ banner: true });
 
 const view = $("#jobs-view")!, creditsBox = $("#credits-box")!;
 let mode: "client" | "owner" = (new URLSearchParams(location.search).get("as") === "owner") ? "owner" : "client";
-let current: string | null = null;
+// undefined, not null: the first onWallet call (address null when no wallet) must still render the connect state.
+let current: string | null | undefined = undefined;
+let refocusTab = false;
 
 onWallet((s) => {
   if (s.address !== current) { current = s.address; s.address ? load(s.address) : renderEmpty(); }
@@ -17,15 +19,15 @@ onWallet((s) => {
 
 function renderEmpty() {
   creditsBox.innerHTML = "";
-  view.innerHTML = `<div class="empty"><h3>Connect a wallet to see your jobs</h3>Jobs are looked up by address: as a client (jobs you paid for) and as an agent owner (jobs your agents received).<br><button class="btn btn-primary" type="button" id="jobs-connect">Connect wallet</button></div>`;
+  view.innerHTML = `<div class="empty"><h3>Connect a wallet to see your jobs</h3><p>Jobs are looked up by address: as a client (jobs you paid for) and as an agent owner (jobs your agents received).</p>${connectPrompt("jobs-connect")}</div>`;
   $("#jobs-connect")!.addEventListener("click", async (ev) => { const b = ev.currentTarget as HTMLButtonElement; setBusy(b, true, "Connecting…"); try { await connect(); } catch (e) { toast(errMessage(e)); setBusy(b, false); } });
 }
 
 async function loadCredits(addr: string) {
-  creditsBox.innerHTML = `<div class="panel" style="min-width:220px;max-width:360px"><div class="panel-body" style="padding:12px 16px;gap:6px"><span class="lb-label">Withdrawable credits</span><strong class="num" style="font-size:20px">${skel("60%")}</strong></div></div>`;
+  creditsBox.innerHTML = `<div class="panel" style="min-width:220px;max-width:360px"><div class="panel-body" style="padding:12px 16px;gap:6px"><span class="lb-label">Withdrawable credits</span><strong class="lb-value" style="font-size:20px">${skel("60%")}</strong></div></div>`;
   try {
     const c = await getCredits(addr);
-    creditsBox.innerHTML = `<div class="panel" style="min-width:220px;max-width:360px"><div class="panel-body" style="padding:12px 16px;gap:8px"><span class="lb-label">Withdrawable credits</span><strong class="num" style="font-size:20px">${fmxUnit(c)}</strong><button class="btn btn-secondary btn-sm" type="button" id="withdraw" ${c === 0n ? "disabled" : ""}>Withdraw to wallet</button><span class="small faint">Payouts, refunds and resolutions accrue here (pull payments).</span></div></div>`;
+    creditsBox.innerHTML = `<div class="panel" style="min-width:220px;max-width:360px"><div class="panel-body" style="padding:12px 16px;gap:8px"><span class="lb-label">Withdrawable credits</span><strong class="lb-value" style="font-size:20px">${fmxUnit(c)}</strong><button class="btn btn-secondary btn-sm" type="button" id="withdraw" ${c === 0n ? "disabled" : ""}>Withdraw to wallet</button><span class="small faint">Payouts, refunds and resolutions accrue here (pull payments).</span></div></div>`;
     $("#withdraw")?.addEventListener("click", async (ev) => {
       const b = ev.currentTarget as HTMLButtonElement; setBusy(b, true, "Confirm…");
       try { const r = await sendTx((k) => k.escrow.withdraw()); toast("Withdrawn"); say(`Withdrew ${fmxUnit(c)} — ${txHtml(r.hash, "transaction")}.`, "ok"); loadCredits(addr); }
@@ -41,15 +43,18 @@ const say = (m: string, k: "" | "warn" | "ok" | "info" = "") => { const s = $("#
 async function load(addr: string) {
   loadCredits(addr);
   view.innerHTML = `
-    <div class="tabs" role="tablist" aria-label="Role">
+    <div class="tabs" role="tablist" aria-label="Role" id="jobs-tabs">
       <button class="tab" role="tab" id="t-client" aria-selected="${mode === "client"}" aria-controls="tp">As client</button>
       <button class="tab" role="tab" id="t-owner" aria-selected="${mode === "owner"}" aria-controls="tp">As agent owner</button>
     </div>
     <p class="result-count" id="jobs-count" role="status"></p>
-    <div id="tp" role="tabpanel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">Job</th><th scope="col">Agent</th><th scope="col">${mode === "client" ? "Delivered" : "Client"}</th><th scope="col" class="r">Amount</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col" class="r">Actions</th></tr></thead><tbody id="jobs-rows">${Array(4).fill(`<tr aria-hidden="true"><td>${skel("40%")}</td><td>${skel("50%")}</td><td>${skel("60%")}</td><td class="r">${skel("50%")}</td><td>${skel("50%")}</td><td>${skel("50%")}</td><td></td></tr>`).join("")}</tbody></table></div></div>
+    <div id="tp" role="tabpanel" aria-labelledby="${mode === "client" ? "t-client" : "t-owner"}"><div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">Job</th><th scope="col">Agent</th><th scope="col">${mode === "client" ? "Delivered" : "Client"}</th><th scope="col" class="r">Amount</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col" class="r">Actions</th></tr></thead><tbody id="jobs-rows">${Array(4).fill(`<tr aria-hidden="true"><td>${skel("40%")}</td><td>${skel("50%")}</td><td>${skel("60%")}</td><td class="r">${skel("50%")}</td><td>${skel("50%")}</td><td>${skel("50%")}</td><td></td></tr>`).join("")}</tbody></table></div></div>
     <div id="jobs-status" role="status" aria-live="polite" style="margin-top:12px"></div>`;
   $("#t-client")!.addEventListener("click", () => { mode = "client"; history.replaceState(null, "", "?as=client"); load(addr); });
   $("#t-owner")!.addEventListener("click", () => { mode = "owner"; history.replaceState(null, "", "?as=owner"); load(addr); });
+  // an arrow key re-renders the list through the click handler, so focus is put back on the new tab
+  wireTabs($("#jobs-tabs"), (t) => { refocusTab = true; t.click(); });
+  if (refocusTab) { refocusTab = false; $(`#t-${mode}`)?.focus(); }
   const rows = $("#jobs-rows")!, count = $("#jobs-count")!;
   try {
     const { items } = await api.jobs(mode === "client" ? { client: addr } : { agentOwner: addr });
@@ -125,7 +130,7 @@ async function act(b: HTMLButtonElement, items: JobView[], addr: string) {
     });
     return;
   }
-  if (a === "dispute") { if (!confirm(`Dispute job #${id}? Governance reviews it and splits the ${fmxUnit(j.amount)} escrow.`)) return; run = (c) => c.escrow.dispute(id); label = "Disputed"; }
+  if (a === "dispute") { if (!confirm(`Dispute job #${id}? This freezes the ${fmxUnit(j.amount)} escrow. To have it decided, either party then opens a case in the ArbiterPool (1 FMX fee, via the SDK or MCP; see /disputes/). Staked arbiters vote a split; a case with no votes closes 50/50 after the 3-day window — and while no arbiters are staked, that is the outcome.`)) return; run = (c) => c.escrow.dispute(id); label = "Disputed"; }
   if (a === "refund") { run = (c) => c.escrow.refund(id); label = "Refunded to your credits"; }
   if (a === "cancel") { if (!confirm(`Cancel job #${id}? The client is refunded and this counts as a failed job on the agent's record.`)) return; run = (c) => c.escrow.cancel(id); label = "Cancelled; client refunded"; }
   if (a === "claim") { run = (c) => c.escrow.claim(id); label = "Claimed to your credits"; }

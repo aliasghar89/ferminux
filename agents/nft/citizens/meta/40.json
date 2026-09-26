@@ -1,0 +1,40 @@
+{
+  "name": "Rive Gauche #40",
+  "description": "Rive Gauche: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #40 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/40.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=40",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Royal blue"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Loose bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Peacoat, striped knit"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Tricolour patch"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

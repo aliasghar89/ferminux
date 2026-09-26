@@ -1,0 +1,15 @@
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "inturnPercent": 20.3125,
+        "sealerActivity": {
+            "0x1538249e04c767dffc50845068c19f633341bb0f": 0,
+            "0x3322f60acea9f88658665e83beb30a516036187d": 22,
+            "0x71377e0f553a5b0cb847443ab6648235977919b0": 21,
+            "0x8e97f419f388c20e745dff826587f359c31ef693": 21,
+            "0xa46a721f25771bb2be312a63a5d891539ff1de23": 0
+        },
+        "numBlocks": 64
+    }
+}

@@ -8,9 +8,10 @@ import {
   missingAddresses,
 } from './config.ts';
 import { MobileHandoff } from './components/MobileHandoff.tsx';
-import { AddressLink, Modal, Notice } from './components/ui.tsx';
+import { ConnectChooser } from './components/ConnectChooser.tsx';
+import { AddressLink, Modal, Notice, Spinner } from './components/ui.tsx';
 import { shortAddress } from './lib/amounts.ts';
-import { classifyHandoff } from './lib/handoff.ts';
+import { parseDexLink } from './lib/deeplink.ts';
 import { tokenKey, type TokenInfo } from './lib/tokens.ts';
 import { useChain } from './state/useChain.ts';
 import { useCustomTokens } from './state/useCustomTokens.ts';
@@ -18,10 +19,12 @@ import { usePools } from './state/usePools.ts';
 import { useTokenBalances } from './state/useTokenBalances.ts';
 import { useWallet } from './state/useWallet.ts';
 import { AddLiquidity } from './views/AddLiquidity.tsx';
+import { FmxMarkets } from './views/FmxMarkets.tsx';
 import { PoolsPanel } from './views/PoolsPanel.tsx';
 import { PositionsPanel } from './views/PositionsPanel.tsx';
 import { SwapPanel } from './views/SwapPanel.tsx';
 import { BridgePanel } from './views/BridgePanel.tsx';
+import { BRIDGE_TAB_ENABLED } from './lib/bridgeChains.ts';
 
 type Tab = 'swap' | 'liquidity' | 'pools' | 'bridge';
 
@@ -30,7 +33,9 @@ export function App() {
   const wallet = useWallet();
   const pools = usePools(chain.provider, chain.blockTimestamp);
   const { customTokens, addCustomToken } = useCustomTokens();
-  const [tab, setTab] = useState<Tab>('swap');
+  // ?inputCurrency=…&outputCurrency=…&tab=… — how ferminux.net and ferminux.com open a swap here
+  const link = useMemo(() => parseDexLink(window.location.search), []);
+  const [tab, setTab] = useState<Tab>(link.tab ?? 'swap');
   const [phoneOpen, setPhoneOpen] = useState(false);
 
   // Pool tokens + preloaded + anything imported by hand, de-duplicated.
@@ -83,22 +88,12 @@ export function App() {
             </span>
           </span>
           {wallet.address ? (
-            <button className="btn btn-sm mono" onClick={wallet.disconnect} title={wallet.address}>
+            <button className="btn btn-sm mono" onClick={wallet.disconnect} title={`${wallet.address} — click to disconnect`}>
               {shortAddress(wallet.address)}
             </button>
-          ) : wallet.hasInjected ? (
-            <button className="btn btn-sm" onClick={() => void wallet.connect()} disabled={wallet.connecting}>
-              Connect
-            </button>
           ) : (
-            <button className="btn btn-sm" data-testid="header-handoff" onClick={() => setPhoneOpen(true)}>
-              {classifyHandoff({
-                hasInjected: false,
-                userAgent: navigator.userAgent,
-                maxTouchPoints: navigator.maxTouchPoints,
-              }) === 'phone'
-                ? 'Open in wallet'
-                : 'Use on phone'}
+            <button className="btn btn-sm" data-testid="header-connect" onClick={wallet.connect} disabled={wallet.connecting}>
+              Connect
             </button>
           )}
         </div>
@@ -114,13 +109,19 @@ export function App() {
           </Notice>
         )}
 
-        {wallet.error && (
+        {wallet.error && !wallet.chooserOpen && (
           <Notice kind="danger" role="alert">
             {wallet.error}
           </Notice>
         )}
 
-        {wallet.wallet && wallet.wrongChain && (
+        {wallet.status && (
+          <Notice role="status">
+            <Spinner /> {wallet.status}
+          </Notice>
+        )}
+
+        {wallet.wallet && wallet.wrongChain && !wallet.status && (
           <Notice kind="warn">
             Your wallet is on chain {wallet.wallet.chainId}, not Ferminux ({CHAIN_ID}). Reading works; signing does
             not.{' '}
@@ -159,14 +160,18 @@ export function App() {
               >
                 Pools
               </button>
-              <button
-                className="tab"
-                role="tab"
-                aria-selected={tab === 'bridge'}
-                onClick={() => setTab('bridge')}
-              >
-                Bridge
-              </button>
+              {/* Off unless the build opts in (VITE_ENABLE_BRIDGE=1): see
+                  BRIDGE_TAB_ENABLED in lib/bridgeChains.ts. */}
+              {BRIDGE_TAB_ENABLED && (
+                <button
+                  className="tab"
+                  role="tab"
+                  aria-selected={tab === 'bridge'}
+                  onClick={() => setTab('bridge')}
+                >
+                  Bridge
+                </button>
+              )}
             </nav>
 
             <div className="tab-body">
@@ -179,9 +184,11 @@ export function App() {
                     tokens={tokens}
                     balances={balances}
                     bases={bases}
+                    link={link}
                     onImportToken={addCustomToken}
                     onChainChanged={onChainChanged}
                   />
+                  <FmxMarkets pools={pools} />
                 </div>
               )}
               {tab === 'liquidity' && (
@@ -204,12 +211,27 @@ export function App() {
                   />
                 </>
               )}
-              {tab === 'pools' && <PoolsPanel pools={pools} chainTimestamp={chain.blockTimestamp} />}
-              {tab === 'bridge' && <BridgePanel wallet={wallet} />}
+              {tab === 'pools' && (
+                <>
+                  <FmxMarkets pools={pools} />
+                  <PoolsPanel pools={pools} chainTimestamp={chain.blockTimestamp} />
+                </>
+              )}
+              {BRIDGE_TAB_ENABLED && tab === 'bridge' && <BridgePanel wallet={wallet} />}
             </div>
           </>
         )}
       </main>
+
+      {wallet.chooserOpen && (
+        <ConnectChooser
+          wallet={wallet}
+          onHandoff={() => {
+            wallet.closeChooser();
+            setPhoneOpen(true);
+          }}
+        />
+      )}
 
       {phoneOpen && (
         <Modal title="Open on your phone" onClose={() => setPhoneOpen(false)}>
@@ -252,8 +274,8 @@ export function App() {
 }
 
 /**
- * The addresses ship empty on purpose: the Ferminux AMM has not been deployed
- * to chain 3961. Guessing an address would be worse than saying so.
+ * Only a build that blanked the addresses lands here (the defaults are the
+ * chain-3961 deployment). Guessing an address would be worse than saying so.
  */
 function NotConfigured() {
   return (
@@ -263,8 +285,8 @@ function NotConfigured() {
       </div>
       <div className="panel-body">
         <Notice kind="warn">
-          This build has no DEX contract addresses, so there is nothing to read. That is the shipped default — the
-          Ferminux AMM has only ever been deployed to a local devnet.
+          This build has no DEX contract addresses, so there is nothing to read. It was built with the addresses
+          overridden to blank; the default build uses the Ferminux AMM deployed on chain 3961.
         </Notice>
         <p className="small">Set these before building, or edit <code>src/config.ts</code>:</p>
         <ul className="row-list">

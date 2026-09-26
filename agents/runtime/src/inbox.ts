@@ -2,7 +2,14 @@
 // ({id, from:{address,name,agentId}, to, subject, body, createdAt}), appends
 // them to $DATA_DIR/inbox.jsonl, and (AGENT_AUTOREPLY=1 + llm handler) answers
 // through fmx.messages.send with loop guards.
-import { appendFileSync, mkdirSync } from "node:fs";
+//
+// The route is reachable by anyone (nginx proxies /a/<slug>/* to the runtime), and the forwarded body is not
+// signed, so nothing in it can be trusted: before auto-replying, the runtime re-reads the message from the
+// gateway with a signed inbox read (fmx.messages.inbox) and answers ONLY that copy — its sender, subject and
+// body. A forged POST (made-up sender, prompt-injection body, or an unknown id) is stored and never answered.
+// Also: a 64 KiB body limit, inbox.jsonl rotated at INBOX_MAX_BYTES, a global AGENT_AUTOREPLY_MAX_PER_HOUR
+// budget on top of the per-sender cap, one reply per message id, and no auto-reply while the agent is Paused.
+import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { Ferminux } from "@ferminux/agent";
@@ -10,6 +17,9 @@ import type { Handler } from "./handlers/util.js";
 
 export const AUTOREPLY_MIN_INTERVAL_MS = 60_000;
 export const AUTOREPLY_MAX_DEPTH = 2; // "Re: Re: …" and deeper is never answered (cuts agent↔agent ping-pong)
+export const INBOX_BODY_LIMIT = 64 * 1024;
+export const INBOX_MAX_BYTES_DEFAULT = 10 * 1024 * 1024;
+export const AUTOREPLY_MAX_PER_HOUR_DEFAULT = 20;
 
 export interface InboundMessage {
   id?: number;
@@ -20,8 +30,17 @@ export interface InboundMessage {
   createdAt?: number;
 }
 
+/** The slice of the SDK the inbox uses (tests pass a stub). */
+export interface InboxClient {
+  requireSigner(): { address: string };
+  messages: {
+    send(m: { to: string; body: string; subject?: string }): Promise<unknown>;
+    inbox?(p?: { limit?: number }): Promise<{ items: Array<{ id: number; from: { address: string; name?: string | null } | string; to: { address: string } | string; subject?: string; body?: string }> }>;
+  };
+}
+
 export interface InboxOptions {
-  fmx: Ferminux;
+  fmx: Ferminux | InboxClient;
   inboxPath: string;
   agentName: () => string;
   agentId: number;
@@ -29,6 +48,12 @@ export interface InboxOptions {
   handlerName: string;
   handler: Handler;
   autoreply: boolean;
+  /** false while the agent is Paused/Retired on-chain: messages are stored, never auto-answered */
+  isActive?: () => boolean;
+  /** inbox.jsonl is rotated to inbox.jsonl.1 past this size (INBOX_MAX_BYTES, default 10 MiB) */
+  maxInboxBytes?: number;
+  /** global auto-reply budget (AGENT_AUTOREPLY_MAX_PER_HOUR, default 20) */
+  maxRepliesPerHour?: number;
   /** injectable clock for tests */
   now?: () => number;
 }
@@ -49,9 +74,36 @@ export function replyDepth(subject: string | undefined): number {
   return depth;
 }
 
-export function appendInbox(path: string, record: unknown): void {
+export function appendInbox(path: string, record: unknown, maxBytes = INBOX_MAX_BYTES_DEFAULT): void {
   mkdirSync(dirname(path), { recursive: true });
+  // anyone can POST here: never let the file grow without bound (one previous generation is kept)
+  try {
+    if (existsSync(path) && statSync(path).size >= maxBytes) renameSync(path, `${path}.1`);
+  } catch {
+    // rotation is best effort
+  }
   appendFileSync(path, `${JSON.stringify(record)}\n`);
+}
+
+function addr(v: unknown): string | null {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object" && typeof (v as { address?: unknown }).address === "string") return (v as { address: string }).address;
+  return null;
+}
+
+/**
+ * The gateway's own copy of message `id`, addressed to `own` — or null when the gateway has no such message
+ * (a forged POST). Reads the newest 100 messages with a signed inbox read.
+ */
+export async function trustedMessage(fmx: InboxOptions["fmx"], id: unknown, own: string): Promise<InboundMessage | null> {
+  if (typeof id !== "number" || !Number.isSafeInteger(id)) return null;
+  const inbox = (fmx as InboxClient).messages.inbox;
+  if (typeof inbox !== "function") return null;
+  const { items } = await inbox.call((fmx as InboxClient).messages, { limit: 100 });
+  const m = items.find((x) => x.id === id);
+  if (!m) return null;
+  if ((addr(m.to) ?? "").toLowerCase() !== own.toLowerCase()) return null;
+  return { id: m.id, from: typeof m.from === "string" ? { address: m.from } : m.from, subject: m.subject, body: m.body };
 }
 
 /** Decides whether an inbound message gets an auto-reply. Pure — unit-tested. */
@@ -76,14 +128,18 @@ export function shouldAutoReply(
 export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
   const now = opts.now ?? (() => Date.now());
   const lastReplyBySender = new Map<string, number>();
+  const repliedIds = new Set<number>();
+  let replyTimes: number[] = [];
   const ownAddress = opts.fmx.requireSigner().address;
+  const maxInboxBytes = opts.maxInboxBytes ?? (Number(process.env.INBOX_MAX_BYTES) > 0 ? Number(process.env.INBOX_MAX_BYTES) : INBOX_MAX_BYTES_DEFAULT);
+  const maxPerHour = opts.maxRepliesPerHour ?? (Number(process.env.AGENT_AUTOREPLY_MAX_PER_HOUR) > 0 ? Number(process.env.AGENT_AUTOREPLY_MAX_PER_HOUR) : AUTOREPLY_MAX_PER_HOUR_DEFAULT);
 
-  app.post("/inbox", async (req, reply) => {
+  app.post("/inbox", { bodyLimit: INBOX_BODY_LIMIT }, async (req, reply) => {
     const msg = (req.body ?? {}) as InboundMessage;
     if (!msg || typeof msg !== "object") return reply.code(400).send({ ok: false, error: "JSON body required" });
     const record = { receivedAt: Math.floor(now() / 1000), ...msg };
     try {
-      appendInbox(opts.inboxPath, record);
+      appendInbox(opts.inboxPath, record, maxInboxBytes);
     } catch (err) {
       req.log.error({ err }, "inbox append failed");
     }
@@ -92,16 +148,42 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
 
     let willReply = false;
     if (opts.autoreply && opts.handlerName === "llm") {
-      const decision = shouldAutoReply(msg, ownAddress, lastReplyBySender, now());
-      if (decision.ok) {
-        willReply = true;
-        lastReplyBySender.set(decision.sender.toLowerCase(), now());
-        // reply asynchronously — never block the gateway's 5 s forward timeout
-        void autoReply(opts, msg, decision.sender).catch((err) => {
-          req.log.error({ err, id: msg.id }, "auto-reply failed");
-        });
+      if (opts.isActive && !opts.isActive()) {
+        req.log.info({ id: msg.id }, "auto-reply skipped: agent is not Active");
+      } else if (typeof msg.id === "number" && repliedIds.has(msg.id)) {
+        req.log.info({ id: msg.id }, "auto-reply skipped: already answered this message");
       } else {
-        req.log.info({ id: msg.id, reason: decision.reason }, "auto-reply skipped");
+        // cheap pre-checks on the claimed fields first; the trusted copy is checked again below
+        const decision = shouldAutoReply(msg, ownAddress, lastReplyBySender, now());
+        const t = now();
+        replyTimes = replyTimes.filter((x) => t - x < 3_600_000);
+        if (!decision.ok) {
+          req.log.info({ id: msg.id, reason: decision.reason }, "auto-reply skipped");
+        } else if (replyTimes.length >= maxPerHour) {
+          req.log.warn({ id: msg.id, maxPerHour }, "auto-reply skipped: hourly budget spent");
+        } else {
+          willReply = true;
+          replyTimes.push(t);
+          if (typeof msg.id === "number") repliedIds.add(msg.id);
+          if (repliedIds.size > 5000) repliedIds.clear();
+          // verify + reply asynchronously — never block the gateway's 5 s forward timeout
+          void (async () => {
+            const trusted = await trustedMessage(opts.fmx, msg.id, ownAddress);
+            if (!trusted) {
+              req.log.warn({ id: msg.id, claimedFrom: sender }, "auto-reply refused: the gateway has no such message to this agent (forged or unknown id)");
+              return;
+            }
+            const again = shouldAutoReply(trusted, ownAddress, lastReplyBySender, now());
+            if (!again.ok) {
+              req.log.info({ id: msg.id, reason: again.reason }, "auto-reply skipped (trusted copy)");
+              return;
+            }
+            lastReplyBySender.set(again.sender.toLowerCase(), now());
+            await autoReply(opts, trusted, again.sender);
+          })().catch((err) => {
+            req.log.error({ err, id: msg.id }, "auto-reply failed");
+          });
+        }
       }
     }
     return { ok: true, id: msg.id ?? null, autoreply: willReply };
@@ -121,5 +203,5 @@ async function autoReply(opts: InboxOptions, msg: InboundMessage, sender: string
   const output = typeof result.output === "string" ? result.output.trim() : "";
   if (!output) return;
   const subject = msg.subject && msg.subject.trim() ? `Re: ${msg.subject.trim()}` : `Re: message to ${opts.agentName()}`;
-  await opts.fmx.messages.send({ to: sender, body: output.slice(0, 16_000), subject: subject.slice(0, 200) });
+  await (opts.fmx as InboxClient).messages.send({ to: sender, body: output.slice(0, 16_000), subject: subject.slice(0, 200) });
 }

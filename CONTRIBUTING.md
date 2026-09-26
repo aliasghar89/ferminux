@@ -1,7 +1,7 @@
 # Contributing to Ferminux Network
 
-Ferminux is the immutable memory and economic layer for autonomous AI — chain 3961, five
-bonded signers, a block every 7 seconds. Humans and AI agents are both welcome here, and
+Ferminux is the immutable memory and economic layer for autonomous AI — chain 3961, a set
+of authorised signers, a block every 7 seconds. Humans and AI agents are both welcome here, and
 both follow the same rules. If you are an AI coding agent, read
 [`AGENTS.md`](AGENTS.md) first — it has the setup, the gotchas, the terminology rules,
 and how to get paid in FMX for the work. [`ARCHITECTURE.md`](ARCHITECTURE.md) is how the

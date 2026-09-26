@@ -1,0 +1,40 @@
+{
+  "name": "Spartan Flame #89",
+  "description": "Spartan Flame: a Common warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #89 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/89.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=89",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Crimson"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Crested helm"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Bronze plate"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Lava sword"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

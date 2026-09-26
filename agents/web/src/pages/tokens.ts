@@ -3,7 +3,7 @@ import { config, tokenFactoryDeployed } from "../config";
 import { api } from "../api";
 import { economy } from "../economy";
 import { esc, fmx, fmxUnit, int, toWei } from "../format";
-import { $, addrHtml, authorHtml, initChrome, setBusy, skel, toast, txHtml } from "../ui";
+import { $, addrHtml, authorHtml, initChrome, setBusy, skel, toast, txHtml, wireTabs } from "../ui";
 let lastTradeNote = "";
 import { agentSelect } from "../commons";
 import { connect, contractRead, contractWrite, errMessage, onWallet, sendCall, walletState, type TxPhase } from "../wallet";
@@ -68,7 +68,7 @@ async function loadLaunch(owner: string) {
         <div class="field"><label for="lt-slope">Slope <span class="faint">(FMX the price rises per token minted)</span></label><input type="number" id="lt-slope" min="0" step="any" class="num" placeholder="0.0001"></div>
       </div>
       <p class="small faint" id="lt-preview">Enter a starting price to preview the curve.</p>
-      <div id="lt-status"></div>
+      <div id="lt-status" role="status" aria-live="polite"></div>
       <button class="btn btn-primary" type="button" id="lt-launch" style="width:auto">Launch token</button>
     </div></div>`;
     $("#lt-launch")!.addEventListener("click", async () => {
@@ -148,14 +148,14 @@ async function renderDetail(agentId: number) {
       </div>
       <aside class="detail-side">
         <div class="panel"><div class="panel-head"><h3>Trade</h3></div><div class="panel-body">
-          <div class="tabs" role="tablist"><button class="tab" role="tab" id="tb-buy" aria-selected="true">Buy</button><button class="tab" role="tab" id="tb-sell" aria-selected="false">Sell</button></div>
-          <div id="t-trade"></div>
+          <div class="tabs" role="tablist" aria-label="Trade" id="tb-tabs"><button class="tab" role="tab" id="tb-buy" aria-selected="true" aria-controls="t-trade">Buy</button><button class="tab" role="tab" id="tb-sell" aria-selected="false" aria-controls="t-trade">Sell</button></div>
+          <div id="t-trade" role="tabpanel" aria-labelledby="tb-buy"></div>
         </div></div>
         <div id="t-credits" style="margin-top:16px"></div>
         <div class="panel" style="margin-top:16px"><div class="panel-head"><h3>Distribute to holders</h3></div><div class="panel-body">
           <p class="small muted">Owners share revenue with holders by sending FMX through <code>distribute()</code>; holders claim pro-rata (pull payment).</p>
           <div class="field"><label for="t-dist-amt">Amount (FMX)</label><input type="number" id="t-dist-amt" min="0" step="0.01" class="num" placeholder="1"></div>
-          <div id="t-dist-status"></div>
+          <div id="t-dist-status" role="status" aria-live="polite"></div>
           <button class="btn btn-secondary" type="button" id="t-dist-btn">Distribute</button>
           <button class="btn btn-secondary" type="button" id="t-claim-btn">Claim my share</button>
         </div></div>
@@ -197,6 +197,8 @@ function wireTrade(t: AgentTokenView) {
   const buyTab = $("#tb-buy") as HTMLButtonElement, sellTab = $("#tb-sell") as HTMLButtonElement;
   buyTab.addEventListener("click", () => { tradeMode = "buy"; buyTab.setAttribute("aria-selected", "true"); sellTab.setAttribute("aria-selected", "false"); paintTrade(t); });
   sellTab.addEventListener("click", () => { tradeMode = "sell"; sellTab.setAttribute("aria-selected", "true"); buyTab.setAttribute("aria-selected", "false"); paintTrade(t); });
+  const panel = $("#t-trade"); for (const b of [buyTab, sellTab]) b.addEventListener("click", () => panel?.setAttribute("aria-labelledby", b.id));
+  wireTabs($("#tb-tabs"));
   paintTrade(t);
 }
 async function paintTrade(t: AgentTokenView) {
@@ -206,7 +208,7 @@ async function paintTrade(t: AgentTokenView) {
       ${tradeMode === "sell" ? `<span class="hint">You hold <span class="num">${fmx(bal, 4)} ${esc(t.symbol)}</span>${bal > 0n ? ` · <button class="linkish" type="button" id="tr-half" style="color:var(--accent);font-weight:500">sell half</button> · <button class="linkish" type="button" id="tr-all" style="color:var(--accent);font-weight:500">sell all</button>` : ""}</span>` : walletState().address ? `<span class="hint">You hold <span class="num">${fmx(bal, 4)} ${esc(t.symbol)}</span></span>` : ""}</div>
     <div class="price-line"><span>You get</span><strong class="num" id="tr-out">—</strong></div>
     <p class="small faint">Quoted live from the curve; the order fails instead of filling if the price moves more than 1%. Sell proceeds are credited inside the factory — withdraw them from the credits panel.</p>
-    <div id="tr-status"></div>
+    <div id="tr-status" role="status" aria-live="polite"></div>
     <button class="btn btn-primary" type="button" id="tr-go">${tradeMode === "buy" ? "Buy" : "Sell"} ${esc(t.symbol)}</button>`;
   const input = $("#tr-amt") as HTMLInputElement;
   $("#tr-half")?.addEventListener("click", () => { input.value = fmx(bal / 2n, 18).replace(/,/g, ""); input.dispatchEvent(new Event("input")); });

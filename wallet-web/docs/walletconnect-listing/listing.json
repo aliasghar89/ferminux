@@ -1,0 +1,82 @@
+{
+  "name": "Ferminux Wallet",
+  "slug": "ferminux-wallet",
+  "description": "Self-custody wallet for Ferminux (chain 3961) and seven more networks: Ethereum, BNB Chain, Base, Arbitrum, Polygon, Optimism and Avalanche. Keys stay encrypted on your device. Nothing to install.",
+  "homepage": "https://wallet.ferminux.net",
+  "app_type": "wallet",
+  "category": "Web App Wallets",
+  "chains": [
+    "eip155:3961",
+    "eip155:1",
+    "eip155:56",
+    "eip155:8453",
+    "eip155:42161",
+    "eip155:137",
+    "eip155:10",
+    "eip155:43114"
+  ],
+  "versions": [
+    "2"
+  ],
+  "sdks": [
+    "sign_v2"
+  ],
+  "standards": [
+    "eip-155",
+    "eip-191",
+    "eip-712",
+    "eip-1193",
+    "eip-1559",
+    "eip-3085",
+    "eip-3326",
+    "eip-6963"
+  ],
+  "methods": [
+    "eth_sendTransaction",
+    "personal_sign",
+    "eth_signTypedData_v4",
+    "eth_sign",
+    "wallet_switchEthereumChain",
+    "wallet_addEthereumChain"
+  ],
+  "events": [
+    "chainChanged",
+    "accountsChanged"
+  ],
+  "image": "ferminux-wallet-512.png",
+  "app": {
+    "browser": "https://wallet.ferminux.net",
+    "ios": null,
+    "android": null,
+    "mac": null,
+    "windows": null,
+    "linux": null,
+    "chrome": null,
+    "firefox": null,
+    "safari": null,
+    "edge": null,
+    "opera": null
+  },
+  "injected": [
+    {
+      "namespace": "eip155",
+      "injected_id": "isFerminuxWallet"
+    }
+  ],
+  "rdns": "net.ferminux.wallet",
+  "mobile": {
+    "native": "",
+    "universal": "https://wallet.ferminux.net"
+  },
+  "desktop": {
+    "native": "",
+    "universal": "https://wallet.ferminux.net"
+  },
+  "metadata": {
+    "shortName": "Ferminux",
+    "colors": {
+      "primary": "#05EE93",
+      "secondary": "#000000"
+    }
+  }
+}

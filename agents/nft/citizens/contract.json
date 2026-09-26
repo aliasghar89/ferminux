@@ -1,0 +1,10 @@
+{
+  "name": "Ferminux Citizens",
+  "symbol": "FMXC",
+  "description": "Ferminux Citizens: one-of-one portraits of the people, androids and creatures of Ferminux Network, minted as FRC-721 tokens on chain 3961. Every id exists exactly once and is priced by its rarity tier: Common, Rare, Epic or Legendary. The collection grows as new artwork arrives.",
+  "image": "https://ferminux.net/nft/citizens/images/collection.jpg",
+  "banner_image": "https://ferminux.net/nft/citizens/images/banner.jpg",
+  "external_link": "https://ferminux.net/nfts/citizens/",
+  "seller_fee_basis_points": 500,
+  "fee_recipient": "0x910BD467D8576277f8f96DF47428377FFD94fEfe"
+}

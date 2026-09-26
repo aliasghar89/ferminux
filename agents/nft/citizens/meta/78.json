@@ -1,0 +1,40 @@
+{
+  "name": "Arcana Dealer #78",
+  "description": "Arcana Dealer: an Epic mystic from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #78 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/78.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=78",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Mystic"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Violet"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Wide-brim hat"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Arcane longcoat"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Floating cards"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

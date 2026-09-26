@@ -162,6 +162,7 @@ export function App() {
                       wallet={wallet}
                       onSent={transfers.add}
                       liveness={relayer.status}
+                      livenessSettled={relayer.settled}
                     />
                   </>
                 )}

@@ -1,0 +1,162 @@
+# devnet up 2026-09-25T21:25:47Z
+fmxd-sig1 (signer) up at 172.30.39.11
+fmxd-sig2 (signer) up at 172.30.39.12
+fmxd-sig3 (signer) up at 172.30.39.13
+fmxd-rpc (rpc) up at 172.30.39.20
+--- heads (block, hash, peers):
+sig1 30 0x39d8d4c4b49f0a7942c69d6a207aff71c05f761c5e930dc35bafe28a7d000936 peers=3
+sig2 30 0x39d8d4c4b49f0a7942c69d6a207aff71c05f761c5e930dc35bafe28a7d000936 peers=3
+sig3 30 0x39d8d4c4b49f0a7942c69d6a207aff71c05f761c5e930dc35bafe28a7d000936 peers=3
+rpc 30 0x39d8d4c4b49f0a7942c69d6a207aff71c05f761c5e930dc35bafe28a7d000936 peers=3
+--- engine:
+INFO [09-25|21:25:49.127] Chain ID:  39619 (unknown) 
+INFO [09-25|21:25:49.127]  - Ferminux authority fork (signers confirm from this block): 1        
+INFO [09-25|21:25:49.128] Ferminux proof-of-authority engine armed posaBlock=1 period=1 epoch=30000 signers=3 treasury=0xc0A5Eb613f859f072554F29f1Ab7400265af15aB sink=0xeC53Bcc147C17Ff02773c18767a0Db2E720bEe7a checkpoint=000000..000000
+--- signer command line (the mainnet signer unit's flags; IPC only, no HTTP):
+ferminux --datadir /data --networkid 39619 --syncmode full --port 30303 --nat none --netrestrict 172.30.39.0/24 --bootnodes <sig1,sig2,sig3,rpc> --nodekeyhex <devnet> --maxpeers 60 --ipcpath /data/ferminux.ipc --verbosity 3 --unlock 0xcAF5F74B41359a78E8E20D5Cba34238F933Bb838 --password /data/password --miner.etherbase 0xcAF5F74B41359a78E8E20D5Cba34238F933Bb838 --miner.extradata fmxdev-sig1 --miner.gaslimit 100000000 --mine --miner.threads=-1 
+--- clique signers at head:
+["0x6d06d195212672dc54454b455c23a51091c6af90", "0xc40303839c512de7ca00c19b58997c52894912c4", "0xcaf5f74b41359a78e8e20d5cba34238f933bb838"]
+--- 20 consecutive blocks (number, time, signer):
+12 1790371560 0x6d06d195212672dc54454b455c23a51091c6af90
+13 1790371561 0xc40303839c512de7ca00c19b58997c52894912c4
+14 1790371562 0xcaf5f74b41359a78e8e20d5cba34238f933bb838
+15 1790371563 0x6d06d195212672dc54454b455c23a51091c6af90
+16 1790371564 0xc40303839c512de7ca00c19b58997c52894912c4
+17 1790371565 0xcaf5f74b41359a78e8e20d5cba34238f933bb838
+18 1790371566 0x6d06d195212672dc54454b455c23a51091c6af90
+19 1790371567 0xc40303839c512de7ca00c19b58997c52894912c4
+20 1790371568 0xcaf5f74b41359a78e8e20d5cba34238f933bb838
+21 1790371569 0x6d06d195212672dc54454b455c23a51091c6af90
+22 1790371570 0xc40303839c512de7ca00c19b58997c52894912c4
+23 1790371571 0xcaf5f74b41359a78e8e20d5cba34238f933bb838
+24 1790371572 0x6d06d195212672dc54454b455c23a51091c6af90
+25 1790371573 0xc40303839c512de7ca00c19b58997c52894912c4
+26 1790371574 0xcaf5f74b41359a78e8e20d5cba34238f933bb838
+27 1790371575 0x6d06d195212672dc54454b455c23a51091c6af90
+28 1790371576 0xc40303839c512de7ca00c19b58997c52894912c4
+29 1790371577 0xcaf5f74b41359a78e8e20d5cba34238f933bb838
+30 1790371578 0x6d06d195212672dc54454b455c23a51091c6af90
+31 1790371579 0xc40303839c512de7ca00c19b58997c52894912c4
+
+## validator machines: 12 with a supervised node, 2 hosts with 11 and 13 instances over IPC (2026-09-25T21:28:06Z, block 138)
+fmxd-h1 (node + 11 fmx-validator instances over IPC) up at 172.30.39.121
+fmxd-h2 (node + 13 fmx-validator instances over IPC) up at 172.30.39.122
+fmxd-v01 (fmx-validator, supervised node) up at 172.30.39.101
+fmxd-v02 (fmx-validator, supervised node) up at 172.30.39.102
+fmxd-v03 (fmx-validator, supervised node) up at 172.30.39.103
+fmxd-v04 (fmx-validator, supervised node) up at 172.30.39.104
+fmxd-v05 (fmx-validator, supervised node) up at 172.30.39.105
+fmxd-v06 (fmx-validator, supervised node) up at 172.30.39.106
+fmxd-v07 (fmx-validator, supervised node) up at 172.30.39.107
+fmxd-v08 (fmx-validator, supervised node) up at 172.30.39.108
+fmxd-v09 (fmx-validator, supervised node) up at 172.30.39.109
+fmxd-v10 (fmx-validator, supervised node) up at 172.30.39.110
+fmxd-v11 (fmx-validator, supervised node) up at 172.30.39.111
+fmxd-v12 (fmx-validator, supervised node) up at 172.30.39.112
+  attester keys present: 36 / 36
+
+## every machine: peers, head, status (no seat yet) (2026-09-25T21:37:32Z, block 674)
+  sig1: "676 peers=10"
+  sig2: "678 peers=11"
+  sig3: "680 peers=11"
+  rpc: "684 peers=11"
+  --- fmx-validator status on v01:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Starting
+                 Connecting to the node.
+      attester   att-v01(0x0040D6..)
+      hub        HUB(0x7cEE96..)
+      node       not reached yet
+      process    running=yes pid=17 restarts=0
+  --- fmx-validator status on v07:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Starting
+                 Connecting to the node.
+      attester   att-v07(0xca103c..)
+      hub        HUB(0x7cEE96..)
+      node       not reached yet
+      process    running=yes pid=16 restarts=0
+  --- fmx-validator status on h1/s1:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8571/
+      state      Node ready, no seat yet
+                 Open a seat from the owner wallet; `fmx-validator seat-proof
+                 --owner <wallet>` prints what the wallet needs.
+      attester   att-h1-s1(0x80BefB..)
+      hub        HUB(0x7cEE96..)
+      node       head 678, 0 s old, 11 peers, ready to sign
+  --- fmx-validator status on h2/s13:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8583/
+      state      Node ready, no seat yet
+                 Open a seat from the owner wallet; `fmx-validator seat-proof
+                 --owner <wallet>` prints what the wallet needs.
+      attester   att-h2-s13(0x22D883..)
+      hub        HUB(0x7cEE96..)
+      node       head 679, 1 s old, 10 peers, ready to sign
+<<< step machines done (block 692, fails so far 0)
+
+>>> step seats-b1 (2026-09-25T21:37:52Z, block 693)
+
+## memory: the first start of all 36 sidecars ran the devnet VM out of memory (2026-09-25T21:38Z)
+  Each sidecar holds ~270 MB for its first ~2 minutes (the scrypt keystore, N=2^18, is opened once; the Go
+  runtime returns the memory at its first forced GC, measured: 281 MB at 120 s, 16 MB at 150 s). 24 host
+  sidecars starting within minutes exceeded the 7.7 GiB VM, the kernel OOM-killed processes (exit 137) and
+  restarts kept it going. Fix: hosts h1/h2 recreated with GOMEMLIMIT=96MiB for their attached sidecars
+  (docker/host.sh; their node is a separate process) and a 10 s stagger; supervised machines unchanged.
+  No seat existed yet; the chain was unaffected (signers kept confirming every second).
+
+## all 36 fmx-validator instances after the fix (2026-09-25T22:11:14Z, block 2691)
+  v01     Unbonding              node: head 2691, 17 peers, ready=true   process running=true restarts=0
+  v02     Waiting to activate    node: head 2690, 13 peers, ready=true   process running=true restarts=0
+  v03     Waiting to activate    node: head 2690, 15 peers, ready=true   process running=true restarts=0
+  v04     Waiting to activate    node: head 2690, 17 peers, ready=true   process running=true restarts=0
+  v05     Waiting to activate    node: head 2690, 17 peers, ready=true   process running=true restarts=0
+  v06     Waiting to activate    node: head 2690, 17 peers, ready=true   process running=true restarts=0
+  v07     Waiting to activate    node: head 2690, 17 peers, ready=true   process running=true restarts=0
+  v08     Waiting to activate    node: head 2689, 16 peers, ready=true   process running=true restarts=0
+  v09     Waiting to activate    node: head 2690, 15 peers, ready=true   process running=true restarts=0
+  v10     Waiting to activate    node: head 2692, 15 peers, ready=true   process running=true restarts=0
+  v11     Node ready, no seat yet node: head 2690, 16 peers, ready=true   process running=true restarts=0
+  v12     Node ready, no seat yet node: head 2691, 17 peers, ready=true   process running=true restarts=0
+  h1/s1   Node ready, no seat yet node: head 2690, 17 peers, ready=true   process running=attached restarts=0
+  h1/s2   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s3   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s4   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s5   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s6   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s7   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s8   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s9   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s10  Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h1/s11  Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s1   Node ready, no seat yet node: head 2690, 17 peers, ready=true   process running=attached restarts=0
+  h2/s2   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s3   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s4   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s5   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s6   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s7   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s8   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s9   Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s10  Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s11  Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s12  Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  h2/s13  Node ready, no seat yet node: head 2692, 17 peers, ready=true   process running=attached restarts=0
+  memory (docker stats):
+fmxd-h1 310.3MiB / 7.737GiB
+fmxd-h2 305.2MiB / 7.737GiB
+fmxd-rpc 178MiB / 7.737GiB
+fmxd-sig1 170MiB / 7.737GiB
+fmxd-sig2 171.9MiB / 7.737GiB
+fmxd-sig3 169.6MiB / 7.737GiB
+fmxd-v01 107.3MiB / 7.737GiB
+fmxd-v02 105.7MiB / 7.737GiB
+fmxd-v03 99MiB / 7.737GiB
+fmxd-v04 102.8MiB / 7.737GiB
+fmxd-v05 101.3MiB / 7.737GiB
+fmxd-v06 101.1MiB / 7.737GiB
+fmxd-v07 112.1MiB / 7.737GiB
+fmxd-v08 104.2MiB / 7.737GiB
+fmxd-v09 99.97MiB / 7.737GiB
+fmxd-v10 103.9MiB / 7.737GiB
+fmxd-v11 104.6MiB / 7.737GiB
+fmxd-v12 102.5MiB / 7.737GiB

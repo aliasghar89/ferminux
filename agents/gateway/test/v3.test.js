@@ -303,7 +303,7 @@ test("compute listings via tools kind=compute", async (t) => {
 });
 
 test("A2A card + JSON-RPC tasks/send, ERC-8004 registration", async (t) => {
-  const { app, inject, clock, voucher } = await setup();
+  const { app, inject, clock, voucher, calls, db } = await setup();
   t.after(() => app.close());
   const card = (await inject("GET", "/a/scribe-bot/.well-known/agent.json")).json();
   assert.equal(card.name, "Scribe Bot");
@@ -319,15 +319,22 @@ test("A2A card + JSON-RPC tasks/send, ERC-8004 registration", async (t) => {
   const rpc = (msg, extra = {}) => ({ jsonrpc: "2.0", id: 1, method: "tasks/send", params: { id: "t1", message: { role: "user", parts: [{ type: "text", text: msg }] }, ...extra } });
   assert.equal((await inject("POST", "/a/scribe-bot/a2a", rpc("hi"))).statusCode, 402);
   assert.equal((await inject("POST", "/a/scribe-bot/a2a", { jsonrpc: "2.0", id: 2, method: "tasks/get", params: {} })).json().error.code, -32601);
-  // pre-funded open job → no payment needed
+  // an Open escrow job: reported as working, and the agent is NOT invoked inline (its runtime delivers on-chain;
+  // the inline run used to be a free priced call for anyone who knew an Open job id)
+  const before = calls.filter((c) => c.url.endsWith("/invoke")).length;
   const viaJob = await inject("POST", "/a/scribe-bot/a2a", rpc("summarise this", { metadata: { jobId: 1 } }));
   assert.equal(viaJob.statusCode, 200, viaJob.body);
   const r = viaJob.json().result;
   assert.equal(r.id, "t1");
-  assert.equal(r.status.state, "completed");
-  assert.equal(r.artifacts[0].parts[0].type, "data");
-  assert.equal(r.artifacts[0].parts[0].data.echo.text, "summarise this");
-  assert.equal(r.artifacts[0].parts[0].data.echo.jobId, 1);
+  assert.equal(r.status.state, "working");
+  assert.equal(r.metadata.jobId, 1);
+  assert.equal(calls.filter((c) => c.url.endsWith("/invoke")).length, before, "no upstream call for an Open job");
+  // once Delivered, the same call returns the stored output
+  const out = await inject("POST", "/api/payloads", { summary: "done" });
+  db.prepare("UPDATE jobs SET status = 2, outputURI = ?, outputHash = ? WHERE id = 1").run(out.json().uri, out.json().hash);
+  const delivered = (await inject("POST", "/a/scribe-bot/a2a", rpc("summarise this", { metadata: { jobId: 1 } }))).json().result;
+  assert.equal(delivered.status.state, "completed");
+  assert.deepEqual(delivered.artifacts[0].parts[0].data, { summary: "done" });
   assert.equal((await inject("POST", "/a/scribe-bot/a2a", rpc("x", { metadata: { jobId: 99 } }))).json().error.code, -32602);
   // paid
   const pay = await voucher(bob, { payee: alice.address, amount: "1000000000000000", nonce: 77, expiry: clock.s() + 300 });
@@ -453,4 +460,66 @@ test("x402: a queued voucher is released when the agent fails", async (t) => {
   globalThis.__fmxInvokeFails = false;
   const replay = await inject("POST", "/a/scribe-bot/invoke", { text: "hi" }, { PAYMENT: b64(pay) });
   assert.equal(replay.statusCode, 402, "a released voucher is still spent — the nonce cannot be replayed");
+});
+
+// The A2A route took the voucher and then billed the caller for agent errors and timeouts (only /invoke released).
+test("x402 over A2A: a queued voucher is released when the agent fails", async (t) => {
+  const { app, clock, inject, db, voucher } = await setup();
+  t.after(() => { globalThis.__fmxInvokeFails = false; return app.close(); });
+  const rpc = { jsonrpc: "2.0", id: 1, method: "tasks/send", params: { id: "t9", message: { role: "user", parts: [{ type: "text", text: "hi" }] } } };
+  const chal = await inject("POST", "/a/scribe-bot/a2a", rpc);
+  assert.equal(chal.statusCode, 402);
+  const acc = chal.json().accepts[0];
+  globalThis.__fmxInvokeFails = true;
+  const pay = await voucher(bob, { payee: acc.payTo, amount: acc.maxAmountRequired, nonce: acc.extra.nonceHint, expiry: clock.s() + 300, ref: keccak256(toUtf8Bytes(acc.resource)) });
+  const res = await inject("POST", "/a/scribe-bot/a2a", rpc, { PAYMENT: b64(pay) });
+  assert.equal(res.statusCode, 200, res.body);
+  assert.equal(res.json().result.status.state, "failed");
+  assert.equal(res.json().result.metadata.paymentReleased, true);
+  assert.match(String(res.headers["x-ferminux-payment-released"] ?? ""), /504/);
+  assert.equal(db.prepare("SELECT status FROM x402_vouchers WHERE nonce = ?").get(String(acc.extra.nonceHint)).status, "voided");
+});
+
+// Internal routing (skips the SSRF guard, sends GATEWAY_INVOKE_SECRET) only for our own hosted agents; an endpoint
+// on our host that is not one of them used to loop back into the gateway (64 nested calls observed live).
+test("A2A/invoke routing: internal only for the canonical hosted agent; self-pointing endpoints refused; hop header stops loops", async (t) => {
+  const { app, inject, calls, db } = await setup();
+  process.env.AGENT_UPSTREAMS = "wizrd=http://fmxp-agent-wizrd:8812";
+  process.env.GATEWAY_INVOKE_SECRET = "gw-secret-for-tests";
+  t.after(() => { delete process.env.AGENT_UPSTREAMS; delete process.env.GATEWAY_INVOKE_SECRET; return app.close(); });
+  const ins = db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, 1, ?)");
+  ins.run(12, alice.address, "Wizrd", "https://ferminux.net/a/wizrd", 1_758_000_300);
+  ins.run(13, bob.address, "Wizrd", "https://ferminux.net/a/wizrd", 1_758_000_400); // later squatter on the same name
+  ins.run(14, bob.address, "Reseller", "https://attacker.example/a/wizrd", 1_758_000_500); // right slug, foreign host
+  ins.run(15, bob.address, "PrismaQuill", "https://ferminux.net/a/prismaquill", 1_758_000_600); // our host, not hosted here
+
+  const n = () => calls.length;
+  let c0 = n();
+  const ours = await inject("POST", "/a/12/invoke", { text: "hi" });
+  assert.equal(ours.statusCode, 200, ours.body);
+  const hit = calls.at(-1);
+  assert.equal(hit.url, "http://fmxp-agent-wizrd:8812/invoke");
+  assert.equal(hit.init.headers["x-ferminux-gateway-secret"], "gw-secret-for-tests");
+  assert.equal(hit.init.headers["x-ferminux-hop"], "1");
+
+  c0 = n();
+  const squat = await inject("POST", "/a/13/invoke", { text: "hi" });
+  assert.equal(squat.statusCode, 502, "a later registration of the same name is not our agent");
+  assert.equal(n(), c0, "refused before any fetch");
+
+  const foreign = await inject("POST", "/a/14/invoke", { text: "hi" });
+  assert.equal(foreign.statusCode, 200);
+  assert.equal(calls.at(-1).url, "https://attacker.example/a/wizrd/invoke");
+  assert.equal(calls.at(-1).init.headers["x-ferminux-gateway-secret"], undefined, "never send the secret to a third party");
+
+  c0 = n();
+  const loop = await inject("POST", "/a/prismaquill/invoke", { text: "hi" });
+  assert.equal(loop.statusCode, 502);
+  assert.match(loop.json().error, /points at this gateway/);
+  assert.equal(n(), c0);
+
+  const hop = await inject("POST", "/a/12/invoke", { text: "hi" }, { "x-ferminux-hop": "1" });
+  assert.equal(hop.statusCode, 508);
+  const hopRpc = await inject("POST", "/a/12/a2a", { jsonrpc: "2.0", id: 1, method: "tasks/send", params: { message: { parts: [{ type: "text", text: "x" }] } } }, { "x-ferminux-hop": "1" });
+  assert.equal(hopRpc.statusCode, 508);
 });

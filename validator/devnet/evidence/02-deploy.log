@@ -1,0 +1,62 @@
+
+## deploy on chain 39619 (devnet 39619, never 3961) (2026-09-25T21:26:19Z, block 31)
+  ok: chain id is 39619
+  gas money for DEPLOYER from the funder: tx=0x0ad77696b0cc3cf6d5ff2baaae56bc1becbd63c8012918625340d15ca53d5995 block=33 status=1 gas=21000
+  gas money for OWNER1 from the funder: tx=0xf06d6a984e74c60fe06dc1c84e0ffa9e30bcc7b5bec8384b2b9d1b0052af14a2 block=35 status=1 gas=21000
+  gas money for OWNER2 from the funder: tx=0x5f462d0d9d396de4ab69fce35b4984f7c7eade037254c99ad7fbb4e5fda1d438 block=37 status=1 gas=21000
+  gas money for OWNER3 from the funder: tx=0xb972c5ee84800403d32f8abb9a293ec8ad5c25e21ed8a0d9dd1a1b24eb693454 block=39 status=1 gas=21000
+  gas money for REPORTER from the funder: tx=0x4fa079e76e327366f68fd07a325a092c26683ccda537cdda3d1745024c01fa79 block=41 status=1 gas=21000
+  gas money for OUTSIDER from the funder: tx=0x1d9a682278a40ca07618b8d8149e2e0cc7bbec16402212da90750577ae601291 block=43 status=1 gas=21000
+  ok: deployer nonce is 0 (the multisig and sink addresses are precomputed)
+Deployed to: MSIG(0x300118..)
+Transaction hash: 0xae0370d5952eb4055ce91d0dbebf88bc7d1598324daa49b50cdefb40e0858b4c
+Deployed to: SINK(0xeC53Bc..)
+Transaction hash: 0x836fc59bb37fbe871d53244944170d6f4be54969a80e31f5626fc8cf63615d4f
+  ok: multisig at the precomputed address (deployer nonce 0), 2 of 3
+  ok: FMXRewardSink at the address compiled into the devnet node (deployer nonce 1)
+  sink balance before deploy of the hub (engine block rewards, 50%): 35.250000000000000000 FMX
+
+## ValidatorHub + lens + router: agents/contracts/script/DeployValidatorsTestnet.s.sol (2026-09-25T21:26:35Z, block 47)
+== Logs ==
+  chainId        39619
+  deployer       0x5582572a9325E582A4A76D902bDf1038da207441
+  owner          0x3001184eC468EC422B7c939c8C7b2F39A9bdF85C
+  FMXRewardSink  0xeC53Bcc147C17Ff02773c18767a0Db2E720bEe7a
+  ValidatorHub   0x7cEE961A2c903CE8A17F690aE966E30e4D973254
+  SealEvidence   0x67FA9Eda6e039A0B6538C86214CEAd3C080e2Bd9
+  Lens           0x2A79C2ac794D9384aB8643dC34154d2B9DE15C03
+  SinkRouter     0x0f409b29185592cC588883D62aAc0B71226179c1
+  rewardPool     0
+  wrote ../deployments-validators.39619.json
+
+## hub parameters as deployed (2026-09-25T21:26:42Z, block 54)
+  owner: MSIG(0x300118..)
+  rewardSink: SINK(0xeC53Bc..)
+  maxSeats: 100
+  rewardPerAttest: 25000000000000000 [2.5e16]
+  currentRewardPerAttest: 25000000000000000 [2.5e16]
+  activationsPerDay: 10
+  deployBlock: 50
+  vetoSunsetBlock: 2221765 [2.221e6]
+  rewardPool: 0
+  domainSeparator: 0x9421bc1e5cf5181b7cb3efe97343d75f4b7c23089a2aea5163e3e5cb192518d0
+  SEAT_DEPOSIT: 2000000000000000000000 [2e21]
+  denied[FUNDER]: true
+  denied[MSIG]: true
+  denied[SINK]: true
+  ok: hub owner is the devnet multisig
+  ok: hub pays surplus back to the sink
+  ok: router owner is the multisig
+  ok: lens reads this hub
+  ok: hub code is PUSH0-free (paris)
+  hub runtime size: 23673 bytes
+<<< step deploy done (block 54, fails so far 0)
+
+>>> step timelock (2026-09-25T21:26:42Z, block 54)
+
+## the funder (premine wallet) sends each seat owner 2,001 FMX and tops the sink up for the 20,000 FMX tranche (2026-09-25T21:26:52Z, block 64)
+  36 seat owners funded (last: tx=0x46f7f75cbe4fbf8727198a863a14552b32b76dcbfdc8b631793063dad09b019f block=136 status=1 gas=21000)
+  sink top-up 12,000 FMX: tx=0x5a07f9e839869648fd2bd1aadc44c2665c81eb1ba1c28c230ae3c960536fd715 block=138 status=1 gas=22491; sink balance now 12103.500000000000000000 FMX
+<<< step fund done (block 138, fails so far 0)
+
+>>> step machines (2026-09-25T21:28:06Z, block 138)

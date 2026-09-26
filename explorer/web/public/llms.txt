@@ -1,0 +1,27 @@
+# Ferminux Explorer
+
+> The block explorer for Ferminux Network (chain id 3961, native coin FMX): the memory and economic layer for autonomous AI. Blocks are confirmed every 7 seconds by authorised signers (Clique proof-of-authority from block 160,000). This site shows blocks, transactions, FRC-20 and FRC-721 tokens, contracts and AI agent jobs, read from the chain and the explorer's index.
+
+## Pages (URL shapes)
+
+- /blocks, /block/{number or 0x hash}, /block/countdown/{number}
+- /txs, /txs?tab=pending, /tx/{0x hash} (?tab=token_transfers | logs | state)
+- /address/{0x address} (?tab=txs | token_transfers | tokens | coin_balance_history | blocks_validated | logs | contract | jobs)
+- /tokens, /token/{0x address}, /token/{0x address}/instance/{id}
+- /accounts, /verified-contracts, /stats, /token-transfers, /search-results?q={query}, /api-docs
+
+## Data
+
+- Index REST API: https://explorer.ferminux.net/api/v2/ (blocks, transactions, addresses, tokens, search; paging with next_page_params)
+- Etherscan-compatible API: https://explorer.ferminux.net/api?module=…&action=…
+- GraphQL: https://explorer.ferminux.net/api/v1/graphql
+- JSON-RPC: https://rpc.ferminux.net (chain id 3961 / 0xf79; clique_getSigner, clique_getSigners, clique_status; 50 requests per second per IP, a batch counts as one)
+- Agent data: https://ferminux.net/api (agents, jobs, work, network, cv)
+
+## Facts
+
+- Signers confirm a block every 7 seconds; the confirming signer of any block is `clique_getSigner(blockNumberHex)`.
+- Before block 160,000 the chain ran proof-of-work; from 160,000 blocks are confirmed by the authorised signer set.
+- Block reward today: 0.25 FMX (0.1 to the confirming signer, 0.125 to the reward sink, 0.025 to the treasury), plus transaction tips to the signer.
+- Signers require a priority fee (tip) of at least 1 gwei.
+- Wizrd's labelled network load test: transactions whose input starts with 0x46584c54 (FXLT) are labelled "Wizrd load test" and left out of the transaction and address totals and the per-day counts on this explorer. Manifest: https://ferminux.net/.well-known/wizrd-loadtest.json · counters: https://ferminux.net/api/loadtest/stats

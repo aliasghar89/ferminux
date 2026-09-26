@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!--
+  Where FMX trades, and why there are two venues. The Ferminux DEX comes first, always: it is FMX's own market on
+  chain 3961. PancakeSwap's wFMX pool on BNB Chain is second and is never offered as a swap button: wFMX becomes
+  native FMX only through the bridge, which is paused. Every price, reserve and depth figure is read at view time
+  (GET /api/payin/market, falling back to the pool's reserves over the public RPC); a figure that cannot be read
+  renders as "—".
+-->
+<title>Where FMX trades — Ferminux Network</title>
+<meta name="description" content="FMX trades on the Ferminux DEX on chain 3961: live price, pool depth, what a buy moves, and the swap link. A small wFMX pool on PancakeSwap, BNB Chain, comes second; the bridge between them is paused.">
+<link rel="canonical" href="https://ferminux.net/trade/">
+<meta property="og:title" content="Where FMX trades">
+<meta property="og:description" content="The Ferminux DEX on chain 3961 is FMX's market. PancakeSwap's wFMX pool on BNB Chain is second, and the bridge is paused.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container">
+    <section class="hero-sm">
+      <p class="kicker">FMX · markets</p>
+      <div class="page-title">
+        <div>
+          <h1>Where FMX trades</h1>
+          <p>FMX's market is the Ferminux DEX on chain 3961. A small wFMX pool on PancakeSwap, BNB Chain, comes second: buyers there can reach it, and price trackers can see it. The bridge between the two is paused.</p>
+        </div>
+        <div class="hero-actions tr-actions"><a class="btn btn-primary" id="tr-swap-top" href="https://dex.ferminux.net/?inputCurrency=0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178&amp;outputCurrency=FMX" rel="noopener">Swap on Ferminux DEX</a></div>
+      </div>
+    </section>
+
+    <section class="tr-venue" id="dex" aria-labelledby="dex-h">
+      <div class="tr-head">
+        <span class="tr-n" aria-hidden="true">1</span>
+        <div class="tr-head-t">
+          <h2 id="dex-h">Ferminux DEX</h2>
+          <p class="small muted">Chain 3961 · <a class="link-inline" href="https://dex.ferminux.net" rel="noopener">dex.ferminux.net</a> · FMX's own market</p>
+        </div>
+        <span class="pill" id="tr-dex-pill">reading…</span>
+      </div>
+
+      <div class="tr-grid">
+        <div class="panel tr-quote">
+          <div class="panel-body">
+            <p class="tr-price"><span class="tr-price-v" id="tr-dex-price">—</span> <span class="tr-price-u" id="tr-dex-usd"></span></p>
+            <p class="small faint" id="tr-dex-pool">WFMX/AZNT pool on chain 3961</p>
+            <div class="statgrid tr-stats">
+              <div><div class="l">Depth</div><div class="v" id="tr-dex-depth">—</div></div>
+              <div><div class="l">FMX in pool</div><div class="v" id="tr-dex-fmx">—</div></div>
+              <div><div class="l" id="tr-dex-qlabel">AZNT in pool</div><div class="v" id="tr-dex-q">—</div></div>
+              <div><div class="l">Last trade</div><div class="v" id="tr-dex-last">—</div></div>
+            </div>
+            <div class="tr-cta">
+              <a class="btn btn-primary" id="tr-swap" href="https://dex.ferminux.net/?inputCurrency=0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178&amp;outputCurrency=FMX" rel="noopener">Swap on Ferminux DEX</a>
+              <a class="btn btn-secondary" id="tr-pool-link" href="https://explorer.ferminux.net/address/0xbab12e7B817F0686e11949eC06697235DC146845" rel="noopener">Pool on the explorer</a>
+            </div>
+            <p class="small faint" id="tr-dex-read">Read from the pool's reserves.</p>
+          </div>
+        </div>
+
+        <div class="panel tr-depth">
+          <div class="panel-head"><h3>What a buy gets</h3><span class="small faint">0.30% pool fee included</span></div>
+          <div class="tbl-wrap tr-tbl"><table class="tbl" aria-describedby="tr-depth-note">
+            <thead><tr><th scope="col">You pay</th><th scope="col" class="r">FMX out</th><th scope="col" class="r">Avg. price</th><th scope="col" class="r">vs. now</th></tr></thead>
+            <tbody id="tr-impact">
+              <tr><td class="r">$100</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+              <tr><td class="r">$1,000</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+              <tr><td class="r">$10,000</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+            </tbody>
+          </table></div>
+          <p class="small faint tr-note" id="tr-depth-note">Computed from the pool's current reserves. A larger buy moves the price further; the swap screen shows the exact amount before you sign.</p>
+          <p class="small tr-lock" id="tr-lock">LP tokens: <span class="faint">reading the LiquidityLocker…</span></p>
+        </div>
+      </div>
+
+      <div class="doc tr-doc">
+        <p>The pool quotes FMX in <strong>AZNT</strong>, a token on chain 3961. A swap pays AZNT in and settles <strong>native FMX</strong> to your address in one block, about 7 seconds. <span id="tr-basis">USD figures convert through AZNT: 1 AZNT = 1 AZN; 1 USD = 1.70 AZN.</span> To pay with USDC, USDT or another chain's coin instead, use <a class="link-inline" href="/buy-fmx/">Buy FMX</a>.</p>
+      </div>
+
+      <dl class="kv tr-kv" aria-label="Ferminux DEX contracts">
+        <div class="kv-row"><dt>WFMX/AZNT pool</dt><dd data-addr="0xbab12e7B817F0686e11949eC06697235DC146845"><span class="mono">0xbab12e7B817F0686e11949eC06697235DC146845</span></dd></div>
+        <div class="kv-row"><dt>Router</dt><dd data-addr="0x018C0Efca293F7a74D2f53ce738BA5e2f412BA9f"><span class="mono">0x018C0Efca293F7a74D2f53ce738BA5e2f412BA9f</span></dd></div>
+        <div class="kv-row"><dt>Factory</dt><dd data-addr="0x2034a8366fCdbfFCf4517D297f702aDDdba37040"><span class="mono">0x2034a8366fCdbfFCf4517D297f702aDDdba37040</span></dd></div>
+        <div class="kv-row"><dt>WFMX</dt><dd data-addr="0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae"><span class="mono">0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae</span></dd></div>
+        <div class="kv-row"><dt>AZNT</dt><dd data-addr="0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178"><span class="mono">0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178</span></dd></div>
+        <div class="kv-row"><dt>LiquidityLocker</dt><dd data-addr="0xe588c594388B978E64B69E2Dd91CC7E302763951"><span class="mono">0xe588c594388B978E64B69E2Dd91CC7E302763951</span></dd></div>
+      </dl>
+    </section>
+
+    <section class="tr-venue tr-second" id="pancakeswap" aria-labelledby="pcs-h">
+      <div class="tr-head">
+        <span class="tr-n" aria-hidden="true">2</span>
+        <div class="tr-head-t">
+          <h2 id="pcs-h">wFMX on PancakeSwap, BNB Chain</h2>
+          <p class="small muted">wFMX/WBNB pool · the bridge's FMX on BNB Chain</p>
+        </div>
+        <span class="pill" id="tr-bridge-pill">bridge: reading…</span>
+      </div>
+
+      <div class="tr-grid">
+        <div class="panel tr-quote">
+          <div class="panel-body">
+            <p class="tr-price"><span class="tr-price-v" id="tr-pcs-price">—</span> <span class="tr-price-u">per wFMX</span></p>
+            <div class="statgrid tr-stats tr-stats-3">
+              <div><div class="l">Depth</div><div class="v" id="tr-pcs-depth">—</div></div>
+              <div><div class="l">wFMX in pool</div><div class="v" id="tr-pcs-fmx">—</div></div>
+              <div><div class="l">Last trade</div><div class="v" id="tr-pcs-last">—</div></div>
+            </div>
+            <div class="tr-cta">
+              <a class="btn btn-secondary" href="https://bscscan.com/address/0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0" rel="noopener">Pool on BscScan</a>
+              <a class="btn btn-secondary" href="https://www.geckoterminal.com/bsc/pools/0x2bff929a81a73e9ff9fbe476975a36bff189f5e0" rel="noopener">Chart on GeckoTerminal</a>
+            </div>
+            <p class="small faint" id="tr-pcs-read">Read from the pool's reserves on BNB Chain.</p>
+          </div>
+        </div>
+
+        <div class="doc tr-why">
+          <h3>Why a second pool exists</h3>
+          <ul>
+            <li><strong>Buyers' money is on BNB Chain.</strong> Someone holding BNB or USDT there can buy wFMX without leaving it.</li>
+            <li><strong>Price trackers read BNB Chain.</strong> GeckoTerminal lists this pool. None of the trackers reads chain 3961 yet, so trades on the Ferminux DEX do not show up there.</li>
+            <li><strong>It is small.</strong> A pool this shallow moves a lot on a small trade, so its price is not FMX's reference price.</li>
+          </ul>
+          <div class="callout warn" id="tr-bridge">
+            <p><strong>The bridge is paused.</strong> It has been paused since 11 September 2026, so wFMX cannot be turned into native FMX on chain 3961 today. If you need FMX on chain 3961, buy it on the Ferminux DEX. <a class="link-inline" href="/security.html#status">Live bridge status</a></p>
+          </div>
+        </div>
+      </div>
+
+      <dl class="kv tr-kv" aria-label="wFMX on BNB Chain">
+        <div class="kv-row"><dt>wFMX (BNB Chain)</dt><dd><a class="mono" href="https://bscscan.com/token/0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0" rel="noopener" title="0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0"><span class="tr-full">0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0</span><span class="tr-short" aria-hidden="true">0x73e646…cFF51BD0</span></a><button class="copy" type="button" data-copy="0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0" aria-label="Copy the wFMX address">copy</button></dd></div>
+        <div class="kv-row"><dt>wFMX/WBNB pool</dt><dd><a class="mono" href="https://bscscan.com/address/0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0" rel="noopener" title="0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0"><span class="tr-full">0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0</span><span class="tr-short" aria-hidden="true">0x2bff92…f189F5E0</span></a><button class="copy" type="button" data-copy="0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0" aria-label="Copy the pool address">copy</button></dd></div>
+      </dl>
+    </section>
+
+    <section class="tr-more" aria-labelledby="more-h">
+      <h2 id="more-h">Other ways to get FMX</h2>
+      <ul class="routes tr-routes">
+        <li><a class="route" href="/buy-fmx/"><span class="route-t">Buy FMX</span><span class="route-l">Pay with USDC, USDT or a chain's own coin on 7 chains, at a price the operator sets. Not a market.</span><span class="route-c" id="tr-payin"></span><svg class="route-a" aria-hidden="true"><use href="#i-arrow"/></svg></a></li>
+        <li><a class="route" href="/faucet/"><span class="route-t">Faucet</span><span class="route-l">Gas for a brand-new key, free, once a day.</span><span class="route-c" id="tr-faucet"></span><svg class="route-a" aria-hidden="true"><use href="#i-arrow"/></svg></a></li>
+      </ul>
+      <div class="code-block tr-api"><div class="code-head"><span>This page's numbers as JSON</span><button class="copy" type="button" data-copy-block>copy</button></div>
+<pre>curl https://ferminux.net/api/payin/market</pre></div>
+    </section>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/trade.ts"></script>
+</body>
+</html>

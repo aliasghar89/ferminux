@@ -137,7 +137,7 @@ recommended policy:
 
 | Source chain | Wait for | Wall clock | Why |
 |---|---|---|---|
-| Ferminux (3961) | 64 blocks | ~7.5 min | Clique proof-of-authority (five bonded signers), no finality gadget; 64 is the same depth at which every node refuses a reorg — this is the deepest wait for a reason, see [security-model.md](security-model.md#5-reorg-risk-per-chain) |
+| Ferminux (3961) | 64 blocks | ~7.5 min | Clique proof-of-authority (an authorised signer set), no finality gadget; 64 is the same depth at which every node refuses a reorg — this is the deepest wait for a reason, see [security-model.md](security-model.md#5-reorg-risk-per-chain) |
 | Ethereum (1) | the `finalized` tag | ~13–19 min | two epochs; economically final, not probabilistic |
 | BSC (56) | the `finalized` tag (fast finality) | ~45–75 s | falls back to ~15 blocks if the endpoint does not serve `finalized` |
 | Polygon PoS (137) | the `finalized` tag (Heimdall milestones) | ~1–3 min | block-count waiting alone has been unreliable historically |
@@ -436,8 +436,8 @@ cast call $BRIDGE_DST "tokenConfig(address)((uint8,bool,uint64,address,uint256,u
   threshold; the caps only bound it.
 - That a transfer will complete in a given time. Liveness depends on validators
   and relayers being up, and on the destination not being paused or cap-full.
-- That the Ferminux side cannot reorg. Ferminux blocks are confirmed by five
-  bonded signers (Clique proof-of-authority) with no finality gadget; how deep a
+- That the Ferminux side cannot reorg. Ferminux blocks are confirmed by an
+  authorised signer set (Clique proof-of-authority) with no finality gadget; how deep a
   reorg can go, and why the relayer waits 64 blocks, is in
   [security-model.md](security-model.md#5-reorg-risk-per-chain).
 - That wrapped assets have a market. A wrapper is only liquid if somebody makes

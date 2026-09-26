@@ -257,7 +257,10 @@ test('config: the shipped example keeps the ferminux row in an explicit mode and
   const raw = JSON.parse(readFileSync(path, 'utf8'));
   const fmx = raw.chains.find((c) => c.chainId === SRC);
   assert.equal(fmx.finalityTag, null);
-  assert.equal(fmx.finality.mode, 'work-and-time');
+  // checkpoint since the authority fork: work-and-time can never be met on
+  // difficulty-1/2 blocks (see the work-and-time guard test above).
+  assert.equal(fmx.finality.mode, 'checkpoint');
+  assert.equal(fmx.finality.workThreshold, undefined, 'refused outside work-and-time, so absent');
   for (const c of raw.chains) {
     if (c.chainId !== SRC) assert.notEqual(c.finalityTag, null, `${c.name} has a finality tag, so count mode is legitimate there`);
   }
@@ -472,6 +475,31 @@ test('work: not enough accumulated difficulty above the block is not_final, with
     assert.equal(v.code, 'not_final');
     assert.match(v.reason, /accumulated work 5000 of 10000/);
     assert.match(v.reason, /~5 more at current difficulty/);
+  } finally {
+    await r.close();
+  }
+});
+
+test('work: on authority-signed blocks (difficulty <= 2) work-and-time says it can never finalise, and pauses', async () => {
+  // Ferminux after block 160,000 under the live 2026-09-24 config: difficulty
+  // 1-2 per block, workThreshold 7.8e10. It used to answer "not_final" with a
+  // shortfall of ~39 billion blocks, and /status said "not paused".
+  const chain = buildChain({ length: 60, difficulty: 2n });
+  const fired = [];
+  const r = await rig({ finality: WORK_AND_TIME, srcState: chainState(chain), now: msAfter(chain) });
+  const real = r.monitor.alerts.fire.bind(r.monitor.alerts);
+  r.monitor.alerts.fire = (a) => (fired.push(a), real(a));
+  try {
+    await r.monitor.refresh();
+    const summary = r.monitor.signingSummary();
+    assert.equal(summary.paused, true);
+    assert.match(summary.reason, /can(not|never) be met.*"checkpoint"/s);
+    const v = await r.monitor.assess({ srcBlockNumber: 20, srcBlockHash: chain[20].hash }, 0);
+    assert.equal(v.ok, false);
+    assert.match(v.reason, /authority-signed/);
+    assert.equal(fired.filter((a) => a.key?.startsWith('work-mode-impossible')).length, 1, 'one critical alert, not one per refresh');
+    await r.monitor.refresh();
+    assert.equal(fired.filter((a) => a.key?.startsWith('work-mode-impossible')).length, 1);
   } finally {
     await r.close();
   }

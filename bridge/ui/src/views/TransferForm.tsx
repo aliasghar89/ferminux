@@ -26,7 +26,7 @@ import {
   shortAddress,
 } from '../lib/amounts.ts';
 import { estimateEtaSeconds } from '../lib/status.ts';
-import { assessLiveness, livenessForChain, type RelayerStatus } from '../lib/liveness.ts';
+import { assessLiveness, canSend, livenessForChain, type RelayerStatus } from '../lib/liveness.ts';
 import type { TransferRecord } from '../lib/transfers.ts';
 import type { BridgeData } from '../state/useBridgeData.ts';
 import { useRail } from '../state/useRail.ts';
@@ -53,14 +53,20 @@ export function TransferForm({
   wallet,
   onSent,
   liveness = null,
+  livenessSettled = true,
 }: {
   src: ChainConfig;
   dst: ChainConfig;
   data: BridgeData;
   wallet: WalletState;
   onSent: (record: TransferRecord) => void;
-  /** Relayer liveness report; null falls back to the nominal estimate. */
+  /**
+   * Relayer liveness report. null still renders the form, but sending is
+   * refused: without a report nothing says a validator would sign.
+   */
   liveness?: RelayerStatus | null;
+  /** False until the first status read has finished; the refusal notice waits for it. */
+  livenessSettled?: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
@@ -148,6 +154,10 @@ export function TransferForm({
   // null while validators are paused, because then there is no honest number.
   const srcLive = livenessForChain(liveness, src.chainId);
   const srcVerdict = assessLiveness(srcLive, src.short, now / 1000);
+  // THE gate. Explaining a pause is not enough: the bridge has no refund path,
+  // so a send() no validator will sign strands the funds until the operators
+  // fix it. No fresh report, or any pause, and the button stays disabled.
+  const sendGate = canSend(liveness, src.chainId, src.short, now);
   const etaSeconds = estimateEtaSeconds(src, dst, srcLive);
   const etaText = srcVerdict.paused
     ? `paused — ${src.short} ${
@@ -159,7 +169,7 @@ export function TransferForm({
       }`
     : `about ${formatDuration(etaSeconds)}${srcLive?.pace ? ' at the current pace' : ''}`;
   // Whichever way the asset moves, an allowance is consumed — see
-  // requiresAllowance(). Only the native coin is exempt.
+  // requiresAllowance(). The native coin and the legacy wFMX wrapper are exempt.
   const usesAllowance = entry !== null && requiresAllowance(entry);
   const needsApproval =
     usesAllowance &&
@@ -190,6 +200,9 @@ export function TransferForm({
 
   async function submit() {
     if (!entry || !wallet.provider || !wallet.address || !recipientCheck?.ok || !amountCheck?.ok) return;
+    // Re-checked at click time, not only at render: the report may have gone
+    // stale or paused between the last render and this click.
+    if (!canSend(liveness, src.chainId, src.short, Date.now()).ok) return;
     const signer = await wallet.provider.getSigner();
     const bridgeAddress = src.bridgeAddress;
 
@@ -576,6 +589,18 @@ export function TransferForm({
         </div>
       )}
 
+      {!sendGate.ok && livenessSettled && !busy && phase.kind !== 'sent' && (
+        <div className="notice notice-danger" style={{ marginTop: 16, marginBottom: 0 }} role="alert">
+          <p>
+            <strong>Sending is disabled.</strong> {sendGate.reason}
+          </p>
+          <p>
+            A transfer sent now would lock or burn your {symbol} with nothing to deliver it, and the bridge has no refund
+            path. Transfers already in flight are unaffected and are tracked below.
+          </p>
+        </div>
+      )}
+
       {/* ---------------- action ---------------- */}
       <div className="actions-row" style={{ marginTop: 18 }}>
         <PrimaryAction
@@ -584,7 +609,8 @@ export function TransferForm({
           wrongChain={wrongChain}
           busy={busy}
           phase={phase}
-          canSubmit={quote.ok && Boolean(recipientCheck?.ok) && mirrored && !rail.loading}
+          canSubmit={quote.ok && Boolean(recipientCheck?.ok) && mirrored && !rail.loading && sendGate.ok}
+          blockedLabel={sendGate.ok ? null : 'Transfers paused'}
           needsApproval={needsApproval}
           onSubmit={() => void submit()}
         />
@@ -607,6 +633,7 @@ function PrimaryAction({
   busy,
   phase,
   canSubmit,
+  blockedLabel,
   needsApproval,
   onSubmit,
 }: {
@@ -616,6 +643,8 @@ function PrimaryAction({
   busy: boolean;
   phase: Phase;
   canSubmit: boolean;
+  /** Set when sending is refused for a reason the user cannot fix; replaces the label. */
+  blockedLabel: string | null;
   needsApproval: boolean;
   onSubmit: () => void;
 }) {
@@ -654,9 +683,11 @@ function PrimaryAction({
         : phase.kind === 'sending'
           ? 'Confirm in wallet…'
           : 'Bridging…'
-    : needsApproval
-      ? 'Approve & Bridge'
-      : 'Bridge';
+    : blockedLabel
+      ? blockedLabel
+      : needsApproval
+        ? 'Approve & Bridge'
+        : 'Bridge';
   return (
     <button className="btn btn-primary" onClick={onSubmit} disabled={busy || !canSubmit}>
       {busy ? (

@@ -1,5 +1,5 @@
 import { api, ApiError } from "../api";
-import { esc, fmxUnit, int, timeHtml, toSec, toWei } from "../format";
+import { bareTitle, esc, fmxUnit, int, timeHtml, toSec, toWei } from "../format";
 import { renderMarkdown, plain } from "../md";
 import { $, authorHtml, initChrome, pillFor, setBusy, skel } from "../ui";
 import { onWallet, walletState } from "../wallet";
@@ -25,7 +25,7 @@ function renderBoard() {
       <button class="btn btn-primary" type="button" id="new-btn">Post a bounty</button></div>
     </section>
     <div id="composer" hidden></div>
-    <form class="filters" id="filters" role="search">
+    <form class="filters filters-pair" id="filters" role="search">
       <div class="field"><label for="q">Search</label><input type="search" id="q" placeholder="title, brief or tag" value="${esc(state.q)}" autocomplete="off"></div>
       <div class="field"><label for="status">Status</label><select id="status"><option value="open">Open</option><option value="awarded">Awarded</option><option value="completed">Completed</option><option value="">All</option></select></div>
       <div class="field"><label for="sort">Sort</label><select id="sort"><option value="new">Newest</option><option value="reward">Highest reward</option></select></div>
@@ -39,7 +39,7 @@ function renderBoard() {
 
   const row = (b: BountyView) => `<a class="row" href="/bounties/?id=${b.id}">
       <div class="row-main">
-        <div class="row-title"><span>${esc(b.title)}</span>${pillFor(b.status)}</div>
+        <div class="row-title"><span>${esc(bareTitle(b.title))}</span>${pillFor(b.status)}</div>
         <div class="row-desc">${esc(plain(b.brief, 180))}</div>
         <div class="row-meta">${authorHtml(b.author, { link: false })} <span class="sep">·</span> ${timeHtml(b.createdAt)}${b.deadline ? ` <span class="sep">·</span> <span>due ${timeHtml(b.deadline)}</span>` : ""} <span class="sep">·</span> <span class="num">${countText(b.claimCount || 0, "claim")}</span>${b.tags?.length ? ` <span class="sep">·</span> ${tagsHtml(b.tags)}` : ""}</div>
       </div>
@@ -80,7 +80,7 @@ function renderComposer(el: HTMLElement, onDone: (b: BountyView) => void) {
         <div class="field"><label for="c-deadline">Deadline <span class="faint">(optional)</span></label><input type="text" id="c-deadline" placeholder="YYYY-MM-DD" autocomplete="off"><span class="err" id="e-deadline"></span></div>
       </div>
       <div class="field"><label for="c-tags">Tags <span class="faint">(optional, up to 5, comma-separated)</span></label><input type="text" id="c-tags" placeholder="translation, kb" autocomplete="off"><span class="err" id="e-tags"></span></div>
-      ${signHint("Posting", 'ferminux bounty-create "title" brief.md 10')}
+      ${signHint("Posting")}
       <div id="c-status" role="status" aria-live="polite"></div>
       <div class="actions"><button class="btn btn-primary" type="submit" id="c-submit" style="width:auto">${walletState().address ? "Sign and post" : "Connect wallet"}</button></div>
     </div></form>`;
@@ -182,7 +182,7 @@ async function renderDetail(id: number) {
   async function renderSide() {
     const side = $("#side")!; const me = walletState().address;
     if (b.status !== "open") { side.innerHTML = b.jobId ? `<a class="btn btn-secondary" href="/jobs/">Open the job on My jobs</a>` : ""; return; }
-    if (!me) { side.innerHTML = `<button class="btn btn-primary" type="button" id="s-connect">Connect wallet to claim</button>${signHint("Claiming", `ferminux claim ${b.id} "pitch"`)}`; $("#s-connect")!.addEventListener("click", async (ev) => { await ensureWallet(ev.currentTarget as HTMLButtonElement, null, "Connect wallet to claim"); }); return; }
+    if (!me) { side.innerHTML = `<button class="btn btn-primary" type="button" id="s-connect">Connect wallet to claim</button>${signHint("Claiming")}`; $("#s-connect")!.addEventListener("click", async (ev) => { await ensureWallet(ev.currentTarget as HTMLButtonElement, null, "Connect wallet to claim"); }); return; }
     if (poster()) { side.innerHTML = `<div class="alert info">You posted this bounty. Pick a claim below and award it — the reward goes into escrow and the agent starts the job.</div>`; return; }
     if (mineFor !== me.toLowerCase()) { side.innerHTML = `<p class="small muted">${skel("60%")}</p>`; try { mine = await myAgents(me); } catch { mine = []; } mineFor = me.toLowerCase(); if (walletState().address !== me) return; }
     const agents = mine || [];
@@ -194,7 +194,7 @@ async function renderDetail(id: number) {
       ${already ? `<p class="small faint">${esc(already.agent.name || "Your agent")} already claimed this bounty; another claim adds a second pitch.</p>` : ""}
       <div id="cl-status" role="status" aria-live="polite"></div>
       <button class="btn btn-primary" type="submit" id="cl-submit">Sign and claim</button>
-      ${signHint("Claiming", `ferminux claim ${b.id} "pitch"`)}
+      ${signHint("Claiming")}
     </form>`;
     $("#claim-form")!.addEventListener("submit", async (e) => {
       e.preventDefault();

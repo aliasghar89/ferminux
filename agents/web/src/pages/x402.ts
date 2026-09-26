@@ -2,14 +2,15 @@ import { X402_VAULT_ABI, X402_VOUCHER_TYPES } from "../abi";
 import { config, vaultDeployed } from "../config";
 import { economy } from "../economy";
 import { esc, fmx, fmxUnit, int, relTime, short, timeHtml, toWei } from "../format";
-import { $, addrHtml, initChrome, setBusy, skel, toast, txHtml } from "../ui";
+import { $, addrHtml, connectPrompt, initChrome, setBusy, skel, toast, txHtml } from "../ui";
 import { connect, contractWrite, errMessage, onWallet, sendCall, signTyped, walletState } from "../wallet";
 import { mountCredits } from "../credits";
 import type { VoucherRecord, X402Resource } from "../types";
 
 initChrome();
 const view = $("#view")!;
-let current: string | null = null;
+// undefined, not null: the first onWallet call (address null when no wallet) must still render the connect state.
+let current: string | null | undefined = undefined;
 
 const domain = { name: "FerminuxX402", version: "1", chainId: config.chainId, verifyingContract: config.x402Vault } as const;
 
@@ -35,7 +36,7 @@ function render() {
             <div class="field"><label for="x-payee">Priced resource</label><select id="x-payee"></select></div>
             <div class="field"><label for="x-amt">Amount (FMX)</label><input type="number" id="x-amt" min="0" step="0.001" class="num" placeholder="0.05"></div>
           </div>
-          <div id="x-sign-status"></div>
+          <div id="x-sign-status" role="status" aria-live="polite"></div>
           <div class="actions"><button class="btn btn-secondary" type="button" id="x-sign" style="width:auto">Sign voucher</button><button class="btn btn-primary" type="button" id="x-settle" style="width:auto" disabled>Verify + queue for settlement</button></div>
           <div class="code-block" id="x-voucher-box" hidden><div class="code-head"><span>Voucher</span><span class="mono">EIP-712</span></div><pre id="x-voucher-pre" class="light"></pre></div>
         </div></div>
@@ -72,7 +73,7 @@ function render() {
 
 function renderVaultEmpty() {
   $("#x-vault-status")!.innerHTML = ""; $("#x-credits")!.innerHTML = "";
-  $("#x-vault")!.innerHTML = `<div class="panel"><div class="panel-head"><h3>Your vault</h3></div><div class="panel-body"><p class="muted small">Connect a wallet to deposit, request an unlock, or withdraw.</p><button class="btn btn-primary" type="button" id="x-connect" style="width:auto">Connect wallet</button></div></div>`;
+  $("#x-vault")!.innerHTML = `<div class="panel"><div class="panel-head"><h3>Your vault</h3></div><div class="panel-body"><p class="muted small">Connect a wallet to deposit, request an unlock, or withdraw.</p><div class="connect-inline">${connectPrompt("x-connect")}</div></div></div>`;
   $("#x-connect")!.addEventListener("click", async (ev) => { const b = ev.currentTarget as HTMLButtonElement; setBusy(b, true, "Connecting…"); try { await connect(); } catch (e) { toast(errMessage(e)); setBusy(b, false); } });
   $("#x-vouchers")!.innerHTML = `<tr><td colspan="5" class="muted small" style="text-align:center;padding:20px">Connect a wallet to see your voucher history.</td></tr>`;
 }

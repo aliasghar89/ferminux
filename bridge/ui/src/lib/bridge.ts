@@ -59,7 +59,21 @@ export interface AssetMeta {
   symbol: string;
   decimals: number;
   isNative: boolean;
+  /**
+   * keccak256 of the token's runtime code (what EXTCODEHASH returns), or
+   * null/absent when unknown. Used only to recognise the legacy wrapper — see
+   * requiresAllowance().
+   */
+  codehash?: string | null;
 }
+
+/**
+ * Runtime codehash of the wrapper deployed as wFMX on BSC (0x73e6…1BD0), and
+ * the value both bridges pin. Its burn() debits NO allowance
+ * (contracts/script/legacy/BridgeTokenLegacy.sol); src/BridgeToken.sol, whose
+ * burn() does, has a different codehash.
+ */
+export const LEGACY_WRAPPER_CODEHASH = '0x980caca33378a757a285824785e55c837d57872881cb186115c274627aaf36ac';
 
 export interface RegistryEntry {
   /** Token address on THIS chain. ZeroAddress = the chain's native coin. */
@@ -167,12 +181,17 @@ export async function readAssetMeta(
   }
   const address = getAddress(token);
   const c = new Contract(address, ERC20_ABI as unknown as string[], provider);
-  const [name, symbol, decimals] = await Promise.all([
+  const [name, symbol, decimals, codehash] = await Promise.all([
     c.name() as Promise<string>,
     c.symbol() as Promise<string>,
     c.decimals() as Promise<bigint | number>,
+    // Best effort: an unreadable codehash only means the safe default (approve).
+    provider.getCode(address).then(
+      (code) => (code && code !== '0x' ? keccak256(code).toLowerCase() : null),
+      () => null,
+    ),
   ]);
-  return { address, name, symbol, decimals: Number(decimals), isNative: false };
+  return { address, name, symbol, decimals: Number(decimals), isNative: false, codehash };
 }
 
 /**
@@ -339,11 +358,19 @@ export interface TxRequest {
  * balance nobody granted it. Skipping the approval sent every bridge-back
  * straight into "WTOKEN: burn exceeds allowance".
  *
- * The native coin is the only exemption, because it arrives as msg.value and
- * there is nothing to approve.
+ * Two exemptions:
+ *   * the native coin, which arrives as msg.value — nothing to approve;
+ *   * a WRAPPED asset whose code is the LEGACY wrapper (LEGACY_WRAPPER_CODEHASH,
+ *     the live wFMX). Its burn() ignores allowance, so an approve() there was
+ *     an extra transaction and a standing allowance to the bridge that nothing
+ *     ever consumed. Recognised only by exact codehash: an unknown or
+ *     unreadable codehash keeps the approval, because skipping it on the NEW
+ *     wrapper would revert every return leg.
  */
-export function requiresAllowance(entry: Pick<RegistryEntry, 'meta'>): boolean {
-  return !entry.meta.isNative;
+export function requiresAllowance(entry: Pick<RegistryEntry, 'meta' | 'kind'>): boolean {
+  if (entry.meta.isNative) return false;
+  if (entry.kind === TokenKind.WRAPPED && entry.meta.codehash?.toLowerCase() === LEGACY_WRAPPER_CODEHASH) return false;
+  return true;
 }
 
 /** ERC-20 approve(bridge, amount). */

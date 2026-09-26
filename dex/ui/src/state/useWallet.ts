@@ -1,121 +1,183 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHAIN_ID } from '../config.ts';
-import { connectWallet, injected, onWalletEvents, readableError, switchToFerminux, type WalletState } from '../lib/wallet.ts';
+import type { WalletChoice, WalletKind } from '../../../../shared/fxwallet/connector.ts';
+import { connector } from '../lib/connector.ts';
+import { connectWallet, injected, readableError, switchToFerminux, type Eip1193Provider, type WalletState } from '../lib/wallet.ts';
 
 export interface WalletSession {
   wallet: WalletState | null;
   address: string | null;
   /** Wallet is connected but pointed at another chain — signing is blocked. */
   wrongChain: boolean;
+  /** An injected (extension / in-app browser) wallet exists; without one the chooser offers the phone hand-off. */
   hasInjected: boolean;
   connecting: boolean;
+  /** What the wallet is being asked right now ("Approve adding Ferminux…"), or null. */
+  status: string | null;
   error: string | null;
-  connect: () => Promise<void>;
+  /** Ferminux Wallet, then injected wallets, then WalletConnect when configured. */
+  choices: WalletChoice[];
+  /** Which kind of wallet is connected. */
+  kind: WalletKind | null;
+  /** The connected EIP-1193 provider (for chain switches outside the DEX's own chain). */
+  eip1193: Eip1193Provider | null;
+  chooserOpen: boolean;
+  /** Open the wallet chooser. */
+  connect: () => void;
+  /** Connect with one choice — call it from the click, so the Ferminux Wallet window may open. */
+  connectWith: (id: string) => void;
+  closeChooser: () => void;
   switchChain: () => Promise<void>;
   disconnect: () => void;
 }
 
 /**
- * Injected-wallet session. Read-only browsing never depends on this: the page
- * works with no wallet at all, and only the action buttons care.
+ * Wallet session. Read-only browsing never depends on this: the page works
+ * with no wallet at all, and only the action buttons care.
  */
 export function useWallet(): WalletSession {
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // MetaMask (and most extensions) set window.ethereum ASYNCHRONOUSLY — often
-  // after React has already mounted. Reading it once at first render therefore
-  // decides "no wallet" a fraction of a second too early and never recovers,
-  // leaving the Connect button dead for a user who plainly has MetaMask
-  // installed. Seed from the immediate value, then keep looking: extensions
-  // announce themselves with `ethereum#initialized` (EIP-1193) and with an
-  // `eip6963:announceProvider` event (EIP-6963, how modern MetaMask advertises
-  // itself alongside other wallets), and we poll briefly as a last resort for
-  // anything that does neither.
-  const [hasInjected, setHasInjected] = useState(() => Boolean(injected()));
+  const [choices, setChoices] = useState<WalletChoice[]>(() => connector.choices());
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  // Extensions announce themselves after first render (EIP-6963, or a late
+  // window.ethereum); the connector keeps listening and re-publishes.
+  const [hasInjected, setHasInjected] = useState(() => Boolean(injected()) || connector.choices().some((c) => c.kind === 'injected'));
 
-  useEffect(() => {
-    if (hasInjected) return;
-    let cancelled = false;
-    const found = () => {
-      if (!cancelled && injected()) setHasInjected(true);
-    };
-
-    window.addEventListener('ethereum#initialized', found, { once: true });
-    window.addEventListener('eip6963:announceProvider', found);
-    // ask any EIP-6963 wallet to announce itself right now
-    window.dispatchEvent(new Event('eip6963:requestProvider'));
-
-    // Fallback poll: 3 seconds is far longer than any extension needs, and it
-    // stops on its own so an idle page is not left with a live timer.
-    const started = Date.now();
-    const timer = window.setInterval(() => {
-      if (injected()) {
-        found();
-        window.clearInterval(timer);
-      } else if (Date.now() - started > 3000) {
-        window.clearInterval(timer);
-      }
-    }, 150);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-      window.removeEventListener('ethereum#initialized', found);
-      window.removeEventListener('eip6963:announceProvider', found);
-    };
-  }, [hasInjected]);
-
-  const connect = useCallback(async () => {
-    setConnecting(true);
-    setError(null);
-    try {
-      setWallet(await connectWallet());
-    } catch (err) {
-      setError(readableError(err));
-    } finally {
-      setConnecting(false);
-    }
+  // An account switch and a chain switch can arrive back to back: each starts a rebuild, and only the newest
+  // may land. An older one that resolves last would put back the previous account (and sign as it).
+  const rebuildSeq = useRef(0);
+  /** Signer + network for `provider`, set only if no newer rebuild started meanwhile. Throws the wallet's error. */
+  const land = useCallback(async (provider: Eip1193Provider): Promise<void> => {
+    const seq = ++rebuildSeq.current;
+    const next = await connectWallet(provider);
+    if (seq === rebuildSeq.current) setWallet(next);
   }, []);
+  const rebuild = useCallback(async () => {
+    const conn = connector.current();
+    if (!conn) {
+      ++rebuildSeq.current;
+      setWallet(null);
+      return;
+    }
+    const seq = rebuildSeq.current + 1;
+    try {
+      await land(conn.provider);
+    } catch (err) {
+      if (seq !== rebuildSeq.current) return;
+      setWallet(null);
+      setError(readableError(err));
+    }
+  }, [land]);
+
+  // Choices, account and chain changes, disconnects — all come through the connector.
+  useEffect(() => {
+    const sync = () => {
+      const list = connector.choices();
+      setChoices(list);
+      setHasInjected(Boolean(injected()) || list.some((c) => c.kind === 'injected'));
+    };
+    sync();
+    let last = connector.current();
+    const unsubscribe = connector.subscribe(() => {
+      sync();
+      const now = connector.current();
+      if (now !== last) {
+        last = now;
+        void rebuild();
+      }
+    });
+    // A wallet this site used before reconnects without a prompt.
+    void connector.restore().then((conn) => {
+      if (conn) {
+        last = conn;
+        void rebuild();
+      }
+    });
+    return unsubscribe;
+  }, [rebuild]);
+
+  const connect = useCallback(() => {
+    setError(null);
+    setChooserOpen(true);
+  }, []);
+
+  const connectWith = useCallback(
+    (id: string) => {
+      setConnecting(true);
+      setError(null);
+      setStatus(null);
+      // Synchronous call inside the click: this is what opens the wallet window.
+      const pending = connector.connect(id);
+      void pending
+        .then(async (conn) => {
+          await land(conn.provider);
+          setChooserOpen(false);
+          // A phone wallet over WalletConnect rarely knows Ferminux yet, and
+          // there is no network menu on this page to fix that from: ask it
+          // to switch (adding the network) straight away. A refusal leaves the
+          // wallet connected, with the reason and the switch button.
+          if (conn.choice.kind === 'walletconnect' && conn.chainId !== CHAIN_ID) {
+            try {
+              await switchToFerminux(conn.provider, {
+                onStep: (step) =>
+                  setStatus(step === 'add' ? 'Approve adding Ferminux in your wallet app.' : 'Approve switching to Ferminux in your wallet app.'),
+              });
+              await land(conn.provider);
+            } catch (err) {
+              setError(readableError(err));
+            }
+          }
+        })
+        .catch((err) => setError(readableError(err)))
+        .finally(() => {
+          setConnecting(false);
+          setStatus(null);
+        });
+    },
+    [land],
+  );
 
   const switchChain = useCallback(async () => {
     setError(null);
+    const conn = connector.current();
     try {
-      await switchToFerminux();
-      setWallet(await connectWallet());
+      await switchToFerminux(conn?.provider, {
+        onStep: (step) => setStatus(step === 'add' ? 'Approve adding Ferminux in your wallet.' : 'Approve switching to Ferminux in your wallet.'),
+      });
+      await rebuild();
     } catch (err) {
       setError(readableError(err));
+    } finally {
+      setStatus(null);
     }
-  }, []);
+  }, [rebuild]);
 
   const disconnect = useCallback(() => {
+    void connector.disconnect();
+    ++rebuildSeq.current; // a rebuild still in flight must not bring the wallet back
     setWallet(null);
     setError(null);
   }, []);
 
-  // A wallet can change account or chain under the app at any moment; both
-  // invalidate the signer, so re-read rather than keep a stale one.
-  useEffect(() => {
-    if (!wallet) return;
-    return onWalletEvents({
-      accountsChanged: (accounts) => {
-        if (!accounts?.length) setWallet(null);
-        else void connect();
-      },
-      chainChanged: () => {
-        void connect();
-      },
-    });
-  }, [wallet, connect]);
-
+  const current = connector.current();
   return {
     wallet,
     address: wallet?.address ?? null,
     wrongChain: wallet !== null && wallet.chainId !== CHAIN_ID,
     hasInjected,
     connecting,
+    status,
     error,
+    choices,
+    kind: wallet ? (current?.choice.kind ?? null) : null,
+    eip1193: wallet ? (current?.provider ?? null) : null,
+    chooserOpen,
     connect,
+    connectWith,
+    closeChooser: () => setChooserOpen(false),
     switchChain,
     disconnect,
   };

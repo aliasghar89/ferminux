@@ -1,0 +1,14 @@
+{
+    "items": [
+        {
+            "block_hash": "0x80b22193df17a12c8fb2e81ccc1182fb50b9a698ec6462891d65350aff994151",
+            "block_number": 396000,
+            "block_type": "block",
+            "priority": 3,
+            "timestamp": "2026-09-24T16:08:24.000000Z",
+            "type": "block",
+            "url": "/block/0x80b22193df17a12c8fb2e81ccc1182fb50b9a698ec6462891d65350aff994151"
+        }
+    ],
+    "next_page_params": null
+}

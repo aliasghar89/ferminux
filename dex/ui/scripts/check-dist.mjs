@@ -45,6 +45,29 @@ const INERT_HOSTS = new Set([
   'metamask.app.link',
 ]);
 
+// "Connect with Ferminux Wallet" (shared/fxwallet): the wallet window is
+// opened on this host, and a hidden status frame of it tells a returning
+// visitor whether the wallet still approves this site.
+ALLOWED_HOSTS.add('wallet.ferminux.net');
+
+// WalletConnect is opt-in: a build without VITE_WC_PROJECT_ID never bundles
+// it, and this list stays out of the check. With a project id the page talks
+// to the WalletConnect relay, verify and RPC services and loads the Reown QR
+// modal (its API and fonts) — that is what enabling it means — and the
+// package tree carries documentation and wallet-directory strings that are
+// never fetched. Reviewed with @walletconnect/ethereum-provider 2.25.
+const WALLETCONNECT_HOSTS = [
+  // runtime
+  'rpc.walletconnect.org', 'pulse.walletconnect.org', 'verify.walletconnect.org', 'verify.walletconnect.com',
+  'echo.walletconnect.com', 'secure.walletconnect.org', 'secure-mobile.walletconnect.org',
+  'secure-mobile.walletconnect.com', 'api.web3modal.org', 'fonts.reown.com',
+  // inert library strings (docs, wallet directory, examples)
+  'walletconnect.org', 'reown.com', 'dashboard.reown.com', 'dashboard.reown.com.', '4byte.sourcify.dev', 'oxlib.sh',
+  'viem.sh', 'abitype.dev', 'docs.soliditylang.org', 't.me', 'solflare.com', 'phantom.app', 'meldcrypto.com',
+  'ipfs.io', 'arweave.net', 'go.cb-w.com', 'app.safe.global', 'app.binance.com', 'metamask.app.link', '127.0.0.1',
+];
+if ((process.env.VITE_WC_PROJECT_ID ?? '').trim() !== '') for (const h of WALLETCONNECT_HOSTS) ALLOWED_HOSTS.add(h);
+
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);

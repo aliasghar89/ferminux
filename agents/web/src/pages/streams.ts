@@ -3,7 +3,7 @@ import { api } from "../api";
 import { config, streamsDeployed } from "../config";
 import { economy } from "../economy";
 import { dur, esc, fmxUnit, int, timeHtml, toWei } from "../format";
-import { $, authorHtml, initChrome, setBusy, skel, toast, txHtml } from "../ui";
+import { $, authorHtml, connectPrompt, initChrome, setBusy, skel, toast, txHtml, wireTabs } from "../ui";
 import { agentSelect } from "../commons";
 import { connect, contractWrite, errMessage, onWallet, sendCall, walletState, type TxPhase } from "../wallet";
 import { mountCredits } from "../credits";
@@ -11,8 +11,10 @@ import type { AgentView, PlanView, StreamView, SubView } from "../types";
 
 initChrome();
 const view = $("#view")!;
-let current: string | null = null;
+// undefined, not null: the first onWallet call (address null when no wallet) must still render the connect state.
+let current: string | null | undefined = undefined;
 let tab: "streams" | "subs" | "plans" = "streams";
+let refocusTab = false;
 
 render();
 function render() {
@@ -77,22 +79,24 @@ async function doSubscribe(btn: HTMLButtonElement, planId: number) {
 }
 
 function renderMineEmpty() {
-  $("#s-mine")!.innerHTML = `<div class="empty"><h3>Connect a wallet</h3>See your open streams, subscriptions, and any plans you sell.<br><button class="btn btn-primary" type="button" id="s-connect">Connect wallet</button></div>`;
+  $("#s-mine")!.innerHTML = `<div class="empty"><h3>Connect a wallet</h3><p>See your open streams, subscriptions, and any plans you sell.</p>${connectPrompt("s-connect")}</div>`;
   $("#s-connect")!.addEventListener("click", async (ev) => { const b = ev.currentTarget as HTMLButtonElement; setBusy(b, true, "Connecting…"); try { await connect(); } catch (e) { toast(errMessage(e)); setBusy(b, false); } });
 }
 
 async function loadMine(addr: string) {
   const box = $("#s-mine")!;
   box.innerHTML = `
-    <div class="tabs" role="tablist" aria-label="Your streams">
-      <button class="tab" role="tab" id="t-streams" aria-selected="${tab === "streams"}">My streams</button>
-      <button class="tab" role="tab" id="t-subs" aria-selected="${tab === "subs"}">My subscriptions</button>
-      <button class="tab" role="tab" id="t-plans" aria-selected="${tab === "plans"}">My plans</button>
+    <div class="tabs" role="tablist" aria-label="Your streams" id="s-tabs">
+      <button class="tab" role="tab" id="t-streams" aria-selected="${tab === "streams"}" aria-controls="s-tabpanel">My streams</button>
+      <button class="tab" role="tab" id="t-subs" aria-selected="${tab === "subs"}" aria-controls="s-tabpanel">My subscriptions</button>
+      <button class="tab" role="tab" id="t-plans" aria-selected="${tab === "plans"}" aria-controls="s-tabpanel">My plans</button>
     </div>
-    <div id="s-tabpanel">${skel("60%")}</div>`;
+    <div id="s-tabpanel" role="tabpanel" aria-labelledby="t-${tab}">${skel("60%")}</div>`;
   $("#t-streams")!.addEventListener("click", () => { tab = "streams"; loadMine(addr); });
   $("#t-subs")!.addEventListener("click", () => { tab = "subs"; loadMine(addr); });
   $("#t-plans")!.addEventListener("click", () => { tab = "plans"; loadMine(addr); });
+  wireTabs($("#s-tabs"), (t) => { refocusTab = true; t.click(); });
+  if (refocusTab) { refocusTab = false; $(`#t-${tab}`)?.focus(); }
   const panel = $("#s-tabpanel")!;
   try {
     if (tab === "streams") {
@@ -176,7 +180,7 @@ function openStreamFormHtml() {
       <div class="field"><label for="os-rate">Rate (FMX / day)</label><input type="number" id="os-rate" min="0" step="0.01" class="num" placeholder="0.5"></div>
     </div>
     <div class="field"><label for="os-dep">Deposit (FMX)</label><input type="number" id="os-dep" min="0" step="0.01" class="num" placeholder="5"></div>
-    <div id="os-status"></div>
+    <div id="os-status" role="status" aria-live="polite"></div>
     <button class="btn btn-primary" type="button" id="os-open" style="width:auto">Open stream</button>
   </div></div>`;
 }
@@ -243,7 +247,7 @@ function createPlanFormHtml() {
       <div class="field"><label for="cp-price">Price / period (FMX)</label><input type="number" id="cp-price" min="0" step="0.01" class="num" placeholder="2"></div>
     </div>
     <div class="field"><label for="cp-period">Period (days)</label><input type="number" id="cp-period" min="1" step="1" class="num" placeholder="7"></div>
-    <div id="cp-status"></div>
+    <div id="cp-status" role="status" aria-live="polite"></div>
     <button class="btn btn-primary" type="button" id="cp-create" style="width:auto">Create plan</button>
   </div></div>`;
 }

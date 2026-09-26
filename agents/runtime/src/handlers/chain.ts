@@ -1,6 +1,7 @@
-import { JsonRpcProvider, formatEther, isAddress } from "ethers";
+import { JsonRpcProvider, formatEther, isAddress, keccak256, toUtf8Bytes } from "ethers";
 import { Ferminux } from "@ferminux/agent";
 import { extractText, type Handler } from "./util.js";
+import { agentSendQueue } from "../settle.js";
 
 /**
  * Chain oracle — deterministic, always-on, no model. Answers questions about
@@ -30,19 +31,55 @@ function fmx(): Ferminux {
     privateKey: process.env.FERMINUX_PRIVATE_KEY }); // needed only for `validate` (signs validationResponse)
 }
 
+/** The request hash the gateway files for a job (gateway/src/v3/validation.ts): its outputHash, else the hash
+ * of its output URI (or fmx://job/<id>). */
+export function expectedRequestHash(jobId: number, job: { outputHash?: string | null; outputURI?: string | null }): string {
+  return (job.outputHash || keccak256(toUtf8Bytes(job.outputURI || `fmx://job/${jobId}`))).toLowerCase();
+}
+
+/**
+ * Why this validator must not answer `requestHash` for `jobId`, or null when it may. The op is hireable by anyone,
+ * and it used to answer ANY request with a score computed from ANY job: an owner could open a request for their
+ * own agent naming this validator, hire the Oracle with some other delivered job's id and buy a 100 for the
+ * Oracle's price, as often as they liked, or overwrite an honest 0 on an existing request. A request is answered
+ * only when it names this key, is for the job's own agent, and is the one filed for that job.
+ */
+export function validateRefusal(
+  me: string,
+  jobId: number,
+  job: { agentId: number; outputHash?: string | null; outputURI?: string | null },
+  requestHash: string,
+  request: { validatorAddress: string; agentId: number } | null,
+): string | null {
+  if (!request) return `no validation request ${requestHash} on chain`;
+  if (request.validatorAddress.toLowerCase() !== me.toLowerCase()) return `request ${requestHash} names validator ${request.validatorAddress}, not this agent`;
+  if (request.agentId !== job.agentId) return `request ${requestHash} is for agent ${request.agentId}; job ${jobId} belongs to agent ${job.agentId}`;
+  if (requestHash.toLowerCase() !== expectedRequestHash(jobId, job)) return `request ${requestHash} is not the one filed for job ${jobId} (its output hash)`;
+  return null;
+}
+
+/** What an unrecognised request gets back: a refusal, so the runtime declines the job (the client is refunded)
+ * instead of delivering the op list as paid work. The list itself is still free to ask for: send "help". */
+const UNKNOWN = (got: string) => ({ ok: false, op: "unknown", error: `unrecognised request${got ? ` "${got.slice(0, 60)}"` : ""}; send "help" for the list of ops`, ops: OPS });
+
 export const chainHandler: Handler = async (input) => {
-  let op: Op = "help"; let arg = ""; let obj: Record<string, unknown> | null = null;
+  let op: Op | null = null; let arg = ""; let obj: Record<string, unknown> | null = null;
   if (typeof input === "string" && /^\s*\{/.test(input)) { try { input = JSON.parse(input); } catch { /* text */ } }
-  if (input && typeof input === "object" && !(input instanceof Uint8Array)) {
+  if (input && typeof input === "object" && !(input instanceof Uint8Array) && typeof (input as Record<string, unknown>).op === "string") {
     const o = input as Record<string, unknown>;
     obj = o;
-    if (typeof o.op === "string" && (OPS as readonly string[]).includes(o.op)) op = o.op as Op;
+    const want = String(o.op).toLowerCase();
+    if (!(OPS as readonly string[]).includes(want)) return UNKNOWN(String(o.op));
+    op = want as Op;
     arg = String(o.address ?? o.id ?? o.q ?? o.text ?? "");
   } else {
-    const words = extractText(input).trim().split(/\s+/);
+    // plain text, or an object carrying text/prompt (what the directory's "hire" box sends)
+    const text = extractText(input).trim();
+    const words = text.split(/\s+/);
     const w0 = (words[0] || "").toLowerCase();
     if ((OPS as readonly string[]).includes(w0)) { op = w0 as Op; arg = words.slice(1).join(" "); }
     else if (isAddress(words[0] || "")) { op = "balance"; arg = words[0]; }
+    else return UNKNOWN(text);
   }
   const f = fmx();
   const provider = f.provider as JsonRpcProvider;
@@ -106,17 +143,21 @@ export const chainHandler: Handler = async (input) => {
     case "validate": {
       const jobId = Number(obj?.jobId);
       const requestHash = String(obj?.requestHash ?? "");
-      if (!Number.isInteger(jobId) || jobId < 1 || !requestHash) {
+      if (!Number.isInteger(jobId) || jobId < 1 || !/^0x[0-9a-fA-F]{64}$/.test(requestHash)) {
         return { ok: false, op, error: "give JSON {op:\"validate\", jobId, requestHash}" };
       }
       const job = await f.jobs.get(jobId).catch(() => null);
       if (!job) return { ok: false, op, error: `job ${jobId} not found` };
+      const st = (await f.validation.status(requestHash).catch(() => null)) as [string, bigint] | null;
+      const refusal = validateRefusal(f.requireSigner().address, jobId, job, requestHash, st ? { validatorAddress: String(st[0]), agentId: Number(st[1]) } : null);
+      if (refusal) return { ok: false, op, error: refusal };
       const delivered = job.status === "Delivered" || job.status === "Completed";
       const hasOutput = Boolean(job.outputHash || job.outputURI);
       const response = delivered && hasOutput ? 100 : 0;
       const tag = delivered && hasOutput ? "delivered" : "missing-output";
       const responseURI = typeof obj?.responseURI === "string" ? obj.responseURI : `fmx://job/${jobId}`;
-      const { tx } = await f.validation.respond({ requestHash, response, responseURI, tag });
+      // signed by the runtime's own key: through its one send queue, never beside a delivery or a settle claim
+      const { tx } = await agentSendQueue(() => f.validation.respond({ requestHash, response, responseURI, tag }));
       return { ok: true, op, jobId, requestHash, response, tag, tx };
     }
     default: return { ok: true, op: "help", ops: OPS, examples: ["balance 0x…", "block", "gas", "agent 1", "agents translate", "job 1", "stats", "cv 1", "hire hash", '{"op":"validate","jobId":1,"requestHash":"0x…"}'] };

@@ -39,7 +39,61 @@ export interface WatcherStats {
   confirmed: number;
   orphaned: number;
   lastPollAt: number;
+  /** Last poll that scanned up to the head and ran the confirmation pass. 0 = never. */
+  lastSuccessAt: number;
   lastError: string | null;
+}
+
+/**
+ * Is this chain's scanner keeping up? Published per chain in /status as
+ * `scan`, and folded into `finality.signing` by the service: a validator whose
+ * scanner is days behind will not sign a transfer sent now, whatever the
+ * finality rule says — it has not SEEN it. That is exactly the 2026-09-14 BSC
+ * failure: the cursor froze, /status kept saying "signing, not paused", and the
+ * UI would have quoted a normal ETA for a burn nobody would ever observe.
+ *
+ * Lagging when the watcher has not completed a full poll within `staleMs`, or
+ * its cursor sits more than `confirmations + 2 * maxBlockRange` blocks under
+ * the head. Pure, so it is tested directly.
+ */
+export interface ScanHealth {
+  head: number;
+  cursor: number;
+  lagBlocks: number | null;
+  lastPollAt: number;
+  lastSuccessAt: number;
+  lagging: boolean;
+  reason: string | null;
+}
+
+export function scanHealth(
+  stats: Pick<WatcherStats, 'head' | 'cursor' | 'lastPollAt' | 'lastSuccessAt'>,
+  chain: { name: string; confirmations: number; maxBlockRange: number; pollIntervalMs: number },
+  now: number,
+): ScanHealth {
+  const staleMs = Math.max(10 * 60_000, 20 * chain.pollIntervalMs);
+  const lagBlocks = stats.head > 0 ? Math.max(stats.head - stats.cursor, 0) : null;
+  const base = { head: stats.head, cursor: stats.cursor, lagBlocks, lastPollAt: stats.lastPollAt, lastSuccessAt: stats.lastSuccessAt };
+  if (stats.lastSuccessAt === 0) {
+    return { ...base, lagging: true, reason: `the ${chain.name} scanner has not completed a scan yet` };
+  }
+  const idleMs = now - stats.lastSuccessAt;
+  if (idleMs > staleMs) {
+    return {
+      ...base,
+      lagging: true,
+      reason: `the ${chain.name} scanner has not completed a scan for ${Math.round(idleMs / 60_000)} min (cursor ${stats.cursor}, head ${stats.head}); transfers sent now are not being seen`,
+    };
+  }
+  const slack = chain.confirmations + 2 * chain.maxBlockRange;
+  if (lagBlocks !== null && lagBlocks > slack) {
+    return {
+      ...base,
+      lagging: true,
+      reason: `the ${chain.name} scanner is ${lagBlocks} blocks behind the head (allowed ${slack}); it is catching up`,
+    };
+  }
+  return { ...base, lagging: false, reason: null };
 }
 
 export class Watcher {
@@ -52,6 +106,9 @@ export class Watcher {
   private timer: NodeJS.Timeout | null = null;
   private running = false;
   private stopped = false;
+  private lastFailText: string | null = null;
+  private lastFailLogAt = 0;
+  private failsSuppressed = 0;
   readonly stats: WatcherStats = {
     head: 0,
     settled: 0,
@@ -60,6 +117,7 @@ export class Watcher {
     confirmed: 0,
     orphaned: 0,
     lastPollAt: 0,
+    lastSuccessAt: 0,
     lastError: null,
   };
 
@@ -120,9 +178,26 @@ export class Watcher {
       this.stats.settled = settled;
       this.stats.cursor = cursor;
 
+      let saved = cursor;
       if (head > cursor) {
-        const events = await this.chain.scanSent(cursor + 1, head);
-        for (const ev of events) this.record(ev);
+        // Record and checkpoint chunk by chunk. The cursor may only move over
+        // blocks that are both SCANNED and SETTLED — never past `settled`, so
+        // the unsettled tail is still re-read every poll exactly as before —
+        // and every event in those blocks is already stored as `seen`, so the
+        // confirmation pass below (or the next poll's) picks it up from the
+        // store, not from the scan. What changes: a long catch-up that fails
+        // part-way keeps the ground it covered instead of restarting at the
+        // old cursor on every poll, which is how the BSC scanner stayed on
+        // block 121862043 for ten days.
+        const events = await this.chain.scanSent(cursor + 1, head, (end, chunk) => {
+          for (const ev of chunk) this.record(ev);
+          const safe = Math.min(end, settled);
+          if (safe > saved) {
+            this.store.setCursor(this.chain.chainId, safe);
+            this.stats.cursor = safe;
+            saved = safe;
+          }
+        });
         if (events.length > 0) {
           this.log.debug('scanned', { from: cursor + 1, to: head, found: events.length });
         }
@@ -130,14 +205,25 @@ export class Watcher {
 
       await this.confirmPending(settled);
 
-      if (settled > cursor) {
+      if (settled > saved) {
         this.store.setCursor(this.chain.chainId, settled);
         this.stats.cursor = settled;
       }
       this.stats.lastError = null;
+      this.stats.lastSuccessAt = Date.now();
     } catch (err) {
       this.stats.lastError = (err as Error).message;
-      this.log.warn('poll failed', { err: this.stats.lastError });
+      // Same failure every poll: say it once a minute, with a count, not every
+      // 3 seconds (a frozen BSC scan was ~1,100 identical lines an hour).
+      const now = Date.now();
+      if (this.stats.lastError !== this.lastFailText || now - this.lastFailLogAt >= 60_000) {
+        this.log.warn('poll failed', { err: this.stats.lastError, ...(this.failsSuppressed > 0 ? { repeatsSuppressed: this.failsSuppressed } : {}) });
+        this.lastFailText = this.stats.lastError;
+        this.lastFailLogAt = now;
+        this.failsSuppressed = 0;
+      } else {
+        this.failsSuppressed++;
+      }
     } finally {
       this.stats.lastPollAt = Date.now();
       this.running = false;

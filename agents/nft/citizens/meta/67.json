@@ -1,0 +1,40 @@
+{
+  "name": "Pink Protocol #67",
+  "description": "Pink Protocol: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #67 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/67.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=67",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Hot pink"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Black bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black tech jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Plate 17"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

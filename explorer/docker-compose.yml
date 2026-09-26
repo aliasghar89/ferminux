@@ -6,6 +6,10 @@
 #   ghcr.io/blockscout/frontend:v2.3.5    [linux/amd64, linux/arm64]
 #   postgres:17.5-alpine                  [multi-arch]
 #   nginx:1.29-alpine                     [multi-arch]
+# and on 2026-09-25:
+#   ghcr.io/blockscout/smart-contract-verifier:v1.10.7  [linux/amd64, linux/arm64]
+#     index sha256:0b82d1e2f57354b5aa785b33cc82d24a1d2e2d5838dce6adcb81e8bc144c1724
+#     run as linux/amd64 everywhere (see the service)
 #
 # Node URL is parameterized:
 #   FMX_RPC_HTTP  (default http://host.docker.internal:8545)
@@ -14,16 +18,29 @@
 # In production point them at the internal RPC service
 # (e.g. https://rpc.ferminux.net or an internal node URL).
 #
-# Self-hosted: exchange rates, ads, verifier microservices, Sourcify and all
-# other external integrations are disabled — the stack talks only to the
-# configured Ferminux node and its own Postgres.
+# Self-hosted: exchange rates, ads, Sourcify, eth-bytecode-db and all other
+# external integrations are disabled — the stack talks to the configured
+# Ferminux node and its own Postgres. The one exception is the contract
+# verifier, which downloads compilers (binaries.soliditylang.org for solc,
+# GitHub for vyper) on first use.
 
 name: ferminux-explorer
+
+# Every service carries its own log cap. dockerd on the production box predates
+# /etc/docker/daemon.json and has never loaded its defaults, so a container
+# without one grows its json log without bound: the backend reached 8.7 GB of
+# logs (a crash loop writing ~25k lines/min) before this was added.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
 
 services:
   db:
     image: postgres:17.5-alpine
     container_name: fmx-explorer-db
+    logging: *logging
     restart: unless-stopped
     shm_size: 256m
     command: postgres -c 'max_connections=200' -c 'client_connection_check_interval=60000'
@@ -46,6 +63,7 @@ services:
   backend:
     image: ghcr.io/blockscout/blockscout:9.0.2
     container_name: fmx-explorer-backend
+    logging: *logging
     restart: unless-stopped
     stop_grace_period: 5m
     depends_on:
@@ -68,6 +86,47 @@ services:
       - backend-dets:/app/dets
       - backend-logs:/app/logs
 
+  # Source verification. The backend sends every verification (UI, /api/v2 and the
+  # Etherscan-style /api?module=contract&action=verifysourcecode that `forge verify-contract
+  # --verifier blockscout` uses) to this service, and lists the compiler versions it reports
+  # (/api/v2/smart-contracts/verification/config). backend.env: MICROSERVICE_SC_VERIFIER_*.
+  #
+  # v1.10.7 is the newest release of the 1.10 line, which was current when Blockscout 9.0.2
+  # shipped (verifier 1.10.0, 2025-05; Blockscout 9.0.2, 2025-08). The backend calls only the
+  # verifier's /api/v2/verifier/{solidity,vyper}/... routes, unchanged across 1.10.x.
+  # linux/amd64 on purpose, as in Blockscout's own compose: solc is only published as a
+  # linux-amd64 binary, which the arm64 image could not run. The server is x86_64.
+  #
+  # No ports: reachable only from containers on this project's default network (the backend).
+  # Outbound HTTPS only for compilers: binaries.soliditylang.org (solc list and binaries),
+  # raw.githubusercontent.com and github.com (vyper list and binaries). See envs/verifier.env.
+  # Not a dependency of the backend: the explorer keeps running if this is down; only
+  # verification and the compiler list stop.
+  smart-contract-verifier:
+    image: ghcr.io/blockscout/smart-contract-verifier:v1.10.7
+    platform: linux/amd64
+    container_name: fmx-explorer-verifier
+    logging: *logging
+    restart: unless-stopped
+    env_file:
+      - ./envs/verifier.env
+    # A named volume at /tmp: the image runs as uid 1001 and /tmp is the one writable
+    # directory it has, and Docker initialises a new volume with the mode of the directory
+    # it is mounted over (1777 here). A volume at a path the image lacks would be root-owned
+    # and every compiler download would fail.
+    volumes:
+      - verifier-compilers:/tmp
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    healthcheck:
+      # No curl or wget in the image; bash's /dev/tcp is enough for an HTTP probe.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8050 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   # Ferminux-geth is a geth fork: Blockscout's geth variant cannot fetch PoW
   # miner rewards over RPC (needs trace_block). This sidecar writes the exact
   # consensus reward (6 FMX >> era, era = block/4,500,000; chain/consensus/
@@ -77,6 +136,7 @@ services:
   rewards-sidecar:
     image: postgres:17.5-alpine
     container_name: fmx-explorer-rewards
+    logging: *logging
     restart: unless-stopped
     depends_on:
       db:
@@ -107,6 +167,7 @@ services:
   frontend:
     image: ghcr.io/blockscout/frontend:v2.3.5
     container_name: fmx-explorer-frontend
+    logging: *logging
     restart: unless-stopped
     env_file:
       - ./envs/frontend.env
@@ -141,6 +202,7 @@ services:
   proxy:
     image: nginx:1.29-alpine
     container_name: fmx-explorer-proxy
+    logging: *logging
     restart: unless-stopped
     depends_on:
       - backend
@@ -154,3 +216,4 @@ volumes:
   db-data:
   backend-dets:
   backend-logs:
+  verifier-compilers:

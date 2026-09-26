@@ -38,10 +38,15 @@ async function renderList() {
   onWallet((s) => { if (s.address !== poolAddr) { poolAddr = s.address; loadPool("d-pool", s.address); } });
 }
 
+/** ArbiterPool.close(): with no votes at the end of the window the result is 5000 bps (an even split) and
+ *  the case fee goes to the pool owner. Said wherever a dispute can start, while nobody is staked. */
+const EMPTY_POOL = (p: ArbiterPoolView) => `<strong>No arbiters are staked.</strong> A case that gets no votes closes at a 50/50 split of the escrow after the ${esc(dur(p.votingWindowSec || 3 * 86400))} voting window, whatever its merits, and the 1 FMX case fee goes to the pool owner.`;
+
 function poolPanel(p: ArbiterPoolView, addr: string | null): string {
   const staked = p.myStakeWei && BigInt(p.myStakeWei) > 0n;
-  return `<div class="panel"><div class="panel-head"><h3>Arbiter pool</h3><span class="pill">${int(p.arbiterCount)} arbiter${p.arbiterCount === 1 ? "" : "s"}</span></div>
+  return `<div class="panel"><div class="panel-head"><h3>Arbiter pool</h3><span class="pill${p.arbiterCount ? "" : " warn"}">${int(p.arbiterCount)} arbiter${p.arbiterCount === 1 ? "" : "s"}</span></div>
     <div class="panel-body">
+      ${p.arbiterCount ? "" : `<div class="alert warn" style="margin-bottom:14px">${EMPTY_POOL(p)}</div>`}
       <div class="statgrid" style="margin:0;grid-template-columns:repeat(2,1fr)">
         <div><div class="l">Min stake</div><div class="v num">${fmxUnit(p.minStakeWei, 0)}</div></div>
         <div><div class="l">Quorum</div><div class="v num">${p.quorum}</div></div>
@@ -53,7 +58,7 @@ function poolPanel(p: ArbiterPoolView, addr: string | null): string {
         <div class="field" style="align-self:end"><button class="btn btn-primary btn-block" type="button" id="d-join">${staked ? "Add stake" : "Join pool"}</button></div>
       </div>
       ${staked ? `<button class="btn btn-secondary" type="button" id="d-leave">Leave pool (7-day cooldown)</button>` : ""}
-      <div id="d-pool-status"></div>` : `<p class="small muted" style="margin-top:12px">Connect a wallet to join the pool and vote.</p>`}
+      <div id="d-pool-status" role="status" aria-live="polite"></div>` : `<p class="small muted" style="margin-top:12px">Connect a wallet to join the pool and vote.</p>`}
     </div></div>`;
 }
 async function loadPool(boxId: string, addr: string | null) {
@@ -114,10 +119,11 @@ async function renderDetail(id: number) {
         <div class="rows" id="d-evidence">${c.evidence.map((e) => `<div class="row"><div class="row-main"><div class="row-title">${authorHtml({ address: e.by }, { link: false })}</div><div class="row-desc"><a class="mono" href="${esc(e.uri)}" rel="noopener" style="text-decoration:underline">${esc(e.uri)}</a></div><div class="row-meta">${timeHtml(e.ts)}</div></div></div>`).join("") || `<div class="empty" style="border:0"><h3>No evidence submitted yet</h3></div>`}</div>
         <div class="panel composer" style="margin-top:16px"><div class="panel-body">
           <div class="field"><label for="d-ev-uri">Evidence URI</label><input type="text" id="d-ev-uri" placeholder="fmx://payload/0x… or https://…" autocomplete="off" spellcheck="false"></div>
-          <div id="d-ev-status"></div>
+          <div id="d-ev-status" role="status" aria-live="polite"></div>
           <button class="btn btn-secondary" type="button" id="d-ev-submit" style="width:auto">Submit evidence</button>
         </div></div>
         <div class="section-head" style="margin-top:28px"><h3>Votes</h3></div>
+        ${!c.closed && !votes.length && !pool.arbiterCount ? `<div class="alert warn" style="margin-bottom:12px">${EMPTY_POOL(pool)}</div>` : ""}
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">Arbiter</th><th scope="col" class="r">Client share</th></tr></thead><tbody>${votes.map((v) => `<tr><td>${authorHtml({ address: v.arbiter }, { link: false })}</td><td class="r num">${(v.clientBps / 100).toFixed(1)}%</td></tr>`).join("") || `<tr><td colspan="2" class="muted small" style="text-align:center;padding:16px">No votes yet.</td></tr>`}</tbody></table></div>
         ${c.closed && c.result !== null ? `<div class="alert ok" style="margin-top:16px">Resolved: client gets <strong>${(c.result / 100).toFixed(1)}%</strong>, agent the rest minus fee.</div>` : `<p class="small faint" style="margin-top:12px">Closes ${esc(relTime(closesAt))} (or once quorum+2 vote).</p>`}
       </div>
@@ -148,7 +154,7 @@ async function renderDetail(id: number) {
   else votePanel.innerHTML = `<div class="panel"><div class="panel-head"><h3>Vote</h3></div><div class="panel-body">
       <div class="field"><label for="d-vote-bps">Client share (%)</label><input type="number" id="d-vote-bps" min="0" max="100" step="0.5" value="50" class="num"></div>
       <p class="small faint">Staked arbiters only, one vote each. Ties resolve to the median.</p>
-      <div id="d-vote-status"></div>
+      <div id="d-vote-status" role="status" aria-live="polite"></div>
       <button class="btn btn-primary" type="button" id="d-vote-btn">Cast vote</button>
       ${canClose ? `<button class="btn btn-secondary" type="button" id="d-close-btn" style="margin-top:8px">Close case</button>` : ""}
     </div></div>`;

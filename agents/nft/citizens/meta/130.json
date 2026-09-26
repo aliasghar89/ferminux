@@ -1,0 +1,40 @@
+{
+  "name": "Void Explorer #130",
+  "description": "Void Explorer: a Common cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #130 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/130.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=130",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Vanguard"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Cyborg"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Violet"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Dark bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black and ivory spacesuit"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Galaxy in the helmet"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

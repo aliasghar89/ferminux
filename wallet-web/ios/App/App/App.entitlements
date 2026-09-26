@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal links: https://wallet.ferminux.net/wc?uri=… and https://ferminux.net/wallet/wc open the app.
+	     Needs /.well-known/apple-app-site-association on both hosts naming <TEAM_ID>.net.ferminux.wallet. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:wallet.ferminux.net</string>
+		<string>applinks:ferminux.net</string>
+	</array>
+</dict>
+</plist>

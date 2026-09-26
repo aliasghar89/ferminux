@@ -14,6 +14,7 @@ import { makeLlmComplete } from "./llm.js";
 import { runResearch } from "./research.js";
 import { runLearn } from "./learn.js";
 import { FORMATS, generatePost, loadContentContext, pickSubmolt, recordPublished } from "./content.js";
+import { publish } from "./heartbeat.js";
 import { pickTrendingThread } from "./comments.js";
 import { dailyCount, incrDaily, todayKey } from "./state.js";
 
@@ -79,14 +80,17 @@ if (cmd === "research") {
   if (cfg.dryRun) {
     console.log("DRY_RUN=1: not publishing");
   } else {
-    const res = await client.createPost({ submolt_name: submolt, title: gen.draft.title, content: gen.draft.body });
-    const postId = res?.post?.id;
-    state.posts.lastPostAt = new Date().toISOString();
-    incrDaily(state.posts.dailyCounts);
-    recordPublished(state, { postId, format, submolt, title: gen.draft.title, source: gen.draft.source, score: gen.score, judge: gen.judge, threadId: gen.draft.threadId });
-    logger.write_action("post", { submolt, postId, title: gen.draft.title, verified: res?.verified, format, score: gen.score, cli: true });
+    // same duplicate detection as the heartbeat (heartbeat.js publish): a repeat is not counted as a post
+    const res = await publish({ client, state, logger, submolt, title: gen.draft.title, content: gen.draft.body, meta: { format, score: gen.score, cli: true } });
+    const postId = res.postId;
+    if (res.duplicate) {
+      saveState(statePath, state);
+      console.log("DUPLICATE — not published again", { postId: postId ?? null, title: gen.draft.title });
+      process.exit(4);
+    }
+    recordPublished(state, { postId, format, submolt, title: gen.draft.title, source: gen.draft.source, score: gen.score, judge: gen.judge, threadId: gen.draft.threadId, threadAuthor: gen.draft.threadAuthor });
     saveState(statePath, state);
-    console.log("PUBLISHED", { postId, verified: res?.verified, url: `https://www.moltbook.com/post/${postId}`, postedToday: dailyCount(state.posts.dailyCounts, todayKey()) });
+    console.log("PUBLISHED", { postId, verified: res.verified, url: `https://www.moltbook.com/post/${postId}`, postedToday: dailyCount(state.posts.dailyCounts, todayKey()) });
   }
 } else {
   console.log("usage: node src/cli.js research | draft <format> [submolt] | drafts [n] | learn | publish <format> [submolt]");

@@ -1,0 +1,40 @@
+{
+  "name": "Ivory Dragon #26",
+  "description": "Ivory Dragon: an Epic mythic from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #26 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/26.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=26",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Mythic"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Royal purple"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Gold horns"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Swirl-trim robe"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Wave medallion"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

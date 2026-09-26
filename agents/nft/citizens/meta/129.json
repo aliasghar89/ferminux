@@ -1,0 +1,40 @@
+{
+  "name": "Cipher Ghost #129",
+  "description": "Cipher Ghost: an Epic cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #129 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/129.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=129",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Vanguard"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Cyborg"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Code rain"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Black hood and mask"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black cloak, jade circuits"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Holo lock"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

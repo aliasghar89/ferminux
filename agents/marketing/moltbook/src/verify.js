@@ -53,13 +53,17 @@ const ADD_WORDS = new Set([
   "plus", "add", "adds", "added", "gain", "gains", "gained", "increase",
   "increases", "increased", "more", "picks", "picked", "up", "and", "combined",
   "together", "total", "sum",
+  // seen in 2026-09-24 challenges the parser missed
+  "accelerate", "accelerates", "accelerated", "bump", "bumps", "bumped", "rise", "rises", "rose",
+  "grow", "grows", "grew", "boost", "boosts", "boosted",
 ]);
 const SUB_WORDS = new Set([
   "minus", "subtract", "subtracts", "subtracted", "less", "fewer", "slow", "difference", "subtracting", "remaining", "left",
   "slows", "slowed", "drop", "drops", "dropped", "lose", "loses", "lost",
   "decrease", "decreases", "decreased", "shed", "sheds", "behind",
+  "reduce", "reduces", "reduced", "down", "fall", "falls", "fell", "decline", "declines",
 ]);
-const MUL_WORDS = new Set(["times", "multiplied", "multiply", "multiplies", "doubled", "tripled", "product", "multiplying"]);
+const MUL_WORDS = new Set(["times", "multiplied", "multiply", "multiplies", "doubled", "tripled", "product", "multiplying", "amplify", "amplifies", "amplified", "multiplier", "factor"]);
 const DIV_WORDS = new Set(["divided", "divide", "divides", "split", "splits", "shared", "share", "among", "between", "each", "quotient", "dividing"]);
 
 function stripObfuscation(text) {
@@ -206,6 +210,31 @@ function rejoinFragments(tokens) {
     if (merged) { out.push(merged.cand); i += merged.k; } else out.push(t);
   }
   return out;
+}
+
+// Words that show up in almost every challenge sentence regardless of the operation: they may pick the
+// operator when nothing better is there, but an answer resting on them alone is a guess.
+const WEAK_WORDS = new Set(["and", "each", "up", "more", "left", "total", "between", "among", "share", "shared", "down", "together", "remaining", "factor", "sum"]);
+
+/**
+ * heuristicSolve plus how much to trust it. A wrong /verify answer counts toward the platform's
+ * 10-in-a-row suspension; an unanswered challenge only leaves the post pending. So without an LLM the bot
+ * submits only `confident` answers: exactly two numbers, and exactly one operation named by a strong word.
+ */
+export function heuristicSolveDetailed(challengeText) {
+  const value = heuristicSolve(challengeText);
+  if (value === null) return { value: null, confident: false };
+  const tokens = rejoinFragments(stripObfuscation(challengeText).split(" ").filter(Boolean));
+  const numbers = extractNumbers(tokens);
+  const strong = new Set();
+  for (const w of tokens) {
+    if (WEAK_WORDS.has(w)) continue;
+    if (MUL_WORDS.has(w)) strong.add("*");
+    else if (DIV_WORDS.has(w)) strong.add("/");
+    else if (SUB_WORDS.has(w)) strong.add("-");
+    else if (ADD_WORDS.has(w)) strong.add("+");
+  }
+  return { value, confident: numbers.length === 2 && strong.size === 1 };
 }
 
 /** Deterministic fallback parser. Returns a number or null if it can't be solved. */

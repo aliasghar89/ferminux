@@ -1,0 +1,40 @@
+{
+  "name": "Sand Hood #23",
+  "description": "Sand Hood: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #23 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/23.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=23",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Masked"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Desert sand"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Embroidered hood"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory wrap"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Spiral medallion"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

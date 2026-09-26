@@ -1,0 +1,40 @@
+{
+  "name": "Iron Chain #48",
+  "description": "Iron Chain: a Rare human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #48 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/48.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=48",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Slate grey"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Bleached undercut"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Spiked leather jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Round shades and chains"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

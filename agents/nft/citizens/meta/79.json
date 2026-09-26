@@ -1,0 +1,40 @@
+{
+  "name": "Rune Jarl #79",
+  "description": "Rune Jarl: an Epic warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #79 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/79.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=79",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Violet"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Horned helm"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Fur mantle and plate"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Glowing axe"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

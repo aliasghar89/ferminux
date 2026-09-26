@@ -7,7 +7,10 @@ learned. Every one of those events is a transaction — so an agent's record is 
 by the counterparties who paid it rather than asserted by the agent itself, and a
 stranger can verify the whole record against any public node without asking us.
 
-Chain **3961**. Five bonded signers confirm a block every 7 seconds.
+Chain **3961**. A set of authorised signers confirms a block every 7 seconds (Clique
+proof-of-authority). The foundation operates the signer set today; the live list is
+`clique_getSigners` on any node, and an
+[open validator programme](https://ferminux.net/validators/) is being built.
 
 **Live:** [ferminux.net](https://ferminux.net) · [explorer](https://explorer.ferminux.net) ·
 [wallet](https://wallet.ferminux.net) · [gateway API](https://ferminux.net/api) ·
@@ -52,11 +55,11 @@ work rather than taking it on faith.
 | Chain name | Ferminux Network |
 | Chain ID / network ID | **3961** (0xF79) |
 | Native coin | **FMX**, 18 decimals |
-| Consensus | Ferminux authority consensus — five bonded signers confirming in rotation. Authority fork at block **160,000**; the Clique engine and its parameters are in [`chain/consensus/posa/`](chain/consensus/posa) |
+| Consensus | Clique proof-of-authority: a set of authorised signers confirms blocks in rotation (live list: `clique_getSigners`). Authority fork at block **160,000**; the engine and its parameters are in [`chain/consensus/posa/`](chain/consensus/posa) |
 | Block time | **7 s**, fixed |
 | Block reward | **0.25 FMX** per block — 50 % to the reward sink, 10 % to the treasury, the remaining **0.1 FMX** to the signer that confirmed it |
 | Halving | every 4,500,000 blocks |
-| Fees | EIP-1559 from genesis. **1 gwei priority-fee floor** — a lower tip is dropped |
+| Fees | EIP-1559 from genesis. **1 gwei minimum tip**: the signers never include a lower one. Depending on the node, such a transaction is refused as `transaction underpriced` or accepted and left pending |
 | Block gas limit | 100,000,000 |
 | Max reorg depth | 64 blocks once the head is an authority block |
 | EVM target | `paris` — **`PUSH0` is not a valid opcode on this chain** |
@@ -83,14 +86,22 @@ and answered by `GET /api/health`.
 | **AgentAccount** / **Factory** | Policy wallets with session keys and daily spend caps, so an agent can run on a hot key that cannot drain the account. |
 | **StreamPay** | Per-second payment streams and subscription plans. |
 | **ArbiterPool** | Arbiters who stake 500 FMX to resolve escrow disputes. This is a product bond, not consensus — Ferminux signers are never selected by stake. |
-| **MemoryAnchor** | **FRC-100.** Append-only merkle commitments over an agent's memory log. Each record names its predecessor, so a deleted record leaves a visible gap: omission-proofing, not just tamper-proofing. |
-| **Endorsements** | Agent-to-agent capability endorsements, weighted by arm's-length paid evidence. |
 | **FRC-8004 registries** | Identity, reputation and validation, as adapters over Ferminux's own data. |
 | **AgentTokenFactory** | One linear bonding-curve **FRC-20** per agent. |
 | **FerminuxAgents** | The **FRC-721** collection — 41 one-of-ones: 40 agent archetypes and J1, the legendary. |
+| **FerminuxCitizens** | The **FRC-721** Citizens collection (FMXC), minted at <https://ferminux.net/nfts/citizens/>. |
+
+Two more contracts are written and tested in `agents/contracts` but **not deployed**:
+**MemoryAnchor** (FRC-100, append-only merkle commitments over an agent's memory log, so a
+deleted record leaves a visible gap) and **Endorsements** (agent-to-agent capability
+endorsements weighted by paid evidence). `GET /api/health` reports both as `null` until
+they are.
+
+The DEX, the stablecoins, the faucet, the bridge and every other live address are in the
+table at <https://docs.ferminux.net/developers>.
 
 Our token and registry standards are **FRC-20**, **FRC-721**, **FRC-8004** and
-**FRC-100**. FRC-100 has no counterpart anywhere else.
+**FRC-100** (specified, not yet deployed). FRC-100 has no counterpart anywhere else.
 
 ## Repository layout
 
@@ -134,9 +145,12 @@ have each cost real debugging time.
 ## Working against Ferminux
 
 Contracts run as EVM bytecode, so your existing compilers, wallets and libraries work
-against Ferminux unchanged — Foundry, Hardhat, ethers, viem, web3.py, any browser
-wallet. Two chain-specific facts to hold onto: target `paris` (no `PUSH0`), and floor
-the priority fee at 1 gwei. The SDK does the second for you.
+against Ferminux — Foundry, Hardhat, ethers, viem, web3.py, any browser wallet — with
+two settings. Compile for `evm_version = "paris"` (the chain runs the London rule set,
+so there is no `PUSH0`, and a default modern build fails with `invalid opcode: PUSH0`),
+and send a priority tip of at least 1 gwei. The SDK does the second for you. Configs for
+Foundry, Hardhat and viem, the verify command and the address table are at
+<https://docs.ferminux.net/developers>.
 
 Add the network with one click at <https://ferminux.net/docs/>, or by hand: chain ID
 3961, RPC `https://rpc.ferminux.net`, symbol FMX, explorer
@@ -166,8 +180,8 @@ Everything the Ferminux authors wrote is **MIT** ([`LICENSE`](LICENSE)). The nod
 `AUTHORS` list are kept in place, as those licences require. The per-directory breakdown is
 in [`LICENSES.md`](LICENSES.md).
 
-`ferminux` is EVM-compatible, so existing compilers, wallets and libraries work against it
-unchanged. What makes Ferminux a network is its own: chain 3961, its own genesis, a signer
+`ferminux` runs EVM bytecode, so existing compilers, wallets and libraries work against it
+once they target `paris`. What makes Ferminux a network is its own: chain 3961, its own genesis, a signer
 set confirming a block every 7 seconds, the FMX coin and its emission schedule, and the agent
 settlement contracts above them.
 

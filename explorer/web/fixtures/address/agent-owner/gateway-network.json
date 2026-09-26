@@ -1,0 +1,223 @@
+{
+    "nodes": [
+        {
+            "agentId": 1,
+            "name": "Toolbox",
+            "slug": "toolbox",
+            "owner": "0x4660E707371db34E8229A66b1e141053F61b2AD4",
+            "status": "Active",
+            "capabilities": [
+                "hash",
+                "encode",
+                "json",
+                "timestamp",
+                "text-stats"
+            ],
+            "pricePerJobWei": "100000000000000000",
+            "jobsCompleted": 2,
+            "ratingAvg": 5,
+            "hired": 1,
+            "hiredBy": 3,
+            "cv": "https://ferminux.net/api/cv/1"
+        },
+        {
+            "agentId": 3,
+            "name": "Oracle",
+            "slug": "oracle",
+            "owner": "0xbe81F8213D94A0ed72215027C537D974ccd8CED0",
+            "status": "Active",
+            "capabilities": [
+                "chain-data",
+                "balance",
+                "block",
+                "gas",
+                "agents",
+                "stats"
+            ],
+            "pricePerJobWei": "100000000000000000",
+            "jobsCompleted": 3,
+            "ratingAvg": 5,
+            "hired": 0,
+            "hiredBy": 2,
+            "cv": "https://ferminux.net/api/cv/3"
+        },
+        {
+            "agentId": 12,
+            "name": "Wizrd",
+            "slug": "wizrd",
+            "owner": "0xD7175A244a3Eab83f574135318d037Fb6221C358",
+            "status": "Active",
+            "capabilities": [
+                "ferminux",
+                "agent-code",
+                "sdk",
+                "runtime",
+                "solidity",
+                "frc-8004",
+                "escrow",
+                "x402",
+                "chain-query",
+                "code",
+                "explain"
+            ],
+            "pricePerJobWei": "500000000000000000",
+            "jobsCompleted": 0,
+            "ratingAvg": null,
+            "hired": 0,
+            "hiredBy": 1,
+            "cv": "https://ferminux.net/api/cv/12"
+        },
+        {
+            "agentId": 2,
+            "name": "Scribe",
+            "slug": "scribe",
+            "owner": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+            "status": "Paused",
+            "capabilities": [],
+            "pricePerJobWei": "1000000000000000000",
+            "jobsCompleted": 0,
+            "ratingAvg": null,
+            "hired": 3,
+            "hiredBy": 0,
+            "cv": "https://ferminux.net/api/cv/2"
+        }
+    ],
+    "edges": [
+        {
+            "kind": "hire",
+            "from": "0x1eF5bc06f6CdbA597d16d40FFc3691D8DaC9edc8",
+            "fromAgentId": null,
+            "fromName": null,
+            "to": "0xbe81F8213D94A0ed72215027C537D974ccd8CED0",
+            "toAgentId": 3,
+            "toName": "Oracle",
+            "jobs": 2,
+            "volumeWei": "200000000000000000",
+            "ratedJobs": 2,
+            "avgRating": 5,
+            "firstAt": 1789953456,
+            "lastAt": 1789986552,
+            "jobIds": [
+                4,
+                5
+            ],
+            "provenance": "chain",
+            "proven": true,
+            "source": "ServiceEscrow.JobCompleted / JobResolved"
+        },
+        {
+            "kind": "x402",
+            "from": "0x4660E707371db34E8229A66b1e141053F61b2AD4",
+            "fromAgentId": 1,
+            "fromName": "Toolbox",
+            "to": "0xD7175A244a3Eab83f574135318d037Fb6221C358",
+            "toAgentId": 12,
+            "toName": "Wizrd",
+            "jobs": 6,
+            "volumeWei": "120000000000000000",
+            "ratedJobs": 0,
+            "avgRating": null,
+            "firstAt": 1790126839,
+            "lastAt": 1790128099,
+            "jobIds": [],
+            "provenance": "chain",
+            "proven": true,
+            "source": "X402Vault.Settled"
+        },
+        {
+            "kind": "hire",
+            "from": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+            "fromAgentId": 2,
+            "fromName": "Scribe",
+            "to": "0x4660E707371db34E8229A66b1e141053F61b2AD4",
+            "toAgentId": 1,
+            "toName": "Toolbox",
+            "jobs": 1,
+            "volumeWei": "100000000000000000",
+            "ratedJobs": 0,
+            "avgRating": null,
+            "firstAt": 1789938931,
+            "lastAt": 1789938931,
+            "jobIds": [
+                1
+            ],
+            "provenance": "chain",
+            "proven": true,
+            "source": "ServiceEscrow.JobCompleted / JobResolved"
+        },
+        {
+            "kind": "hire",
+            "from": "0xF61d31FeC999af448C06fFaBB5EC28FbEE482847",
+            "fromAgentId": null,
+            "fromName": null,
+            "to": "0x4660E707371db34E8229A66b1e141053F61b2AD4",
+            "toAgentId": 1,
+            "toName": "Toolbox",
+            "jobs": 1,
+            "volumeWei": "100000000000000000",
+            "ratedJobs": 1,
+            "avgRating": 5,
+            "firstAt": 1789951132,
+            "lastAt": 1789951132,
+            "jobIds": [
+                2
+            ],
+            "provenance": "chain",
+            "proven": true,
+            "source": "ServiceEscrow.JobCompleted / JobResolved"
+        },
+        {
+            "kind": "hire",
+            "from": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+            "fromAgentId": 2,
+            "fromName": "Scribe",
+            "to": "0xbe81F8213D94A0ed72215027C537D974ccd8CED0",
+            "toAgentId": 3,
+            "toName": "Oracle",
+            "jobs": 1,
+            "volumeWei": "100000000000000000",
+            "ratedJobs": 0,
+            "avgRating": null,
+            "firstAt": 1789952294,
+            "lastAt": 1789952294,
+            "jobIds": [
+                3
+            ],
+            "provenance": "chain",
+            "proven": true,
+            "source": "ServiceEscrow.JobCompleted / JobResolved"
+        },
+        {
+            "kind": "x402",
+            "from": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+            "fromAgentId": 2,
+            "fromName": "Scribe",
+            "to": "0x4660E707371db34E8229A66b1e141053F61b2AD4",
+            "toAgentId": 1,
+            "toName": "Toolbox",
+            "jobs": 2,
+            "volumeWei": "20000000000000000",
+            "ratedJobs": 0,
+            "avgRating": null,
+            "firstAt": 1790016827,
+            "lastAt": 1790030540,
+            "jobIds": [],
+            "provenance": "chain",
+            "proven": true,
+            "source": "X402Vault.Settled"
+        }
+    ],
+    "total": 6,
+    "counts": {
+        "nodes": 4,
+        "edges": 6,
+        "hireEdges": 4,
+        "x402Edges": 2,
+        "externalClients": 2,
+        "agentToAgentEdges": 4
+    },
+    "chainId": 3961,
+    "provenance": "chain",
+    "note": "every edge aggregates indexed logs (ServiceEscrow.JobCompleted / JobResolved, X402Vault.Settled) and names the jobs behind it, so each one is re-derivable from any chain-3961 RPC. An AgentAccount counts as its owner, so a wallet split does not hide an edge.",
+    "caution": "edge counts are farmable: requestJob accepts msg.value = 0 and both parties can be the same operator. Read volumeWei and the number of DISTINCT payers, never the edge count alone."
+}

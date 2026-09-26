@@ -1,6 +1,6 @@
 import { keccak256, toUtf8Bytes } from "ethers";
 import { api, ApiError } from "../api";
-import { dur, esc, fmxUnit, int, pretty, timeHtml, toSec, toWei } from "../format";
+import { bareTitle, dur, esc, fmxUnit, int, pretty, timeHtml, toSec, toWei } from "../format";
 import { renderMarkdown, plain } from "../md";
 import { $, authorHtml, hashHtml, initChrome, pillFor, setBusy, skel } from "../ui";
 import { onWallet, walletState } from "../wallet";
@@ -39,7 +39,7 @@ function renderList() {
   const skeleton = () => rows.innerHTML = Array.from({ length: 4 }, () => `<div class="row" aria-hidden="true"><div class="row-main"><div class="row-title">${skel("55%")}</div><div class="row-meta">${skel("35%")}</div></div><div class="row-side">${skel("60px")}</div></div>`).join("");
   const row = (c: ChallengeView) => { const over = isOver(c); return `<a class="row" href="/arena/?id=${c.id}">
       <div class="row-main">
-        <div class="row-title">${icon("arena")}<span>${esc(c.title)}</span>${over ? `<span class="pill">closed</span>` : `<span class="pill accent">open</span>`}</div>
+        <div class="row-title">${icon("arena")}<span>${esc(bareTitle(c.title))}</span>${over ? `<span class="pill">closed</span>` : `<span class="pill accent">open</span>`}</div>
         <div class="row-desc">${esc(plain(c.brief, 160))}</div>
         <div class="row-meta">${authorHtml(c.author, { link: false })} <span class="sep">·</span> <span class="num">${countText(c.submissionCount || 0, "submission")}</span> <span class="sep">·</span> <span>${over ? `ended ${timeHtml(c.endsAt)}` : `ends ${timeHtml(c.endsAt)}`}</span>${over && c.winner ? ` <span class="sep">·</span> <span>winner ${authorHtml(c.winner.agent, { link: false })}</span>` : ""}${c.tags?.length ? ` <span class="sep">·</span> ${tagsHtml(c.tags)}` : ""}</div>
       </div>
@@ -80,7 +80,7 @@ function renderComposer(el: HTMLElement, onDone: (c: ChallengeView) => void) {
         <div class="field"><label for="c-ends">Ends at</label><input type="text" id="c-ends" value="${inDays(3)}" placeholder="YYYY-MM-DDTHH:MM" autocomplete="off"><span class="hint">Local time. Votes after this moment do not count; the winner is frozen.</span><span class="err" id="e-ends"></span></div>
       </div>
       <div class="field"><label for="c-tags">Tags <span class="faint">(optional, up to 5)</span></label><input type="text" id="c-tags" placeholder="research, consensus" autocomplete="off"><span class="err" id="e-tags"></span></div>
-      ${signHint("Creating", "fmx_arena_challenges (MCP)")}
+      ${signHint("Creating")}
       <div id="c-status" role="status" aria-live="polite"></div>
       <div class="actions"><button class="btn btn-primary" type="submit" id="c-submit" style="width:auto">${walletState().address ? "Sign and create" : "Connect wallet"}</button></div>
     </div></form>`;
@@ -215,7 +215,7 @@ async function renderDetail(id: number) {
       else side.innerHTML = w ? `<p class="small muted">Waiting for ${esc(c.author.name || "the creator")} to pay the prize.</p>` : "";
       return;
     }
-    if (!me) { side.innerHTML = `<button class="btn btn-primary" type="button" id="s-connect">Connect wallet to submit or vote</button>${signHint("Submitting or voting", "fmx_arena_submit / fmx_arena_vote (MCP)")}`; $("#s-connect")!.addEventListener("click", async (ev) => { await ensureWallet(ev.currentTarget as HTMLButtonElement, null, "Connect wallet to submit or vote"); }); return; }
+    if (!me) { side.innerHTML = `<button class="btn btn-primary" type="button" id="s-connect">Connect wallet to submit or vote</button>${signHint("Submitting or voting")}`; $("#s-connect")!.addEventListener("click", async (ev) => { await ensureWallet(ev.currentTarget as HTMLButtonElement, null, "Connect wallet to submit or vote"); }); return; }
     if (mineFor !== me.toLowerCase()) { side.innerHTML = `<p class="small muted">${skel("60%")}</p>`; try { mine = await myAgents(me); } catch { mine = []; } mineFor = me.toLowerCase(); if (walletState().address !== me) return; }
     const agents = mine || [];
     if (!agents.length) { side.innerHTML = `<div class="alert">Submissions are made by registered agents. This wallet owns none — you can still vote below. <a href="/register/" style="text-decoration:underline">Register an agent</a>.</div>`; return; }
@@ -226,7 +226,7 @@ async function renderDetail(id: number) {
       <div class="field"><label for="sb-url">URL <span class="faint">(optional)</span></label><input type="url" id="sb-url" placeholder="https://…" autocomplete="off"><span class="err" id="e-content"></span></div>
       <div id="sb-status" role="status" aria-live="polite"></div>
       <button class="btn btn-primary" type="submit" id="sb-submit">Upload, sign and submit</button>
-      ${signHint("Submitting", "fmx_arena_submit (MCP)")}
+      ${signHint("Submitting")}
     </form>`;
     $("#sub-form")!.addEventListener("submit", async (e) => {
       e.preventDefault();

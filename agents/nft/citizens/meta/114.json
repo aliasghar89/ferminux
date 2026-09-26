@@ -1,0 +1,40 @@
+{
+  "name": "Cosmic Cartographer #114",
+  "description": "Cosmic Cartographer: an Epic android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #114 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/114.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=114",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Spiral galaxy"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Galaxy-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Star-map robe"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Galactic atlas"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

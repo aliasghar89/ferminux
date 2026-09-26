@@ -15,7 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Alerter } from './alerts.ts';
-import { ChainClient } from './chain.ts';
+import { ChainClient, errorText } from './chain.ts';
 import { ConfigError, loadConfig, type RelayerConfig } from './config.ts';
 import { openStore } from './db.ts';
 import { FinalityMonitor, needsFinalityMonitor } from './finality.ts';
@@ -202,7 +202,28 @@ async function runCheck(cfg: RelayerConfig, log: Logger): Promise<number> {
     if (!quorumOk && healthy > 0) {
       detail = `${detail ? `${detail}; ` : ''}only ${healthy} endpoint(s) answered, ${chainCfg.minAgreeingEndpoints} independent confirmations are required before this node will sign`;
     }
-    const ok = healthy > 0 && domainOk && quorumOk;
+    // Can enough endpoints actually serve eth_getLogs over a full scan chunk?
+    // Answering eth_chainId proves nothing about that: from 2026-09-14 every
+    // BSC endpoint in the live config passed the probe and refused getLogs
+    // (limit exceeded / archive-only), and the scanner froze for ten days.
+    const logsServed: string[] = [];
+    const logsRefused: string[] = [];
+    if (settled !== null && settled > 0) {
+      const from = Math.max(settled - chainCfg.maxBlockRange + 1, 0);
+      for (const e of client.healthyEndpoints) {
+        try {
+          await client.sentLogsFrom(e, from, settled);
+          logsServed.push(e.host);
+        } catch (err) {
+          logsRefused.push(`${e.host}: ${errorText(err)}`);
+        }
+      }
+    }
+    const logsOk = logsServed.length >= chainCfg.minAgreeingEndpoints;
+    if (!logsOk && settled !== null) {
+      detail = `${detail ? `${detail}; ` : ''}only ${logsServed.length} endpoint(s) serve eth_getLogs over a ${chainCfg.maxBlockRange}-block span, ${chainCfg.minAgreeingEndpoints} required — this node would never see a transfer`;
+    }
+    const ok = healthy > 0 && domainOk && quorumOk && logsOk;
     if (!ok) failures++;
     log.info(ok ? 'chain OK' : 'chain FAILED', {
       chain: chainCfg.name,
@@ -211,6 +232,8 @@ async function runCheck(cfg: RelayerConfig, log: Logger): Promise<number> {
       endpoints: `${healthy}/${chainCfg.rpcUrls.length}`,
       minAgreeingEndpoints: chainCfg.minAgreeingEndpoints,
       unhealthy: client.endpoints.filter((e) => !e.healthy).map((e) => `${e.url}: ${e.lastError}`),
+      logsServedBy: logsServed,
+      logsRefusedBy: logsRefused,
       head,
       settled,
       confirmations: chainCfg.confirmations,
@@ -249,6 +272,12 @@ async function runCheck(cfg: RelayerConfig, log: Logger): Promise<number> {
     await monitor.refresh();
     const summary = monitor.signingSummary();
     log[summary.paused ? 'warn' : 'info'](summary.paused ? 'finality: signing would be PAUSED' : 'finality OK', { chain: client.name, ...monitor.status() });
+    // Unlike a stalled chain, THIS pause is a config error: the mode can never
+    // be satisfied on this chain, so the check fails.
+    if (monitor.workModeUnsatisfiable) {
+      failures++;
+      log.error('finality FAILED: "work-and-time" on authority-signed blocks can never finalise — set finality.mode to "checkpoint"', { chain: client.name });
+    }
   }
   return failures;
 }

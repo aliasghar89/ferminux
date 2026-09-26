@@ -20,7 +20,7 @@ import type { SignedFields } from "./sign";
 import { contractRead } from "./wallet";
 import type {
   AccountRow, AccountView, AgentTokenRow, AgentTokenView, ArbiterCase, ArbiterPoolView, ComputeListing, MemoryKeyView, MemoryQuota,
-  PayinAssets, PayinQuote, PayinQuoteRequest, PayinStatus, PlanView, ReputationSummary, StreamView, SubView, WebhookEvent, WebhookView, X402PayerView, X402Resource,
+  PayinAssets, PayinMarket, PayinQuote, PayinQuoteRequest, PayinStatus, PlanView, ReputationSummary, StreamView, SubView, WebhookEvent, WebhookView, X402PayerView, X402Resource,
 } from "./types";
 
 export class ApiError extends Error { constructor(message: string, public status = 0) { super(message); } }
@@ -190,6 +190,7 @@ export const economy = {
 
   /* ---- pay-in USDC -> FMX (G., gateway/src/v3/payin.ts) ---- */
   payinAssets: (): Promise<PayinAssets> => MOCK ? mock().then((m) => m.payinAssets()) : req(`/payin/assets`),
+  payinMarket: (): Promise<PayinMarket> => MOCK ? mock().then((m) => m.payinMarket()) : req(`/payin/market`),
   payinQuote: (p: PayinQuoteRequest): Promise<PayinQuote> => MOCK ? mock().then((m) => m.payinQuote(p)) : req(`/payin/quote`, json({ chain: p.chain, asset: p.asset, amount: p.amount, to: p.to, ...(p.from ? { from: p.from } : {}) })),
   payinStatus: (quoteId: string): Promise<PayinStatus> => MOCK ? mock().then((m) => m.payinStatus(quoteId)) : req(`/payin/${encodeURIComponent(quoteId)}`),
 

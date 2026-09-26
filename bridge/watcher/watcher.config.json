@@ -25,10 +25,10 @@
       "name": "bsc",
       "chainId": 56,
       "bridgeAddress": "0xe43951a0E421A6B3Cb9C6ae66273dc0D3c8a70ff",
+      "_rpcNote": "Ordered for eth_getLogs, which is all this watcher does on BSC. Re-probed 2026-09-24: bloXroute serves 2,000-block ranges at any depth; publicnode serves recent ranges but refuses archive depth without a token (HTTP 403); bsc-dataseed refuses getLogs even for one block (-32005) and 1RPC caps it at 50 blocks, so both were dropped. Add a keyed provider (NodeReal) locally if you need a second deep endpoint; never commit its key.",
       "rpcUrls": [
-        "https://bsc-dataseed.bnbchain.org",
-        "https://bsc-rpc.publicnode.com",
-        "https://1rpc.io/bnb"
+        "https://bsc.rpc.blxrbdn.com",
+        "https://bsc-rpc.publicnode.com"
       ],
       "confirmations": 20,
       "maxBlockRange": 2000,

@@ -1,0 +1,229 @@
+{
+  "comment": "Checkpoint attestation vectors shared by validator/ (Go sidecar) and the ValidatorHub contract tests. Private keys are TEST ONLY, derived from public labels; never fund them. Regenerate with `go test ./internal/attest -run TestVectorFile -update` from validator/.",
+  "domainName": "Ferminux Validator Hub",
+  "domainVersion": "1",
+  "domainType": "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
+  "domainTypeHash": "0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f",
+  "attestationType": "Attestation(uint64 height,bytes32 blockHash)",
+  "attestationTypeHash": "0x2bf67ebc7cddab6068ae409110dc7585a02a5a417075289ad9850fae33679ee7",
+  "attesterKeyType": "AttesterKey(address owner,address attester)",
+  "attesterKeyTypeHash": "0x87b75b792a53fee46db6a79aac22192ed5c68e16816d5db76a8bb21bb544201e",
+  "valid": [
+    {
+      "name": "mainnet-seat1",
+      "privateKey": "0x1aee8e02b0a5afc1a108f89c16b54de5916b6fd579a74abdefda98baedc05a02",
+      "signer": "0x67d4f97ff01895332b912a30535f139617140f3d",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "domainSeparator": "0xd7bf9df89a3ba34c37aef354434a409015b95d05f5daf4af67245a1f03af770a",
+      "structHash": "0x114fa46efbc13313b326fc4caeb6bd3e969743dcb8fab0733928c3ac67a0ac88",
+      "digest": "0xe80a92d47e607018a3f4d38ae960a4efc57d8357ad151ee6cc5812f3c5949113",
+      "signature": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab416b3baef1305b8f05bea843c95c777487eec0badd4484c9e58e0334c0f9b8cff21c",
+      "r": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab41",
+      "s": "0x6b3baef1305b8f05bea843c95c777487eec0badd4484c9e58e0334c0f9b8cff2",
+      "v": 28
+    },
+    {
+      "name": "mainnet-seat2",
+      "privateKey": "0x1106c412c9a25c041eebc70468b4394147e2ba54ceb4cd6801555fed8adf02f0",
+      "signer": "0x43987e098642dadf2d0602404acb9769fa9a61de",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "domainSeparator": "0xd7bf9df89a3ba34c37aef354434a409015b95d05f5daf4af67245a1f03af770a",
+      "structHash": "0x114fa46efbc13313b326fc4caeb6bd3e969743dcb8fab0733928c3ac67a0ac88",
+      "digest": "0xe80a92d47e607018a3f4d38ae960a4efc57d8357ad151ee6cc5812f3c5949113",
+      "signature": "0x609af305c5119d78f36535df2984ceabcbbb3745791543bd383613acdf21d0952c67bd27076f240c283fef8ded045b1e47a8ffa34d3e5b770fc5f3663d7e44681c",
+      "r": "0x609af305c5119d78f36535df2984ceabcbbb3745791543bd383613acdf21d095",
+      "s": "0x2c67bd27076f240c283fef8ded045b1e47a8ffa34d3e5b770fc5f3663d7e4468",
+      "v": 28
+    },
+    {
+      "name": "mainnet-seat1-next-checkpoint",
+      "privateKey": "0x1aee8e02b0a5afc1a108f89c16b54de5916b6fd579a74abdefda98baedc05a02",
+      "signer": "0x67d4f97ff01895332b912a30535f139617140f3d",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400200,
+      "blockHash": "0x271b74eeef34b1a7a0104fe86d4cd5d055644886027d32acc4d88159e48e5535",
+      "domainSeparator": "0xd7bf9df89a3ba34c37aef354434a409015b95d05f5daf4af67245a1f03af770a",
+      "structHash": "0xa02237fe4702310b112f9a965261f18e870180b0ac862e91b8d55e2d63cf6c3d",
+      "digest": "0x3eb37bb2d1c77925f6cd7d47f201fae4de87871498200cd26465a19dab3b79ce",
+      "signature": "0x86959f01d33a8216ddcf9bda8c428b5eb3d8bdf8802dbdce837e6f51647c6b714543f2854158bdbe54c0afdfdc1a25fb2d859a0966074df48cc7e6522c8b406e1b",
+      "r": "0x86959f01d33a8216ddcf9bda8c428b5eb3d8bdf8802dbdce837e6f51647c6b71",
+      "s": "0x4543f2854158bdbe54c0afdfdc1a25fb2d859a0966074df48cc7e6522c8b406e",
+      "v": 27
+    },
+    {
+      "name": "lab-chain-seat1",
+      "privateKey": "0x1aee8e02b0a5afc1a108f89c16b54de5916b6fd579a74abdefda98baedc05a02",
+      "signer": "0x67d4f97ff01895332b912a30535f139617140f3d",
+      "chainId": 39610,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "domainSeparator": "0xa81d599216ad82487e0af57bcd9138ec3a4911ab20c3f4133144c7c30f2d7d32",
+      "structHash": "0x114fa46efbc13313b326fc4caeb6bd3e969743dcb8fab0733928c3ac67a0ac88",
+      "digest": "0x4f720ac16a550fac1660d3a0ef9545977647f71a87c32bd6eef2c000edc5dc44",
+      "signature": "0xfb7a4e94ea3b2caebd05040ccc723afeac29fa4f9be53353a133bc85d1583bad43f5ab2d242357d6e5fa070c3f926022ed67674a1f70158eb72e85a252717a271c",
+      "r": "0xfb7a4e94ea3b2caebd05040ccc723afeac29fa4f9be53353a133bc85d1583bad",
+      "s": "0x43f5ab2d242357d6e5fa070c3f926022ed67674a1f70158eb72e85a252717a27",
+      "v": 28
+    },
+    {
+      "name": "other-hub-seat1",
+      "privateKey": "0x1aee8e02b0a5afc1a108f89c16b54de5916b6fd579a74abdefda98baedc05a02",
+      "signer": "0x67d4f97ff01895332b912a30535f139617140f3d",
+      "chainId": 3961,
+      "hub": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "domainSeparator": "0x33d725033eae3ccac498c0db185f86ed3092e59b83cbf4f521f404e0347e7a0f",
+      "structHash": "0x114fa46efbc13313b326fc4caeb6bd3e969743dcb8fab0733928c3ac67a0ac88",
+      "digest": "0xada45054945a3210d23c0d0a986c2de88decb231ce7a225c0f25839025e944b7",
+      "signature": "0x09b2b30a3a24baddc6084f9df244dd9c0836ce9957b1ddbdc9dc6950ebc085b15a4bce54c67453a38ecf6d3dc75106a0bf11a6389cce2fdc16d5b62a26a79b5e1c",
+      "r": "0x09b2b30a3a24baddc6084f9df244dd9c0836ce9957b1ddbdc9dc6950ebc085b1",
+      "s": "0x5a4bce54c67453a38ecf6d3dc75106a0bf11a6389cce2fdc16d5b62a26a79b5e",
+      "v": 28
+    },
+    {
+      "name": "max-uint64-height",
+      "privateKey": "0x1106c412c9a25c041eebc70468b4394147e2ba54ceb4cd6801555fed8adf02f0",
+      "signer": "0x43987e098642dadf2d0602404acb9769fa9a61de",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 18446744073709551600,
+      "blockHash": "0x8c5b7aaf4578043fc69f59bd25bc1c41e6cf121ae85bd752f18b48cb5da5945f",
+      "domainSeparator": "0xd7bf9df89a3ba34c37aef354434a409015b95d05f5daf4af67245a1f03af770a",
+      "structHash": "0xb9336ee468bbee910d710d11411129381fe5e4f90739b0ff0295738ddfb3716e",
+      "digest": "0x5024cfc668c2ff8276a9916164a3e92a75f04b6b10b62481592b86fc9285376f",
+      "signature": "0x604b4e7b6e46ac91691a6483b2abf0dfa90920ffd1dff74b054e8284d7f5f2e40b5ba0e0a10b565e236b776d2f43e2cb0ef89337e3b62a516f28c5bbbb50bb7c1b",
+      "r": "0x604b4e7b6e46ac91691a6483b2abf0dfa90920ffd1dff74b054e8284d7f5f2e4",
+      "s": "0x0b5ba0e0a10b565e236b776d2f43e2cb0ef89337e3b62a516f28c5bbbb50bb7c",
+      "v": 27
+    }
+  ],
+  "doubleAttestation": {
+    "signer": "0x67d4f97ff01895332b912a30535f139617140f3d",
+    "chainId": 3961,
+    "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+    "height": 400000,
+    "blockHashA": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+    "signatureA": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab416b3baef1305b8f05bea843c95c777487eec0badd4484c9e58e0334c0f9b8cff21c",
+    "blockHashB": "0x8c5b7aaf4578043fc69f59bd25bc1c41e6cf121ae85bd752f18b48cb5da5945f",
+    "signatureB": "0x28f4eb92da35a73431df3b5b4a614704f72bbd3ae1143fb9961830dc80774d1a7dd60c059d9d3b220acb58107bc37db8fbfe75415e7ee6cf5515ffae33667cc51c"
+  },
+  "invalid": [
+    {
+      "name": "high-s",
+      "reason": "s above half the curve order (the malleated twin of a valid signature)",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "signature": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab4194c4510ecfa470fa4157bc36a3888b76cbee22096ac3d65631cf29cbd67d714f1b",
+      "notSigner": "0x0000000000000000000000000000000000000000"
+    },
+    {
+      "name": "v-29",
+      "reason": "v must be 27 or 28 (or 0/1, read as 27/28)",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "signature": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab416b3baef1305b8f05bea843c95c777487eec0badd4484c9e58e0334c0f9b8cff21d",
+      "notSigner": "0x0000000000000000000000000000000000000000"
+    },
+    {
+      "name": "short",
+      "reason": "signature must be exactly 65 bytes",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "signature": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab416b3baef1305b8f05bea843c95c777487eec0badd4484c9e58e0334c0f9b8cff2",
+      "notSigner": "0x0000000000000000000000000000000000000000"
+    },
+    {
+      "name": "replay-from-lab-chain",
+      "reason": "signed for chain 39610, submitted on 3961: recovers to a different address",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "signature": "0xfb7a4e94ea3b2caebd05040ccc723afeac29fa4f9be53353a133bc85d1583bad43f5ab2d242357d6e5fa070c3f926022ed67674a1f70158eb72e85a252717a271c",
+      "notSigner": "0x67d4f97ff01895332b912a30535f139617140f3d"
+    },
+    {
+      "name": "replay-from-other-hub",
+      "reason": "signed for another hub: recovers to a different address",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "signature": "0x09b2b30a3a24baddc6084f9df244dd9c0836ce9957b1ddbdc9dc6950ebc085b15a4bce54c67453a38ecf6d3dc75106a0bf11a6389cce2fdc16d5b62a26a79b5e1c",
+      "notSigner": "0x67d4f97ff01895332b912a30535f139617140f3d"
+    },
+    {
+      "name": "wrong-height",
+      "reason": "signature for 400000 presented for 400200: recovers to a different address",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400200,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "signature": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab416b3baef1305b8f05bea843c95c777487eec0badd4484c9e58e0334c0f9b8cff21c",
+      "notSigner": "0x67d4f97ff01895332b912a30535f139617140f3d"
+    }
+  ],
+  "acceptedRawV": [
+    {
+      "name": "mainnet-seat1-raw-v",
+      "reason": "same signature as valid[0] with v-27; accepted",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "height": 400000,
+      "blockHash": "0x5b593f4a2adbf48effd4d8fa5a4761fbf4c77506140038de47904d5321f9bd10",
+      "signature": "0x1f577cbe1fdb662b15d37f658dfefb8b40ef00ecdb576ea7e034ea8f18f6ab416b3baef1305b8f05bea843c95c777487eec0badd4484c9e58e0334c0f9b8cff201",
+      "notSigner": "0x0000000000000000000000000000000000000000"
+    }
+  ],
+  "attesterKey": [
+    {
+      "name": "mainnet-seat1",
+      "privateKey": "0x1aee8e02b0a5afc1a108f89c16b54de5916b6fd579a74abdefda98baedc05a02",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "owner": "0x0000000000000000000000000000000000000f00",
+      "attester": "0x67d4f97ff01895332b912a30535f139617140f3d",
+      "digest": "0x5cf5a2e206288ba0cb241e43987033d1ab05df63212bb9beaa6aa81fbe4b7737",
+      "signature": "0x20bbe4185e46f06902766c7cafe3e3fe2feafbef82cc1b99a27e8a95242c369d333dc8bef39d85b0131e1cc2913c961f9e1aeda8ab564398af2d71a3c7ce6e6c1b"
+    },
+    {
+      "name": "lab-chain-seat2",
+      "privateKey": "0x1106c412c9a25c041eebc70468b4394147e2ba54ceb4cd6801555fed8adf02f0",
+      "chainId": 39610,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "owner": "0x0000000000000000000000000000000000000f00",
+      "attester": "0x43987e098642dadf2d0602404acb9769fa9a61de",
+      "digest": "0xce14d5d315f9f09ba8e944169aa7dada3f16a30c7fc377eba22c811147bc125b",
+      "signature": "0x5371ab8626ce021a76016e9a9d398ae0746cdf38f8f511717beefe1f2a2a6b9d19f3fe5c31e31394d0dce92a940e7bfb0d963482d2f4cbc16ced198f64ff40dd1c"
+    }
+  ],
+  "enode": [
+    {
+      "name": "mainnet-node1",
+      "nodeKey": "0x2607d721eeb9b8e2914cf489251e07ed590987dfab5b233c9c63c898cad5f801",
+      "nodeAddress": "0x8a998ba275280e08910fc1d72ec8f1fd44eb893d",
+      "pubkey": "0x08973b16f17388f26c0faba832a43abc75b0cb3066798f309aaa37c2a6690a7fa4be0a661a373cae8c38c8a4df57790742333ba5081c62d988cb56dfa0a426c3",
+      "chainId": 3961,
+      "hub": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      "owner": "0x0000000000000000000000000000000000000f00",
+      "attester": "0x67d4f97ff01895332b912a30535f139617140f3d",
+      "digest": "0x4bad8114c38a76ab9435902147783b324219638e772e085964c16afee2e1f55f",
+      "signature": "0x839e2e156342e0d7d9091b8910be35662d97b22499c48547b3bb650a0626e4a8028db738440108db81fb09f430789f956b878c3282739cad8683e52bc1a4c4fe1c"
+    }
+  ]
+}

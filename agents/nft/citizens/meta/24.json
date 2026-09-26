@@ -1,0 +1,40 @@
+{
+  "name": "Jade Tiger #24",
+  "description": "Jade Tiger: a Rare animal from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #24 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/24.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=24",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Deep green"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "None"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Key-pattern mantle"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold eyes"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

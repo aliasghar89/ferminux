@@ -307,6 +307,37 @@ test('decodeQrImage: inverted images need attemptBoth (the still-image path)', (
   assert.equal(decodeQrImage(data, width, height, { inversionAttempts: 'attemptBoth' }), A);
 });
 
+/* ---------------- multi-chain Send ---------------- */
+
+test('multi-chain: a code for another SUPPORTED network is accepted and carries its chain id', () => {
+  const supported = [1, 56, 8453];
+  const r = parseQrPayload(`ethereum:${A}@56?value=1e18`, CHAIN, supported);
+  assert.equal(r.ok, true);
+  assert.equal(r.target.chainId, 56);
+  assert.equal(r.target.amount, 10n ** 18n);
+  const t = parseQrPayload(`ethereum:${TOKEN}@8453/transfer?address=${B}&uint256=5`, CHAIN, supported);
+  assert.equal(t.ok, true);
+  assert.equal(t.target.kind, 'erc20-transfer');
+  assert.equal(t.target.chainId, 8453);
+  // An unsupported network is still refused, and the message says so.
+  const u = parseQrPayload(`ethereum:${A}@100`, CHAIN, supported);
+  assert.equal(u.ok, false);
+  assert.equal(u.code, 'wrong-chain');
+  assert.match(u.error, /Gnosis/);
+  assert.match(u.error, /not supported/);
+});
+
+test('multi-chain: the form network is named when it is not Ferminux', () => {
+  const r = parseQrPayload(`ethereum:${A}@1`, 56);
+  assert.equal(r.ok, false);
+  assert.match(r.error, /sends on BNB Smart Chain \(chain 56\)/);
+  assert.equal(parseQrPayload(`ethereum:${A}@56`, 56).target.chainId, 56);
+});
+
+test('a WalletConnect code in the payment scanner points the user to the Connect tab', () => {
+  assert.match(bad(`wc:${'a'.repeat(64)}@2?relay-protocol=irn&symKey=${'b'.repeat(64)}`, 'unsupported-scheme').error, /Connect tab/);
+});
+
 test('decodeQrImage: returns null (never throws) for blank and malformed buffers', () => {
   const blank = new Uint8ClampedArray(64 * 64 * 4).fill(255);
   assert.equal(decodeQrImage(blank, 64, 64), null);

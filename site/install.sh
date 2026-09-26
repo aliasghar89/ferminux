@@ -27,14 +27,19 @@ case "$os/$arch" in
 esac
 
 # New artefact name first, previously published name as the fallback. Archives
-# already listed in SHA256SUMS.txt are pinned BY NAME inside the signed sums, so
-# the old names are never renamed or removed — only added to.
+# already listed in SHA256SUMS.txt are pinned BY NAME inside that checksum list,
+# so the old names are never renamed or removed — only added to.
+#
+# What the check proves, and what it does not: SHA256SUMS.txt comes from the same
+# host as the archive and is NOT signed, so it catches a corrupted or truncated
+# download, not a tampered web root. A detached signature over the list is the
+# fix, and it is not published yet.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 curl -fsSL -o "$tmp/SHA256SUMS.txt" "$BASE/SHA256SUMS.txt"
 
-# Choose by the signed sums, never by HTTP status: the site answers unknown
+# Choose by the checksum list, never by HTTP status: the site answers unknown
 # paths with 200 + the HTML index, so "curl succeeded" proves nothing.
 file=""
 for candidate in "ferminux-${target}.tar.gz" "ferminux-geth-${target}.tar.gz"; do

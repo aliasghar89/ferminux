@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferminux Validator</title>
+<link rel="stylesheet" href="app.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="name">Ferminux Validator</span>
+    <span class="pill" id="network">…</span>
+  </div>
+  <div class="ids">
+    <span>Attester <code id="attester">…</code></span>
+    <span>Hub <code id="hub">…</code></span>
+  </div>
+</header>
+
+<main>
+  <section class="banner" id="banner" role="status" aria-live="polite">
+    <span class="dot" id="banner-dot"></span>
+    <div>
+      <div class="banner-title" id="banner-title">Loading…</div>
+      <div class="banner-detail" id="banner-detail"></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Node</h2>
+      <dl>
+        <dt>Latest block</dt><dd id="head" class="num">–</dd>
+        <dt>Block age</dt><dd id="head-age" class="num">–</dd>
+        <dt>Peers</dt><dd id="peers" class="num">–</dd>
+        <dt>Sync</dt><dd id="syncing">–</dd>
+        <dt>Process</dt><dd id="proc">–</dd>
+      </dl>
+      <ul class="reasons" id="reasons"></ul>
+    </article>
+
+    <article class="card">
+      <h2>Seat</h2>
+      <dl>
+        <dt>Seat</dt><dd id="seat-id" class="num">–</dd>
+        <dt>State</dt><dd id="seat-state">–</dd>
+        <dt>Deposit</dt><dd id="deposit" class="num">–</dd>
+        <dt>Active from block</dt><dd id="activation" class="num">–</dd>
+        <dt>Counts for certification</dt><dd id="eligible">–</dd>
+        <dt>Owner</dt><dd><code id="owner">–</code></dd>
+      </dl>
+      <p class="note" id="seat-note"></p>
+    </article>
+
+    <article class="card">
+      <h2>Rewards</h2>
+      <dl>
+        <dt>Expected per day</dt><dd id="per-day" class="num">–</dd>
+        <dt>Per checkpoint</dt><dd id="per-cp" class="num">–</dd>
+        <dt>Claimable</dt><dd id="claimable" class="num">–</dd>
+        <dt>Reward pool</dt><dd id="pool" class="num">–</dd>
+        <dt>Seats taken</dt><dd id="seats" class="num">–</dd>
+        <dt>Attested, last 24 h</dt><dd id="p24" class="num">–</dd>
+        <dt>Attested, last 7 days</dt><dd id="p7" class="num">–</dd>
+      </dl>
+      <p class="note" id="pool-note"></p>
+    </article>
+
+    <article class="card">
+      <h2>Next checkpoint</h2>
+      <dl>
+        <dt>Height</dt><dd id="next-cp" class="num">–</dd>
+        <dt>Signing opens at block</dt><dd id="next-open" class="num">–</dd>
+        <dt>In about</dt><dd id="next-eta" class="num">–</dd>
+        <dt>Gas balance</dt><dd id="gas" class="num">–</dd>
+      </dl>
+      <p class="note" id="gas-note"></p>
+    </article>
+  </section>
+
+  <section class="card wide">
+    <h2>Checkpoints</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="num">Height</th><th>State</th><th>Block hash</th><th>Transaction</th><th class="num">Included in</th><th>Detail</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="6" class="empty">No checkpoints yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p>Ferminux uses proof-of-authority consensus. This validator node keeps its own copy of the chain, checks every block and signs a statement naming the block it sees at each checkpoint. It does not produce or order blocks.</p>
+    <p>This page is served only to this computer and cannot change anything. <span id="version"></span></p>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,586 @@
+{
+ "fetchedAt": "2026-09-24T17:06:51Z",
+ "files": {
+  "home/stats.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/stats"
+  },
+  "home/main-page-blocks.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/main-page/blocks"
+  },
+  "home/main-page-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/main-page/transactions"
+  },
+  "home/indexing-status.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/main-page/indexing-status"
+  },
+  "home/charts-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/stats/charts/transactions"
+  },
+  "home/transactions-stats.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/stats"
+  },
+  "lists/blocks.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks?type=block"
+  },
+  "lists/blocks-page2.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks?type=block&block_number=396000&items_count=50"
+  },
+  "lists/transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions?filter=validated"
+  },
+  "lists/accounts.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses"
+  },
+  "lists/tokens.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens"
+  },
+  "lists/verified-contracts.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/smart-contracts"
+  },
+  "lists/smart-contracts-counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/smart-contracts/counters"
+  },
+  "lists/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/token-transfers"
+  },
+  "lists/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/internal-transactions"
+  },
+  "tx/fmx-transfer/tx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xf7c65387ece2210384b10c83408b7212b982138e49c7fe8218fe310d84ac80f0"
+  },
+  "tx/fmx-transfer/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xf7c65387ece2210384b10c83408b7212b982138e49c7fe8218fe310d84ac80f0/logs"
+  },
+  "tx/fmx-transfer/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xf7c65387ece2210384b10c83408b7212b982138e49c7fe8218fe310d84ac80f0/token-transfers"
+  },
+  "tx/fmx-transfer/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xf7c65387ece2210384b10c83408b7212b982138e49c7fe8218fe310d84ac80f0/internal-transactions"
+  },
+  "tx/fmx-transfer/state-changes.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xf7c65387ece2210384b10c83408b7212b982138e49c7fe8218fe310d84ac80f0/state-changes"
+  },
+  "tx/contract-call/tx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3"
+  },
+  "tx/contract-call/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3/logs"
+  },
+  "tx/contract-call/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3/token-transfers"
+  },
+  "tx/contract-call/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3/internal-transactions"
+  },
+  "tx/contract-call/state-changes.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3/state-changes"
+  },
+  "tx/escrow-call/tx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xd71f38995c4789e1334da92a9b3a20a37c83ed8cbd322acfc608098ead9d76e3"
+  },
+  "tx/escrow-call/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xd71f38995c4789e1334da92a9b3a20a37c83ed8cbd322acfc608098ead9d76e3/logs"
+  },
+  "tx/escrow-call/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xd71f38995c4789e1334da92a9b3a20a37c83ed8cbd322acfc608098ead9d76e3/token-transfers"
+  },
+  "tx/escrow-call/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xd71f38995c4789e1334da92a9b3a20a37c83ed8cbd322acfc608098ead9d76e3/internal-transactions"
+  },
+  "tx/escrow-call/state-changes.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xd71f38995c4789e1334da92a9b3a20a37c83ed8cbd322acfc608098ead9d76e3/state-changes"
+  },
+  "tx/token-transfers/tx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f"
+  },
+  "tx/token-transfers/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f/logs"
+  },
+  "tx/token-transfers/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f/token-transfers"
+  },
+  "tx/token-transfers/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f/internal-transactions"
+  },
+  "tx/token-transfers/state-changes.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f/state-changes"
+  },
+  "tx/nft-mint/tx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x281732b032658431f88e205db8db619be54087951fc7bafab512724044c08cca"
+  },
+  "tx/nft-mint/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x281732b032658431f88e205db8db619be54087951fc7bafab512724044c08cca/logs"
+  },
+  "tx/nft-mint/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x281732b032658431f88e205db8db619be54087951fc7bafab512724044c08cca/token-transfers"
+  },
+  "tx/nft-mint/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x281732b032658431f88e205db8db619be54087951fc7bafab512724044c08cca/internal-transactions"
+  },
+  "tx/nft-mint/state-changes.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x281732b032658431f88e205db8db619be54087951fc7bafab512724044c08cca/state-changes"
+  },
+  "tx/internal/tx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x9f820129d73f54b8bc187eabb4006f0b8e3fcaaca38eff428c4f9f5ac0502581"
+  },
+  "tx/internal/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x9f820129d73f54b8bc187eabb4006f0b8e3fcaaca38eff428c4f9f5ac0502581/logs"
+  },
+  "tx/internal/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x9f820129d73f54b8bc187eabb4006f0b8e3fcaaca38eff428c4f9f5ac0502581/token-transfers"
+  },
+  "tx/internal/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x9f820129d73f54b8bc187eabb4006f0b8e3fcaaca38eff428c4f9f5ac0502581/internal-transactions"
+  },
+  "tx/internal/state-changes.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x9f820129d73f54b8bc187eabb4006f0b8e3fcaaca38eff428c4f9f5ac0502581/state-changes"
+  },
+  "tx/contract-call/raw-trace.json": {
+   "status": 500,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3/raw-trace"
+  },
+  "tx/contract-call/summary.json": {
+   "status": 403,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3/summary"
+  },
+  "tx/contract-call/rpc-receipt.json": {
+   "status": 200,
+   "url": "https://rpc.ferminux.net",
+   "rpc": "eth_getTransactionReceipt",
+   "params": [
+    "0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3"
+   ]
+  },
+  "address/eoa/address.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847"
+  },
+  "address/eoa/counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/counters"
+  },
+  "address/eoa/tabs-counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/tabs-counters"
+  },
+  "address/eoa/transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/transactions"
+  },
+  "address/eoa/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/token-transfers"
+  },
+  "address/eoa/token-balances.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/token-balances"
+  },
+  "address/eoa/tokens.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/tokens"
+  },
+  "address/eoa/coin-balance-history-by-day.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/coin-balance-history-by-day"
+  },
+  "address/eoa/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/logs"
+  },
+  "address/eoa/nft.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/nft?type=ERC-721,ERC-404,ERC-1155"
+  },
+  "address/signer/address.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693"
+  },
+  "address/signer/counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/counters"
+  },
+  "address/signer/tabs-counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/tabs-counters"
+  },
+  "address/signer/transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/transactions"
+  },
+  "address/signer/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/token-transfers"
+  },
+  "address/signer/token-balances.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/token-balances"
+  },
+  "address/signer/tokens.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/tokens"
+  },
+  "address/signer/coin-balance-history-by-day.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/coin-balance-history-by-day"
+  },
+  "address/signer/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/logs"
+  },
+  "address/signer/nft.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/nft?type=ERC-721,ERC-404,ERC-1155"
+  },
+  "address/agent-owner/address.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9"
+  },
+  "address/agent-owner/counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/counters"
+  },
+  "address/agent-owner/tabs-counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/tabs-counters"
+  },
+  "address/agent-owner/transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/transactions"
+  },
+  "address/agent-owner/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/token-transfers"
+  },
+  "address/agent-owner/token-balances.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/token-balances"
+  },
+  "address/agent-owner/tokens.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/tokens"
+  },
+  "address/agent-owner/coin-balance-history-by-day.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/coin-balance-history-by-day"
+  },
+  "address/agent-owner/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/logs"
+  },
+  "address/agent-owner/nft.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/nft?type=ERC-721,ERC-404,ERC-1155"
+  },
+  "address/contract/address.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F"
+  },
+  "address/contract/counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/counters"
+  },
+  "address/contract/tabs-counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/tabs-counters"
+  },
+  "address/contract/transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/transactions"
+  },
+  "address/contract/token-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/token-transfers"
+  },
+  "address/contract/token-balances.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/token-balances"
+  },
+  "address/contract/tokens.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/tokens"
+  },
+  "address/contract/coin-balance-history-by-day.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/coin-balance-history-by-day"
+  },
+  "address/contract/logs.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/logs"
+  },
+  "address/contract/nft.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xa94f27F18267d09349809f3e2AeF8e7767033e8F/nft?type=ERC-721,ERC-404,ERC-1155"
+  },
+  "address/eoa/coin-balance-history.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0xF61d31FeC999af448C06fFaBB5EC28FbEE482847/coin-balance-history"
+  },
+  "address/signer/blocks-validated.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x8e97f419F388c20E745dFF826587f359C31EF693/blocks-validated"
+  },
+  "address/agent-owner/internal-transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x6beE9D8F7f4B701d54dE273138F6994183707DD9/internal-transactions"
+  },
+  "address/contract/smart-contract.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/smart-contracts/0xa94f27F18267d09349809f3e2AeF8e7767033e8F"
+  },
+  "address/agent-owner/gateway-agents.json": {
+   "status": 200,
+   "url": "https://ferminux.net/api/agents?limit=50"
+  },
+  "address/agent-owner/gateway-agent-2.json": {
+   "status": 200,
+   "url": "https://ferminux.net/api/agents/2"
+  },
+  "address/agent-owner/gateway-accounts.json": {
+   "status": 200,
+   "url": "https://ferminux.net/api/accounts?owner=0x6beE9D8F7f4B701d54dE273138F6994183707DD9"
+  },
+  "address/agent-owner/gateway-network.json": {
+   "status": 200,
+   "url": "https://ferminux.net/api/network"
+  },
+  "address/agent-owner/gateway-tokens.json": {
+   "status": 200,
+   "url": "https://ferminux.net/api/tokens"
+  },
+  "token/frc20/token.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae"
+  },
+  "token/frc20/counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae/counters"
+  },
+  "token/frc20/transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae/transfers"
+  },
+  "token/frc20/holders.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae/holders"
+  },
+  "token/frc721/token.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd"
+  },
+  "token/frc721/counters.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/counters"
+  },
+  "token/frc721/transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/transfers"
+  },
+  "token/frc721/holders.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/holders"
+  },
+  "token/frc721/instances.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/instances"
+  },
+  "token/frc721/instance-41.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/instances/41"
+  },
+  "token/frc721/instance-41-transfers.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/instances/41/transfers"
+  },
+  "token/frc721/instance-41-holders.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/instances/41/holders"
+  },
+  "token/frc721/instance-41-transfers-count.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd/instances/41/transfers-count"
+  },
+  "block/authority/block.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/396000"
+  },
+  "block/authority/transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/396000/transactions"
+  },
+  "block/pow/block.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/82711"
+  },
+  "block/pow/transactions.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/82711/transactions"
+  },
+  "block/by-hash.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/0x80b22193df17a12c8fb2e81ccc1182fb50b9a698ec6462891d65350aff994151"
+  },
+  "block/countdown-future.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/999999/countdown"
+  },
+  "block/authority/rpc-header.json": {
+   "status": 200,
+   "url": "https://rpc.ferminux.net",
+   "rpc": "eth_getBlockByNumber",
+   "params": [
+    "0x60ae0",
+    false
+   ]
+  },
+  "block/authority/rpc-clique-getSigner.json": {
+   "status": 200,
+   "url": "https://rpc.ferminux.net",
+   "rpc": "clique_getSigner",
+   "params": [
+    "0x60ae0"
+   ]
+  },
+  "block/rpc-clique-getSigners.json": {
+   "status": 200,
+   "url": "https://rpc.ferminux.net",
+   "rpc": "clique_getSigners",
+   "params": []
+  },
+  "block/rpc-clique-status.json": {
+   "status": 200,
+   "url": "https://rpc.ferminux.net",
+   "rpc": "clique_status",
+   "params": []
+  },
+  "search/text-scribe.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search?q=Scribe"
+  },
+  "search/text-fmx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search?q=FMX"
+  },
+  "search/quick-fmxa.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search/quick?q=FMXA"
+  },
+  "search/block-number.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search?q=396000"
+  },
+  "search/tx-hash.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search?q=0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3"
+  },
+  "search/address.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search?q=0x6beE9D8F7f4B701d54dE273138F6994183707DD9"
+  },
+  "search/no-match.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search?q=zzzqqq-nothing"
+  },
+  "search/redirect-block.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search/check-redirect?q=396000"
+  },
+  "search/redirect-tx.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search/check-redirect?q=0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3"
+  },
+  "search/redirect-address.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/search/check-redirect?q=0x6beE9D8F7f4B701d54dE273138F6994183707DD9"
+  },
+  "errors/tx-not-found.json": {
+   "status": 404,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x0000000000000000000000000000000000000000000000000000000000000001"
+  },
+  "errors/tx-invalid-hash.json": {
+   "status": 422,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0xnothex"
+  },
+  "errors/block-not-found.json": {
+   "status": 404,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/99999999"
+  },
+  "errors/block-invalid.json": {
+   "status": 422,
+   "url": "https://explorer.ferminux.net/api/v2/blocks/abc"
+  },
+  "errors/address-invalid.json": {
+   "status": 422,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x123"
+  },
+  "errors/address-unused.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/addresses/0x000000000000000000000000000000000000dEaD"
+  },
+  "errors/token-not-found.json": {
+   "status": 404,
+   "url": "https://explorer.ferminux.net/api/v2/tokens/0x000000000000000000000000000000000000dEaD"
+  },
+  "errors/unknown-route.json": {
+   "status": 400,
+   "url": "https://explorer.ferminux.net/api/v2/nope"
+  },
+  "errors/disabled-summary.json": {
+   "status": 403,
+   "url": "https://explorer.ferminux.net/api/v2/transactions/0x5c47134efc88e69e2b11c74409ad1c61c683a608e858e3abf4ddeedb24f73bc3/summary"
+  },
+  "errors/bad-page-params.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/blocks?type=block&block_number=abc&items_count=50"
+  },
+  "lists/verification-config.json": {
+   "status": 200,
+   "url": "https://explorer.ferminux.net/api/v2/smart-contracts/verification/config"
+  }
+ }
+}

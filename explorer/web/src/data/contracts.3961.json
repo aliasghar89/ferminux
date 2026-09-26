@@ -1,0 +1,52 @@
+{
+  "_note": "Public on-chain address book for chain 3961 (surfaces/explorer.md §4.1, §5.12; API.md §6.2). Sources: agents/deployments.3961.json, agents/deployments-v3.3961.json, the index /tokens list and clique_getSigners, read 2026-09-24. Public addresses only; never read .credentials/ at build. The signer numbers are a seed: src/signer.ts refreshes them from each signer's vanity (fmx-signer<k>) on the chain. validatorHub/validatorHubLens: null until the Step 1 checkpoint-validator contracts (agents/contracts/src/validators/ValidatorHub.sol + ValidatorHubLens.sol) are deployed; every validators/* surface (nav link, /validators, the block-page certified badge, seat pages) stays hidden while either is null (src/validators/config.ts).",
+  "chainId": 3961,
+  "posaBlock": 160000,
+  "validatorHub": null,
+  "validatorHubLens": null,
+  "contracts": [
+    { "address": "0xa94f27F18267d09349809f3e2AeF8e7767033e8F", "name": "AgentRegistry", "section": "agents", "kind": "contract", "abi": "AgentRegistry", "deployBlock": 349183 },
+    { "address": "0x99b331495951dB91857902de91EAe9Ff54d8a719", "name": "ServiceEscrow", "section": "agents", "kind": "contract", "abi": "ServiceEscrow", "deployBlock": 349183 },
+    { "address": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd", "name": "Ferminux Agents (FMXA)", "short": "Ferminux Agents", "section": "agents", "kind": "token", "abi": "FerminuxAgents", "deployBlock": 351411, "mintUrl": "https://ferminux.net/nfts/?id={id}" },
+    { "address": "0x5672AF1a567a46BAaFeb66959b7A95666E7f4252", "name": "Ferminux Citizens (FMXC)", "short": "Ferminux Citizens", "section": "agents", "kind": "token", "abi": "FerminuxCitizens", "deployBlock": 404087, "mintUrl": "https://ferminux.net/nfts/citizens/?id={id}" },
+    { "address": "0x8751Cf7e29Fe588c61FDc53323438247198eaa57", "name": "X402 Vault", "section": "agents", "kind": "contract", "abi": "X402Vault", "deployBlock": 360112 },
+    { "address": "0x82e7C593785f726A0A0BB4D37AbCaF2bA4a72dcb", "name": "AgentAccountFactory", "section": "agents", "kind": "contract", "abi": "AgentAccountFactory", "deployBlock": 360112 },
+    { "address": "0xb110021fAFcB541081aDA72da58964BA74c63942", "name": "AgentAccount (implementation)", "short": "AgentAccount impl", "section": "agents", "kind": "impl", "abi": "AgentAccount", "deployBlock": 360112 },
+    { "address": "0x59404F738A90E5CF725F5837EF40461d1EA2EC35", "name": "StreamPay", "section": "agents", "kind": "contract", "abi": "StreamPay", "deployBlock": 360112 },
+    { "address": "0x367312B28f78dE97462905519337841e4d4cB2df", "name": "ArbiterPool", "section": "agents", "kind": "contract", "abi": "ArbiterPool", "deployBlock": 360112 },
+    { "address": "0xf3e8c83a0472602d04Cd774e3887cBAA76c62147", "name": "Identity 8004", "section": "agents", "kind": "contract", "abi": "IdentityRegistry8004", "deployBlock": 360112 },
+    { "address": "0xd5984C5a187cD6EcF2698eb218988F73FBF08884", "name": "Reputation 8004", "section": "agents", "kind": "contract", "abi": "ReputationRegistry8004", "deployBlock": 360112 },
+    { "address": "0x37feB1B3Fb6505d4D584dB0a632F3C20d9eAab97", "name": "Validation 8004", "section": "agents", "kind": "contract", "abi": "ValidationRegistry8004", "deployBlock": 360112 },
+    { "address": "0xf9fcCF337a7930D146227601C1da7Be85bB50188", "name": "AgentTokenFactory", "section": "agents", "kind": "contract", "abi": "AgentTokenFactory", "deployBlock": 360112 },
+
+    { "address": "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae", "name": "WFMX", "long": "Wrapped FMX (WFMX)", "section": "dex", "kind": "token", "abi": "WFMX" },
+    { "address": "0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178", "name": "AZNT", "long": "Ferminux Manat (AZNT)", "section": "dex", "kind": "token" },
+    { "address": "0xCd032A609e34121D1881E8DE7355b2c2c7092363", "name": "USDF", "long": "Ferminux Dollar (USDF)", "section": "dex", "kind": "token" },
+    { "address": "0x62BC7d9671EfE1385413434aB8fdfE2fa4aE01D4", "name": "TokenFactory (v1)", "section": "dex", "kind": "contract" },
+    { "address": "0x2034a8366fCdbfFCf4517D297f702aDDdba37040", "name": "DEX Factory", "section": "dex", "kind": "contract" },
+    { "address": "0x018C0Efca293F7a74D2f53ce738BA5e2f412BA9f", "name": "DEX Router", "section": "dex", "kind": "contract" },
+    { "address": "0xe588c594388B978E64B69E2Dd91CC7E302763951", "name": "LiquidityLocker", "section": "dex", "kind": "contract" },
+    { "address": "0xbab12e7B817F0686e11949eC06697235DC146845", "name": "FMX-LP", "long": "Ferminux LP (FMX-LP)", "section": "dex", "kind": "token" },
+
+    { "address": "0x498Bc2c68051ca86B4bE95Eb586f7f18b680CB4e", "name": "Bridge", "long": "Bridge (3961 side)", "section": "chain", "kind": "contract" },
+    { "address": "0xf4dE70068031DA17347cd19aCaa841013751B3c0", "name": "Faucet", "section": "chain", "kind": "contract" },
+    { "address": "0x6F488FB1f382Bc96Fef8bBfCa28A9647E5Fe430B", "name": "FMXVesting", "section": "chain", "kind": "contract" },
+    { "address": "0x910BD467D8576277f8f96DF47428377FFD94fEfe", "name": "Governance multisig", "section": "chain", "kind": "contract" }
+  ],
+  "accounts": [
+    { "address": "0xc0A5Eb613f859f072554F29f1Ab7400265af15aB", "name": "Treasury" },
+    { "address": "0x691E5275BF346FfFa0B30174dDBeDfCC078dd8D6", "name": "Reward sink" }
+  ],
+  "signers": [
+    { "n": 1, "address": "0x3322f60aCEA9f88658665E83BeB30a516036187D" },
+    { "n": 2, "address": "0xA46A721F25771BB2Be312a63A5D891539fF1de23" },
+    { "n": 3, "address": "0x1538249E04c767dFfC50845068C19F633341bB0f" },
+    { "n": 4, "address": "0x71377E0F553a5B0CB847443ab6648235977919b0" },
+    { "n": 5, "address": "0x8e97f419F388c20E745dFF826587f359C31EF693" }, { "n": 6, "address": "0x44112Af43721BDBa8fBb9B5Fdd2757736e2AFFce" }
+  ],
+  "sections": {
+    "agents": "Agent network",
+    "dex": "Tokens and DEX",
+    "chain": "Chain and treasury"
+  }
+}

@@ -16,7 +16,7 @@
     {
       "name": "ferminux",
       "chainId": 3961,
-      "_notes": "Ethash PoW, ~7s blocks, no finality gadget. Reorg depth is bounded by hashrate, not by protocol, and Ferminux hashrate is small — so this is the DEEPEST wait in the set, not the shallowest. 64 blocks is ~7.5 minutes. Do not lower it because the chain 'feels' fast: a 51%-capable miner rewriting 10 blocks costs almost nothing here, and rewriting 64 costs 6.4x that.",
+      "_notes": "Authority chain since block 160,000: an authorised signer set confirms a block every 7 s, in rotation (Clique engine). A reorg there costs no work at all, so no block COUNT prices one: the multisig-attested checkpoint below is the finality source, and 64 confirmations (~7.5 minutes) stay only as the floor under it. Do not lower the floor because the chain feels fast.",
       "_rpcNotes": "There is exactly ONE public Ferminux RPC operator, and it is us — so two of the three witnesses on the home chain have to be nodes you control or nodes a counterparty controls. The two .invalid placeholders below are deliberately unresolvable: `--role check` fails on them, which is the point. Replace them with real hosts before setting enabled=true. Running your own Ferminux node is a small ask (geth fork, ~7s blocks) and it is the only endpoint in this file nobody else can take away from you.",
       "rpcUrls": [
         "https://rpc.ferminux.net",
@@ -31,12 +31,9 @@
       "startBlock": 0,
       "maxBlockRange": 2000,
       "enabled": false,
-      "_finality": "BEFORE the Clique fork: work-and-time. workThreshold is total difficulty in the chain's own units, summed over the blocks ABOVE the source block. Measured live 2026-08-21 through all three RPCs at head 20744: 81 blocks carried 98,893,866,925 of work, i.e. ~1.22e9 per block, so 64 blocks' worth is ~7.8e10 — that is the value below. It MUST be re-derived when hashrate moves materially (cast block latest --rpc-url https://rpc.ferminux.net, field `difficulty`, times 64): too low and the time floor does all the work, too high and the bridge waits longer than intended. timeFloorMs 450000 = 7.5 min, the wall clock 64 blocks were meant to be. Pace measured the same day: median gap 14s, max 63s, against the 7s target — already 2x nominal, which is why degradedFactor is 4 and not 2; the stall rule (no block for 300s) catches the 2026-08-21 failure mode outright. AFTER the fork: set mode to \"checkpoint\", delete workThreshold/timeFloorMs (they are refused outside work-and-time), keep pace, and set pace.targetBlockTimeMs to the Clique period. The checkpoint block is included in BOTH modes: it is the only defence that prices a zero-cost reorg, so it goes live before the fork, not after. registryChainId 56 means the registry is read through the bsc row's 3-provider quorum, so that row must be enabled.",
+      "_finality": "checkpoint: a transfer is signable only at or below the latest multisig-attested checkpoint in the CheckpointRegistry on BSC, and only when the hash attested there matches what THIS node reads at that height (a mismatch is a detected reorg and pages a human). Until 2026-09-24 this row said work-and-time with workThreshold 7.8e10, a value measured on 2026-08-21 when blocks carried ~1.2e9 of difficulty each. Since block 160,000 every block carries 1 or 2, so a 4,096-block walk sums to at most ~8,192 and that threshold can never be met: every Ferminux-to-BSC transfer would sit not_final forever (the finality monitor now says so and pauses). workThreshold/timeFloorMs are refused outside work-and-time, so they are gone. Pace stays: 7 s target, degradedFactor 4, stall after 300 s. maxAgeMs 21600000 = 6 h: publish a checkpoint (bridge/ops/checkpoint.sh) at least that often, or signing pauses itself — the intended failure, but only if something ALERTS on it (bridge/ops/status-alarm.sh). registryChainId 56 means the registry is read through the bsc row's 3-provider quorum, so that row must be enabled and its endpoints must answer eth_call.",
       "finality": {
-        "mode": "work-and-time",
-        "workThreshold": "78000000000",
-        "timeFloorMs": 450000,
-        "maxWalkBlocks": 4096,
+        "mode": "checkpoint",
         "pace": {
           "targetBlockTimeMs": 7000,
           "window": 32,
@@ -109,8 +106,8 @@
       "name": "bsc",
       "chainId": 56,
       "_notes": "3s blocks, 21 validators, BEP-126 fast finality (~2-3 blocks once 2/3 have voted). `finalized` is served and is the real safety line; 20 blocks (~60s) is the fallback floor. BSC has had multi-block reorgs before fast finality, which is why the floor is not 3.",
-      "_rpcNotes": "Allnodes, the Binance-operated dataseed, and 1RPC (Automata). bsc-dataseed1.binance.org still answers but bnbchain.org is the current name for the same fleet — listing both would be one provider twice, so only one is here.",
-      "rpcUrls": ["https://bsc-rpc.publicnode.com", "https://bsc-dataseed.bnbchain.org", "https://1rpc.io/bnb"],
+      "_rpcNotes": "bloXroute, NodeReal and Allnodes (publicnode): three operators that SERVE eth_getLogs. Re-probed 2026-09-24 against the bridge address: bsc-dataseed answers -32005 \"limit exceeded\" even for ONE block at the head, and 1RPC caps getLogs at 50 blocks, so a validator using them never sees a burn (the live BSC scan froze on 2026-09-14 this way). publicnode refuses archive depth without a token (HTTP 403, \"Archive requests require a personal token\") but serves recent logs and every eth_call; bloXroute and NodeReal served 2,000-block ranges 1.9M blocks deep. The NodeReal URL carries an API key: never commit it. Set the whole list through FMX_RELAYER_RPC_56 (comma-separated) in a root-only systemd EnvironmentFile instead of in this file.",
+      "rpcUrls": ["https://bsc.rpc.blxrbdn.com", "https://bsc-mainnet.nodereal.io/v1/REPLACE_WITH_YOUR_KEY", "https://bsc-rpc.publicnode.com"],
       "bridgeAddress": "",
       "domainSeparator": "",
       "confirmations": 20,
@@ -120,8 +117,9 @@
       "maxBlockRange": 2000,
       "enabled": false,
       "gas": {
+        "_priorityFeeGwei": "0 = pay the node's own eth_maxPriorityFeePerGas (0.05 gwei on 2026-09-24; gas.ts falls back to 1 gwei only if the node will not say). A floor of 1 paid 20x the going tip on every submission. Whole numbers only: 0.05 is refused at startup.",
         "maxFeePerGasGwei": 15,
-        "priorityFeeGwei": 1,
+        "priorityFeeGwei": 0,
         "baseFeeMultiplier": 2,
         "gasLimitMultiplier": 1.3,
         "gasLimitCap": 1500000,

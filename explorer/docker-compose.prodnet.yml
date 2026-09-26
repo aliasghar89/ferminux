@@ -1,12 +1,19 @@
 # Overlay for the production server: join the shared external network
-# "fmxnet" so the backend reads the chain from the rpc1 sentry by container
-# name (rpc1 publishes no host ports), and the main nginx can proxy
-# explorer.<domain> to this stack's proxy container.
+# "fmxnet" so the backend reads the chain from a node by container name
+# (no chain node publishes its RPC on a host port), and the main nginx can
+# proxy explorer.<domain> to this stack's proxy container.
 #
-# Use with .env:
-#   FMX_RPC_HTTP=http://fmxp-rpc1:8545
-#   FMX_RPC_WS=ws://fmxp-rpc1:8546
+# Use with .env (this is what production runs):
+#   FMX_RPC_HTTP=http://fmxp-miner:8545
+#   FMX_RPC_WS=ws://fmxp-miner:8546
 #   FMX_EXPLORER_PORT=127.0.0.1:4000    # loopback-only host publish
+#
+# fmxp-miner is the explorer's DEDICATED node: it stopped mining at the
+# proof-of-authority fork, is not a signer, and is CPU-capped at 2 cores.
+# Do not point the explorer at fmxp-rpc1/rpc2: those serve rpc.ferminux.net,
+# and every node here is pruned (--gcmode full), so the explorer's historical
+# reads fail the same way on any of them ("missing trie node") and would just
+# move the load onto the public RPC.
 #
 #   docker compose -f docker-compose.yml -f docker-compose.prodnet.yml up -d
 services:

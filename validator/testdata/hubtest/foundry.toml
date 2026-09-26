@@ -1,0 +1,22 @@
+# Compiles the real ValidatorHub from agents/contracts/src/validators and checks
+# it against ../attestation_vectors.json, the file the Go sidecar's tests pin.
+# `forge test` here is the contract half of the signing-format cross-test.
+[profile.default]
+src = "test"
+test = "test"
+out = "out"
+cache_path = "cache"
+libs = ["../../../contracts/lib"]
+allow_paths = ["../../../agents/contracts/src"]
+remappings = [
+  "forge-std/=../../../contracts/lib/forge-std/src/",
+  "hub/=../../../agents/contracts/src/",
+]
+# the same compiler settings as agents/contracts/foundry.toml
+solc = "0.8.24"
+evm_version = "paris"
+optimizer = true
+optimizer_runs = 200
+fs_permissions = [{ access = "read", path = "../" }]
+# the Go tests read the hub's storage layout from the artifact (seats must stay at slot 33)
+extra_output = ["storageLayout"]

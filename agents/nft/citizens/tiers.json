@@ -1,0 +1,2830 @@
+{
+  "collection": {
+    "name": "Ferminux Citizens",
+    "symbol": "FMXC",
+    "description": "Ferminux Citizens: one-of-one portraits of the people, androids and creatures of Ferminux Network, minted as FRC-721 tokens on chain 3961. Every id exists exactly once and is priced by its rarity tier: Common, Rare, Epic or Legendary. The collection grows as new artwork arrives.",
+    "base": "https://ferminux.net/nft/citizens",
+    "page": "https://ferminux.net/nfts/citizens/",
+    "royaltyBps": 500,
+    "royaltyReceiver": "0x910BD467D8576277f8f96DF47428377FFD94fEfe",
+    "tiers": [
+      {
+        "name": "Common",
+        "price": 50
+      },
+      {
+        "name": "Rare",
+        "price": 100
+      },
+      {
+        "name": "Epic",
+        "price": 250
+      },
+      {
+        "name": "Legendary",
+        "price": 500
+      }
+    ],
+    "series": {
+      "Citizens": "Folder one: android and human citizens with the signal-ring implant, from Baku rooftops to studio colour fields.",
+      "Crew": "Folder two, first half: the crew in neon-trimmed tech jackets, animals and humans alike.",
+      "Guardians": "Folder two, second half: armoured guardians, one archetype each.",
+      "Professions": "Folder three: the striped-helmet android at work, one profession each.",
+      "Vanguard": "Folder three: human-android heroes, each with a calling printed on the shoulder plate."
+    },
+    "showcase": {
+      "square": [
+        3,
+        8,
+        44,
+        46,
+        90,
+        2,
+        26,
+        127,
+        74,
+        77,
+        78,
+        80,
+        20,
+        134,
+        121,
+        7
+      ],
+      "banner": [
+        1,
+        64,
+        85,
+        49,
+        122,
+        10,
+        83,
+        24,
+        86,
+        5,
+        73,
+        87,
+        109,
+        79,
+        97,
+        72
+      ],
+      "og": [
+        3,
+        60,
+        26,
+        83,
+        8,
+        64,
+        2,
+        85,
+        29,
+        74,
+        10,
+        46,
+        127,
+        78,
+        1,
+        90,
+        44,
+        20,
+        59,
+        77,
+        97,
+        87,
+        49,
+        129,
+        80,
+        134,
+        79,
+        121,
+        7,
+        86,
+        122,
+        72
+      ]
+    }
+  },
+  "tokens": [
+    {
+      "id": 1,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.39 AM (1).jpeg"
+      },
+      "sourceSha256": "19c44396e1f5f9ab1c94c33cc6c3c3cdbbaa956902d26f65ed7b10593d463031",
+      "sha256": "19c44396e1f5f9ab1c94c33cc6c3c3cdbbaa956902d26f65ed7b10593d463031",
+      "name": "Sakura Bloom",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Cherry blossom pink",
+        "Headgear": "Blossom crown",
+        "Outfit": "Porcelain plating",
+        "Accent": "Gold filigree"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 2,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.39 AM.jpeg"
+      },
+      "sourceSha256": "e7e30e4dacf9647150649637edc2c3356be257dfdc471f43ac72333d03ca6c01",
+      "sha256": "e7e30e4dacf9647150649637edc2c3356be257dfdc471f43ac72333d03ca6c01",
+      "name": "Crowned Circuit",
+      "tier": "Epic",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Royal red",
+        "Headgear": "Jeweled crown",
+        "Outfit": "Ermine robe",
+        "Accent": "Aviator shades"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 3,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.40 AM (1).jpeg"
+      },
+      "sourceSha256": "7d2663a25371bebdd19f1ded57d6c6f3cb83ba5629170b0f18d0c2ba2500b3e6",
+      "sha256": "7d2663a25371bebdd19f1ded57d6c6f3cb83ba5629170b0f18d0c2ba2500b3e6",
+      "name": "Earthrise",
+      "tier": "Legendary",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Low orbit",
+        "Headgear": "Space helmet",
+        "Outfit": "Gilded spacesuit",
+        "Accent": "Earth in the visor"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 4,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.40 AM.jpeg"
+      },
+      "sourceSha256": "8fb3ccf35dc97999acb5cfb338bb0c6185f021a71be72e81c32a2a516fe24824",
+      "sha256": "8fb3ccf35dc97999acb5cfb338bb0c6185f021a71be72e81c32a2a516fe24824",
+      "name": "Ember Drift",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Tangerine",
+        "Headgear": "Camo bucket hat",
+        "Outfit": "Distressed hoodie",
+        "Accent": "Smoke trail"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 5,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.41 AM (1).jpeg"
+      },
+      "sourceSha256": "373ff8748d5979bb1ff242261c29d48b9304a5c8e4f8f33f7bbbcbad4434e819",
+      "sha256": "373ff8748d5979bb1ff242261c29d48b9304a5c8e4f8f33f7bbbcbad4434e819",
+      "name": "Flame Tower Dusk",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Baku skyline at dusk",
+        "Headgear": "Embroidered cap",
+        "Outfit": "Gold-stitched hoodie",
+        "Accent": "Amber visor"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 6,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.41 AM.jpeg"
+      },
+      "sourceSha256": "fd91efb715894f18fb7cf2c77c08ff87ad642aa13977c8143e5b6cab5b350841",
+      "sha256": "fd91efb715894f18fb7cf2c77c08ff87ad642aa13977c8143e5b6cab5b350841",
+      "name": "Silver Static",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Pale grey",
+        "Headgear": "Spiked silver hair",
+        "Outfit": "Gloss puffer",
+        "Accent": "Shield shades"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 7,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.42 AM (1).jpeg"
+      },
+      "sourceSha256": "7d3460ba78e2e5e269c8a0caec7f7a29f6b0a0167aacc4719fdc51e19bd06810",
+      "sha256": "7d3460ba78e2e5e269c8a0caec7f7a29f6b0a0167aacc4719fdc51e19bd06810",
+      "name": "Caspian Ronin",
+      "tier": "Epic",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Baku night, blossoms",
+        "Headgear": "Wave-pattern kasa",
+        "Outfit": "Dragon robe",
+        "Accent": "Katana"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 8,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.42 AM.jpeg"
+      },
+      "sourceSha256": "5eeb1f3a7c9f939507ed8a8a666af4aec0cd25d3d134891495e5e0544197baa9",
+      "sha256": "5eeb1f3a7c9f939507ed8a8a666af4aec0cd25d3d134891495e5e0544197baa9",
+      "name": "Shirvan Veil",
+      "tier": "Legendary",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Baku Old City and Caucasus",
+        "Headgear": "Coin headdress",
+        "Outfit": "Carpet-weave shawl",
+        "Accent": "Tricolour flag"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 9,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.43 AM (1).jpeg"
+      },
+      "sourceSha256": "55d4fe3deb91d2713da0de6e7c1394984139eee8a02815e34cd752716fb6c301",
+      "sha256": "55d4fe3deb91d2713da0de6e7c1394984139eee8a02815e34cd752716fb6c301",
+      "name": "Balloon Sunrise",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Balloon valley sunrise",
+        "Headgear": "Messy bun",
+        "Outfit": "Ivory hoodie",
+        "Accent": "Coffee and laptop"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 10,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.43 AM.jpeg"
+      },
+      "sourceSha256": "09109fd8ac28348561d7e68330d1b08c7b96b4eeacb65825d7e664fe1ff09ffb",
+      "sha256": "09109fd8ac28348561d7e68330d1b08c7b96b4eeacb65825d7e664fe1ff09ffb",
+      "name": "Neon Sakura",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Baku skyline at night",
+        "Headgear": "Rose hair",
+        "Outfit": "Blossom-print jacket",
+        "Accent": "Magenta ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 11,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.44 AM.jpeg"
+      },
+      "sourceSha256": "b7c8bbf23ecc2cbf85b77dffbbcec209ac73e792fc87bcd7e03b0a95c3f5c4e9",
+      "sha256": "b7c8bbf23ecc2cbf85b77dffbbcec209ac73e792fc87bcd7e03b0a95c3f5c4e9",
+      "name": "Santorini Hour",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Aegean sunset",
+        "Headgear": "Ash-blonde bun",
+        "Outfit": "Ivory wrap",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 12,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.45 AM (1).jpeg"
+      },
+      "sourceSha256": "632334381802fba5d2cf710ce88838597fa5a6e51085b561174ab026f3a4b191",
+      "sha256": "632334381802fba5d2cf710ce88838597fa5a6e51085b561174ab026f3a4b191",
+      "name": "Rose Quiet",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Warm sand",
+        "Headgear": "Rose bun",
+        "Outfit": "Ivory hoodie",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 13,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.45 AM.jpeg"
+      },
+      "sourceSha256": "d5b29edcda284e4f0e7a92c53c7d9a51cbccfcba9e9659c7f5236dd3a672a2f2",
+      "sha256": "d5b29edcda284e4f0e7a92c53c7d9a51cbccfcba9e9659c7f5236dd3a672a2f2",
+      "name": "Caspian Curve",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Caspian boulevard sunset",
+        "Headgear": "Dark bun",
+        "Outfit": "Ivory wrap",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 14,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.46 AM (1).jpeg"
+      },
+      "sourceSha256": "6b8bc05cfb5be5f0ed5db83d3e9116f74bad563cdbde9447cf9b06657dc13de6",
+      "sha256": "6b8bc05cfb5be5f0ed5db83d3e9116f74bad563cdbde9447cf9b06657dc13de6",
+      "name": "Black Coat",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "White",
+        "Headgear": "Tousled black hair",
+        "Outfit": "Black overcoat",
+        "Accent": "Cheek scar"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 15,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.46 AM (2).jpeg"
+      },
+      "sourceSha256": "862b54c91ef5c291e26e14cededf56463de0f92470afc3db4ddb33ae81786f89",
+      "sha256": "862b54c91ef5c291e26e14cededf56463de0f92470afc3db4ddb33ae81786f89",
+      "name": "Aviator Panda",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Animal",
+        "Background": "White",
+        "Headgear": "Aviator shades",
+        "Outfit": "Ivory tech jacket",
+        "Accent": "Delta patch"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 16,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.46 AM.jpeg"
+      },
+      "sourceSha256": "9ac03944c5ba271c94a4cb70f96fec7616fd04d09500edc87055a2972709f135",
+      "sha256": "9ac03944c5ba271c94a4cb70f96fec7616fd04d09500edc87055a2972709f135",
+      "name": "Ivory Bob",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "White",
+        "Headgear": "Black bob",
+        "Outfit": "Ivory coat",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 17,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.47 AM (1).jpeg"
+      },
+      "sourceSha256": "0d09fb1b3e5610ebcfe5e42dbe3c76cbfc677cbc77dcc0b9455f0ec3bf896759",
+      "sha256": "0d09fb1b3e5610ebcfe5e42dbe3c76cbfc677cbc77dcc0b9455f0ec3bf896759",
+      "name": "Pale Ronin",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "White",
+        "Headgear": "Straw kasa",
+        "Outfit": "Charcoal scarf",
+        "Accent": "Tassel"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 18,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.47 AM (2).jpeg"
+      },
+      "sourceSha256": "bff90b822786e5af7d446d3407724f6ec36743f1d89040b867ddf0729e407aa9",
+      "sha256": "bff90b822786e5af7d446d3407724f6ec36743f1d89040b867ddf0729e407aa9",
+      "name": "Steady Signal",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "White",
+        "Headgear": "Curly crop",
+        "Outfit": "Ivory tech jacket",
+        "Accent": "Cheek marks"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 19,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.47 AM.jpeg"
+      },
+      "sourceSha256": "146bf5f3d21ca6f22ef29cada1fc98334778e8575b91c950f281ab4795c2948d",
+      "sha256": "146bf5f3d21ca6f22ef29cada1fc98334778e8575b91c950f281ab4795c2948d",
+      "name": "Husky Link",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Animal",
+        "Background": "White",
+        "Headgear": "None",
+        "Outfit": "Ivory tech jacket",
+        "Accent": "Ice-blue ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 20,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.48 AM (1).jpeg"
+      },
+      "sourceSha256": "e30f17a319adcbfbae80bdf8929868ed385a6832f7647a6b2cb2a0b4c50d4c93",
+      "sha256": "e30f17a319adcbfbae80bdf8929868ed385a6832f7647a6b2cb2a0b4c50d4c93",
+      "name": "Sky Pilgrim",
+      "tier": "Epic",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Floating citadel",
+        "Headgear": "Ivory hood",
+        "Outfit": "Embroidered shawl",
+        "Accent": "Crescent staff"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 21,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.48 AM (2).jpeg"
+      },
+      "sourceSha256": "7816f236f0ea3670711aa7ce41fc6a3ed584f838920c75cf173770d43fd77f09",
+      "sha256": "7816f236f0ea3670711aa7ce41fc6a3ed584f838920c75cf173770d43fd77f09",
+      "name": "Hooded Cipher",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "White",
+        "Headgear": "Ivory hood",
+        "Outfit": "Ivory tech jacket",
+        "Accent": "Dot-matrix visor"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 22,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.48 AM.jpeg"
+      },
+      "sourceSha256": "74bcb3ceef9ed006862745788881c506975a2c91ffaedc464fb0cba4269661c4",
+      "sha256": "74bcb3ceef9ed006862745788881c506975a2c91ffaedc464fb0cba4269661c4",
+      "name": "Morning Recruit",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "White",
+        "Headgear": "Wild bun",
+        "Outfit": "Ivory tech jacket",
+        "Accent": "Cheek marks"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 23,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.49 AM (1).jpeg"
+      },
+      "sourceSha256": "5e230972387e61e1089524a7592a47dd30516a17c86880e346a7e20e582b0163",
+      "sha256": "5e230972387e61e1089524a7592a47dd30516a17c86880e346a7e20e582b0163",
+      "name": "Sand Hood",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Desert sand",
+        "Headgear": "Embroidered hood",
+        "Outfit": "Ivory wrap",
+        "Accent": "Spiral medallion"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 24,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.49 AM (2).jpeg"
+      },
+      "sourceSha256": "d37b67e961175ba2594d5afcf52bc32ee0b7d30ef6ab0b28cece4a7bae19657b",
+      "sha256": "d37b67e961175ba2594d5afcf52bc32ee0b7d30ef6ab0b28cece4a7bae19657b",
+      "name": "Jade Tiger",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Deep green",
+        "Headgear": "None",
+        "Outfit": "Key-pattern mantle",
+        "Accent": "Gold eyes"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 25,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.49 AM.jpeg"
+      },
+      "sourceSha256": "74791cdda334d3326e34f11a4cf7652cfe78020c91e7b6d0c921d57135dcd097",
+      "sha256": "74791cdda334d3326e34f11a4cf7652cfe78020c91e7b6d0c921d57135dcd097",
+      "name": "Daylight Visor",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "White",
+        "Headgear": "Ivory cap",
+        "Outfit": "Ivory tech jacket",
+        "Accent": "Gold visor line"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 26,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.50 AM (1).jpeg"
+      },
+      "sourceSha256": "058c4178e92faa4193da4f76332415fc77e7f83640e7c7fd9cff8fe7f47f4672",
+      "sha256": "058c4178e92faa4193da4f76332415fc77e7f83640e7c7fd9cff8fe7f47f4672",
+      "name": "Ivory Dragon",
+      "tier": "Epic",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Mythic",
+        "Background": "Royal purple",
+        "Headgear": "Gold horns",
+        "Outfit": "Swirl-trim robe",
+        "Accent": "Wave medallion"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 27,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.23.50 AM.jpeg"
+      },
+      "sourceSha256": "c02f27a4be41b93b57ba31738a2f3d11b4ad19b4289e033aae0e8833f0b943f7",
+      "sha256": "c02f27a4be41b93b57ba31738a2f3d11b4ad19b4289e033aae0e8833f0b943f7",
+      "name": "Scarlet Ronin",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Crimson",
+        "Headgear": "Tasselled kasa",
+        "Outfit": "Black robe and plating",
+        "Accent": "Red ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 28,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.56 AM (1).jpeg"
+      },
+      "sourceSha256": "36d53e248a340fd57c85c9e895adc093b51346d38df6d640958d2f88ea10112c",
+      "sha256": "36d53e248a340fd57c85c9e895adc093b51346d38df6d640958d2f88ea10112c",
+      "name": "Cloud Helm",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Sky blue",
+        "Headgear": "Ivory helmet",
+        "Outfit": "Ivory hoodie",
+        "Accent": "Gold visor line"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 29,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.56 AM.jpeg"
+      },
+      "sourceSha256": "38b15c6d0f4528923c35b8739f32b4f4deb6a8470b1ff6b10f54d7c51863212e",
+      "sha256": "38b15c6d0f4528923c35b8739f32b4f4deb6a8470b1ff6b10f54d7c51863212e",
+      "name": "Glass Heart",
+      "tier": "Epic",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Android",
+        "Background": "Blush pink",
+        "Headgear": "Round helmet",
+        "Outfit": "Ivory suit",
+        "Accent": "Glass heart"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 30,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.57 AM (1).jpeg"
+      },
+      "sourceSha256": "4dabad24b63a9472ba7b97bffa1aa5100acc2331cffbc90a0f39584e5c051384",
+      "sha256": "4dabad24b63a9472ba7b97bffa1aa5100acc2331cffbc90a0f39584e5c051384",
+      "name": "Mint Tiger",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Mint green",
+        "Headgear": "None",
+        "Outfit": "Black hoodie",
+        "Accent": "Ice-blue eyes"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 31,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.57 AM (2).jpeg"
+      },
+      "sourceSha256": "659852759d5a2de3de7d8f563d259d693b60187491b695c3c173337fc8c9469a",
+      "sha256": "659852759d5a2de3de7d8f563d259d693b60187491b695c3c173337fc8c9469a",
+      "name": "Iron Visor",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Signal red",
+        "Headgear": "Gunmetal helmet",
+        "Outfit": "Black hoodie",
+        "Accent": "Gold visor line"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 32,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.57 AM (3).jpeg"
+      },
+      "sourceSha256": "e7e3e3ab03814ebbfa03f15b1a1fbc20209e35861f417ca92bab20e51c393672",
+      "sha256": "e7e3e3ab03814ebbfa03f15b1a1fbc20209e35861f417ca92bab20e51c393672",
+      "name": "Violet Locks",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Violet",
+        "Headgear": "Locs",
+        "Outfit": "Cream hoodie, black jacket",
+        "Accent": "Amber circuits"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 33,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.57 AM.jpeg"
+      },
+      "sourceSha256": "0042908d976ff3df6fb974ff545927a4727a9f615bd4e2f9068889562af5a811",
+      "sha256": "0042908d976ff3df6fb974ff545927a4727a9f615bd4e2f9068889562af5a811",
+      "name": "Saffron",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Saffron yellow",
+        "Headgear": "Dark bun",
+        "Outfit": "Black hoodie",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 34,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.58 AM (1).jpeg"
+      },
+      "sourceSha256": "599c447719c892d4a3b57ed889744856de0bfa0c11803212a6456e12bc4382ab",
+      "sha256": "599c447719c892d4a3b57ed889744856de0bfa0c11803212a6456e12bc4382ab",
+      "name": "Cobalt",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Cobalt blue",
+        "Headgear": "Black bun",
+        "Outfit": "Black hoodie",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 35,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.58 AM (2).jpeg"
+      },
+      "sourceSha256": "8e42a3d7e55dbf4200a35379868a61df49008e91879b7899b9e0578542b41e69",
+      "sha256": "8e42a3d7e55dbf4200a35379868a61df49008e91879b7899b9e0578542b41e69",
+      "name": "Tangerine",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Tangerine",
+        "Headgear": "Tousled curls",
+        "Outfit": "Black hoodie",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 36,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.58 AM (3).jpeg"
+      },
+      "sourceSha256": "a623eb808b96f3809967e37ad1cfaeef4e268f5b3672b2256209a68573a98141",
+      "sha256": "a623eb808b96f3809967e37ad1cfaeef4e268f5b3672b2256209a68573a98141",
+      "name": "Evergreen",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Green",
+        "Headgear": "Twist crop",
+        "Outfit": "Black hoodie",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 37,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.58 AM.jpeg"
+      },
+      "sourceSha256": "26f340d8324338367a39459a3f53967d8054326dc7423f82357f23a74ad6e264",
+      "sha256": "26f340d8324338367a39459a3f53967d8054326dc7423f82357f23a74ad6e264",
+      "name": "Desert Dawn",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Desert minarets at dawn",
+        "Headgear": "Ivory headscarf",
+        "Outfit": "Black jacket",
+        "Accent": "Gold ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 38,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.59 AM (1).jpeg"
+      },
+      "sourceSha256": "655e4e34752e299ac883429a837ff7a2c7108b73f5b2775bb48a8bfa91ca5d85",
+      "sha256": "655e4e34752e299ac883429a837ff7a2c7108b73f5b2775bb48a8bfa91ca5d85",
+      "name": "Lavender Ring",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Lavender",
+        "Headgear": "Black bun",
+        "Outfit": "Black hoodie",
+        "Accent": "Violet ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 39,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.59 AM (2).jpeg"
+      },
+      "sourceSha256": "be385a2be7f3581f7e6f7fc873b51f7c82291629af3eaa80c69fd642e20b9c44",
+      "sha256": "be385a2be7f3581f7e6f7fc873b51f7c82291629af3eaa80c69fd642e20b9c44",
+      "name": "Blue Hour",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Sky blue",
+        "Headgear": "Sandy waves",
+        "Outfit": "Black hoodie",
+        "Accent": "Blue ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 40,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.59 AM (3).jpeg"
+      },
+      "sourceSha256": "cf8e6a5664e5ad8c69bdd63c46e30b754dd9136de41a7e194ab80b4c1d8e08ed",
+      "sha256": "cf8e6a5664e5ad8c69bdd63c46e30b754dd9136de41a7e194ab80b4c1d8e08ed",
+      "name": "Rive Gauche",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Royal blue",
+        "Headgear": "Loose bun",
+        "Outfit": "Peacoat, striped knit",
+        "Accent": "Tricolour patch"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 41,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.24.59 AM.jpeg"
+      },
+      "sourceSha256": "4125184f4f62c1837f00c2b06bde953c592bef04f120e8d545b7871c66595f30",
+      "sha256": "4125184f4f62c1837f00c2b06bde953c592bef04f120e8d545b7871c66595f30",
+      "name": "Platinum Pink",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Hot pink",
+        "Headgear": "Platinum bob",
+        "Outfit": "Cream hoodie",
+        "Accent": "Pink ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 42,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.00 AM (1).jpeg"
+      },
+      "sourceSha256": "dbc52dfe823a67547548378ae81c0a728588680c01f23947e9b6399d2e538866",
+      "sha256": "dbc52dfe823a67547548378ae81c0a728588680c01f23947e9b6399d2e538866",
+      "name": "Sunline",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Sun yellow",
+        "Headgear": "Brown waves",
+        "Outfit": "White hoodie",
+        "Accent": "Amber ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 43,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.00 AM (2).jpeg"
+      },
+      "sourceSha256": "5d6c62ab51759dc1b5337110408378888b42e691995589195d104129e0e04b2e",
+      "sha256": "5d6c62ab51759dc1b5337110408378888b42e691995589195d104129e0e04b2e",
+      "name": "Yume",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Crimson",
+        "Headgear": "Black spikes",
+        "Outfit": "Black hoodie, dream kanji",
+        "Accent": "Red ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 44,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.00 AM (3).jpeg"
+      },
+      "sourceSha256": "6551947ae26f5c441ae0ed9dc911bf88ed0d43d484ea63e0eb0c0a41be33de5a",
+      "sha256": "6551947ae26f5c441ae0ed9dc911bf88ed0d43d484ea63e0eb0c0a41be33de5a",
+      "name": "Kobra Shrine",
+      "tier": "Legendary",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Neon cobra shrine",
+        "Headgear": "Red-lit mask",
+        "Outfit": "Black cargo techwear",
+        "Accent": "Giant cobra"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 45,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.00 AM.jpeg"
+      },
+      "sourceSha256": "9ca55bbfa2444fcc99317e30d845998ae2e8d28dc61308c454b82f87e75d23f3",
+      "sha256": "9ca55bbfa2444fcc99317e30d845998ae2e8d28dc61308c454b82f87e75d23f3",
+      "name": "Matchday",
+      "tier": "Common",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Tangerine",
+        "Headgear": "Dark curls",
+        "Outfit": "Retro track jacket",
+        "Accent": "Amber ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 46,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.01 AM (1).jpeg"
+      },
+      "sourceSha256": "2f8d4a598ce747bd283919d4d2db94b4c29328e5e139fe8074d77a94dfa63e57",
+      "sha256": "2f8d4a598ce747bd283919d4d2db94b4c29328e5e139fe8074d77a94dfa63e57",
+      "name": "Panther Kin",
+      "tier": "Legendary",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Jungle green",
+        "Headgear": "War paint",
+        "Outfit": "Tribal wraps",
+        "Accent": "Cyber panther and spear"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 47,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.01 AM (2).jpeg"
+      },
+      "sourceSha256": "b2c7e03dc16db2af222173447f271bdf1975b4265db0a2ade6b6d06958aef6f2",
+      "sha256": "b2c7e03dc16db2af222173447f271bdf1975b4265db0a2ade6b6d06958aef6f2",
+      "name": "Future Punk",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Green",
+        "Headgear": "Two-tone mohawk",
+        "Outfit": "Studded jacket",
+        "Accent": "Cowrie and chain"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 48,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.01 AM (3).jpeg"
+      },
+      "sourceSha256": "35dc886cd6f11da06ac2ab1c2e9d12110dc1a21e890d403d4e81d4d3a8692da0",
+      "sha256": "35dc886cd6f11da06ac2ab1c2e9d12110dc1a21e890d403d4e81d4d3a8692da0",
+      "name": "Iron Chain",
+      "tier": "Rare",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Slate grey",
+        "Headgear": "Bleached undercut",
+        "Outfit": "Spiked leather jacket",
+        "Accent": "Round shades and chains"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 49,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.20.56 AM",
+        "file": "WhatsApp Image 2026-09-22 at 2.25.01 AM.jpeg"
+      },
+      "sourceSha256": "2413f8dd3b0e38eb6d2b468c4ec8450f8bcbe6cd4b7db7d6a4789011fab60cd6",
+      "sha256": "2413f8dd3b0e38eb6d2b468c4ec8450f8bcbe6cd4b7db7d6a4789011fab60cd6",
+      "name": "El Matador",
+      "tier": "Epic",
+      "series": "Citizens",
+      "traits": {
+        "Species": "Human",
+        "Background": "Crimson",
+        "Headgear": "Tousled hair",
+        "Outfit": "Suit of lights",
+        "Accent": "Red cape"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 50,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.03 AM.jpeg"
+      },
+      "sourceSha256": "f4588965d5c4b142ed51fe4a0a9b14d28f621e28b350e0fe5a35c8541f0330e2",
+      "sha256": "f4588965d5c4b142ed51fe4a0a9b14d28f621e28b350e0fe5a35c8541f0330e2",
+      "name": "Jungle Visor",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Green",
+        "Headgear": "Gold visor shades",
+        "Outfit": "Black tech jacket",
+        "Accent": "Gold trim"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 51,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.04 AM (1).jpeg"
+      },
+      "sourceSha256": "e484905846631770521dcda8e58d368c91295845ca52599d104a9616aafb8324",
+      "sha256": "e484905846631770521dcda8e58d368c91295845ca52599d104a9616aafb8324",
+      "name": "Katana Panda",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Signal red",
+        "Headgear": "Round red shades",
+        "Outfit": "Dragon tech jacket",
+        "Accent": "Katana"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 52,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.04 AM (2).jpeg"
+      },
+      "sourceSha256": "8fbc4deab0a91bb6c6d83b64589e9a30ab530258935b5191e9f9910eb8d51cad",
+      "sha256": "8fbc4deab0a91bb6c6d83b64589e9a30ab530258935b5191e9f9910eb8d51cad",
+      "name": "Steel Whiskers",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Electric blue",
+        "Headgear": "Blue goggles",
+        "Outfit": "Black tech jacket",
+        "Accent": "Cat crest"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 53,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.04 AM.jpeg"
+      },
+      "sourceSha256": "32dda1df9d5d9e7b363956e841d125b01ef74e719b8298db95437e77c7941d70",
+      "sha256": "32dda1df9d5d9e7b363956e841d125b01ef74e719b8298db95437e77c7941d70",
+      "name": "Solar Visor",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Human",
+        "Background": "Solar yellow",
+        "Headgear": "Silver bun",
+        "Outfit": "Ivory armour suit",
+        "Accent": "Yellow visor"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 54,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.05 AM (1).jpeg"
+      },
+      "sourceSha256": "080840e39b2b59765d18853fee461f437183c22d196745971b5d49dae5bee23a",
+      "sha256": "080840e39b2b59765d18853fee461f437183c22d196745971b5d49dae5bee23a",
+      "name": "Blackout",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Masked",
+        "Background": "Black",
+        "Headgear": "Hood and cap",
+        "Outfit": "Black tactical jacket",
+        "Accent": "Gold visor"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 55,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.05 AM (2).jpeg"
+      },
+      "sourceSha256": "95a9a58e1b5a8517a50957e8471f57594e689093c8fabb121d5a2116bbe96038",
+      "sha256": "95a9a58e1b5a8517a50957e8471f57594e689093c8fabb121d5a2116bbe96038",
+      "name": "Porcelain Blue",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Android",
+        "Background": "White",
+        "Headgear": "Porcelain dome",
+        "Outfit": "Ivory armour",
+        "Accent": "Blue eyes"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 56,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.05 AM.jpeg"
+      },
+      "sourceSha256": "154abdf56ab0601378c85cb921ef0de456a880cc1d97ce463a51b6ff4f08a2f0",
+      "sha256": "154abdf56ab0601378c85cb921ef0de456a880cc1d97ce463a51b6ff4f08a2f0",
+      "name": "After Hours",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Human",
+        "Background": "Black",
+        "Headgear": "Black spikes",
+        "Outfit": "Black tech jacket",
+        "Accent": "Wrap shades"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 57,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.06 AM (1).jpeg"
+      },
+      "sourceSha256": "bb56b7120727fce862b09f78c7e70eb0bcdf893fede32246e52618cff7907eff",
+      "sha256": "bb56b7120727fce862b09f78c7e70eb0bcdf893fede32246e52618cff7907eff",
+      "name": "Sunset Panda",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Tangerine",
+        "Headgear": "Amber shades",
+        "Outfit": "Black tech jacket",
+        "Accent": "Panda crest"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 58,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.06 AM (2).jpeg"
+      },
+      "sourceSha256": "1d9fe692c1f8932c7bad70684d193c6ba778d3cec5245c052e79c0edde7545f5",
+      "sha256": "1d9fe692c1f8932c7bad70684d193c6ba778d3cec5245c052e79c0edde7545f5",
+      "name": "Bassline",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Sky blue",
+        "Headgear": "Headphones and aviators",
+        "Outfit": "Black tech jacket",
+        "Accent": "Blue circuit"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 59,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.06 AM (3).jpeg"
+      },
+      "sourceSha256": "dd036e29a8a29c4c3882f40e988247df5ba6ff2aaaeda7f635b03534c421a5c9",
+      "sha256": "dd036e29a8a29c4c3882f40e988247df5ba6ff2aaaeda7f635b03534c421a5c9",
+      "name": "Anubis Prime",
+      "tier": "Rare",
+      "series": "Crew",
+      "traits": {
+        "Species": "Mythic",
+        "Background": "Magenta",
+        "Headgear": "Jackal nemes",
+        "Outfit": "Gold-striped robe",
+        "Accent": "Sun disc"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 60,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.06 AM.jpeg"
+      },
+      "sourceSha256": "f5cafcaceb46877df3644d97ca9fd4efa2104f202d6a409d1cdd8adb5c848f03",
+      "sha256": "f5cafcaceb46877df3644d97ca9fd4efa2104f202d6a409d1cdd8adb5c848f03",
+      "name": "Lion Crown",
+      "tier": "Rare",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Violet",
+        "Headgear": "Amethyst crown",
+        "Outfit": "Black tech jacket",
+        "Accent": "Lion crest"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 61,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.07 AM (1).jpeg"
+      },
+      "sourceSha256": "ed8236abceb8e27e38483459c835192a74c6e050d6c6f679a30c540f0ebd92ff",
+      "sha256": "ed8236abceb8e27e38483459c835192a74c6e050d6c6f679a30c540f0ebd92ff",
+      "name": "Snow Tiger",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "White",
+        "Headgear": "Headphones and aviators",
+        "Outfit": "White armour jacket",
+        "Accent": "Tiger crest"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 62,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.07 AM (2).jpeg"
+      },
+      "sourceSha256": "13fb76042adb35e5dc335648eab9cc323504dd6a85121a903701f658d5012249",
+      "sha256": "13fb76042adb35e5dc335648eab9cc323504dd6a85121a903701f658d5012249",
+      "name": "Silver Regent",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Pale grey",
+        "Headgear": "Gold aviators",
+        "Outfit": "White and gold cloak",
+        "Accent": "Star clasp"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 63,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.07 AM (3).jpeg"
+      },
+      "sourceSha256": "45b12a81241f34692d158960550d084a4583e63c8216fb2300a6161c1c2ab7fc",
+      "sha256": "45b12a81241f34692d158960550d084a4583e63c8216fb2300a6161c1c2ab7fc",
+      "name": "Amethyst Panda",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Violet",
+        "Headgear": "Headphones and aviators",
+        "Outfit": "Black tech jacket",
+        "Accent": "Violet circuit"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 64,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.07 AM.jpeg"
+      },
+      "sourceSha256": "b001358a662176a7cde94b75b616983540903f6c4f709a683173ec27121f618a",
+      "sha256": "b001358a662176a7cde94b75b616983540903f6c4f709a683173ec27121f618a",
+      "name": "Golden Viper",
+      "tier": "Rare",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Green",
+        "Headgear": "Headphones and aviators",
+        "Outfit": "Black tech jacket",
+        "Accent": "Serpent pendant"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 65,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.08 AM (1).jpeg"
+      },
+      "sourceSha256": "dbac67b5011cb681e3377edf267ee60432e5e8c5ddc8a05683dd6a1d8e6c015d",
+      "sha256": "dbac67b5011cb681e3377edf267ee60432e5e8c5ddc8a05683dd6a1d8e6c015d",
+      "name": "Red Howl",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Signal red",
+        "Headgear": "Headphones and aviators",
+        "Outfit": "Black tech jacket",
+        "Accent": "Red circuit"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 66,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.08 AM (2).jpeg"
+      },
+      "sourceSha256": "1c3f235757a7fc3d61b6df42ccd562b3d8d2d9a61d76c949c9fd6bee4e814e40",
+      "sha256": "1c3f235757a7fc3d61b6df42ccd562b3d8d2d9a61d76c949c9fd6bee4e814e40",
+      "name": "Brighter Tomorrow",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Human",
+        "Background": "Electric blue",
+        "Headgear": "Swept hair",
+        "Outfit": "Black tech jacket",
+        "Accent": "Plate 16"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 67,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.08 AM (3).jpeg"
+      },
+      "sourceSha256": "44e77890369979439e44f1f622e6b9d59a7f8b4e35c883192a2fb2180d4f63f3",
+      "sha256": "44e77890369979439e44f1f622e6b9d59a7f8b4e35c883192a2fb2180d4f63f3",
+      "name": "Pink Protocol",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Human",
+        "Background": "Hot pink",
+        "Headgear": "Black bun",
+        "Outfit": "Black tech jacket",
+        "Accent": "Plate 17"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 68,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.08 AM.jpeg"
+      },
+      "sourceSha256": "42971f4c17295ed33cdd007756bf732e77faa63ebd8b3df071d57d7c93c94f92",
+      "sha256": "42971f4c17295ed33cdd007756bf732e77faa63ebd8b3df071d57d7c93c94f92",
+      "name": "Crown Chimp",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Tangerine",
+        "Headgear": "Headphones and aviators",
+        "Outfit": "Black tech jacket",
+        "Accent": "Crown crest"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 69,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.09 AM (1).jpeg"
+      },
+      "sourceSha256": "6a1580781aa08a0a4664e9d2ad92ffd39a196acc6a00c82505c82fc720d18bdc",
+      "sha256": "6a1580781aa08a0a4664e9d2ad92ffd39a196acc6a00c82505c82fc720d18bdc",
+      "name": "Lilac Lens",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Human",
+        "Background": "Violet",
+        "Headgear": "Black bun",
+        "Outfit": "Black tech jacket",
+        "Accent": "Plate 19"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 70,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.09 AM (2).jpeg"
+      },
+      "sourceSha256": "dfd64292dc9009840f164a2ef62d5f19291fb4a41f51e2830c8d39480e462a4b",
+      "sha256": "dfd64292dc9009840f164a2ef62d5f19291fb4a41f51e2830c8d39480e462a4b",
+      "name": "Teal Chassis",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Human",
+        "Background": "Deep teal",
+        "Headgear": "Black bun",
+        "Outfit": "Ivory armour",
+        "Accent": "Plate 20"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 71,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.09 AM.jpeg"
+      },
+      "sourceSha256": "13cfa64dd54d7ce11d8c761b120c6a76f67be4bc58ee8df727f1e27dc3f092f0",
+      "sha256": "13cfa64dd54d7ce11d8c761b120c6a76f67be4bc58ee8df727f1e27dc3f092f0",
+      "name": "Sunshift",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Human",
+        "Background": "Sun yellow",
+        "Headgear": "Swept hair",
+        "Outfit": "Black tech jacket",
+        "Accent": "Plate 18"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 72,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.10 AM (1).jpeg"
+      },
+      "sourceSha256": "2dccc6d5899734309a0d21d0b6d8958eafc3ac7af1883adb34d392b976976d48",
+      "sha256": "2dccc6d5899734309a0d21d0b6d8958eafc3ac7af1883adb34d392b976976d48",
+      "name": "Blood Moon Ronin",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Crimson",
+        "Headgear": "Straw kasa",
+        "Outfit": "Samurai plate",
+        "Accent": "Red katana"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 73,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.10 AM (2).jpeg"
+      },
+      "sourceSha256": "5caa4af865914792e89b8eda695d7aa17ab99db87ad3aec34f3fa4b47456d377",
+      "sha256": "5caa4af865914792e89b8eda695d7aa17ab99db87ad3aec34f3fa4b47456d377",
+      "name": "Dust Gunslinger",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Tangerine",
+        "Headgear": "Cowboy hat",
+        "Outfit": "Tattered duster",
+        "Accent": "Revolver"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 74,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.10 AM (3).jpeg"
+      },
+      "sourceSha256": "b2af55c830b5d4aec820645d5030b5ae92e68cc24bbfb44e2e3d6535f434959b",
+      "sha256": "b2af55c830b5d4aec820645d5030b5ae92e68cc24bbfb44e2e3d6535f434959b",
+      "name": "Golden Pharaoh",
+      "tier": "Epic",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Saffron",
+        "Headgear": "Nemes and cobra crown",
+        "Outfit": "Gold and lapis armour",
+        "Accent": "Winged collar"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 75,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.10 AM.jpeg"
+      },
+      "sourceSha256": "effa37b8faf507c529bb57d7f71f7db168c1d38aa8fb648a8a4b34680fb93da8",
+      "sha256": "effa37b8faf507c529bb57d7f71f7db168c1d38aa8fb648a8a4b34680fb93da8",
+      "name": "Red Boss",
+      "tier": "Common",
+      "series": "Crew",
+      "traits": {
+        "Species": "Animal",
+        "Background": "Signal red",
+        "Headgear": "Cap and gold visor",
+        "Outfit": "Leather coat",
+        "Accent": "Cigar and gold chain"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 76,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.11 AM (1).jpeg"
+      },
+      "sourceSha256": "949a759da1c782a0b8472a1d839c3846ab8ee1a48047ce936f891b2d723e4f1c",
+      "sha256": "949a759da1c782a0b8472a1d839c3846ab8ee1a48047ce936f891b2d723e4f1c",
+      "name": "Red Blade",
+      "tier": "Common",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Crimson",
+        "Headgear": "Visor helm",
+        "Outfit": "Gunmetal armour",
+        "Accent": "Energy katana"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 77,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.11 AM (2).jpeg"
+      },
+      "sourceSha256": "fd42a61f8ebdb4f257cf141d676f18d8e9f6964807d7521f557b51704d9ed430",
+      "sha256": "fd42a61f8ebdb4f257cf141d676f18d8e9f6964807d7521f557b51704d9ed430",
+      "name": "Iron Corsair",
+      "tier": "Epic",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Teal",
+        "Headgear": "Tricorn",
+        "Outfit": "Tattered captain's coat",
+        "Accent": "Parrot and blaster"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 78,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.11 AM (3).jpeg"
+      },
+      "sourceSha256": "00838de109eb01d8dab74f08171d7116219a8e6389d30ead50141f8511fc67c0",
+      "sha256": "00838de109eb01d8dab74f08171d7116219a8e6389d30ead50141f8511fc67c0",
+      "name": "Arcana Dealer",
+      "tier": "Epic",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Mystic",
+        "Background": "Violet",
+        "Headgear": "Wide-brim hat",
+        "Outfit": "Arcane longcoat",
+        "Accent": "Floating cards"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 79,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.11 AM.jpeg"
+      },
+      "sourceSha256": "0340e9908c49c58c6a4db4b1eca1fb72f6239b9aaaef356aeeb552f82460d5bf",
+      "sha256": "0340e9908c49c58c6a4db4b1eca1fb72f6239b9aaaef356aeeb552f82460d5bf",
+      "name": "Rune Jarl",
+      "tier": "Epic",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Violet",
+        "Headgear": "Horned helm",
+        "Outfit": "Fur mantle and plate",
+        "Accent": "Glowing axe"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 80,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.12 AM (1).jpeg"
+      },
+      "sourceSha256": "ea26003233f1f3a5b6d2fba507f3a1248b8863ef4a1f62266eb25ae9bdde73d5",
+      "sha256": "ea26003233f1f3a5b6d2fba507f3a1248b8863ef4a1f62266eb25ae9bdde73d5",
+      "name": "Dragon Monk",
+      "tier": "Epic",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Mystic",
+        "Background": "Amber, dragon aura",
+        "Headgear": "Etched dome",
+        "Outfit": "Dragon robe",
+        "Accent": "Prayer beads"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 81,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.12 AM.jpeg"
+      },
+      "sourceSha256": "4a8652cc4cff429d82b9794217b1c6fd4ed01c9e136b4fe95978fbe366880ff8",
+      "sha256": "4a8652cc4cff429d82b9794217b1c6fd4ed01c9e136b4fe95978fbe366880ff8",
+      "name": "Lion Paladin",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Royal blue",
+        "Headgear": "Great helm",
+        "Outfit": "Gilded plate",
+        "Accent": "Lion shield"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 82,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.13 AM (1).jpeg"
+      },
+      "sourceSha256": "ccf6cc62d8cef6e92d3a1534ebba5ac4851dbe79d303c01185acac23c47cc957",
+      "sha256": "ccf6cc62d8cef6e92d3a1534ebba5ac4851dbe79d303c01185acac23c47cc957",
+      "name": "Red Shinobi",
+      "tier": "Common",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Crimson",
+        "Headgear": "Black hood",
+        "Outfit": "Gunmetal armour",
+        "Accent": "Red blade"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 83,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.13 AM (2).jpeg"
+      },
+      "sourceSha256": "7f7a8ad330d96e3954c315bedbccd6bfd1591fd5450598f2d7a664066dba3f36",
+      "sha256": "7f7a8ad330d96e3954c315bedbccd6bfd1591fd5450598f2d7a664066dba3f36",
+      "name": "Quantum Hacker",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Human",
+        "Background": "Holo screens",
+        "Headgear": "Black hood",
+        "Outfit": "Black tech jacket",
+        "Accent": "Holographic deck"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 84,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.13 AM.jpeg"
+      },
+      "sourceSha256": "72310512341705253140877a08de42e4fad662c099745a3c2dfa6187507a2dc6",
+      "sha256": "72310512341705253140877a08de42e4fad662c099745a3c2dfa6187507a2dc6",
+      "name": "Neon Detective",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Human",
+        "Background": "Midnight blue",
+        "Headgear": "Fedora",
+        "Outfit": "Trench coat",
+        "Accent": "Holo ID card"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 85,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.14 AM (1).jpeg"
+      },
+      "sourceSha256": "9022ae3494794855188aa22a4cb4ab8faf45d125026e4e13db80f9d8d5933c35",
+      "sha256": "9022ae3494794855188aa22a4cb4ab8faf45d125026e4e13db80f9d8d5933c35",
+      "name": "Frost Warden",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Midnight blue",
+        "Headgear": "Ice-crown helm",
+        "Outfit": "Frost plate",
+        "Accent": "Ice shards"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 86,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.14 AM (2).jpeg"
+      },
+      "sourceSha256": "497876b6632da6bf69f3fb4eab043a950b2d3c29aaad0f316a5caae2acfe7ab3",
+      "sha256": "497876b6632da6bf69f3fb4eab043a950b2d3c29aaad0f316a5caae2acfe7ab3",
+      "name": "Tide Warden",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Ocean blue",
+        "Headgear": "Fin helm",
+        "Outfit": "Trident plate",
+        "Accent": "Jellyfish core"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 87,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.14 AM (3).jpeg"
+      },
+      "sourceSha256": "b8fb5a610b9549e99681c154f2344337e13185d014b7fa6a7d5ee7726e8a82da",
+      "sha256": "b8fb5a610b9549e99681c154f2344337e13185d014b7fa6a7d5ee7726e8a82da",
+      "name": "Grove Warden",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Forest green",
+        "Headgear": "Branch antlers",
+        "Outfit": "Moss plate",
+        "Accent": "Tree of life"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 88,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.14 AM.jpeg"
+      },
+      "sourceSha256": "8625600202650a876cd5ea8e87a527dc0f97c588baf4484e2ad0cc105ed7dae0",
+      "sha256": "8625600202650a876cd5ea8e87a527dc0f97c588baf4484e2ad0cc105ed7dae0",
+      "name": "Dune Nomad",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Desert city",
+        "Headgear": "Sand wrap",
+        "Outfit": "Tattered shawl",
+        "Accent": "Long rifle"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 89,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.15 AM (1).jpeg"
+      },
+      "sourceSha256": "d19504ca797cc22c7f4b1b51597091599f005caffa4acaff3bce3dc3bb3cc7bd",
+      "sha256": "d19504ca797cc22c7f4b1b51597091599f005caffa4acaff3bce3dc3bb3cc7bd",
+      "name": "Spartan Flame",
+      "tier": "Common",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Crimson",
+        "Headgear": "Crested helm",
+        "Outfit": "Bronze plate",
+        "Accent": "Lava sword"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 90,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.15 AM (2).jpeg"
+      },
+      "sourceSha256": "b175d9c0674bada179c91cfaf301988a7e666350caed2103778f9483c5e2601d",
+      "sha256": "b175d9c0674bada179c91cfaf301988a7e666350caed2103778f9483c5e2601d",
+      "name": "Spirit Shaman",
+      "tier": "Legendary",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Mystic",
+        "Background": "Violet",
+        "Headgear": "Feathered hood",
+        "Outfit": "Woven poncho",
+        "Accent": "Spirit orb and raven"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 91,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.18 AM",
+        "file": "WhatsApp Image 2026-09-22 at 3.23.15 AM.jpeg"
+      },
+      "sourceSha256": "7bc4ba004afda9d3ba34288b8acbd93042d4e287e929c7cff99a97b62039caa0",
+      "sha256": "7bc4ba004afda9d3ba34288b8acbd93042d4e287e929c7cff99a97b62039caa0",
+      "name": "Magma Lord",
+      "tier": "Rare",
+      "series": "Guardians",
+      "traits": {
+        "Species": "Warrior",
+        "Background": "Crimson",
+        "Headgear": "Horned helm",
+        "Outfit": "Magma plate",
+        "Accent": "Fire orb"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 92,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.30 PM (1).jpeg"
+      },
+      "sourceSha256": "32b32370e6a7559010614703696e9b77e34d3546c43c5218fe69ba76e483a7eb",
+      "sha256": "32b32370e6a7559010614703696e9b77e34d3546c43c5218fe69ba76e483a7eb",
+      "name": "Quantum Theorist",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Violet",
+        "Headgear": "Atom dial, round glasses",
+        "Outfit": "Lab coat",
+        "Accent": "Wave-equation hologram"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 93,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.30 PM.jpeg"
+      },
+      "sourceSha256": "c3afafce5dbcfe18a4fc8add3daed7bd056efb223c66e50b6359b2a7fbed9a8d",
+      "sha256": "c3afafce5dbcfe18a4fc8add3daed7bd056efb223c66e50b6359b2a7fbed9a8d",
+      "name": "Chairman",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Royal blue",
+        "Headgear": "Gold-dial helmet",
+        "Outfit": "Black and gold three-piece suit",
+        "Accent": "Leather chair"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 94,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.31 PM (1).jpeg"
+      },
+      "sourceSha256": "ae6dbb27d6e9dd60aec38d13f1015e998049eab2c096771c28371c4841031384",
+      "sha256": "ae6dbb27d6e9dd60aec38d13f1015e998049eab2c096771c28371c4841031384",
+      "name": "Data Oracle",
+      "tier": "Rare",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Deep green",
+        "Headgear": "Gold-trim hood",
+        "Outfit": "Star-chart robe",
+        "Accent": "Data globe"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 95,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.31 PM.jpeg"
+      },
+      "sourceSha256": "320f69fd5f62e6db509b2e8a393419da539e20688c058ddcd83b4dbde18b4305",
+      "sha256": "320f69fd5f62e6db509b2e8a393419da539e20688c058ddcd83b4dbde18b4305",
+      "name": "Advocate",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Crimson",
+        "Headgear": "Gold-dial helmet",
+        "Outfit": "Barrister's gown and bands",
+        "Accent": "Scales and law book"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 96,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.32 PM (1).jpeg"
+      },
+      "sourceSha256": "065f60f24b881705766621c9a3554554fa5439b9a63f02ad0c6e4d518ec70727",
+      "sha256": "065f60f24b881705766621c9a3554554fa5439b9a63f02ad0c6e4d518ec70727",
+      "name": "Holo Physician",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Teal",
+        "Headgear": "Cross-dial helmet",
+        "Outfit": "White coat and scrubs",
+        "Accent": "Anatomy hologram"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 97,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.32 PM (2).jpeg"
+      },
+      "sourceSha256": "d476a81f97663e2cf02ea773ffca12dd8c6afa8a2be722863d29585f74b511a8",
+      "sha256": "d476a81f97663e2cf02ea773ffca12dd8c6afa8a2be722863d29585f74b511a8",
+      "name": "Golden Bull",
+      "tier": "Epic",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Gold",
+        "Headgear": "Dollar-dial helmet",
+        "Outfit": "Black suit, gold tie",
+        "Accent": "Bull, gold bars and coins"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 98,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.32 PM.jpeg"
+      },
+      "sourceSha256": "db8e3c1d73787f4c4395e57cbf0e8eaf1329ef7046fdb2ff6aa2b6f320ac25c0",
+      "sha256": "db8e3c1d73787f4c4395e57cbf0e8eaf1329ef7046fdb2ff6aa2b6f320ac25c0",
+      "name": "Agent Builder",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Emerald",
+        "Headgear": "Blue-dial helmet",
+        "Outfit": "Black hoodie",
+        "Accent": "Companion drone"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 99,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.33 PM (1).jpeg"
+      },
+      "sourceSha256": "85d18eab0a79d2a0fec2051c3805c39273d2fcbe01624ae42dfc3520d947425a",
+      "sha256": "85d18eab0a79d2a0fec2051c3805c39273d2fcbe01624ae42dfc3520d947425a",
+      "name": "Zero Trust",
+      "tier": "Rare",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Security ops room",
+        "Headgear": "Lock-dial helmet",
+        "Outfit": "Black tactical jacket",
+        "Accent": "Threat map and shield"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 100,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.33 PM (2).jpeg"
+      },
+      "sourceSha256": "7b9c47e72ac36e86b4c49dcc3c7bcf20fed6a612a063cd9548e5a0e671b5c9b5",
+      "sha256": "7b9c47e72ac36e86b4c49dcc3c7bcf20fed6a612a063cd9548e5a0e671b5c9b5",
+      "name": "Quiet Scholar",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "White",
+        "Headgear": "Gold glasses",
+        "Outfit": "Lab coat",
+        "Accent": "Open book"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 101,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.33 PM (3).jpeg"
+      },
+      "sourceSha256": "3bacb732fd72624a69e6585890f17221cff4cc9a30754638044121efe5607b54",
+      "sha256": "3bacb732fd72624a69e6585890f17221cff4cc9a30754638044121efe5607b54",
+      "name": "Philosopher Phi",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Violet",
+        "Headgear": "Phi-dial helmet",
+        "Outfit": "Purple toga",
+        "Accent": "Book of questions"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 102,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.33 PM.jpeg"
+      },
+      "sourceSha256": "47f9fa395bc5619d853d6e74bec7a9bbf5bf2e6a91e8a214de946f38f6f5c97b",
+      "sha256": "47f9fa395bc5619d853d6e74bec7a9bbf5bf2e6a91e8a214de946f38f6f5c97b",
+      "name": "Beyond Orbit",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Royal blue",
+        "Headgear": "Planet-dial helmet",
+        "Outfit": "White spacesuit",
+        "Accent": "Helmet reflecting Earth"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 103,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.34 PM (1).jpeg"
+      },
+      "sourceSha256": "e5f2d5a6688be5421ca58fd17f923739b32d609351b4de289772cc48bdf24598",
+      "sha256": "e5f2d5a6688be5421ca58fd17f923739b32d609351b4de289772cc48bdf24598",
+      "name": "Deep Current",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Aqua",
+        "Headgear": "Wave-dial helmet",
+        "Outfit": "Diving suit",
+        "Accent": "Glowing jellyfish"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 104,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.34 PM (2).jpeg"
+      },
+      "sourceSha256": "0288db4bdf992db527317c6b692e7aae88e3964ac49fe73405ba5ed241bc66fd",
+      "sha256": "0288db4bdf992db527317c6b692e7aae88e3964ac49fe73405ba5ed241bc66fd",
+      "name": "Volcano Observer",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Tangerine",
+        "Headgear": "Volcano-dial helmet",
+        "Outfit": "Ash-stained field jacket",
+        "Accent": "Glowing lava rock"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 105,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.34 PM (3).jpeg"
+      },
+      "sourceSha256": "da8831784e55141de59c91f8304515cfa85e7d492635d25aa65f0de8ef8dcadb",
+      "sha256": "da8831784e55141de59c91f8304515cfa85e7d492635d25aa65f0de8ef8dcadb",
+      "name": "Sky Commander",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Sky blue",
+        "Headgear": "Jet-dial helmet",
+        "Outfit": "Olive flight jacket",
+        "Accent": "Airspace tablet"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 106,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.34 PM.jpeg"
+      },
+      "sourceSha256": "f50a9028dd9272f1f36661e3a3911eaa5e402867dae5b29b49c1044716198e60",
+      "sha256": "f50a9028dd9272f1f36661e3a3911eaa5e402867dae5b29b49c1044716198e60",
+      "name": "Earth Steward",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Green",
+        "Headgear": "Leaf-dial helmet",
+        "Outfit": "Moss cloak",
+        "Accent": "Vine-wrapped Earth"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 107,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.35 PM (1).jpeg"
+      },
+      "sourceSha256": "5eaea2fc712358413f3124795864a3d18277661af9abdc84fb0ae113ce63e367",
+      "sha256": "5eaea2fc712358413f3124795864a3d18277661af9abdc84fb0ae113ce63e367",
+      "name": "Forest Oracle",
+      "tier": "Rare",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Moss green",
+        "Headgear": "Vine-grown helmet",
+        "Outfit": "Leaf-woven cloak",
+        "Accent": "Tree and stag hologram"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 108,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.35 PM (2).jpeg"
+      },
+      "sourceSha256": "1ac3675d4c594b4189b1879e36625d842ec31b69bcb1475e9a9904776aceb684",
+      "sha256": "1ac3675d4c594b4189b1879e36625d842ec31b69bcb1475e9a9904776aceb684",
+      "name": "Desert Explorer",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Sand",
+        "Headgear": "Dune-dial helmet",
+        "Outfit": "Sand-worn scarf and pack",
+        "Accent": "Compass and falling sand"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 109,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.35 PM (3).jpeg"
+      },
+      "sourceSha256": "ac6f7d5e5f65c0e7d9e3b018ddcf1a75f6343e74e47c8a21d72957c502680443",
+      "sha256": "ac6f7d5e5f65c0e7d9e3b018ddcf1a75f6343e74e47c8a21d72957c502680443",
+      "name": "Polar Guardian",
+      "tier": "Epic",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Ice blue",
+        "Headgear": "Peak-dial helmet",
+        "Outfit": "Frosted fur parka",
+        "Accent": "Polar bear and ice globe"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 110,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.35 PM.jpeg"
+      },
+      "sourceSha256": "a748059598f0f4ff3518a49df78873697da8eb2b9eb5b402beab522c63fab5dc",
+      "sha256": "a748059598f0f4ff3518a49df78873697da8eb2b9eb5b402beab522c63fab5dc",
+      "name": "Contrail Ace",
+      "tier": "Rare",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Clear sky",
+        "Headgear": "Jet-dial helmet",
+        "Outfit": "Flight jacket and harness",
+        "Accent": "Jet formation"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 111,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.36 PM (1).jpeg"
+      },
+      "sourceSha256": "cf308c56f7396dea239dfa1f75c80f30b621aac5bfdeb0bafb8463033ff2136e",
+      "sha256": "cf308c56f7396dea239dfa1f75c80f30b621aac5bfdeb0bafb8463033ff2136e",
+      "name": "Dream Weaver",
+      "tier": "Rare",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Lavender",
+        "Headgear": "Dreamcatcher-dial helmet",
+        "Outfit": "Moon-and-star shawl",
+        "Accent": "Dream orb and feathers"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 112,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.36 PM (2).jpeg"
+      },
+      "sourceSha256": "d4b88cc318621a736632f7ae2fb335cd340aa01fe2b978e2e63fd2f695f10d07",
+      "sha256": "d4b88cc318621a736632f7ae2fb335cd340aa01fe2b978e2e63fd2f695f10d07",
+      "name": "Emotion Synth",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Blush",
+        "Headgear": "Heart-dial helmet",
+        "Outfit": "Cream shawl",
+        "Accent": "Holo heart and mood tiles"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 113,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.36 PM (3).jpeg"
+      },
+      "sourceSha256": "aad3e3af40bf2d9fec231427345200d4800f87b3cacbf7678c550679289aec87",
+      "sha256": "aad3e3af40bf2d9fec231427345200d4800f87b3cacbf7678c550679289aec87",
+      "name": "Memory Keeper",
+      "tier": "Rare",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Warm grey",
+        "Headgear": "Book-dial helmet",
+        "Outfit": "Film-strip sash",
+        "Accent": "Memory cube and archive pack"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 114,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.36 PM.jpeg"
+      },
+      "sourceSha256": "cbc30eb990da488d2c9aedb806c24dd4faf5b6227159a41c2120e1dc4ad530fa",
+      "sha256": "cbc30eb990da488d2c9aedb806c24dd4faf5b6227159a41c2120e1dc4ad530fa",
+      "name": "Cosmic Cartographer",
+      "tier": "Epic",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Spiral galaxy",
+        "Headgear": "Galaxy-dial helmet",
+        "Outfit": "Star-map robe",
+        "Accent": "Galactic atlas"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 115,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.37 PM (1).jpeg"
+      },
+      "sourceSha256": "4bba581d21f1cf846c880521deca4a82db1144a93e91658abeca9b4809d4cb08",
+      "sha256": "4bba581d21f1cf846c880521deca4a82db1144a93e91658abeca9b4809d4cb08",
+      "name": "Future Judge",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Ivory",
+        "Headgear": "Scales-dial helmet",
+        "Outfit": "Laurel-trim robe",
+        "Accent": "Brass scales"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 116,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.37 PM (2).jpeg"
+      },
+      "sourceSha256": "72a0106ecbe8fccdb147cd1a904f0ec875e229b89cc8bfa56230b05545a21c1e",
+      "sha256": "72a0106ecbe8fccdb147cd1a904f0ec875e229b89cc8bfa56230b05545a21c1e",
+      "name": "Dialogue Envoy",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Pale grey, flag row",
+        "Headgear": "Globe-dial helmet",
+        "Outfit": "Navy suit and stole",
+        "Accent": "Dialogue book"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 117,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.37 PM (3).jpeg"
+      },
+      "sourceSha256": "5d0ad5f6f9dc7a113bb425993aa5c45392c3dc8bbb5755a21beee0a49df12881",
+      "sha256": "5d0ad5f6f9dc7a113bb425993aa5c45392c3dc8bbb5755a21beee0a49df12881",
+      "name": "Neural Composer",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Ivory",
+        "Headgear": "Note-dial helmet",
+        "Outfit": "Black score robe",
+        "Accent": "Light keyboard and staves"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 118,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.37 PM.jpeg"
+      },
+      "sourceSha256": "8344706919812ebce0a0355840abb531122ada28bc10fd56137250fc6f9474c4",
+      "sha256": "8344706919812ebce0a0355840abb531122ada28bc10fd56137250fc6f9474c4",
+      "name": "Digital Monk",
+      "tier": "Common",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Warm sand",
+        "Headgear": "Om-dial helmet",
+        "Outfit": "Saffron robe",
+        "Accent": "Mala and scroll pack"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 119,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.38 PM (1).jpeg"
+      },
+      "sourceSha256": "7ef595a3562b8a153a2bae35f9fc1793b110e6c3a07898022da41d43e3d4e84f",
+      "sha256": "7ef595a3562b8a153a2bae35f9fc1793b110e6c3a07898022da41d43e3d4e84f",
+      "name": "Drone Commander",
+      "tier": "Rare",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Sky blue",
+        "Headgear": "Drone-dial helmet",
+        "Outfit": "Black and orange tactical vest",
+        "Accent": "Drone swarm"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 120,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.38 PM (2).jpeg"
+      },
+      "sourceSha256": "3f7595466389f37c907b3a62169f837a20668bd1824cf80904931f3dae40b3dc",
+      "sha256": "3f7595466389f37c907b3a62169f837a20668bd1824cf80904931f3dae40b3dc",
+      "name": "Nano Surgeon",
+      "tier": "Rare",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Lilac",
+        "Headgear": "Surgical mask",
+        "Outfit": "White coat and scrubs",
+        "Accent": "Nanobot and tweezers"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 121,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.38 PM (3).jpeg"
+      },
+      "sourceSha256": "1a8e02d667ca22e0cc05166f1cb6cf28b401887494ce6499e5d3f767e5a73c4f",
+      "sha256": "1a8e02d667ca22e0cc05166f1cb6cf28b401887494ce6499e5d3f767e5a73c4f",
+      "name": "Robot Shepherd",
+      "tier": "Legendary",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Mint green",
+        "Headgear": "Cropped hair, cyber brow",
+        "Outfit": "Fringed shawl and cargo gear",
+        "Accent": "Robot flock and staff"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 122,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.38 PM.jpeg"
+      },
+      "sourceSha256": "439c11607134554f861ddd9d26efc1144b3349b70fb5c88786fbb25cf16e614e",
+      "sha256": "439c11607134554f861ddd9d26efc1144b3349b70fb5c88786fbb25cf16e614e",
+      "name": "Galaxy Merchant",
+      "tier": "Epic",
+      "series": "Professions",
+      "traits": {
+        "Species": "Android",
+        "Background": "Star bazaar",
+        "Headgear": "Planet-dial helmet",
+        "Outfit": "Starry merchant robe",
+        "Accent": "Armillary and gems"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 123,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.39 PM (1).jpeg"
+      },
+      "sourceSha256": "12a8ac06cef4a07f3df4eb3af243707db3c5d061cce8c97e67687af94fbf3deb",
+      "sha256": "12a8ac06cef4a07f3df4eb3af243707db3c5d061cce8c97e67687af94fbf3deb",
+      "name": "Energy Collector",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Signal red",
+        "Headgear": "Tousled black hair",
+        "Outfit": "Black hood, power tanks",
+        "Accent": "Plasma orb"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 124,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.39 PM (2).jpeg"
+      },
+      "sourceSha256": "060fbae1615c1a8b142799c32674089fc9f71007e54a7984d2a8e158310010c0",
+      "sha256": "060fbae1615c1a8b142799c32674089fc9f71007e54a7984d2a8e158310010c0",
+      "name": "Crystal Processor",
+      "tier": "Rare",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Hot pink",
+        "Headgear": "Crystal crown",
+        "Outfit": "Ivory plate",
+        "Accent": "Violet crystal"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 125,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.39 PM (3).jpeg"
+      },
+      "sourceSha256": "12ade65c2f4963e2076eaa7b041bd984d8a6020dde5cd6d5bdd831e436b52603",
+      "sha256": "12ade65c2f4963e2076eaa7b041bd984d8a6020dde5cd6d5bdd831e436b52603",
+      "name": "Light Guardian",
+      "tier": "Rare",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Sky blue",
+        "Headgear": "Star halo",
+        "Outfit": "Ivory cloak, gold plate",
+        "Accent": "Light orb"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 126,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.39 PM.jpeg"
+      },
+      "sourceSha256": "6f6d65e837214edfda7b8fe26998c353217c9e3708236daa9fbedc5ea98054cd",
+      "sha256": "6f6d65e837214edfda7b8fe26998c353217c9e3708236daa9fbedc5ea98054cd",
+      "name": "Gravity Engineer",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Violet",
+        "Headgear": "Tousled black hair",
+        "Outfit": "Black high-collar coat",
+        "Accent": "Dark planet"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 127,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.40 PM (1).jpeg"
+      },
+      "sourceSha256": "0e2a2967d289bb8a7e5f5c54e366ec6b1fa11899cafa57a151bc0996b2083817",
+      "sha256": "0e2a2967d289bb8a7e5f5c54e366ec6b1fa11899cafa57a151bc0996b2083817",
+      "name": "Phoenix Protocol",
+      "tier": "Legendary",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Signal red",
+        "Headgear": "Silver bun",
+        "Outfit": "Golden-winged plate",
+        "Accent": "Fire phoenix"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 128,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.40 PM (2).jpeg"
+      },
+      "sourceSha256": "ddafe17aa4b7b2a4458e64630b2c7bb2f61335127f929496649b3bc26b7c7756",
+      "sha256": "ddafe17aa4b7b2a4458e64630b2c7bb2f61335127f929496649b3bc26b7c7756",
+      "name": "Hologram Master",
+      "tier": "Rare",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Hologram city",
+        "Headgear": "Tousled black hair",
+        "Outfit": "Black coat, ivory arm",
+        "Accent": "Holo globe and skyline"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 129,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.40 PM (3).jpeg"
+      },
+      "sourceSha256": "ec1972efa61c55c48e1c1ad0966980fd0c6ada8b1521166bd336121b21211abe",
+      "sha256": "ec1972efa61c55c48e1c1ad0966980fd0c6ada8b1521166bd336121b21211abe",
+      "name": "Cipher Ghost",
+      "tier": "Epic",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Code rain",
+        "Headgear": "Black hood and mask",
+        "Outfit": "Black cloak, jade circuits",
+        "Accent": "Holo lock"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 130,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.40 PM.jpeg"
+      },
+      "sourceSha256": "732a4644610cfda8d2e083724e0270faf249a8c6ff99c7aa15f53c5f13d3fdd4",
+      "sha256": "732a4644610cfda8d2e083724e0270faf249a8c6ff99c7aa15f53c5f13d3fdd4",
+      "name": "Void Explorer",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Violet",
+        "Headgear": "Dark bun",
+        "Outfit": "Black and ivory spacesuit",
+        "Accent": "Galaxy in the helmet"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 131,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.41 PM (1).jpeg"
+      },
+      "sourceSha256": "ef8cd51b66ded5e72b61f1533b3afbce4d3325d6a5cc743bdf3c5ec524127fef",
+      "sha256": "ef8cd51b66ded5e72b61f1533b3afbce4d3325d6a5cc743bdf3c5ec524127fef",
+      "name": "Quantum Ghost",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Periwinkle",
+        "Headgear": "Silver hair",
+        "Outfit": "Grey hooded cloak",
+        "Accent": "Atom ring"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 132,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.41 PM (2).jpeg"
+      },
+      "sourceSha256": "cb8e30f605d8329efe519d33624112831347a45e76606b612815d2035c709edb",
+      "sha256": "cb8e30f605d8329efe519d33624112831347a45e76606b612815d2035c709edb",
+      "name": "Ivory Seer",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "White",
+        "Headgear": "Gold-embroidered hood",
+        "Outfit": "Ivory vestments",
+        "Accent": "Glowing globe"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 133,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.41 PM (3).jpeg"
+      },
+      "sourceSha256": "8ebdcd084fa094cc551b9d62cda07d783a0d09721c8a4c966231a2fa9f6a5374",
+      "sha256": "8ebdcd084fa094cc551b9d62cda07d783a0d09721c8a4c966231a2fa9f6a5374",
+      "name": "Infinity Pilot",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "White",
+        "Headgear": "Infinity helmet",
+        "Outfit": "Blue-lit flight armour",
+        "Accent": "Infinity plate"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 134,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.41 PM.jpeg"
+      },
+      "sourceSha256": "f50cf52ca5256f24420e4d2e2eb6438da06639db854a05f2b3453d3f0ab3383f",
+      "sha256": "f50cf52ca5256f24420e4d2e2eb6438da06639db854a05f2b3453d3f0ab3383f",
+      "name": "Sun Sovereign",
+      "tier": "Legendary",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "Dark throne hall",
+        "Headgear": "Golden sun halo",
+        "Outfit": "Black and gold regalia",
+        "Accent": "Throne"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 135,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.42 PM (1).jpeg"
+      },
+      "sourceSha256": "db8f54a6a65dcffbdfdf52575411537fe43693261ea8108bb81859191d999229",
+      "sha256": "db8f54a6a65dcffbdfdf52575411537fe43693261ea8108bb81859191d999229",
+      "name": "Digital Titan",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Cyborg",
+        "Background": "White",
+        "Headgear": "Tousled hair",
+        "Outfit": "Chrome power armour",
+        "Accent": "Blue power lines"
+      },
+      "needsReview": false
+    },
+    {
+      "id": 136,
+      "source": {
+        "folder": "WhatsApp Unknown 2026-09-25 at 6.21.37 AM",
+        "file": "WhatsApp Image 2026-09-22 at 9.54.42 PM.jpeg"
+      },
+      "sourceSha256": "8c28a2c5c315f85ac231a02eac47a0c203e979e9aaff71234b2fef59954f3a3c",
+      "sha256": "8c28a2c5c315f85ac231a02eac47a0c203e979e9aaff71234b2fef59954f3a3c",
+      "name": "Star Admiral",
+      "tier": "Common",
+      "series": "Vanguard",
+      "traits": {
+        "Species": "Human",
+        "Background": "White",
+        "Headgear": "Tousled hair",
+        "Outfit": "Epaulettes and star cape",
+        "Accent": "Compass-star helmet"
+      },
+      "needsReview": false
+    }
+  ]
+}

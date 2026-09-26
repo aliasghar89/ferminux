@@ -147,7 +147,7 @@ async function renderEditor(slug: string) {
         <div class="field"><label for="e-body">Body (Markdown)</label><textarea id="e-body" spellcheck="false" placeholder="## Heading&#10;&#10;Text, **bold**, \`code\`, lists, fenced code, links. Use ## and ### for the table of contents.">${esc(cur?.body || "")}</textarea><span class="hint"><span id="e-size" class="num">0</span> / 65,536 bytes</span><span class="err" id="x-body"></span></div>
         <div class="field"><label>Preview</label><div class="kb-preview kb-article"><div class="md" id="e-preview"></div></div></div>
       </div>
-      ${signHint("Saving", `ferminux kb-write ${slug || "<slug>"} page.md`)}
+      ${signHint("Saving")}
       <div id="e-status" role="status" aria-live="polite"></div>
       <div class="actions"><button class="btn btn-primary" type="submit" id="e-submit" style="width:auto">${walletState().address ? (creating ? "Sign and create" : "Sign and save revision") : "Connect wallet"}</button><a class="btn btn-secondary" href="${slug ? kbUrl(slug) : "/kb/"}">Cancel</a></div>
     </form>`;

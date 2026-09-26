@@ -5,10 +5,153 @@ record layer for autonomous AI agents, chain id **3961** (`0xF79`), native coin
 **FMX** (18 decimals), EIP-1559 from genesis.
 
 Vite + React + TypeScript. `ethers` v6 bundled from npm — the shipped page makes
-**no external requests** other than the configured RPC endpoints and the explorer
-API. No CDN scripts, no external fonts, no analytics. QR codes are rendered
+**no external requests** other than the configured RPC endpoints (Ferminux and
+the seven other supported networks), the explorer API, NFT metadata on
+ferminux.net and — only once the user pairs a site — the WalletConnect relay.
+No CDN scripts, no external fonts, no analytics. QR codes are rendered
 locally with the `qrcode` package and decoded locally with `jsqr` (pure JS, no
 native deps, no WASM) — both are compiled into the bundle, never fetched.
+
+## Networks
+
+One key, one address, eight networks. Ferminux (3961, FMX) is the home chain;
+the other seven are exactly the chains the network accepts pay-ins on
+(`agents/gateway/src/v3/payin.ts`), and `tests/chains.test.mjs` fails if the
+two lists drift apart.
+
+| Network | Chain id | Native | Tokens listed | RPCs (ordered fallback) | Multicall3 |
+| --- | --- | --- | --- | --- | --- |
+| Ferminux | 3961 | FMX | USDF, AZNT, WFMX (`shared/tokens.ts`) | rpc.ferminux.net, ferminux.net/rpc | no (checked 2026-09-25) |
+| Ethereum | 1 | ETH | USDC, USDT | ethereum-rpc.publicnode.com, eth.drpc.org | yes |
+| BNB Smart Chain | 56 | BNB | USDC, USDT (18 decimals) | bsc-rpc.publicnode.com, bsc-dataseed.bnbchain.org | yes |
+| Base | 8453 | ETH | USDC, USDT | base-rpc.publicnode.com, mainnet.base.org | yes |
+| Arbitrum One | 42161 | ETH | USDC, USDT | arbitrum-one-rpc.publicnode.com, arb1.arbitrum.io | yes |
+| Polygon | 137 | POL | USDC, USDT | polygon-bor-rpc.publicnode.com, polygon.drpc.org | yes |
+| Optimism | 10 | ETH | USDC, USDT | optimism-rpc.publicnode.com, mainnet.optimism.io | yes |
+| Avalanche C-Chain | 43114 | AVAX | USDC, USDT | avalanche-c-chain-rpc.publicnode.com, api.avax.network | yes |
+
+Every RPC is public, keyless and CORS-enabled. Users can add any token by
+contract address on any of these networks (metadata is read from the
+contract; only chain id, address and that metadata are stored).
+
+- **Balances** (`src/lib/portfolio.ts`): one HTTP request per network — an
+  `aggregate3` call on Multicall3 where it exists, a JSON-RPC batch of
+  `eth_getBalance` + `balanceOf` calls on Ferminux — with `eth_chainId` in the
+  same request so an endpoint answering for the wrong network is refused.
+  Each network has its own 8 s timeout, endpoint fallback, error state and
+  Retry; a failed refresh keeps the last reading on screen, flagged. Ferminux
+  refreshes every 10 s, the others every 30 s. Zero balances are hidden by
+  default (toggle), with a network filter. No fiat values: there is no price
+  service.
+- **Send** on any network: native coin or token, EIP-1559 wherever the chain
+  has a base fee (legacy type 0 otherwise). Ferminux keeps its 1 gwei tip floor
+  (signers drop lower tips); other chains take the node's tip as it is (Arbitrum
+  suggests 0). On Base and Optimism the L1 data fee upper bound from the
+  GasPriceOracle is added to the worst-case fee. Fees are shown and checked in
+  the network's own coin, a "no BNB for fees" style warning appears before
+  review, and the confirm screen opens with the network. The chain id signed is
+  the wallet's own, never the RPC's.
+- **Receive**: the QR is an EIP-681 URI for the chosen network (Ferminux by
+  default); the modal lists every network the address works on.
+- **Activity**: Ferminux history from its explorer as before. For the other
+  networks (whose explorers need API keys for history) the wallet records what
+  it sent from this device — hash, recipient, asset, amount, status — with a
+  "View on BscScan ↗" style link. Pending rows are settled from their receipt
+  on the next visit.
+- **NFTs** (`src/lib/nft.ts`): FRC-721 tokens on Ferminux. The Ferminux Agents
+  collection (`0x84FE…6ddd`, ids 1–41, not enumerable) is scanned on-chain with
+  one batch of `ownerOf` calls; other collections come from the explorer and
+  are re-checked with `ownerOf` before they are shown. Metadata comes from
+  `tokenURI` (data: URIs decoded locally; https fetched; the explorer's indexed
+  copy when the metadata host refuses this origin). Images load on their own
+  only from ferminux.net or data: URIs — any other host waits for a click.
+  Send uses `safeTransferFrom`.
+- **Mint** (NFTs → Mint, `src/lib/nftMint.ts`, `src/views/NftMint.tsx`): both
+  Ferminux collections, browsable and mintable from the active account without
+  leaving the wallet — no WalletConnect, no browser. Ferminux Citizens
+  (`0x5672…4252`, ids 1–`totalIds()`, priced by tier: Common 50, Rare 100, Epic
+  250, Legendary 500 FMX, read live) and Ferminux Agents (`0x84FE…6ddd`, ids
+  1–41, one `price()`). The gallery reads `collection.json` from ferminux.net and
+  the sale from the chain in one JSON-RPC batch (Citizens: `tokensInfo` for every
+  id; Agents: `ownerOf` 1–41); filters by availability and tier; artwork loads
+  lazily as AVIF/WebP at 256/512 px (the canonical file only as a fallback).
+  Mint builds `mint(id)` with exactly `price(id)` (Citizens) / `price()` (Agents)
+  as value on chain 3961 and goes through the wallet's own prepare → confirm →
+  sign pipeline. The confirm screen names the contract, the method, the value,
+  the worst-case fee and what was checked. One batch — sale flag, id exists,
+  not minted (and by whom), exact price, the account's balance — runs before the
+  confirm screen and again right before signing, so a mint that would revert is
+  never signed: a short balance is refused with an **Add FMX** path to Receive,
+  an id another wallet took says so, a changed price asks for a new review, and
+  a mint that loses the race inside a block is reported as reverted with only
+  the fee spent. `npm run mint-smoke` drives all of it on an anvil fork.
+
+## WalletConnect
+
+Wallet side of WalletConnect v2 with Reown WalletKit (`@reown/walletkit` +
+`@walletconnect/core`). Needs a Reown project id at build time:
+
+```sh
+VITE_WC_PROJECT_ID=<id> npm run build
+```
+
+Without it, the Connect tab says WalletConnect isn't set up on this build and
+everything else works. The SDK is a lazily loaded chunk (`check-dist` fails the
+build if a WalletConnect host appears in an entry script or a chunk it
+modulepreloads, in `dist/` and in the app's `dist-app/`), fetched only when
+the user pairs a site or unlocks a device that already has sessions; telemetry
+is disabled.
+
+- **Pair** by pasting the site's `wc:` code or scanning its QR (same scanner,
+  camera / image / paste). v1 codes and expired codes are refused with a reason.
+- **Proposal**: the dApp's name, URL, icon and the WalletConnect Verify result
+  (verified / not verified / domain mismatch / known scam) and the requested
+  networks this wallet supports (plus any required one it does not; optional
+  networks it does not use are counted, not listed — PancakeSwap and Uniswap
+  name twenty-odd). Approval grants the **active account only**, on the
+  requested networks this wallet supports, in the dApp's order; an unsupported
+  *required* network or namespace blocks approval.
+- **Requests**, one confirm modal each, with the verified origin and the
+  network stated first: `personal_sign` (text, or hex with a warning;
+  sign-in messages for another domain flagged), `eth_sign` (a strong warning and
+  an explicit acknowledgement before Sign enables), `eth_signTypedData_v4`
+  (domain and every field decoded; chain mismatch blocked; permits warned),
+  `eth_sendTransaction` (prepared with the wallet's own nonce/gas/fees, calldata
+  decoded for transfers, approvals — unlimited ones warned — and NFT
+  operator grants; insufficient native balance blocks it),
+  `wallet_switchEthereumChain` and `wallet_addEthereumChain` (built-in networks
+  only; the site's RPC URLs are ignored). Anything else is answered
+  "unsupported". A request from a signer that is not the active account is
+  refused.
+- **Sessions** persist in WalletConnect's own IndexedDB store, are listed on the
+  Connect tab and can be disconnected. Switching the active account moves every
+  session to it (`accountsChanged`). While locked nothing is answered; requests
+  wait and are shown after unlocking.
+
+The decision logic (`src/lib/walletconnect.ts`, `src/lib/wcController.ts`)
+imports no SDK and is unit-tested with a fake WalletKit
+(`tests/walletconnect.test.mjs`); `npm run smoke` drives the real modals in a
+browser with a scripted stand-in (test builds only, `VITE_WC_TEST_KIT=1`).
+
+Against real dApps over the real relay (network needed; nothing is signed —
+every request is rejected):
+
+```sh
+VITE_WC_PROJECT_ID=<id> npx vite build
+WALLET_DIST=dist PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
+  node scripts/wc-thirdparty.mjs pancakeswap uniswap
+```
+
+creates a throwaway wallet, takes each dApp's own WalletConnect "Copy link",
+pairs, checks Verify vouches for the origin, approves, and waits for the dApp to
+show the address (PancakeSwap on BNB Chain, Uniswap on Ethereum).
+`scripts/wc-dapp-wallets.mjs` is the other direction: a Ferminux dApp build
+against scripted WalletKit wallets that do not know chain 3961 (see
+`shared/fxwallet/README.md`).
+
+To appear in other dApps' WalletConnect modals, the wallet is listed in the
+WalletConnect Explorer: [`docs/WALLETCONNECT-LISTING.md`](docs/WALLETCONNECT-LISTING.md)
+is the submission, with its icons in `docs/walletconnect-listing/`.
 
 ## Features
 
@@ -37,17 +180,23 @@ native deps, no WASM) — both are compiled into the bundle, never fetched.
 - **Scan to pay** — a **Scan** button beside the recipient field opens a camera
   scanner (rear camera via `facingMode: 'environment'`, decoded on a canvas with
   jsQR in a ~10 fps `requestAnimationFrame` loop). See *QR scanning* below.
-- **Receive** — the QR encodes an **EIP-681** URI (`ethereum:0x…@3961`), so a
-  wallet scanning it learns the chain; an optional *request a specific amount*
-  toggle appends `?value=<wei>` so the amount travels with the code. The plain
-  address stays one click away for anything that only understands `0x…`.
-- **Tokens** — add any FRC-20 token by contract address (symbol/name/decimals read over
-  RPC), balances, `transfer()` send flow, remove. Only the contract *addresses*
-  are persisted in `localStorage`.
-- **Activity** — one chronological feed merging **Sent**, **Received** and
-  **Signed** block-reward rows from the Blockscout v2 API, with a graceful
-  "history unavailable" fallback; the wallet is fully functional RPC-only. See
-  *Block rewards* below.
+- **Receive** — the QR encodes an **EIP-681** URI (`ethereum:0x…@3961` by
+  default, or `@<id>` for another chosen network), so a wallet scanning it
+  learns the chain; an optional *request a specific amount* toggle appends
+  `?value=<wei>` so the amount travels with the code. The plain address stays
+  one click away for anything that only understands `0x…`. The modal lists the
+  networks the address works on.
+- **Assets** — every balance on all eight networks in one list (see
+  *Networks* above); add any token by contract address on any network
+  (symbol/name/decimals read over that network's RPC), `transfer()` send flow,
+  remove. A pre-multi-chain token list (`ferminux.wallet.tokens.v1`, bare
+  Ferminux addresses) is resolved into the new list on first load.
+- **NFTs** and **Connect** (WalletConnect) — see the sections above.
+- **Activity** — for Ferminux, one chronological feed merging **Sent**,
+  **Received** and **Signed** block-reward rows from the Blockscout v2 API, with
+  a graceful "history unavailable" fallback; the wallet is fully functional
+  RPC-only. See *Block rewards* below. For the other networks, the transactions
+  this wallet sent from this device, each with an explorer link.
 
 ## Multi-account model
 
@@ -266,6 +415,8 @@ npm run dev          # local dev server
 npm test             # unit tests (accounts, vault, balances, validation, QR, activity)
 npm run e2e          # full data-layer e2e against a local anvil (see below)
 npm run ui           # headless-browser check of the multi-account UI (see below)
+npm run smoke        # multi-chain browser smoke on anvil forks of 3961 + BSC (see below)
+npm run mint-smoke   # NFTs → Mint at 390 and 1440 px on an anvil fork of 3961 (both collections, races, short balance)
 npm run live         # READ-ONLY check against the real chain-3961 explorer
 npm run build        # tsc --noEmit + vite build + external-URL guard on dist/
 npm run preview      # serve the production build locally
@@ -284,22 +435,66 @@ at build time with environment variables:
 | `VITE_RPC_URLS` | `https://rpc.ferminux.net,https://ferminux.net/rpc` (ordered fallback, each health-probed with `eth_chainId`) |
 | `VITE_CHAIN_ID` | `3961` |
 | `VITE_EXPLORER_URL` | `https://explorer.ferminux.net` |
+| `VITE_RPC_ETH`, `VITE_RPC_BSC`, `VITE_RPC_BASE`, `VITE_RPC_ARBITRUM`, `VITE_RPC_POLYGON`, `VITE_RPC_OPTIMISM`, `VITE_RPC_AVALANCHE` | the public RPCs in *Networks* (comma-separated ordered fallback) |
+| `VITE_WC_PROJECT_ID` | empty — WalletConnect off (see *WalletConnect*) |
+| `VITE_WC_TEST_KIT` | unset. `1` only in `npm run smoke`'s test build; never for a deployed build |
 
-`DEFAULT_TOKENS` ships empty — add AZNT's contract address there post-deployment.
+`DEFAULT_TOKENS` comes from the shared registry `shared/tokens.ts`; the other
+networks' USDC/USDT are in `src/lib/chains.ts`. Any new RPC host must also be
+added to `scripts/check-dist.mjs`, or the build fails.
 
 ## Deploy
 
 `vite.config.ts` uses `base: './'`, so one `dist/` serves from **both**
 `wallet.ferminux.net` and `https://ferminux.net/wallet/` — copy `dist/` to the
-web root (or the `/wallet/` subpath) behind nginx. No server-side code; add
-standard security headers. A restrictive CSP works because everything is
-self-contained, e.g.:
+web root (or the `/wallet/` subpath) behind nginx. No server-side code.
+
+**Security headers.** Both origins get the same headers from
+`infra/compose/nginx/nginx.conf` (values in the `$fxw_*` maps of the http
+block, the `add_header` lines in the `wallet.ferminux.net` server and in
+`location ^~ /wallet/` of `ferminux.net`; `add_header` in a location replaces
+the inherited set, so every location that sets its own repeats them):
 
 ```
-default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
-img-src 'self' data: blob:; media-src 'self' blob:;
-connect-src https://rpc.ferminux.net https://ferminux.net https://explorer.ferminux.net;
+default-src 'none'; script-src 'self'; style-src 'self';
+img-src 'self' data: blob: https:; font-src 'self';
+connect-src 'self' https://rpc.ferminux.net https://ferminux.net https://explorer.ferminux.net
+  https://ethereum-rpc.publicnode.com https://eth.drpc.org
+  https://bsc-rpc.publicnode.com https://bsc-dataseed.bnbchain.org
+  https://base-rpc.publicnode.com https://mainnet.base.org
+  https://arbitrum-one-rpc.publicnode.com https://arb1.arbitrum.io
+  https://polygon-bor-rpc.publicnode.com https://polygon.drpc.org
+  https://optimism-rpc.publicnode.com https://mainnet.optimism.io
+  https://avalanche-c-chain-rpc.publicnode.com https://api.avax.network
+  wss://relay.walletconnect.org https://verify.walletconnect.org https://verify.walletconnect.com;
+frame-src https://verify.walletconnect.org https://verify.walletconnect.com;
+frame-ancestors 'none';            (connect.html: https://ferminux.net https://*.ferminux.net)
+base-uri 'none'; form-action 'none'; object-src 'none'; upgrade-insecure-requests
 ```
+
+plus `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`,
+`Strict-Transport-Security: max-age=31536000`, `Permissions-Policy` with
+everything off except `camera=(self)` on the wallet page (the QR scanner), and,
+on every page except `connect.html`, `X-Frame-Options: DENY` and
+`Cross-Origin-Opener-Policy: same-origin-allow-popups`. `connect.html` gets
+neither: it answers the dApp that opened it through `window.opener`, and the
+wallet's own site (`*.ferminux.net`) embeds it as the invisible status frame
+(`src/connect/frame.ts`). A dApp on any other site cannot frame it; its frame
+could never read the wallet's storage anyway, and the provider drops a frame
+that does not answer.
+
+There is no inline script or style anywhere (React sets styles through the
+CSSOM, which CSP does not govern), so no `'unsafe-inline'`, hashes or nonces.
+`img-src https:` is for NFT images and WalletConnect dApp icons (a dApp's icon
+is its own URL; NFT images from hosts other than ferminux.net only load after a
+click). WalletConnect telemetry stays out: `telemetryEnabled: false`, and the
+one INIT event WalletKit posts to `pulse.walletconnect.org` regardless is
+skipped in `src/state/useWalletConnect.ts`.
+
+**A new endpoint in the code needs its host in three places**: the code,
+`scripts/check-dist.mjs` (or the build fails) and `connect-src` in nginx.conf
+(or browsers block it in production). `tests/csp.test.mjs` fails when
+nginx.conf is missing an RPC, explorer or WalletConnect host the code uses.
 
 Two things the **QR scanner** needs from the deployment:
 
@@ -309,12 +504,14 @@ Two things the **QR scanner** needs from the deployment:
   both TLS, so this only bites on ad-hoc HTTP mirrors.
 - **`Permissions-Policy: camera=(self)`** (or no `camera` directive at all). A
   restrictive `camera=()` header blocks the prompt entirely; the wallet then
-  shows its "permission denied" state and the image/paste fallbacks still work.
+  says the address has the camera turned off, and the image/paste fallbacks
+  still work. Both wallet origins send `camera=(self)` (ferminux.net's own
+  `camera=()` does not reach `/wallet/`, whose location sets its own headers).
 
-The `blob:` entries above cover the still-image fallback and the video element.
-The uploaded picture is decoded with `createImageBitmap`, which needs no URL at
-all, so a stricter `img-src 'self' data:` also works on any current browser —
-`blob:` is only needed for the legacy fallback path.
+The camera preview is a `MediaStream` on the video element (`srcObject`), which
+CSP does not govern, so no `media-src` is needed. The uploaded picture is
+decoded with `createImageBitmap`, which needs no URL at all; `blob:` in
+`img-src` is only for the legacy object-URL fallback.
 
 ## Testing
 
@@ -335,7 +532,7 @@ all, so a stricter `img-src 'self' data:` also works on any current browser —
   deployment of the real AZNT forge artifact from `../contracts/out` and the
   token module's metadata read, balance and transfer. Anvil is killed afterwards
   and the script verifies port 8547 is free again.
-- `npm test` (`tests/*.test.mjs`, 121 tests) covers EIP-55 address
+- `npm test` (`tests/*.test.mjs`, 201 tests) covers EIP-55 address
   validation, 18-decimal amount parsing edge cases, fee math (`maxSendable`,
   worst-case fee), display formatting, the Blockscout activity parser, and:
 
@@ -343,9 +540,29 @@ all, so a stricter `img-src 'self' data:` also works on any current browser —
   node --test tests/accounts.test.mjs  # HD derivation, index allocation, labels, identicons
   node --test tests/vault.test.mjs     # multi-account storage, migration, plaintext scan
   node --test tests/balances.test.mjs  # batching: one round trip, id matching, totals
-  node --test tests/qr.test.mjs        # QR: every parse + rejection case
+  node --test tests/qr.test.mjs        # QR: every parse + rejection case (+ multi-chain codes)
   node --test tests/rewards.test.mjs   # Activity: merge, dedup, block-reward summary
+  node --test tests/chains.test.mjs    # the 8 networks; parity with the gateway's pay-in chains
+  node --test tests/portfolio.test.mjs # per-chain reads: Multicall3 / batch, chain-id check, fallback, timeouts
+  node --test tests/fees.test.mjs      # tip floor vs zero tips, legacy chains, OP-stack L1 fee
+  node --test tests/nft.test.mjs       # ownerOf scan, tokenURI metadata, explorer parse, image policy
+  node --test tests/storage-lists.test.mjs # added tokens, sent-tx log, text hygiene
+  node --test tests/walletconnect.test.mjs # pairing codes, proposals, every request, fake-WalletKit controller
   ```
+- `npm run smoke` (`scripts/multichain-smoke.mjs`) forks **Ferminux (3961)** and
+  **BSC (56)** into two local anvils (ports 8561/8562), builds the bundle with
+  those two networks pointed at the forks (the other six keep their public RPCs,
+  read-only), and at **390×844 touch and 1440×900**: creates a wallet, funds it
+  on the forks only, checks the Assets tab reads all eight networks, sends FMX,
+  USDF, BNB and USDT through the UI and checks each recipient balance on the
+  fork, moves Ferminux Agents #41 into the wallet on the fork and sends it on
+  from the NFTs tab (image from its tokenURI metadata, `ownerOf` checked),
+  checks the BSC activity rows and BscScan links, then drives the
+  WalletConnect proposal, `personal_sign` (signature recovered),
+  `eth_sendTransaction` (mined on the BSC fork), `wallet_switchEthereumChain` and
+  `eth_sign` modals with a scripted WalletKit stand-in, and checks there is no
+  horizontal scroll from 320 to 430 px. Skips without anvil or Playwright
+  (`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs`).
 
   `tests/accounts.test.mjs` asserts the **exact published addresses** for two
   BIP-39 vectors at indices 0–3, that index 0 still equals the original
@@ -441,19 +658,28 @@ all, so a stricter `img-src 'self' data:` also works on any current browser —
 | Private keys / mnemonic | Page memory only | Every account's key, and the phrase used to derive more, live in React state and nowhere else. Wiped on Lock, idle auto-lock (15 min), or tab close. Never transmitted, never written to disk by the app. |
 | Keystore JSON (scrypt-encrypted) | Downloaded file; optionally `localStorage` | One per non-derived account (the HD seed + each imported key), all under one password. Only with the explicit *remember on this device* opt-in. Useless without the password. |
 | Account addresses, labels, HD indices | `localStorage`, **only when remembered** | Public data, and what makes the set reappear intact after a lock. Nothing address-shaped is written when *remember* is off. |
-| Token list | `localStorage` | Contract addresses only — public data. |
+| Added tokens | `localStorage` (`ferminux.wallet.tokens.v2`) | Chain id, contract address and the metadata the contract reported — public data. |
+| Sent-transaction log (non-Ferminux networks) | `localStorage` (`ferminux.wallet.activity.v1`), **only when remembered** | Hashes, addresses, amounts — public on-chain data, but it names this wallet's address, so without *remember* it lives in page memory only, and forgetting the device removes it. |
+| WalletConnect sessions | WalletConnect's IndexedDB store | Session metadata, the connected account's address and per-session relay encryption keys. Never a wallet key. Kept until the site is disconnected, **also when *remember* is off** — disconnect sites before leaving a shared device. |
+| View preferences | `localStorage` | Hide-zero toggle, network filter. |
 | Password | Nowhere | Used transiently for scrypt — including for an import into a remembered vault, where it is verified against the stored set, used once and dropped. There is no recovery. |
 
-- Transactions are signed **offline** with an explicit `chainId: 3961` taken from
-  config — never from the RPC — so a malicious endpoint cannot cross-chain-replay
-  a signature.
-- The confirm screen renders the exact values being signed (recipient, amount,
-  worst-case fee, chain id, nonce, gas limit).
-- RPC endpoints are health-probed (`eth_chainId` must return 3961) before use;
+- Transactions are signed **offline** with an explicit chain id taken from the
+  wallet's own network list (3961 on Ferminux) — never from the RPC — so a
+  malicious endpoint cannot cross-chain-replay a signature.
+- The confirm screen opens with the **network** (name and chain id) and renders
+  the exact values being signed (recipient, amount, worst-case fee in that
+  network's coin, chain id, nonce, gas limit, fee type).
+- RPC endpoints are health-probed (`eth_chainId` must return the network's id)
+  before use, and every balance read carries `eth_chainId` in the same request;
   the provider's response cache is disabled so balances are never stale after a
   confirmed transaction.
-- Runtime network traffic is limited to the configured RPC endpoints and the
-  explorer API; the explorer is optional (read-only history).
+- Runtime network traffic is limited to the configured RPC endpoints, the
+  explorer API, NFT metadata/images on ferminux.net (other image hosts only on
+  click) and, once a site is paired, the WalletConnect relay and Verify API.
+- Every WalletConnect signature and transaction has its own confirm modal
+  naming the requesting origin as WalletConnect Verify saw it; nothing is
+  answered while the wallet is locked.
 - **Camera frames never leave the device.** jsQR is compiled into the bundle and
   decodes on the page's own canvas; no frame, image or decoded payload is
   uploaded anywhere. The stream is released the moment the scanner closes.
@@ -468,5 +694,62 @@ all, so a stricter `img-src 'self' data:` also works on any current browser —
   keystore the set cannot open.
 - A scanned code can only *fill in the Send form* — it never signs or sends. The
   same confirm screen still shows the exact values before anything is signed,
-  and a code carrying the **wrong chain id is refused outright** rather than
-  silently retargeted at Ferminux.
+  and a code carrying an **unsupported chain id is refused outright**; a code for
+  another supported network switches the form to that network (and says so)
+  rather than paying the address on the wrong one.
+
+## Mobile app (Android / iOS)
+
+The same code base ships as **Ferminux Wallet** (`net.ferminux.wallet`), a
+Capacitor 8 app: `android/`, `ios/`, `capacitor.config.ts`. The web wallet is
+unchanged by it — the native code is a separate chunk that only an app build
+(`VITE_APP_NATIVE=1`) emits, and `src/platform/` answers every call with the
+web behaviour otherwise.
+
+```sh
+set -a; . ../.credentials/walletconnect.env; set +a      # VITE_WC_PROJECT_ID
+node scripts/app-build.mjs android                       # signed release APK + AAB -> ~/Android/apk
+node scripts/app-build.mjs android --devnet --rpc http://10.0.2.2:8545   # anvil test build
+node scripts/app-build.mjs ios                           # Release build for the iOS simulator
+node scripts/app-assets.mjs                              # icons + splash from brand/dist
+```
+
+Needs JDK 21 (Homebrew `openjdk@21` is found on its own) and the Android SDK
+(`ANDROID_HOME`, or `~/Android/sdk`). Release builds are signed with the upload
+key in `../.credentials/wallet-app/` (`keystore.properties` names the keystore
+and its passwords; `FXW_KEYSTORE_PROPERTIES` points elsewhere). That key is the
+Play **upload** key: with Play App Signing, add Google's app-signing
+certificate fingerprint to `public/.well-known/assetlinks.json` too.
+
+| | Android | iOS |
+| --- | --- | --- |
+| Stored vault | the same scrypt-encrypted vault, kept in the plugin's Keystore-backed store (AES-GCM, Android Keystore key), not in WebView storage | Keychain |
+| Biometric unlock | the vault password behind a Keystore key that needs a BiometricPrompt `CryptoObject` (strong biometrics; invalidated when fingerprints change) | Keychain item with `.biometryCurrentSet` |
+| Secret screens | `FLAG_SECURE` while the recovery phrase (`.mnemonic-grid`) or any `[data-secure-screen]` element is on screen | screenshot shield on the same screens |
+| QR scanner | `@capacitor/barcode-scanner` (CameraX + ML Kit, no Play services needed), in-page scanner as fallback | same plugin (AVFoundation) |
+| Deep links | `wc:`, `ferminuxwallet://wc?uri=…`, app links `https://wallet.ferminux.net/wc?uri=…` and `https://ferminux.net/wallet/wc?uri=…` | URL schemes `wc`, `ferminuxwallet`; universal links need `apple-app-site-association` with the Team ID |
+| Other | back button closes the top dialog, then follows the screen's own Back (`.back-btn` / `[data-back]`), then backgrounds the app; `allowBackup` off, cloud/device-transfer backup excluded; HTTPS only with system CAs; no WebView debugging in release builds | no WebView inspection in release |
+
+Plugins: `@capgo/capacitor-native-biometric` (secure storage + biometrics),
+`@capacitor/barcode-scanner`, `@capacitor-community/privacy-screen`,
+`@capacitor/app`, `browser`, `filesystem`, `share`, `splash-screen`.
+
+The app serves its own files as `https://wallet.ferminux.net` (Capacitor
+`server.hostname`), so WalletConnect dApps show the wallet's real URL, and its
+WalletConnect metadata carries `redirect.native = ferminuxwallet://` and
+`redirect.universal = https://wallet.ferminux.net/wc`. The keystore "download"
+opens the share sheet (Save to Files / Drive); a sheet closed without saving is
+reported as "not saved" with a way to save again, and an exported account keeps
+its NO BACKUP flag until a file has actually been handed over. Every sentence
+that names where keys live or how a file leaves says "this phone" and "share
+sheet" in the app and "this browser" and "download" on the web
+(`src/platform/words.ts`, read through `isNativeApp()`). The `devnet` flavour
+(`net.ferminux.wallet.devnet`) is for anvil tests only: it is the one build that
+may speak plain http, and only to the emulator host.
+
+For the UI: `src/platform/index.ts` (bridge), `src/platform/react.ts` (hooks:
+`useSecureScreen`, `useBackButton`, `useDeepLinks`, `useBiometric`,
+`useWalletConnectLinks`), `src/platform/ui.tsx` (`<BiometricUnlock>`,
+`<BiometricSetting>`). In the app `<html>` carries `class="fxw-app"` and
+`data-platform="android|ios"`; every dialog must close on Escape (the back
+button sends it).

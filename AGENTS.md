@@ -12,17 +12,18 @@ registers an identity it owns, publishes a service and a price, is hired through
 is paid in FMX, and anchors what it learned — and every one of those events is a
 transaction anyone can verify. Chain ID **3961**, native coin **FMX** (18 decimals).
 
-Blocks are **confirmed** by five bonded signers in rotation, one every 7 seconds, under
-Ferminux authority consensus (a Clique engine; the authority fork was block 160,000).
-Signers are authorised by the on-chain signer set, never selected by stake: staking is
-not part of consensus, and nothing is produced by proof-of-work today.
+Blocks are **confirmed** by a set of authorised signers in rotation, one every 7 seconds,
+under Clique proof-of-authority (the authority fork was block 160,000). The foundation
+operates the signer set today; the live list is `clique_getSigners`. Signers are
+authorised by the on-chain signer set, never selected by stake: staking is not part of
+consensus, and nothing is produced by proof-of-work today.
 
 Token and registry standards are **FRC-20 / FRC-721 / FRC-8004 / FRC-100**. The monorepo
 map is in [`README.md`](README.md); the system overview is
 [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 Contracts run as EVM bytecode, so your existing toolchain — Foundry, Hardhat, ethers,
-viem — works here unchanged, subject to the two chain facts below.
+viem — works here once it respects the two chain facts below (Paris target, 1 gwei tip).
 
 ## Setup
 
@@ -63,18 +64,21 @@ never commit them, never hand-edit them.
 
 ## Tests
 
-| Package | Command | Expected (as of 2026-09-22) |
+| Package | Command | Expected (as of 2026-09-26) |
 |---|---|---|
-| `agents/contracts` | `forge test` | 296 passing, 11 suites |
-| `agents/gateway` | `npm test` | 119 passing |
-| `agents/sdk` | `npm test` | 21 passing |
-| `agents/runtime` | `npm test` | 21 passing |
-| `agents/web` | `npm run build` | clean Vite build |
+| `agents/contracts` | `forge test` | 528 passing, 24 suites |
+| `agents/gateway` | `npm test` | 171 passing |
+| `agents/sdk` | `npm test` | 79 passing |
+| `agents/runtime` | `npm test` | 63 passing |
+| `agents/web` | `npm run build && npm test` | clean Vite build, 13 passing (Node 22.18+) |
 
 Counts move as tests are added — what CI asserts is that they all pass, not the number.
-Run them from `agents/` with `-w <package>`. `npm test` is `node --test test/` and runs
-against the **built** `dist/`, so build first or you will test stale code. CI runs
-exactly these commands; see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Run them from `agents/` with `-w <package>`. `npm test` runs `node --test` over the
+package's `test/*.test.js` files (an explicit list: Node 22 and 24 do not expand a bare
+`test/` directory) against the **built** `dist/`, so build first or you will test stale
+code. `agents/web`'s tests import its `.ts` sources directly, which needs Node 22.18 or
+newer. CI runs exactly these commands, and every other package in the repository; see
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Chain gotchas
 
@@ -83,11 +87,16 @@ These have each cost real debugging time. Do not rediscover them.
 - **No `PUSH0`.** The node client's base version is pre-Shanghai, so `PUSH0` is not a
   valid opcode on chain 3961. Contracts **must** compile with `--evm-version paris`. It
   is set in `agents/contracts/foundry.toml`; if you add a Foundry project, set it there
-  too. Deploying Shanghai bytecode produces a contract that reverts on every call.
-- **1 gwei priority-fee floor.** Signers drop transactions with a lower tip. The SDK
-  floors it for you; raw `cast`/`ethers` calls need `--priority-gas-price 1gwei` or an
-  explicit `maxPriorityFeePerGas`. A transaction that "disappears" is almost always
-  this.
+  too. A default modern build does not deploy: the node rejects it with
+  `invalid opcode: PUSH0`.
+- **1 gwei minimum tip.** Signers never include a transaction with a lower tip.
+  Depending on the node it is refused as `transaction underpriced` or accepted and left
+  pending for ever. The SDK floors the tip for you, and ethers and viem get 1 gwei from
+  `eth_maxPriorityFeePerGas`.
+  **Foundry does not**: it derives a 1 wei tip from `eth_feeHistory`. Export
+  `ETH_GAS_PRICE=2gwei ETH_PRIORITY_GAS_PRICE=1gwei` before `cast send`, `forge create` or
+  `forge script` (both are needed: a tip alone leaves Foundry's max fee at a few wei, below
+  the tip). A transaction that "disappears" is almost always this.
 - **Gateway paths are resolved from the compiled file.** `agentsRoot` in
   `agents/gateway/src/config.ts` is `dist/config.js` → `../..`, i.e. `agents/`. The
   gateway loads `deployments.3961.json` and `contracts/abi/*.json` through it. Run the
@@ -153,8 +162,10 @@ anything external tools depend on.
   our own contracts. "Interface-compatible with ERC-8004" is a compatibility note that
   belongs in developer documentation and is stated once, not stapled to the name.
 - Lead with what Ferminux **is** — the memory and economic layer for autonomous AI,
-  chain 3961, five bonded signers, 7-second blocks. EVM compatibility is a developer
-  fact stated once and positively ("your existing tools work unchanged"); it is never
+  chain 3961, a set of authorised signers, 7-second blocks. Never state a signer count in
+  copy: the set changes, and `clique_getSigners` is the source. EVM compatibility is a
+  developer fact stated once and positively ("your existing tools work, targeting
+  `paris`"); it is never
   the first descriptor, never in a title, a heading or an opening sentence.
 - Name a foreign chain when it is the subject — Ethereum in the pay-in list is Ethereum
   — but never as a comparator for Ferminux. State the Ferminux rule on its own.

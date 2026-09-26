@@ -11,7 +11,12 @@ import {
   formatAmountExact,
   formatGwei,
   shortAddress,
+  sendRecipientProblem,
+  isPersonalAccountCode,
+  ZERO_ADDRESS,
 } from '../src/lib/validate.ts';
+import { FERMINUX_CHAIN, chainById } from '../src/lib/chains.ts';
+import { chainAssets } from '../src/lib/portfolio.ts';
 import { parseActivity } from '../src/lib/activity.ts';
 
 const CHECKSUMMED = '0x8ba1f109551bD432803012645Ac136ddd64DBA72';
@@ -100,6 +105,43 @@ test('fee math: maxSendableWei reserves worst-case gas and never goes negative',
   assert.equal(maxSendableWei(0n, 21000n, 2_000_000_000n), 0n);
 });
 
+test('recipient: a token is never sent to a token contract the wallet lists (its own included)', () => {
+  const assets = chainAssets(FERMINUX_CHAIN, []);
+  const usdf = assets.find((a) => a.symbol === 'USDF');
+  const aznt = assets.find((a) => a.symbol === 'AZNT');
+  // The USDF contract as its own recipient: transfer() succeeds on chain and the tokens are stranded.
+  assert.match(sendRecipientProblem(usdf.address, usdf, assets), /USDF contract itself/);
+  assert.match(sendRecipientProblem(usdf.address.toLowerCase(), usdf, assets), /USDF contract itself/);
+  // Another listed token's contract.
+  assert.match(sendRecipientProblem(aznt.address, usdf, assets), /AZNT token contract/);
+  // Same on a foreign chain: USDC to the USDT contract on BSC.
+  const bsc = chainAssets(chainById(56), []);
+  const usdc = bsc.find((a) => a.symbol === 'USDC');
+  const usdt = bsc.find((a) => a.symbol === 'USDT');
+  assert.match(sendRecipientProblem(usdt.address, usdc, bsc), /USDT token contract/);
+  // A user-added token counts as listed.
+  const custom = chainAssets(FERMINUX_CHAIN, [{ chainId: 3961, address: '0x1111111111111111111111111111111111111111', symbol: 'CUS', name: 'Custom', decimals: 18 }]);
+  assert.match(sendRecipientProblem('0x1111111111111111111111111111111111111111', usdf, custom), /CUS token contract/);
+  // An ordinary account is fine.
+  assert.equal(sendRecipientProblem(CHECKSUMMED, usdf, assets), null);
+});
+
+test('recipient: the zero address is refused; a native send to a token contract is left to the estimate (WFMX wraps)', () => {
+  const assets = chainAssets(FERMINUX_CHAIN, []);
+  const wfmx = assets.find((a) => a.symbol === 'WFMX');
+  assert.match(sendRecipientProblem(ZERO_ADDRESS, null, assets), /zero address/);
+  assert.match(sendRecipientProblem(ZERO_ADDRESS, assets.find((a) => a.symbol === 'USDF'), assets), /zero address/);
+  assert.equal(sendRecipientProblem(wfmx.address, null, assets), null);
+  assert.equal(sendRecipientProblem(CHECKSUMMED, null, assets), null);
+});
+
+test('recipient: personal accounts are no code or an EIP-7702 delegation; anything else is a contract', () => {
+  assert.equal(isPersonalAccountCode('0x'), true);
+  assert.equal(isPersonalAccountCode('0xef0100' + '63fc2ad3d021a4af7e3bb5b8a7c4f1b9c6a2b6c1'), true);
+  assert.equal(isPersonalAccountCode('0x6080604052'), false);
+  assert.equal(isPersonalAccountCode('0xef0100' + '00'.repeat(21)), false);
+});
+
 test('format: display truncates (never overstates) and groups thousands', () => {
   assert.equal(formatAmount(1_500_000_000_000_000_000n), '1.5');
   assert.equal(formatAmount(10n ** 18n), '1');
@@ -111,6 +153,10 @@ test('format: display truncates (never overstates) and groups thousands', () => 
 test('format: gwei and short address helpers', () => {
   assert.equal(formatGwei(1_500_000_000n), '1.5');
   assert.equal(formatGwei(1_000_000_000n), '1');
+  // Ferminux's base fee is a few wei: it must not read as zero.
+  assert.equal(formatGwei(7n), '<0.01');
+  assert.equal(formatGwei(0n), '0');
+  assert.equal(formatGwei(50_000_000n), '0.05');
   assert.equal(shortAddress(CHECKSUMMED), '0x8ba1f1…4DBA72');
 });
 

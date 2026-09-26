@@ -1,0 +1,40 @@
+{
+  "name": "Iron Corsair #77",
+  "description": "Iron Corsair: an Epic warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #77 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/77.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=77",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Teal"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Tricorn"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Tattered captain's coat"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Parrot and blaster"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

@@ -82,6 +82,35 @@ export const BSC: ChainConfig = {
  * as it was up — with no error, because an unconfigured chain is indistinguishable
  * from one that is not live yet. The panel says so out loud instead.
  */
+/**
+ * The Bridge tab ships OFF. Build with VITE_ENABLE_BRIDGE=1 to show it.
+ *
+ * Addresses being configured says nothing about whether the bridge can deliver:
+ * on 2026-09-24 the relayer reported Ferminux signing paused (checkpoint
+ * unreadable) while both contracts were live and accepting deposits. A DEX
+ * rebuilt from main would have offered that route with no warning. The tab
+ * stays out of the build until the operators turn it on for a bridge that is
+ * running, and even then the panel gates every send on the relayer's report
+ * (lib/bridgeGate.ts).
+ */
+export const BRIDGE_TAB_ENABLED: boolean = /^(1|true|yes|on)$/i.test((env.VITE_ENABLE_BRIDGE ?? '').trim());
+
+/**
+ * The relayer's liveness report — the same document the bridge app polls
+ * (published by fmx-publish-status to ferminux.net/bridge/status.json).
+ *
+ * Absolute on purpose: the DEX is served from dex.ferminux.net as well as
+ * ferminux.net/dex/, and a relative path would hit the DEX's own index.html on
+ * the first. A cross-origin read needs an Access-Control-Allow-Origin header on
+ * that file; without it the fetch fails and the panel fails CLOSED (no send).
+ */
+export const RELAYER_STATUS_URL: string = (
+  env.VITE_RELAYER_STATUS_URL ?? 'https://ferminux.net/bridge/status.json'
+).trim();
+
+/** Where the panel sends people when it will not offer a send itself. */
+export const BRIDGE_APP_URL = 'https://ferminux.net/bridge/';
+
 export function isConfigured(c: ChainConfig): boolean {
   return /^0x[0-9a-fA-F]{40}$/.test(c.bridgeAddress);
 }
@@ -110,10 +139,13 @@ export function otherChain(c: ChainConfig): ChainConfig {
  * a second time after an add, and a refusal there is ignored — by then the user
  * is either on the chain or has declined twice.
  */
-export async function switchTo(chain: ChainConfig): Promise<void> {
-  const eth = (window as { ethereum?: { request(a: { method: string; params?: unknown[] }): Promise<unknown> } })
-    .ethereum;
-  if (!eth) throw new Error('No injected wallet found.');
+export async function switchTo(
+  chain: ChainConfig,
+  eth: { request(a: { method: string; params?: unknown[] }): Promise<unknown> } | undefined = (
+    window as { ethereum?: { request(a: { method: string; params?: unknown[] }): Promise<unknown> } }
+  ).ethereum,
+): Promise<void> {
+  if (!eth) throw new Error('No wallet connected.');
   try {
     await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chain.chainIdHex }] });
   } catch (err) {

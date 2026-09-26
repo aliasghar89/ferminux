@@ -1,0 +1,40 @@
+{
+  "name": "Matchday #45",
+  "description": "Matchday: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #45 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/45.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=45",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Tangerine"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Dark curls"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Retro track jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Amber ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

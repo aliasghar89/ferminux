@@ -370,7 +370,7 @@ export const AGENT_TOKEN_ABI = [
   "event Approval(address indexed owner, address indexed spender, uint256 value)",
 ] as const;
 
-/** Ferminux Agents FRC-721 collection (41 one-of-one archetypes). */
+/** Ferminux Agents FRC-721 collection (41 one-of-ones: 40 archetypes + J1). */
 export const NFT_ABI = [
   "function name() view returns (string)",
   "function symbol() view returns (string)",
@@ -384,6 +384,32 @@ export const NFT_ABI = [
   "function mint(uint256 tokenId) payable",
   "function transferFrom(address from, address to, uint256 tokenId)",
   "event Minted(uint256 indexed tokenId, address indexed to, uint256 paid)",
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+];
+
+/**
+ * Ferminux Citizens (FRC-721 "FMXC", agents/contracts/src/FerminuxCitizens.sol): one-of-one portraits priced by
+ * rarity tier. Ids run 1..totalIds() and the collection grows by curated batches; mint(id) takes exactly
+ * price(id) = priceOfTier(tierOf(id)), and a tier priced 0 is not for sale. tokensInfo(from, to) returns the tier
+ * and owner (zero = unminted) of a whole range in one call.
+ */
+export const CITIZENS_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function totalIds() view returns (uint256)",
+  "function paused() view returns (bool)",
+  "function priceOfTier(uint8 tier) view returns (uint256)",
+  "function tierOf(uint256 tokenId) view returns (uint8)",
+  "function price(uint256 tokenId) view returns (uint256)",
+  "function minted(uint256 tokenId) view returns (bool)",
+  "function ownerOf(uint256 tokenId) view returns (address)",
+  "function balanceOf(address owner) view returns (uint256)",
+  "function tokenURI(uint256 tokenId) view returns (string)",
+  "function tokensInfo(uint256 fromId, uint256 toId) view returns (uint8[] tiers, address[] owners)",
+  "function royaltyInfo(uint256 tokenId, uint256 salePrice) view returns (address receiver, uint256 amount)",
+  "function mint(uint256 tokenId) payable",
+  "function transferFrom(address from, address to, uint256 tokenId)",
+  "event TokenMinted(uint256 indexed tokenId, address indexed to, uint8 tier, uint256 paid)",
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
 ];
 

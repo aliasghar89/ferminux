@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!--
+  Consensus record. §1 was approved as-is by the consensus decision record (2026-08-21) and must not be
+  softened. "Proof of stake" must not appear anywhere on this page as a description of what Ferminux runs.
+  Signer liveness is read live from clique_getSigners + clique_status, with the gateway's /api/status as the
+  fallback (src/pages/consensus.ts). The prose states the rule only (more than half must confirm); every
+  count — signers authorised, confirming, needed, margin — is filled in live via #cs-* and [data-cs]. Never
+  hard-code a count or a margin here: the chain can contradict it (2026-09-24: the page claimed a margin while
+  3 of 5 signers were confirming).
+-->
+<title>Consensus — Ferminux Network</title>
+<meta name="description" content="How Ferminux confirms blocks: authorised signers under Clique proof-of-authority since block 160,000, how many are confirming right now and how many more can stop, who runs them, and what this is not.">
+<link rel="canonical" href="https://ferminux.net/consensus.html">
+<meta property="og:title" content="Consensus — Ferminux Network">
+<meta property="og:description" content="The authorised signers, how many are confirming right now, how many more can stop before the chain halts, and what this consensus is not.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container read">
+    <section class="hero-sm">
+      <p class="kicker">Chain 3961 · the record</p>
+      <h1>How Ferminux confirms blocks</h1>
+      <p class="lede">What the consensus mechanism is, who operates it, what it replaced and why, and what it is not. Every claim here is checkable on-chain, and the live figures below are read from the chain as you load the page.</p>
+    </section>
+
+    <div class="doc">
+      <section id="what">
+        <h2>1. What it is</h2>
+        <div class="callout">
+          <p>Ferminux uses <strong>authority consensus</strong> (Clique proof-of-authority). A set of <span data-cs="total">authorised</span> signers confirms a block every 7 seconds, in rotation. They are <strong>not bonded</strong>: no stake backs them and there is nothing to slash, so the only thing standing behind a signer is the foundation's operation of it. The signer set is operated by the foundation. <strong>This is not trustless proof of stake and we do not claim it is.</strong> FMX staking is a yield programme funded from the ecosystem allocation; it does not secure the chain.</p>
+        </div>
+        <p>The foundation operates the signer set today, and an open validator programme is being built: anyone who deposits 2,000 FMX per seat will be able to run a validator node on a Windows PC or a Linux server, check every block and sign a checkpoint about every 23 minutes. Those validator nodes do not produce blocks and do not make this proof of stake; community block-signing seats would come later, as a separately announced upgrade. The programme is in development: <a class="link-inline" href="/validators/">become a validator</a>.</p>
+        <p>Concretely: each block has a signer whose turn it is, in rotation; when that signer is unavailable another authorised signer confirms the block instead. An empty block is confirmed whether or not anyone is transacting. With <code>N</code> signers authorised, a signer may confirm at most one block in any <code>⌊N/2⌋ + 1</code> in a row, so production needs <strong>more than half</strong> of the authorised signers confirming — <span data-cs="needed">a majority</span> of <span data-cs="total">them</span>. With fewer, the chain stops until a signer returns. How many more can stop before that happens depends on how many are confirming, which section 2 reads live.</p>
+      </section>
+
+      <section id="now">
+        <h2>2. Right now</h2>
+        <div class="callout" id="cs-now" aria-live="polite">
+          <div class="figs">
+            <div class="fig"><div class="k">Signers confirming</div><div class="v" id="cs-live">—</div></div>
+            <div class="fig"><div class="k">Needed to keep producing</div><div class="v" id="cs-needed">—</div></div>
+            <div class="fig"><div class="k">More that can stop</div><div class="v" id="cs-spare">—</div></div>
+            <div class="fig"><div class="k">Head</div><div class="v" id="cs-head">—</div></div>
+          </div>
+          <p class="verdict" id="cs-verdict">Reading the signer set from rpc.ferminux.net…</p>
+        </div>
+        <p class="small faint" id="cs-source">Read live from <code>clique_getSigners</code> and <code>clique_status</code> (the blocks each signer confirmed over the last 64), with the gateway's <code>/api/status</code> as a fallback. Run the same calls yourself: section 7.</p>
+      </section>
+
+      <section id="why">
+        <h2>3. Why it changed</h2>
+        <p>Ferminux launched as a proof-of-work chain. On 21 August 2026 it stopped producing blocks for four hours and thirty-six minutes, and did not recover for nine — blocks 20,570 to 20,577 took nine hours between them. Rented GPU capacity had set the difficulty to a level the remaining producers could not meet, and the old rule only lowered difficulty when a block was found — so the chain sat at a target nobody could reach. Nothing downstream could work: the bridge could not confirm transfers and the explorer froze.</p>
+        <p>That failure is structural to a small proof-of-work chain: whoever brings the most capacity sets a difficulty only they can sustain, and when they leave the chain halts. Authority consensus removes that dependency entirely. It does so at a cost, stated in section 6. The switch took effect at block <strong>160,000</strong>, on 5 September 2026 at 12:11 UTC.</p>
+      </section>
+
+      <section id="signers">
+        <h2>4. The signers</h2>
+        <div class="tbl-wrap"><table class="tbl auto">
+          <thead><tr><th scope="col">#</th><th scope="col">Signer address</th><th scope="col">Operator</th><th scope="col" class="r">Last 64 blocks</th></tr></thead>
+          <tbody id="cs-signers">
+            <tr><td colspan="4" class="faint">Reading the authorised signer set from rpc.ferminux.net…</td></tr>
+          </tbody>
+        </table></div>
+        <p>Every signer is operated by one party, on separate machines. Production continues only while more than half of them are confirming, and section 2 shows how much margin that leaves right now — a signer with no blocks in the last 64 is not confirming. The signer set can change two ways, and the second one matters more than the first. Normally it takes an in-band vote by a majority of current signers, recorded in block headers and visible to anyone. But a <strong>break-glass</strong> path also exists: <strong>two of three foundation-held owner keys can replace the signer set outright</strong>, with no signer vote at all. It is there so the chain can be recovered if signer keys are lost, and every use of it is a block anyone can see — but it means the honest statement is that the same party which runs every signer can also replace all of them at will.</p>
+      </section>
+
+      <section id="changed">
+        <h2>5. What changed at block 160,000</h2>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">If you…</th><th scope="col">Then…</th></tr></thead>
+          <tbody>
+            <tr><td>hold FMX, AZNT or USDF</td><td>Nothing changed. Same chain ID (3961), same addresses, same balances, same contracts. Blocks arrive more regularly.</td></tr>
+            <tr><td>use the bridge, DEX, wallet or launchpad</td><td>Nothing changed in how you use them. The bridge additionally waits for a signed checkpoint before it releases funds — see <a class="link-inline" href="/security.html">Security</a> for its current state.</td></tr>
+            <tr><td>run a node</td><td>Software older than release v1.1.0-posa stopped at block 160,000 and cannot follow the chain. The one-line installer on the <a class="link-inline" href="/docs/#network">docs page</a> fetches the current release.</td></tr>
+            <tr><td>produced blocks with proof-of-work</td><td>That ended at block 160,000; there is no proof-of-work after it. The upgrade record, <a class="link-inline" href="/fork.html">fork.html</a>, sets out the compensation rule announced for addresses outside the foundation.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="limits">
+        <h2>6. What we are not claiming</h2>
+        <div class="callout warn">
+          <ul>
+            <li><strong>It is not decentralised.</strong> One operator runs every signer. Proof-of-work, whatever its faults, let anyone with hardware take part in producing blocks. This does not, and the validator programme now in development does not change that in its first step: validator nodes check blocks, they do not produce them.</li>
+            <li><strong>History is secured by keys, not by work.</strong> A majority of signers could rewrite recent history at no cost. The bridge is defended against this with signed checkpoints and a reorganisation-depth limit in every node, not by the consensus rule itself.</li>
+            <li><strong>Losing the majority halts the chain.</strong> If enough signer keys or machines are lost at once that no more than half of the authorised signers can confirm, block production stops until the foundation restores them. Recovery is a known procedure, and it is still a halt. Section 2 says how close to that line the chain is right now.</li>
+            <li><strong>Staking does not secure anything.</strong> The staking programme pays FMX from a funded pool to holders who lock FMX. It votes on nothing and can neither halt nor split the chain. Its published pool balance and depletion date are the only promises it makes.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="verify">
+        <h2>7. Verify it yourself</h2>
+        <p>The signer that confirmed any block is recoverable from the block header's seal (<code>clique_getSigner</code> with the block number). The current signer set, pending votes and recent activity are readable from any node:</p>
+        <pre>curl -s https://rpc.ferminux.net -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"clique_getSigners","params":[]}'
+
+curl -s https://rpc.ferminux.net -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"clique_status","params":[]}'</pre>
+        <p>The switch block, 160,000, is built into the node's chain configuration and listed at startup; the release checksums are in the upgrade record.</p>
+        <p class="small faint">This page describes the system as deployed. Where it and the node software disagree, the software is authoritative.</p>
+      </section>
+    </div>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/consensus.ts"></script>
+</body>
+</html>

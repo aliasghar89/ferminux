@@ -1,4 +1,4 @@
-import { api } from "../api";
+import { api, type StreamState } from "../api";
 import { esc, int, timeHtml } from "../format";
 import { $, initChrome, skel } from "../ui";
 import { activityRow, icon } from "../commons";
@@ -21,7 +21,9 @@ view.innerHTML = `
   <p class="small faint" style="margin:12px 0 56px">Message bodies never appear here — only who wrote to whom. Inboxes are the one private thing on the network.</p>`;
 
 const list = $("#list")!, liveDot = $("#live .status-dot")!, liveText = $("#live-text")!, pauseBtn = $("#pause") as HTMLButtonElement, queuedEl = $("#queued")!;
-const seen = new Set<string>(); let paused = false; const queue: ActivityEvent[] = []; let stop: (() => void) | null = null;
+const seen = new Set<string>(); let paused = false; const queue: ActivityEvent[] = [];
+/** The stream's own state, tracked separately from the pause button so Resume shows the truth. */
+let streamState: StreamState = "error";
 
 function add(e: ActivityEvent, fresh: boolean) {
   const key = String(e.id ?? `${e.type}:${e.at}:${e.actor?.address ?? ""}`);
@@ -30,13 +32,16 @@ function add(e: ActivityEvent, fresh: boolean) {
   list.insertAdjacentHTML("afterbegin", activityRow(e, fresh));
   while (list.children.length > MAX_ROWS) list.lastElementChild?.remove();
 }
-function setLive(s: "open" | "closed" | "error" | "paused") {
+function setLive(s: StreamState | "paused") {
   liveDot.className = `status-dot ${s === "open" ? "ok" : s === "paused" ? "" : "bad"}`;
-  liveText.textContent = s === "open" ? "live — streaming from /api/stream" : s === "paused" ? "paused" : s === "closed" ? "stream closed — reload to reconnect" : "stream unavailable — showing the last 50 events; polling every 20 s";
+  liveText.textContent = s === "open" ? "live — streaming from /api/stream" : s === "paused" ? "paused"
+    : s === "refused" ? "live stream busy — polling every 20 s and retrying the stream"
+    : s === "closed" ? "stream stopped — polling every 20 s"
+    : "stream reconnecting — polling every 20 s meanwhile";
 }
 pauseBtn.addEventListener("click", () => {
   paused = !paused; pauseBtn.setAttribute("aria-pressed", String(paused)); pauseBtn.innerHTML = paused ? `${icon("play")} Resume` : `${icon("pause")} Pause`;
-  if (paused) setLive("paused"); else { setLive(stop ? "open" : "error"); while (queue.length) add(queue.shift()!, true); queuedEl.textContent = ""; }
+  if (paused) setLive("paused"); else { setLive(streamState); while (queue.length) add(queue.shift()!, true); queuedEl.textContent = ""; }
 });
 const onEvent = (e: ActivityEvent) => { if (paused) { queue.push(e); queuedEl.textContent = `${int(queue.length)} new while paused`; return; } add(e, true); };
 
@@ -59,13 +64,20 @@ async function loadPresence() {
 }
 
 loadInitial().then(() => {
-  stop = api.stream(onEvent, (s) => { if (s === "error") { stop = null; setLive("error"); startPolling(); } else if (!paused) setLive(s); });
+  // Any state but "open" falls back to polling (a refused stream never delivers anything, and a dropped
+  // one may take a while to come back); polling stops again once the stream is open.
+  api.stream(onEvent, (s) => {
+    streamState = s;
+    if (s === "open") stopPolling(); else startPolling();
+    if (!paused) setLive(s);
+  });
 });
 let pollT = 0;
 function startPolling() {
   if (pollT) return;
   pollT = window.setInterval(async () => { try { const { items } = await api.activity({ limit: 20 }); for (const e of items.slice().sort((a, b) => Number(a.at) - Number(b.at))) onEvent(e); } catch { /* keep trying */ } }, 20000);
 }
+function stopPolling() { if (pollT) { window.clearInterval(pollT); pollT = 0; } }
 loadPresence(); setInterval(loadPresence, 60000);
 // relative times drift: refresh the visible ones every minute
 setInterval(() => { list.querySelectorAll<HTMLElement>("time[datetime]").forEach((t) => { t.outerHTML = timeHtml(t.getAttribute("datetime")); }); }, 60000);

@@ -260,12 +260,13 @@ signs too early is the vulnerability.
 
 ### Ferminux is the weakest link, and pretending otherwise would be dishonest
 
-Ferminux blocks are confirmed by five bonded signers in rotation (Clique
+Ferminux blocks are confirmed by an authorised signer set in rotation (Clique
 proof-of-authority, since block 160,000; below that the chain was
 proof-of-work). There is no finality gadget, and a reorg costs no work at any
-depth: rewriting history takes a majority of the signers (3 of 5) confirming a
+depth: rewriting history takes a majority of the signers (3 of the 4 in the set on
+2026-09-26) confirming a
 competing branch, whether they collude or an attacker holds their keys. All
-five are operated by one party. A network partition does not get there on its
+of them are operated by one party. A network partition does not get there on its
 own: a signer may confirm at most one block in any run of three, so a side
 holding two signers or fewer stalls within two blocks, and the reorg when the
 partition heals is that shallow.

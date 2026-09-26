@@ -9,7 +9,7 @@
 // under the wrong password would quietly make the whole set un-unlockable),
 // use it, and let it go.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   deriveHdAccount,
   defaultHdLabel,
@@ -21,9 +21,11 @@ import {
   type SessionAccount,
 } from '../lib/accounts.ts';
 import {
+  checkDevicePassword,
   decryptVault,
   encryptVault,
   newAccountId,
+  setWithExported,
   vaultWithActive,
   vaultWithExported,
   vaultWithHdAccount,
@@ -32,6 +34,8 @@ import {
   vaultWithoutAccount,
   verifyVaultPassword,
   WrongPasswordError,
+  VAULT_KEY,
+  LEGACY_KEYSTORE_KEY,
   type AccountSet,
   type FailedAccount,
   type Vault,
@@ -71,10 +75,15 @@ export interface AccountsApi {
   addHdAccount: () => { ok: true; account: SessionAccount } | { ok: false; error: string };
   importPrivateKey: (input: ImportKeyInput) => Promise<ImportResult>;
   importKeystoreFile: (input: ImportKeystoreInput) => Promise<ImportResult>;
-  exportKeystore: (id: string, password: string, progress?: Progress) => Promise<string>;
+  /** `devicePassword` is required while remembered (checkDevicePassword); throws with the reason otherwise.
+   *  Only encrypts: the account counts as backed up once the file has actually been handed over (markExported). */
+  exportKeystore: (id: string, password: string, progress?: Progress, devicePassword?: string) => Promise<string>;
+  /** The exported file reached the user (downloaded, or saved from the app's share sheet): the key has a copy outside. */
+  markExported: (id: string) => void;
   remove: (id: string) => { ok: true } | { ok: false; error: string };
   enableRemember: (password: string, progress?: Progress) => Promise<string | null>;
-  disableRemember: () => void;
+  /** Needs the device password; resolves to why it refused, or null once the vault is removed. */
+  disableRemember: (devicePassword: string, progress?: Progress) => Promise<string | null>;
 }
 
 export interface ImportKeyInput {
@@ -117,6 +126,27 @@ export function useAccountSession(): AccountSessionApi {
   const persist = useCallback((next: Vault | null) => {
     setVault(next);
     if (next) saveVault(next);
+  }, []);
+
+  // Another tab of this wallet changed the stored vault. Keep this tab's copy
+  // current, so its next write (a rename, a switch) builds on what is stored
+  // instead of writing back a stale one — which resurrected a vault that
+  // "Forget this device" had just removed. A session that came from the stored
+  // vault ends with it: forgetting the device forgets it in every tab.
+  const vaultRef = useRef(vault);
+  vaultRef.current = vault;
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== null && e.key !== VAULT_KEY && e.key !== LEGACY_KEYSTORE_KEY) return;
+      const next = loadVault();
+      if (vaultRef.current && !next) {
+        setSet(null);
+        setFailed([]);
+      }
+      setVault(next);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const open = useCallback(
@@ -307,19 +337,41 @@ export function useAccountSession(): AccountSessionApi {
      * Encrypt one account to a fresh keystore file. The export password is
      * independent of the device password — the file has to survive on its own.
      */
-    const exportKeystore = async (id: string, password: string, progress?: Progress): Promise<string> => {
+    const exportKeystore = async (
+      id: string,
+      password: string,
+      progress?: Progress,
+      devicePassword?: string,
+    ): Promise<string> => {
       const account = set.accounts.find((a) => a.id === id);
       if (!account) throw new Error('Unknown account.');
+      // Remembered: prove the device password first (half the bar), then encrypt.
+      const from = vault ? 0.5 : 0;
+      const refusal = await checkDevicePassword(vault, devicePassword, { progress: (f) => progress?.(f * from) });
+      if (refusal) throw new Error(refusal);
+      const step = (f: number) => progress?.(from + (1 - from) * f);
       // HD account 0 exports with the phrase attached, matching what the
       // original single-account wallet downloaded; every other account exports
       // its key alone (a phrase belongs to the whole wallet, not to one row).
       const json =
         account.kind === 'hd' && account.index === 0 && set.mnemonic
-          ? await encryptSeedKeystore(set.mnemonic, password, { progress })
-          : await encryptKeyKeystore(account.address, account.privateKey, password, { progress });
-      updateSet(set.accounts.map((a) => (a.id === id ? { ...a, backup: 'file' as const } : a)));
-      if (vault) persist(vaultWithExported(vault, id));
+          ? await encryptSeedKeystore(set.mnemonic, password, { progress: step })
+          : await encryptKeyKeystore(account.address, account.privateKey, password, { progress: step });
       return json;
+    };
+
+    // Separate from exportKeystore: in the app the file leaves through the share sheet, which can be closed
+    // without saving — a key must not lose its "no backup" warning because a file was merely encrypted.
+    //
+    // It runs when the share sheet closes, which can be minutes after this api was built. The idle lock can
+    // fire in between (the sheet takes no taps, and the page's timers keep running under it), and so can
+    // Forget. So it updates the session as it is NOW and the vault as it is STORED, never the `set` / `vault`
+    // captured here: writing that snapshot back would reopen a locked wallet with every key loaded, or
+    // re-save a vault the user had just removed.
+    const markExported = (id: string) => {
+      setSet((current) => setWithExported(current, id));
+      const stored = loadVault();
+      if (stored && stored.accounts.some((a) => a.id === id)) persist(vaultWithExported(stored, id));
     };
 
     const remove = (id: string): { ok: true } | { ok: false; error: string } => {
@@ -343,9 +395,14 @@ export function useAccountSession(): AccountSessionApi {
       }
     };
 
-    const disableRemember = () => {
+    const disableRemember = async (devicePassword: string, progress?: Progress): Promise<string | null> => {
+      // Without this, "stop storing" then "store" again would put the set on
+      // disk under a password of the current screen-holder's choosing.
+      const refusal = await checkDevicePassword(vault, devicePassword, { progress });
+      if (refusal) return refusal;
       clearVault();
       setVault(null);
+      return null;
     };
 
     return {
@@ -361,6 +418,7 @@ export function useAccountSession(): AccountSessionApi {
       importPrivateKey,
       importKeystoreFile,
       exportKeystore,
+      markExported,
       remove,
       enableRemember,
       disableRemember,

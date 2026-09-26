@@ -1,0 +1,40 @@
+{
+  "name": "Cloud Helm #28",
+  "description": "Cloud Helm: a Common masked from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #28 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/28.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=28",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Masked"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Sky blue"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Ivory helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold visor line"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

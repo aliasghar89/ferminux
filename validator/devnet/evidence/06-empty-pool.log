@@ -1,0 +1,103 @@
+
+## empty pool: checkpoints 13600 and 13800 before any funding (2026-09-26T01:17:25Z, block 13862)
+  rewardPool = 0.000000000000000000 FMX, totalFunded = 0
+cp 13600   count  0 / eligible  0  total  9  certified false  (certifies(count,eligible) = false)  snapshot 13666  0x8124416c97655448bdbe48c10f26e48f6f52a10eaa66996b00d4b4912cd9510d
+cp 13800   count  0 / eligible  0  total  8  certified false  (certifies(count,eligible) = false)  snapshot 13866  0x549e5f24239e4da817c1119616f9d5f03c712dec9c41494cd4b88660c002f4ea
+h 13400 seat 2 included 13472 (h+72) reward 0.0 tx 0xd3de7d48eca1506c32196c5721e19e4c5cc73ffd4e6160f48b77a30df55e36c8
+h 13400 seat 5 included 13478 (h+78) reward 0.0 tx 0xa5cb446f9b1d24d9f33cb4513b10e5de5f3fefa175fad3dbdee53d5094f0b0b3
+h 13400 seat 8 included 13485 (h+85) reward 0.0 tx 0xe91a598f01bb7297b976b4335a8f429ebed20552155ac8b54b7eaa8ccccb99a0
+h 13400 seat 3 included 13488 (h+88) reward 0.0 tx 0x5544d653a2056093b0002c7e965331ccc2fd0897da66314c81db3fe3a8e2b429
+h 13400 seat 4 included 13488 (h+88) reward 0.0 tx 0x006c13cc9afb7939c1d7d44f7828d6fc0c56343b4c469323dc1e13018a1b602e
+h 13400 seat 7 included 13496 (h+96) reward 0.0 tx 0x444bc380f2fbdf907ad317b9ea51192a136417def88d610cfb07c07b1e06f70f
+h 13400 seat 6 included 13498 (h+98) reward 0.0 tx 0xee32c5ae402260551e80b05f6cd47355cb424deaed0aaaf490530cb596b340af
+h 13400 seat 9 included 13502 (h+102) reward 0.0 tx 0x6b6258ec1c494a95a7141cba6dc45b9cbf09a04b4f69fcb7d9e6e9afd85e4b98
+h 13400 seat 10 included 13510 (h+110) reward 0.0 tx 0x5eaa11006281d5841af99d161e683f38627bdc6b89d7feb1eda8fe54b2c2131b
+h 13600 seat 10 included 13666 (h+66) reward 0.0 tx 0xf2eedc0c47597d64ec89e78bbf2800520a8c3bc88d26a34654c2770fd4d709cb
+h 13600 seat 3 included 13666 (h+66) reward 0.0 tx 0x2dfefe2cfc939cf9a234daf8fa20e9d6fbd7a0509753b743629e83df4cefae58
+h 13600 seat 9 included 13666 (h+66) reward 0.0 tx 0xf06c8404d69b8a89add18954b0b0d87a735fa645a3413fc679b869d8bff654cb
+h 13600 seat 2 included 13666 (h+66) reward 0.0 tx 0x01d2db87b773e17e4beba9336be3f2509d0dba6cbfe448ae225855975665b34d
+h 13600 seat 7 included 13666 (h+66) reward 0.0 tx 0xcd53730e9ed06319d1280571d3ffa136de5ab3ed6a17fc9ee70f01570fc23614
+h 13600 seat 6 included 13666 (h+66) reward 0.0 tx 0xae65971d099e2987b6e4be57e7ca05c49e5e28d7d55ef110b85f5f8c0081faff
+h 13600 seat 5 included 13666 (h+66) reward 0.0 tx 0xada7a1c7c5f0446d9bfde4c45a0d7b4b165569cb15ea1935d766076b60437235
+h 13600 seat 4 included 13666 (h+66) reward 0.0 tx 0x4778e92d4781232893703444fbde638930d72b9ab6d574ea9316b1c74d6c3abd
+h 13600 seat 8 included 13667 (h+67) reward 0.0 tx 0x40e6fc3616d81928fdbf6c96af4769b5857395e5d07e6fafc7c37366d06f871c
+h 13800 seat 10 included 13866 (h+66) reward 0.0 tx 0x35410162d6bfc120fa113c61fa9008f096ae4f93db7a2e8a871e6286b13c9bcd
+h 13800 seat 3 included 13866 (h+66) reward 0.0 tx 0x6b08c0800e46fac16aec377591eae7e83f033249a743c3b9b9975a7678397ed9
+h 13800 seat 9 included 13866 (h+66) reward 0.0 tx 0x95220f80f8bc8f7092dec806d720ee3b1654dcdd7ca2263cbf415057e5d5626c
+h 13800 seat 2 included 13866 (h+66) reward 0.0 tx 0xfdd2c059a4e08c4a0a62e1bfbee7b5b22e97074a61691e2ab348e734eb997dd5
+h 13800 seat 7 included 13866 (h+66) reward 0.0 tx 0x6a0b0218bc0fe758c5b022bfbc55c11f88b669681097dd040976e8b999544dd9
+h 13800 seat 6 included 13866 (h+66) reward 0.0 tx 0x8c2f8e56d3255474915debb6a7e262d60a6c1d392ed1b36120de01c72f9dff3d
+h 13800 seat 5 included 13866 (h+66) reward 0.0 tx 0x83f5d7d0c5ecc2d2493a78764ae592721ff03477f91a81de02bcb61aa3a956d0
+h 13800 seat 8 included 13867 (h+67) reward 0.0 tx 0x8d709a2f54e37913987540dc041e1a04529530c053e4c7d0fda88283de443cf5
+  ok: every attestation so far counted with reward 0
+  --- v07 dashboard state with an empty pool (fmx-validator status --json, rewards):
+{
+  "phase": "Attesting",
+  "rewards": {
+    "rewardPerAttestWei": 25000000000000000,
+    "expectedPerDayWei": 1542857142857142857,
+    "rewardPoolWei": 0,
+    "poolEmpty": true,
+    "occupiedSeats": 9,
+    "eligibleSeats": 0,
+    "maxSeats": 100,
+    "claimableWei": 0
+  }
+}
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Attesting
+                 Last included checkpoint: 13,800. Counts toward certification
+                 after 7 days active. The reward pool is empty: attestations still
+                 count but earn nothing until it is refilled.
+      attester   0xca103c68a99e8c3781a4A46d832B4bDb734F9F97
+      hub        0x7cEE961A2c903CE8A17F690aE966E30e4D973254
+      node       head 14052, 1 s old, 16 peers, ready to sign
+      process    running=yes pid=17 restarts=0
+      seat       #7 active, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0000 FMX
+                 the reward pool is empty: attestations count but earn nothing until it is refilled
+      attested   2 of the last 62 checkpoints (24 h), 2 of 432 (7 days)
+      gas        0.9998 FMX
+      next       checkpoint 14000, signing opens at block 14064
+          13800  included  
+          13600  included  
+          13400  included  
+          13200  missed    seat activates at block 13476
+          13000  missed    seat activates at block 13476
+          12800  missed    seat activates at block 13476
+          12600  missed    seat activates at block 13476
+          12400  missed    seat activates at block 13476
+
+## partial funding: 0.11 FMX (4 rewards of 0.025 and 0.01 left over) (2026-09-26T01:20:35Z, block 14052)
+  fund: tx=0x432f0fb24fd727e167ccf85920f28e5b7c78a2bc3faa4828f51c6faa6de2f731 block=14054 status=1 gas=67185
+cp 14000   count  0 / eligible  0  total  8  certified false  (certifies(count,eligible) = false)  snapshot 14066  0x3475f63bd0f9e78a0a6f90451b5b93608b253ccb78e66497c93feca05752e791
+h 14000 seat 10 included 14066 (h+66) reward 0.025 tx 0xf75fb484450085a61c150ee75175590f91c9c04110f117121a003e3825c35ce3
+h 14000 seat 3 included 14066 (h+66) reward 0.025 tx 0x72ffbf3c5364178e439e87a802efffc7fbdf44fc7b9a870c3d69a7522f7a8f86
+h 14000 seat 9 included 14066 (h+66) reward 0.025 tx 0xc7323b2ca14ceab85bb58934821e721135662c6386dce4b7de60f8f3d425a5dc
+h 14000 seat 2 included 14066 (h+66) reward 0.025 tx 0xdf94ae5dee4eea6fd6c0f012c49c60d612555e1d6deecb7bef173039c208fce2
+h 14000 seat 7 included 14066 (h+66) reward 0.0 tx 0xb32d5eaa2afa72cda1233eab133066b30b4b7d40f54222a495234e907af9fe4b
+h 14000 seat 6 included 14066 (h+66) reward 0.0 tx 0x04e392e8db83eca5463bfc696a89359c1f3388025ed98b915dbcee6f7ca38602
+h 14000 seat 5 included 14066 (h+66) reward 0.0 tx 0xc81b7db67426af8e421d5b3edbc5dc10bc677e97ec52a6a574fc0a87ea955f01
+h 14000 seat 8 included 14067 (h+67) reward 0.0 tx 0xf79ffca1972cab28065d18830b186a46ee3db544fe2748899e35e424d95b650b
+  ok: exactly 4 attestations at 14000 were paid (the pool covered 4 x 0.025)
+  ok: the rest counted with reward 0 (fail-closed: 0.01 FMX is never paid as a partial reward)
+
+## the published tranche: the multisig withdraws 20,000 FMX from FMXRewardSink to the hub (the mainnet step) (2026-09-26T01:23:56Z, block 14253)
+  sink balance 22689.750000000000000000 FMX
+    msig submit #2 by OWNER1: tx=0x5d9521bbb3f46e314e1310221d9c058bad4cc3678d7f5eee63aa1b1adcc23099 block=14255 status=1 gas=196780
+    msig confirm #2 by OWNER2: tx=0x360a4f6fea1f2105f275c416e29f276bea01563bc5adc6795bd3f29939cf93ae block=14257 status=1 gas=57582
+  tx=0x5275bff3cf35b69517a3573607be5b5766f926668a5091346803184bfc3cd07b block=14259 status=1 gas=93323
+  rewardPool = 20000.010000000000000000 FMX
+  ok: pool = 20,000.01 FMX
+h 14200 seat 10 included 14266 (h+66) reward 0.025 tx 0xced35bdde989070ca9737acbacaa17d9000832e3d05af56f40fb4695150b175b
+h 14200 seat 3 included 14266 (h+66) reward 0.025 tx 0x2136e6f6f44aa2ce033c0aec362cfef596daef8f68240a6c222bef01455b5187
+h 14200 seat 9 included 14266 (h+66) reward 0.025 tx 0xaf83021119b378c55bceef5d5d302705418ebec912e0e6c3314940ea71ea4490
+h 14200 seat 2 included 14266 (h+66) reward 0.025 tx 0xd22c707232c79e5cd0c82d48af9f0707493c4c043a96f9318cef85e49dae57a2
+h 14200 seat 7 included 14266 (h+66) reward 0.025 tx 0xe8fdbac0f0503a1d56ea492bc8109c525aa45c47b6fff5693ec54f461c0f4cbb
+h 14200 seat 6 included 14266 (h+66) reward 0.025 tx 0x9194ca4791883b2a68b135777c9ba2b052312b912c91340b61bdb564a500a82a
+h 14200 seat 5 included 14266 (h+66) reward 0.025 tx 0x33a536b44847d2996507e93217820efe493a89b22a6a91e948bb1d4b7c7a5253
+h 14200 seat 8 included 14267 (h+67) reward 0.025 tx 0x3a457b30278cb2ede4ac74b3f8a06ddc6c4c791b3f9c9e1bf7144320586da350
+  ok: every attestation at 14200 paid 0.025 FMX
+<<< step empty-pool done (block 14452, fails so far 0)
+
+>>> step slash (2026-09-26T01:27:15Z, block 14452)

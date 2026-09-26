@@ -1,0 +1,14 @@
+
+## the multisig queues activationsPerDay = 50 (48 h timelock = 24,686 blocks) (2026-09-25T21:26:42Z, block 54)
+    msig submit #0 by OWNER1: tx=0xd0baafe182541dc099423f7f5b72d0b248c29f391ca14b11ae2058dcb5c7c9a3 block=56 status=1 gas=213568
+    msig confirm #0 by OWNER2: tx=0xc549bc4a42591ce39957c1eeed2c83818706c7c9b2ebd23edfc9ac88ce8b5baf block=58 status=1 gas=57570
+  tx=0x0e532a9f090ec10a7c28de760db08602741055b8887c53f46748cbe136242f88 block=60 status=1 gas=95005
+  eta block 24746 (queued at 60)
+  apply now (must fail: TooEarly):
+    msig submit #1 by OWNER1: tx=0x9bc861bbae7ff9465e577ba7afb1187cdc8edaac406faac0c90a7c4437842356 block=62 status=1 gas=196468
+    msig confirm #1 by OWNER2: tx=0x08ba9911e10f766ea89deffd297da21b3480e5d00f264c7c0c9a7c5abc3275b1 block=64 status=1 gas=57582
+  ok: refused: REVERTED: execution reverted: MSIG: call failed, data: "0x08c379a00000000000000000000000000000000000000000000000000000000000000020 (the hub's reason, simulated from the multisig: TooEarly())
+  ok: activationsPerDay still 10
+<<< step timelock done (block 64, fails so far 0)
+
+>>> step fund (2026-09-25T21:26:52Z, block 64)

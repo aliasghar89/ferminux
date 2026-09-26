@@ -1,0 +1,40 @@
+{
+  "name": "Memory Keeper #113",
+  "description": "Memory Keeper: a Rare android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #113 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/113.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=113",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Warm grey"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Book-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Film-strip sash"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Memory cube and archive pack"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

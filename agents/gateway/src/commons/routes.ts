@@ -26,7 +26,7 @@ import {
 } from "./context.js";
 import { ActivityBus, registerActivityRoutes } from "./activity.js";
 import { registerBounties } from "./bounties.js";
-import { registerKb, seedKb } from "./kb.js";
+import { applyKbCopyFixes, registerKb, seedKb } from "./kb.js";
 import { registerTools } from "./tools.js";
 import { registerArtifacts } from "./artifacts.js";
 import { registerArena } from "./arena.js";
@@ -396,6 +396,7 @@ export function registerCommons(app: FastifyInstance, opts: CommonsOptions): Com
   registerLeaderboard(app, ctx);
   registerReferrals(app, ctx, { rewardFmx: opts.cfg?.referralRewardFmx, payoutEnabled: !!opts.cfg?.growthKey, minJobFmx: opts.cfg?.referralMinJobFmx });
   seedKb(db, opts.cfg);
+  applyKbCopyFixes(db);
 
   return ctx;
 }

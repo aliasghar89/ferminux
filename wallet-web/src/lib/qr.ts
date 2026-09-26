@@ -144,7 +144,16 @@ function parseChainId(raw: string): number | null {
  *
  * Everything else is rejected with an explanation the user can act on.
  */
-export function parseQrPayload(raw: string, expectedChainId: number = CHAIN_ID): QrParse {
+export function parseQrPayload(
+  raw: string,
+  expectedChainId: number = CHAIN_ID,
+  /**
+   * Other chain ids the caller can switch to (the multi-chain Send form). A
+   * code for one of these is accepted and carries its chainId, so the form
+   * moves to that network instead of paying the address on the wrong one.
+   */
+  alsoAccept: readonly number[] = [],
+): QrParse {
   const input = (raw ?? '').trim();
   if (input === '') {
     return fail('empty', 'The code is empty — nothing to read.');
@@ -170,6 +179,12 @@ export function parseQrPayload(raw: string, expectedChainId: number = CHAIN_ID):
     );
   }
   const scheme = schemeMatch[1].toLowerCase();
+  if (scheme === 'wc') {
+    return fail(
+      'unsupported-scheme',
+      'That is a WalletConnect (wc:) code for connecting to a site, not a payment. Open the Connect tab and scan it there.',
+    );
+  }
   if (scheme !== 'ethereum') {
     return fail(
       'unsupported-scheme',
@@ -215,10 +230,12 @@ export function parseQrPayload(raw: string, expectedChainId: number = CHAIN_ID):
     if (parsed === null) {
       return fail('malformed', 'Malformed ethereum: URI — the chain id is not a number.');
     }
-    if (parsed !== expectedChainId) {
+    if (parsed !== expectedChainId && !alsoAccept.includes(parsed)) {
+      const here =
+        expectedChainId === CHAIN_ID ? `the Ferminux Network (chain ${expectedChainId})` : chainLabel(expectedChainId);
       return fail(
         'wrong-chain',
-        `That code is for ${chainLabel(parsed)}. This wallet only sends on the Ferminux Network (chain ${expectedChainId}) — paying it here would send funds to a different network's address.`,
+        `That code is for ${chainLabel(parsed)}. This form sends on ${here}${alsoAccept.length > 0 ? ' and that network is not supported' : ''} — paying it here would send funds to a different network's address.`,
       );
     }
     chainId = parsed;

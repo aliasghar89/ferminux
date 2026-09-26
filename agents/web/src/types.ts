@@ -152,8 +152,33 @@ export interface WebhookView { id: number; owner: Author; url: string; events: W
 export type PayinChain = "eth" | "bsc" | "base" | "arbitrum" | "polygon" | "optimism" | "avalanche";
 export type PayinAsset = "USDC" | "USDT" | "ETH" | "BNB" | "POL" | "AVAX";
 export interface PayinAssetInfo { symbol: PayinAsset; kind: "erc20" | "native"; token: string | null; decimals: number; stable: boolean }
-export interface PayinChainInfo { chain: PayinChain; chainId: number; name: string; explorer: string; confirmations: number; depositAddress: string | null; assets: PayinAssetInfo[] }
-export interface PayinAssets { enabled: boolean; priceUsdPerFmx: string | null; spreadBps: number; minUsd: number; maxUsd: number; expires: number; chains: PayinChainInfo[] }
+export interface PayinChainInfo {
+  chain: PayinChain; chainId: number; name: string; explorer: string; confirmations: number; depositAddress: string | null; assets: PayinAssetInfo[];
+  /** false while the chain's deposit scanner has no recent completed scan: it takes no quotes and is not offered */ available?: boolean;
+  unavailableReason?: string; /** unix s of the last completed deposit scan */ lastScanAt?: number | null;
+}
+export interface PayinAssets { enabled: boolean; priceUsdPerFmx: string | null; spreadBps: number; minUsd: number; maxUsd: number; expires: number; chains: PayinChainInfo[]; availableChains?: PayinChain[] }
+/** One FMX pool on the Ferminux DEX against a first-party stablecoin (GET /api/payin/market → pools[]). */
+export interface DexMarketPool {
+  pair: string; quoteSymbol: string; quoteToken: string; quoteReserve: string;
+  /** quote token per FMX, and USD per quote token with where that number comes from */ priceInQuote: string; usdPerQuote: string; usdBasis: string;
+  usdPerFmx: string; liquidityUsd: string; wfmxReserve: string; lastTradeAt: number; swapUrl: string; poolUrl: string;
+}
+/** The PancakeSwap wFMX pool on BNB Chain, with the bridge's live state (GET /api/payin/market → secondary). */
+export interface PancakeMarket {
+  venue: "pancakeswap"; source: string; chain: string; pair: string; token: string; usdPerFmx: string; liquidityUsd: string; wfmxReserve: string;
+  lastTradeAt: number; at: number; swapUrl: string; bridgePaused: boolean; bridgeReason: string | null; bridgeStatusUrl: string;
+}
+/** GET /api/payin/market: FMX's market price, read on-chain — a reference shown beside the fixed quote. The top level is the
+ *  primary market: the Ferminux DEX (venue "ferminux-dex"), or PancakeSwap only when chain 3961 could not be read. */
+export interface PayinMarket extends Partial<Omit<DexMarketPool, "pair" | "usdPerFmx" | "liquidityUsd" | "wfmxReserve" | "lastTradeAt">> {
+  /** absent from gateways older than 2026-09-26, whose only market was PancakeSwap */ venue?: "ferminux-dex" | "pancakeswap";
+  source: string; chain: string; pair: string; token: string; usdPerFmx: string; liquidityUsd: string; wfmxReserve: string;
+  /** unix s: the pool's last trade, and when the gateway read it */ lastTradeAt: number; at: number;
+  quoteUsdPerFmx: string | null; quoteVsMarketPct: number | null; note: string;
+  dexUrl?: string; pools?: DexMarketPool[]; secondary?: PancakeMarket | null;
+  /** venue "pancakeswap" only */ bridgePaused?: boolean; bridgeReason?: string | null; primaryError?: string;
+}
 export interface PayinQuoteRequest { chain: PayinChain; asset: PayinAsset; amount: string; to: string; from?: string | null }
 export interface PayinTxRef { chain: string; chainId: number; hash: string; url: string }
 export interface PayinQuote {

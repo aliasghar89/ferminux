@@ -1,0 +1,29 @@
+
+## seat 4 (v04): its machine is switched off after its first attestations (no deposit loss for downtime) (2026-09-26T01:17:24Z, block 13861)
+{
+ "id": 4,
+ "state": "ACTIVE",
+ "owner": "owner-v04",
+ "attester": "att-v04",
+ "deposit": "2000.0",
+ "claimable": "0.0",
+ "activationBlock": 13464,
+ "eligibleFrom": 99864,
+ "countedSince": 0,
+ "lastAttestedHeight": 13600,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 0,
+ "slash": "NONE"
+}
+  v04 stopped at block 13862
+<<< step stop-j done (block 13862, fails so far 0)
+
+>>> step empty-pool (2026-09-26T01:17:25Z, block 13862)
+
+## jail too early: seat 4's 124-checkpoint window is not yet all on duty (2026-09-26T02:03:56Z, block 16653)
+  ok: jail(4) before its duty covers the window refused: REVERTED: NotJailable()
+  participation(4, 124) = 2
+<<< step jail-early done (block 16653, fails so far 1)
+
+>>> step timelock-apply (2026-09-26T02:03:56Z, block 16653)

@@ -15,19 +15,24 @@ Blockscout actually publishes as images (GitHub cuts newer source releases, but
 | frontend | `ghcr.io/blockscout/frontend:v2.3.5` | amd64, arm64         |
 | db       | `postgres:17.5-alpine`               | amd64, arm64, others |
 | proxy    | `nginx:1.29-alpine`                  | amd64, arm64, others |
+| smart-contract-verifier | `ghcr.io/blockscout/smart-contract-verifier:v1.10.7` | amd64, arm64 (run as amd64, see [Contract verification](#contract-verification)) |
 
-All external integrations are disabled (exchange rates, ads, Sourcify, verifier /
-sig-provider / metadata microservices, analytics). The stack talks only to the
-configured Ferminux node and its own Postgres. Fully self-hosted.
+External integrations are disabled (exchange rates, ads, Sourcify, eth-bytecode-db,
+sig-provider / metadata microservices, analytics). The stack talks to the configured
+Ferminux node and its own Postgres. The one outbound exception is the contract
+verifier, which downloads compilers on first use.
 
 ## Layout
 
 ```
 explorer/
-├── docker-compose.yml       # full stack: db + backend + rewards-sidecar + frontend + nginx proxy
+├── docker-compose.yml       # full stack: db + backend + rewards-sidecar + smart-contract-verifier
+│                            #             + frontend + nginx proxy
 ├── .env.example             # every overridable knob (local defaults are baked in)
 ├── envs/backend.env         # static Blockscout backend config (chain id, coin, fetcher flags)
+├── envs/verifier.env        # static smart-contract-verifier config
 ├── envs/frontend.env        # static frontend config (network name, FMX, decimals)
+├── scripts/verify-contracts.sh  # verifies our own contracts through the explorer
 ├── proxy/default.conf       # nginx: /api,/socket -> backend:4000, rest -> frontend:3000
 ├── chainspec/genesis.json   # copy of the chain genesis; imports premine balances
 ├── seeder/                  # block-reward seeder (see "Why a rewards sidecar")
@@ -171,10 +176,168 @@ kubectl apply -f k8s/            # applies everything else in order
 | frontend  | ~220 MB     | 256 MB–1 GB RAM               |
 | proxy     | ~5 MB       | negligible                    |
 | seeder    | ~1 MB       | negligible                    |
+| verifier  | ~80 MB idle, ~300 MB compiling | capped at 1 GB RAM, 1 CPU; ~15 MB disk per solc version |
 
 Whole stack fits in ~1 GB RAM on an empty chain; budget 4–8 GB RAM and fast SSD
 for a chain with real traffic. The node the explorer indexes from should be an
 archive node for complete historical balances.
+
+## Contract verification
+
+Source verification is Blockscout's `smart-contract-verifier` service
+(`smart-contract-verifier` in `docker-compose.yml`, container `fmx-explorer-verifier`).
+Without it the backend has no compiler list at all:
+`/api/v2/smart-contracts/verification/config` returns an empty
+`solidity_compiler_versions`, and nothing can be verified.
+
+How it is wired:
+
+- **Version.** `v1.10.7`, the newest release of the 1.10 line, which was the current
+  verifier when Blockscout 9.0.2 shipped (verifier 1.10.0 in May 2025, Blockscout 9.0.2 in
+  August 2025). The backend only calls the verifier's `/api/v2/verifier/solidity/…` and
+  `/api/v2/verifier/vyper/…` routes, which are unchanged across 1.10.x.
+- **Backend** (`envs/backend.env`): `MICROSERVICE_SC_VERIFIER_ENABLED=true`,
+  `MICROSERVICE_SC_VERIFIER_URL=http://smart-contract-verifier:8050/`,
+  `MICROSERVICE_SC_VERIFIER_TYPE=sc_verifier`. The URL must be set: unset, Blockscout falls
+  back to its own hosted eth-bytecode-db.
+- **Network.** No published port. The verifier is on the project's default network only,
+  so the backend reaches it by service name and nothing outside the stack can. The
+  `prodnet` overlay does not add it to `fmxnet`.
+- **Platform.** Pinned to `linux/amd64`, as in Blockscout's own compose: solc is published
+  only as a linux-amd64 binary, which the arm64 image cannot run. The server is x86_64.
+  On an Apple-silicon Mac it runs under emulation (colima runs it; compiles are slower).
+- **Compilers** download on first use from `binaries.soliditylang.org` (Vyper: GitHub) and
+  stay in the `verifier-compilers` volume, mounted at `/tmp` because the image runs as uid
+  1001 and `/tmp` is the one directory it may write; a volume at a path the image lacks
+  would be root-owned. Sourcify is off (it does not index chain 3961).
+- **Limits.** `mem_limit 1g`, `cpus 1.0`, `pids_limit 256`, one compile at a time
+  (`SMART_CONTRACT_VERIFIER__COMPILERS__MAX_THREADS=1`), the shared 50 MB × 5 log cap,
+  `restart: unless-stopped`, and a `/health` healthcheck. The backend does not depend on
+  it: if the verifier is down, the explorer keeps running and only verification stops.
+
+### Tested locally (2026-09-25)
+
+The verifier (`v1.10.7`, linux/amd64 under colima) was sent each contract below the way
+Blockscout 9.0.2 sends it: forge's standard-JSON input, `compilerVersion
+v0.8.24+commit.e11b9ed9`, and the real on-chain creation input read from
+rpc.ferminux.net. For the two contracts another contract created (no creation
+transaction in the index, because internal transactions are not indexed) Blockscout sends
+the deployed code instead, and so did the test. All 28 matched:
+
+- **Full match (16):** FerminuxCitizens (creation tx `0xd04c03f2…6df62f`, block 404,087,
+  704 bytes of constructor arguments, which the verifier extracted itself), AgentRegistry,
+  ServiceEscrow, X402Vault, AgentAccountFactory, AgentAccount (deployed code), StreamPay,
+  ArbiterPool, MinimalMultisig, AZNT, USDF, TokenFactory, Faucet, FMXVesting,
+  FMXRewardSink, FoundationLock.
+- **Partial match (12):** the code is identical; only the metadata hash differs or is absent.
+  FerminuxAgents, the three agent registries and AgentTokenFactory were deployed before
+  the 2026-09-24 vocabulary pass, which changed only their comments; verifying the current
+  source keeps the published comments in our own vocabulary. FerminuxBridge (both
+  deployments) has comment-only changes since its deploy. WFMX, FerminuxFactory,
+  FerminuxRouter, LiquidityLocker and FerminuxPair are built without metadata
+  (`dex/contracts/foundry.toml`: `cbor_metadata = false`), so there is no hash to match
+  fully.
+
+Peak verifier memory over the whole run was about 300 MB; the largest input (the
+bridge, built via IR) compiled in about 24 s under emulation.
+
+End to end, a local Blockscout 9.0.2 backend with this `envs/backend.env` (API only, three
+blocks indexed) reported `is_rust_verifier_microservice_enabled: true` and 95 Solidity
+versions including `v0.8.24+commit.e11b9ed9`. The exact requests `forge verify-contract
+--verifier blockscout` (forge 1.7.1) sends were then posted to its `/api`:
+FerminuxCitizens came back `Pass - Verified` as a full match with its constructor
+arguments decoded, FerminuxAgents as a partial match, and AgentAccount (deployed code, no
+creation transaction) as a full match.
+
+### Deploy (production, `/opt/ferminux/explorer`)
+
+The server runs with
+`COMPOSE_FILE=docker-compose.yml:docker-compose.prodnet.yml:docker-compose.spa.yml` in its
+`.env`, so plain `docker compose` commands there use all three files. Only
+`docker-compose.yml`, `envs/backend.env` and the new `envs/verifier.env` change.
+
+From a checkout of this repo (`FMX_HOST` = SSH target of the explorer server):
+
+```sh
+# the server copies must be the ones this change was made against: no output means no drift
+git show c25fddb^:explorer/docker-compose.yml | ssh "$FMX_HOST" 'diff - /opt/ferminux/explorer/docker-compose.yml'
+git show c25fddb^:explorer/envs/backend.env  | ssh "$FMX_HOST" 'diff - /opt/ferminux/explorer/envs/backend.env'
+
+ssh "$FMX_HOST" 'cd /opt/ferminux/explorer && d=$(date +%Y%m%d) &&
+  cp docker-compose.yml docker-compose.yml.bak-verifier-$d && cp envs/backend.env envs/backend.env.bak-verifier-$d'
+scp explorer/docker-compose.yml "$FMX_HOST":/opt/ferminux/explorer/docker-compose.yml
+scp explorer/envs/backend.env explorer/envs/verifier.env "$FMX_HOST":/opt/ferminux/explorer/envs/
+```
+
+On the server:
+
+```sh
+cd /opt/ferminux/explorer
+grep '^COMPOSE_FILE=' .env           # docker-compose.yml:docker-compose.prodnet.yml:docker-compose.spa.yml
+docker compose config --services     # backend db proxy rewards-sidecar smart-contract-verifier
+
+# 1. the verifier on its own; nothing else restarts
+docker compose pull smart-contract-verifier
+docker compose up -d --no-deps smart-contract-verifier
+docker inspect -f '{{.State.Health.Status}}' fmx-explorer-verifier     # healthy after ~20 s
+docker exec fmx-explorer-backend curl -s http://smart-contract-verifier:8050/api/v2/verifier/solidity/versions | head -c 120; echo
+docker port fmx-explorer-verifier    # empty: no host port
+
+# 2. ONLY the backend, with the new env. db, proxy and rewards-sidecar keep running.
+#    The API answers 502 for about 1-2 minutes while it starts.
+docker compose up -d --no-deps --force-recreate backend
+until docker exec fmx-explorer-backend curl -sf -o /dev/null http://localhost:4000/api/v2/stats; do sleep 5; done
+docker logs --since 3m fmx-explorer-backend 2>&1 | grep -i -m5 'verif\|error'
+```
+
+From anywhere, once the backend is up:
+
+```sh
+curl -s https://explorer.ferminux.net/api/v2/smart-contracts/verification/config |
+  python3 -c 'import json,sys; v=json.load(sys.stdin)["solidity_compiler_versions"]; print(len(v), "v0.8.24+commit.e11b9ed9" in v)'
+# expect: a count near 95, and True
+```
+
+Then verify our contracts, from a checkout with forge, python3 and curl:
+
+```sh
+explorer/scripts/verify-contracts.sh --check   # build + compare with the chain, submits nothing
+explorer/scripts/verify-contracts.sh           # submit all 28
+```
+
+The script checks the compiler list first and stops if 0.8.24 is missing. It builds each
+foundry project into a temp dir, compares every contract with its on-chain code (creation
+input, or the deployed code for the two contract-created ones), skips and lists any that
+do not match, then runs `forge verify-contract --verifier blockscout --verifier-url
+https://explorer.ferminux.net/api/` with the constructor arguments taken from the creation
+input, waits for the result, and reads the explorer's verdict back. A re-run skips what
+is already verified. It needs no keys and sends no transactions.
+
+If the edge (Cloudflare or the edge nginx) turns the uploads away, go around it: the
+stack's proxy is published on the server's loopback (`FMX_EXPLORER_PORT=127.0.0.1:4000`)
+and passes `/api` to the backend.
+
+```sh
+ssh -N -L 14000:127.0.0.1:4000 "$FMX_HOST" &
+EXPLORER_URL=http://127.0.0.1:14000 explorer/scripts/verify-contracts.sh
+```
+
+Contract-created children are not in the list on purpose: AgentAccount clones are minimal
+proxies that the explorer resolves to the verified AgentAccount, and agent tokens, factory
+tokens and other pairs are created at run time.
+
+### Rollback
+
+```sh
+cd /opt/ferminux/explorer
+cp envs/backend.env.bak-verifier-YYYYMMDD envs/backend.env
+cp docker-compose.yml.bak-verifier-YYYYMMDD docker-compose.yml
+docker compose up -d --no-deps --force-recreate backend
+docker rm -f fmx-explorer-verifier   # the verifier-compilers volume stays; `docker volume rm` it to reclaim disk
+```
+
+Contracts verified in the meantime stay verified: the source lives in the explorer's
+database, not in the verifier.
 
 ## Env reference
 
@@ -201,8 +364,9 @@ Static chain config (chain id 3961, FMX, fetcher flags) lives in
   no `debug`/`trace` namespace. If a traced node becomes available, remove
   `INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER` and point
   `ETHEREUM_JSONRPC_TRACE_URL` at it.
-- **Contract verification microservice is off** (`smart-contract-verifier` is a
-  separate service; add it later if verified-source UX is needed).
+- **Contract verification** runs through the `smart-contract-verifier` service (see
+  [Contract verification](#contract-verification)). The k8s manifests still have it off
+  (`k8s/15-configmaps.yaml`); production runs compose.
 - **No stats/charts microservice** — homepage charts are disabled
   (`NEXT_PUBLIC_HOMEPAGE_CHARTS=[]`).
 - The frontend API-docs page (`/api-docs`) fetches its swagger definition from

@@ -135,7 +135,9 @@ LLM_API_KEY=
 LLM_MODEL=
 AGENT_PROMPT=
 # …or a logged-in CLI instead of an API key (a subscription account):
-#   LLM_CLI='claude -p --output-format text --system-prompt "$AGENT_PROMPT" "$(cat)"'
+#   LLM_CLI='claude -p --tools "" --output-format text --system-prompt "$AGENT_PROMPT" "$(cat)"'
+#   (--tools "" is required: job input is untrusted; a CLI with file/shell tools can leak its login or your
+#   keys. Other CLIs need LLM_CLI_ALLOW_TOOLS=1 and a container that holds nothing else.)
 LLM_CLI=
 LLM_CLI_TIMEOUT_MS=
 

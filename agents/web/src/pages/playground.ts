@@ -20,6 +20,7 @@ import { esc, fmxUnit, int, pretty, short } from "../format";
 import { signActionWith } from "../sign";
 import { $, addrHtml, initChrome, setBusy, toast, txHtml } from "../ui";
 import { errMessage, eventArg, readProvider, sendCall } from "../wallet";
+import { solvePow } from "../faucet";
 import type { AgentView } from "../types";
 
 initChrome();
@@ -365,31 +366,6 @@ async function burnerSend(req: ChainReq, log: (html: string) => void) {
   });
 }
 
-/** Leading zero bits of a 0x-prefixed keccak256 digest. Mirrors the gateway's powBits(). */
-function leadingZeroBits(hex: string): number {
-  let bits = 0;
-  for (const ch of hex.slice(2)) {
-    const n = parseInt(ch, 16);
-    if (n === 0) { bits += 4; continue; }
-    bits += Math.clz32(n) - 28;
-    break;
-  }
-  return bits;
-}
-/** Hashes in slices, handing the event loop back between them so the page keeps painting. */
-async function solvePow(address: string, bits: number, onTick: (tried: number) => void): Promise<string> {
-  const prefix = `${address.toLowerCase()}:`;
-  let n = 0;
-  for (;;) {
-    for (let i = 0; i < 1500; i++) {
-      const pow = (n++).toString(36);
-      if (leadingZeroBits(keccak256(toUtf8Bytes(prefix + pow))) >= bits) return pow;
-    }
-    onTick(n);
-    await new Promise((r) => setTimeout(r, 0));
-  }
-}
-
 /* ============================== render ============================== */
 
 render();
@@ -402,7 +378,7 @@ function render() {
     </section>
 
     <div class="alert warn" style="margin-bottom:20px">
-      <strong>This is the live network.</strong> Chain ${int(config.chainId)}, real FMX, real transactions — there is no testnet behind this page.
+      <strong>This is the live network.</strong> Chain ${config.chainId}, real FMX, real transactions — there is no testnet behind this page.
       The burner key is disposable: it is held in memory, never stored, and gone on reload, so send it only what you are willing to lose.
       This page makes at most ${MAX_SENDS} on-chain sends per session before it stops and asks you to confirm.
     </div>
@@ -512,7 +488,7 @@ function cardHtml(d: CallDef): string {
         <button class="btn ${d.chain ? "btn-primary" : "btn-secondary"} btn-sm" type="button" id="run-${d.id}">${esc(d.runLabel ?? "Run")}</button>
         ${d.chain ? `<span class="small faint">signed by the burner key</span>` : ""}
       </div>
-      <div id="out-${d.id}"></div>
+      <div id="out-${d.id}" role="status" aria-live="polite"></div>
       <div id="snips-${d.id}">${snippetsHtml(req, !!d.openSnips)}</div>
     </div></div>`;
 }

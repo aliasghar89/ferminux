@@ -1,0 +1,128 @@
+Ferminux Validator
+devnet · chain 39619
+Attester 0xca103c…9f97
+Hub 0x7cee96…3254
+Attesting
+Last included checkpoint: 13,600. Counts toward certification after 7 days active. The reward pool is empty: attestations still count but earn nothing until it is refilled.
+NODE
+Latest block
+13,852
+Block age
+1 s
+Peers
+17
+Sync
+in sync
+Process
+running · pid 17
+SEAT
+Seat
+#7
+State
+active
+Deposit
+2,000 FMX
+Active from block
+13,476
+Counts for certification
+after 7 days active
+Owner
+0x3cee…c592
+REWARDS
+Expected per day
+about 1.54 FMX
+Per checkpoint
+0.025 FMX
+Claimable
+0 FMX
+Reward pool
+0 FMX
+Seats taken
+9 / 100
+Attested, last 24 h
+1 / 62
+Attested, last 7 days
+1 / 432
+
+The reward pool is empty: attestations still count toward certification but earn nothing until it is refilled.
+
+NEXT CHECKPOINT
+Height
+13,800
+Signing opens at block
+13,864
+In about
+84 s
+Gas balance
+0.9998 FMX
+CHECKPOINTS
+Height	State	Block hash	Transaction	Included in	Detail
+13,600	included	0x8124416c…510d	0xcd53730e…3614	13,666	
+13,400	included	0x4848189d…2ee4	0x444bc380…f70f	13,496	
+13,200	missed	–	–	–	seat activates at block 13476
+13,000	missed	–	–	–	seat activates at block 13476
+12,800	missed	–	–	–	seat activates at block 13476
+12,600	missed	–	–	–	seat activates at block 13476
+12,400	missed	–	–	–	seat activates at block 13476
+12,200	missed	–	–	–	seat activates at block 13476
+12,000	missed	–	–	–	seat activates at block 13476
+11,800	missed	–	–	–	seat activates at block 13476
+11,600	missed	–	–	–	seat activates at block 13476
+11,400	missed	–	–	–	seat activates at block 13476
+11,200	missed	–	–	–	seat activates at block 13476
+11,000	missed	–	–	–	seat activates at block 13476
+10,800	missed	–	–	–	seat activates at block 13476
+10,600	missed	–	–	–	seat activates at block 13476
+10,400	missed	–	–	–	seat activates at block 13476
+10,200	missed	–	–	–	seat activates at block 13476
+10,000	missed	–	–	–	seat activates at block 13476
+9,800	missed	–	–	–	seat activates at block 13476
+9,600	missed	–	–	–	seat activates at block 13476
+9,400	missed	–	–	–	seat activates at block 13476
+9,200	missed	–	–	–	seat activates at block 13476
+9,000	missed	–	–	–	seat activates at block 13476
+8,800	missed	–	–	–	seat activates at block 13476
+8,600	missed	–	–	–	seat activates at block 13476
+8,400	missed	–	–	–	seat activates at block 13476
+8,200	missed	–	–	–	seat activates at block 13476
+8,000	missed	–	–	–	seat activates at block 13476
+7,800	missed	–	–	–	seat activates at block 13476
+7,600	missed	–	–	–	seat activates at block 13476
+7,400	missed	–	–	–	seat activates at block 13476
+7,200	missed	–	–	–	seat activates at block 13476
+7,000	missed	–	–	–	seat activates at block 13476
+6,800	missed	–	–	–	seat activates at block 13476
+6,600	missed	–	–	–	seat activates at block 13476
+6,400	missed	–	–	–	seat activates at block 13476
+6,200	missed	–	–	–	seat activates at block 13476
+6,000	missed	–	–	–	seat activates at block 13476
+5,800	missed	–	–	–	seat activates at block 13476
+5,600	missed	–	–	–	seat activates at block 13476
+5,400	missed	–	–	–	seat activates at block 13476
+5,200	missed	–	–	–	seat activates at block 13476
+5,000	missed	–	–	–	seat activates at block 13476
+4,800	missed	–	–	–	seat activates at block 13476
+4,600	missed	–	–	–	seat activates at block 13476
+4,400	missed	–	–	–	seat activates at block 13476
+4,200	missed	–	–	–	seat activates at block 13476
+4,000	missed	–	–	–	seat activates at block 13476
+3,800	missed	–	–	–	seat activates at block 13476
+3,600	missed	–	–	–	seat activates at block 13476
+3,400	missed	–	–	–	seat activates at block 13476
+3,200	missed	–	–	–	seat activates at block 13476
+3,000	missed	–	–	–	seat activates at block 13476
+2,800	missed	–	–	–	seat activates at block 13476
+2,600	missed	–	–	–	seat activates at block 13476
+2,400	missed	–	–	–	seat activates at block 13476
+2,200	missed	–	–	–	seat activates at block 13476
+2,000	missed	–	–	–	seat activates at block 13476
+1,800	missed	–	–	–	seat activates at block 13476
+1,600	missed	–	–	–	seat activates at block 13476
+1,400	missed	–	–	–	seat activates at block 13476
+1,200	missed	–	–	–	seat activates at block 13476
+1,000	missed	–	–	–	seat activates at block 13476
+800	missed	–	–	–	no seat for this attester key
+
+Ferminux uses proof-of-authority consensus. This validator node keeps its own copy of the chain, checks every block and signs a statement naming the block it sees at each checkpoint. It does not produce or order blocks.
+
+This page is served only to this computer and cannot change anything. fmx-validator pre-module-rename-155-g6a6b7be

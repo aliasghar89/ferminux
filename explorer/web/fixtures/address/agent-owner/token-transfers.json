@@ -1,0 +1,113 @@
+{
+    "items": [
+        {
+            "block_hash": "0xc4a0159e0f76b9433b8ddcc19427fb612199549deff8e150ec58d2c6ac96997a",
+            "block_number": 362323,
+            "from": {
+                "ens_domain_name": null,
+                "hash": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "log_index": 1,
+            "method": "0x6a272462",
+            "timestamp": "2026-09-21T22:39:25.000000Z",
+            "to": {
+                "ens_domain_name": null,
+                "hash": "0x0000000000000000000000000000000000000000",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "token": {
+                "address_hash": "0xc8561D128900F6D1FA0ba8b0e389EbDDc116154d",
+                "circulating_market_cap": null,
+                "decimals": "18",
+                "exchange_rate": null,
+                "holders_count": "2",
+                "icon_url": null,
+                "name": "Scribe",
+                "symbol": "SCRB",
+                "total_supply": "9849609458063659740000",
+                "type": "ERC-20",
+                "volume_24h": null
+            },
+            "total": {
+                "decimals": "18",
+                "value": "20533679898329420000"
+            },
+            "transaction_hash": "0xaa1f642ffeebd1422d968a6dcb037f7ff5bab64c1507f85c5e2b2fdae23e5d18",
+            "type": "token_burning"
+        },
+        {
+            "block_hash": "0x5d349f10c8c6cd1b47fb15c8c6267112d76f96d3c406fc4730491cfdca8192a7",
+            "block_number": 362320,
+            "from": {
+                "ens_domain_name": null,
+                "hash": "0x0000000000000000000000000000000000000000",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "log_index": 1,
+            "method": "0xcce7ec13",
+            "timestamp": "2026-09-21T22:39:04.000000Z",
+            "to": {
+                "ens_domain_name": null,
+                "hash": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "token": {
+                "address_hash": "0xc8561D128900F6D1FA0ba8b0e389EbDDc116154d",
+                "circulating_market_cap": null,
+                "decimals": "18",
+                "exchange_rate": null,
+                "holders_count": "2",
+                "icon_url": null,
+                "name": "Scribe",
+                "symbol": "SCRB",
+                "total_supply": "9849609458063659740000",
+                "type": "ERC-20",
+                "volume_24h": null
+            },
+            "total": {
+                "decimals": "18",
+                "value": "41067359796658840000"
+            },
+            "transaction_hash": "0x6bb2863d546691a155e76f667e3434267ad8691e8b7b7b993b9502d31ab7de40",
+            "type": "token_minting"
+        }
+    ],
+    "next_page_params": null
+}

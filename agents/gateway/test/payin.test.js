@@ -1,6 +1,7 @@
 // Pay-in v2 (multi-asset, multi-chain, web3): quote math, dust / unique-amount logic, route contract
 // (assets, quote for stables + native across chains, v1 {usdc} alias, bounds, status view with explorer
-// links), the CoinGecko price feed (with a PancakeSwap fallback for BNB/ETH, no fallback for POL/AVAX),
+// links), the CoinGecko price feed (with a PancakeSwap fallback for BNB/ETH, no fallback for POL/AVAX), the
+// FMX market reference (the Ferminux DEX first, PancakeSwap's wFMX pool second, with the bridge's live state),
 // and the watcher attributing ERC-20 logs + native block transactions through seen → confirmed with fake
 // providers for two chains (bsc + arbitrum, different confirmation depths).
 import test from "node:test";
@@ -11,6 +12,7 @@ import { openMemoryDb } from "../dist/db.js";
 import {
   PriceFeed, PAYIN_CHAINS, PAYIN_CHAIN_SLUGS, PAYIN_SPREAD_BPS, PAYIN_MIN_USD, PAYIN_MAX_USD,
   parseDecimalE, formatUnits, parseAmount, usdValueE18, fmxOutFor, pickUniqueUnits, checkUsdBounds, backfillPayinUnits,
+  priceDexPool, bridgeStateFrom, dexSwapUrl,
 } from "../dist/v3/payin.js";
 
 const E18 = 10n ** 18n;
@@ -32,8 +34,11 @@ const cfg = {
 /** PriceFeed with CoinGecko stubbed off (forces the PancakeSwap fallback path for BNB/ETH, deterministically)
  * and the PancakeSwap reads stubbed: BNB 800 USD, ETH 2800 USD (via ETH/WBNB) and 2790 (ETH/USDT). */
 class StubFeed extends PriceFeed {
-  constructor(now) { super("http://127.0.0.1:1", { fixedPriceUsd: "0.52", now }); this.reads = 0; this.cgCalls = 0; }
+  constructor(now) { super("http://127.0.0.1:1", { fixedPriceUsd: "0.52", now, ferminuxRpcUrl: "http://127.0.0.1:1" }); this.reads = 0; this.cgCalls = 0; }
   async fetchCoingecko() { this.cgCalls++; throw new Error("no network in tests"); }
+  // chain 3961 and the bridge report are never reached from tests unless a test stubs them in
+  async readDexPools() { throw new Error("no chain 3961 in tests"); }
+  async fetchBridgeStatus() { throw new Error("no network in tests"); }
   async readBnbUsd() { this.reads++; return 800n * E18; }
   async pairPrice(pair, token) {
     this.reads++;
@@ -64,13 +69,16 @@ function fakeChain() {
   return { st, provider };
 }
 
-async function setup(feed) {
+/** Every chain gets a fake provider. A chain is only offered once its scanner has completed a scan, so by
+ * default setup runs one watcher tick; `{ prime: false }` starts from a boot that has not scanned yet. */
+async function setup(feed, { prime = true, cfg: over = {} } = {}) {
   let nowMs = 1_758_400_000_000;
   const db = openMemoryDb();
   const priceFeed = feed ?? new StubFeed(() => nowMs);
-  const chains = { bsc: fakeChain(), arbitrum: fakeChain() };
-  const { app, v3, payin } = await buildServer({ db, cfg, workers: false, logger: false, commons: { now: () => nowMs, forward: async () => {}, toolProbeFetch: async () => new Response(null, { status: 200 }) }, v3: { priceFeed, payinProviderFor: (c) => chains[c]?.provider } });
+  const chains = Object.fromEntries(PAYIN_CHAIN_SLUGS.map((c) => [c, fakeChain()]));
+  const { app, v3, payin } = await buildServer({ db, cfg: { ...cfg, ...over }, workers: false, logger: false, commons: { now: () => nowMs, forward: async () => {}, toolProbeFetch: async () => new Response(null, { status: 200 }) }, v3: { priceFeed, payinProviderFor: (c) => chains[c]?.provider } });
   await app.ready();
+  if (prime) await payin.tick();
   const inject = (method, url, body) => app.inject({ method, url, headers: { "content-type": "application/json" }, payload: body === undefined ? undefined : JSON.stringify(body) });
   return { app, db, v3, feed: priceFeed, chains, inject, watcher: payin, clock: { advance: (ms) => (nowMs += ms), s: () => Math.floor(nowMs / 1000) } };
 }
@@ -421,4 +429,317 @@ test("payout: crash-safe hot-wallet nonce reservation (mirrors ReferralPayout.tr
   assert.deepEqual(sent, [9], "not yet mined — resent with the SAME reserved nonce, not a new one");
   let r3 = db.prepare("SELECT status, txHashOut, payoutNonce FROM payins WHERE quoteId = 'q_payout3'").get();
   assert.equal(r3.status, "paid"); assert.equal(r3.txHashOut, "0xsent9"); assert.equal(r3.payoutNonce, 9);
+});
+
+// 2026-09-24 audit: eth/bsc/polygon scanners had failed every poll since launch (dead RPC defaults, bsc-dataseed
+// refusing eth_getLogs) while /api/payin/assets, the quote route and /api/status all said ok. The rule is now
+// positive: a chain is offered only after its scanner has COMPLETED a scan, recently.
+test("scanner health: nothing is offered before a completed scan; a failing getLogs keeps the native scan running, marks the chain unavailable after 3 polls (assets, quote 503, status) and halves the range; recovery resumes from the cursor and finds the deposit made during the outage", async (t) => {
+  const { app, inject, chains, watcher, clock } = await setup(undefined, { prime: false });
+  t.after(() => app.close());
+  const { st: bsc, provider } = chains.bsc;
+
+  // a fresh boot has not scanned anything yet: no chain may take money
+  let assets = (await inject("GET", "/api/payin/assets")).json();
+  assert.deepEqual(assets.availableChains, []);
+  assert.ok(assets.chains.every((c) => c.available === false && /not completed a scan/.test(c.unavailableReason)));
+  let refused = await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "USDT", amount: "5", to: alice.address });
+  assert.equal(refused.statusCode, 503);
+  assert.match(refused.json().error, /not completed a scan yet/);
+  assert.match(watcher.chainHealth("bsc").reason, /not completed a scan/);
+
+  // one completed scan → offered
+  await watcher.tick();
+  assert.equal(watcher.chainHealth("bsc").ok, true);
+  assert.equal(watcher.chainHealth("bsc").reason, null);
+  assert.equal((await inject("GET", "/api/payin/assets")).json().availableChains.length, 7);
+
+  let logsFail = true;
+  const ranges = [];
+  const realGetLogs = provider.getLogs.bind(provider);
+  provider.getLogs = async (f) => { ranges.push(f.toBlock - f.fromBlock + 1); if (logsFail) throw new Error('{"code":-32005,"message":"limit exceeded"}'); return realGetLogs(f); };
+  const usdt = (await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "USDT", amount: "5", to: alice.address, from: bob.address })).json();
+  const bnb = (await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "BNB", amount: "0.05", to: alice.address, from: bob.address })).json();
+  assert.ok(usdt.quoteId && bnb.quoteId);
+
+  // a BNB deposit lands while getLogs is refused: the native scan must still see it
+  bsc.head = 1001;
+  bsc.blocks.set(1001, [{ hash: "0x" + "e1".repeat(32), from: bob.address, to: HOT.address, value: BigInt(bnb.sendExactly) }]);
+  await watcher.tick();
+  assert.equal((await inject("GET", `/api/payin/${bnb.quoteId}`)).json().status, "seen", "native deposit seen even though the ERC-20 getLogs failed");
+  let h = watcher.chainHealth("bsc");
+  assert.equal(h.consecutiveFailures, 1);
+  assert.equal(h.ok, true, "one failed poll after a recent completed scan is not an outage");
+  assert.match(h.lastError, /limit exceeded/);
+
+  // the USDT deposit is made during the outage; the head runs well ahead of the scanner's cursor
+  bsc.head = 4000;
+  bsc.logs.push({ address: PAYIN_CHAINS.bsc.assets.USDT.address, topics: [TRANSFER, zeroPadValue(bob.address, 32), zeroPadValue(HOT.address, 32)], data: "0x" + BigInt(usdt.sendExactly).toString(16).padStart(64, "0"), transactionHash: "0x" + "f1".repeat(32), index: 0, blockNumber: 1800 });
+  ranges.length = 0;
+  await watcher.tick();
+  await watcher.tick();
+  h = watcher.chainHealth("bsc");
+  assert.equal(h.ok, false, "3 failed polls in a row → unavailable");
+  assert.match(h.reason, /failed its last 3 scans/);
+  assert.deepEqual(ranges, [1000, 500], "the range halves on each refusal");
+  assert.equal(h.chunkBlocks, 250);
+
+  assets = (await inject("GET", "/api/payin/assets")).json();
+  const bscRow = assets.chains.find((c) => c.chain === "bsc");
+  assert.equal(bscRow.available, false);
+  assert.match(bscRow.unavailableReason, /scanner/);
+  assert.ok(!assets.availableChains.includes("bsc"));
+  assert.ok(assets.availableChains.includes("arbitrum"), "a healthy chain stays available");
+  refused = await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "USDC", amount: "5", to: alice.address });
+  assert.equal(refused.statusCode, 503);
+  assert.equal(refused.json().unavailable, true);
+  assert.ok(refused.json().availableChains.includes("arbitrum"));
+  const s = (await inject("GET", "/api/status")).json(); // read once: /api/status caches its answer
+  assert.equal(s.services.payin.ok, false);
+  assert.ok(s.degraded.includes("payin"));
+  assert.ok(s.services.payin.unavailableChains.includes("bsc"));
+  assert.equal(s.services.payin.chains.bsc.consecutiveFailures, 3);
+  assert.match(s.services.payin.chains.bsc.reason, /failed its last 3 scans/);
+  assert.equal(s.services.payin.chains.arbitrum.ok, true);
+
+  // recovery: the scan resumes from its cursor (it never advanced while failing), so the outage deposit is found
+  logsFail = false;
+  clock.advance(60_000);
+  await watcher.tick();
+  h = watcher.chainHealth("bsc");
+  assert.equal(h.ok, true);
+  assert.equal(h.consecutiveFailures, 0);
+  const u = (await inject("GET", `/api/payin/${usdt.quoteId}`)).json();
+  assert.equal(u.status, "confirmed", "the deposit made during the outage is attributed (and already deep enough) once the scanner recovers");
+  assert.equal(u.txHashIn, "0x" + "f1".repeat(32));
+  assert.equal((await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "USDC", amount: "5", to: alice.address })).statusCode, 201);
+});
+
+test("scanner health: a scanner that stops completing scans without ever throwing (a hung RPC) goes stale and is withdrawn", async (t) => {
+  const { app, inject, watcher, clock } = await setup(undefined, { cfg: { payinPollMs: 20_000 } }); // stale after max(300 s, 3 polls)
+  t.after(() => app.close());
+  assert.equal(watcher.chainHealth("base").ok, true);
+  clock.advance(299_000);
+  assert.equal(watcher.chainHealth("base").ok, true, "inside the 300 s window");
+  clock.advance(2_000); // no tick completed for 301 s, and not a single error recorded
+  const h = watcher.chainHealth("base");
+  assert.equal(h.ok, false);
+  assert.equal(h.consecutiveFailures, 0);
+  assert.match(h.reason, /last completed scan is 301 s old/);
+  assert.equal((await inject("POST", "/api/payin/quote", { chain: "base", asset: "USDC", amount: "5", to: alice.address })).statusCode, 503);
+  assert.deepEqual((await inject("GET", "/api/payin/assets")).json().availableChains, []);
+  await watcher.tick();
+  assert.equal(watcher.chainHealth("base").ok, true, "a completed scan brings it back");
+});
+
+test("first scan with no cursor still backfills from the oldest recent quote (a quote row that predates the cursor, e.g. issued by an older build) instead of head-200", async (t) => {
+  const { app, db, inject, chains, watcher, clock } = await setup(undefined, { prime: false });
+  t.after(() => app.close());
+  const { st: bsc, provider } = chains.bsc;
+  const ranges = [];
+  const realGetLogs = provider.getLogs.bind(provider);
+  provider.getLogs = async (f) => { ranges.push([f.fromBlock, f.toBlock]); return realGetLogs(f); };
+  const units = 5n * E18;
+  const t0 = clock.s() - 600; // quoted 10 minutes ago
+  db.prepare("INSERT INTO payins (quoteId, chain, usdc, usdcUnits, asset, amount, amountUnits, usd, fmxOut, priceUsdPerFmx, target, payer, depositAddress, status, createdAt, expiresAt) VALUES ('q_legacy', 'bsc', '5.0', '5000000', 'USDT', '5.0', ?, '5.0', ?, '0.52', ?, ?, ?, 'quoted', ?, ?)")
+    .run(units.toString(), (9n * E18).toString(), alice.address, bob.address, HOT.address, t0, t0 + 900);
+  bsc.head = 100_000;
+  bsc.logs.push({ address: PAYIN_CHAINS.bsc.assets.USDT.address, topics: [TRANSFER, zeroPadValue(bob.address, 32), zeroPadValue(HOT.address, 32)], data: "0x" + units.toString(16).padStart(64, "0"), transactionHash: "0x" + "a7".repeat(32), index: 0, blockNumber: 98_700 });
+  await watcher.tick();
+  assert.equal(ranges[0][0], 100_000 - Math.ceil((600 + 600) / 0.45) + 1, "starts from the quote's age (+10 min margin) in BSC blocks, not head-200");
+  assert.equal((await inject("GET", "/api/payin/q_legacy")).json().status, "confirmed");
+});
+
+// The live WFMX/AZNT pool on the Ferminux DEX as read on 2026-09-26: 138,767.18… WFMX against 45,100 AZNT.
+const DEX_AZNT_PAIR = "0xbab12e7B817F0686e11949eC06697235DC146845";
+const AZNT = "0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178";
+const USDF = "0xCd032A609e34121D1881E8DE7355b2c2c7092363";
+const LIVE_AZNT_POOL = { pair: DEX_AZNT_PAIR, quoteToken: AZNT, reserveW: 138767184453857319492643n, reserveQ: 45_100_000_000n, lastTradeAt: 1_787_791_430 };
+const AZN_USD_E18 = 10n ** 20n / 170n; // 1 USD = 1.70 AZN
+
+test("Ferminux DEX pool pricing: quote-token price, USD through the peg, depth; unknown or empty pools are not priced", () => {
+  const p = priceDexPool(LIVE_AZNT_POOL, 1_000);
+  const inQuote = (45_100_000_000n * E18 * E18) / (10n ** 6n * 138767184453857319492643n);
+  assert.equal(p.priceInQuoteE18, inQuote);
+  assert.equal(formatUnits(p.priceInQuoteE18, 18).slice(0, 6), "0.3250", "0.3250 AZNT per FMX");
+  assert.equal(p.priceE18, (inQuote * AZN_USD_E18) / E18);
+  assert.equal(formatUnits(p.priceE18, 18).slice(0, 6), "0.1911", "≈ 0.19 USD per FMX at 1.70 AZN per USD");
+  assert.equal(p.liquidityUsdE18, 2n * 45_100n * AZN_USD_E18, "both sides: 2 × 45,100 AZNT in USD");
+  assert.equal(formatUnits(p.liquidityUsdE18, 18).slice(0, 8), "53058.82");
+  assert.equal(p.quoteSymbol, "AZNT");
+  assert.match(p.usdBasis, /1 AZNT = 1 AZN; 1 USD = 1\.70 AZN/);
+  assert.equal(p.at, 1_000);
+  // USDF is 1 USD, so its price in quote IS the USD price
+  const u = priceDexPool({ pair: "0x" + "11".repeat(20), quoteToken: USDF, reserveW: 10_000n * E18, reserveQ: 5_000_000_000n, lastTradeAt: 1 }, 1);
+  assert.equal(u.priceE18, E18 / 2n);
+  assert.equal(u.priceInQuoteE18, E18 / 2n);
+  assert.equal(u.liquidityUsdE18, 10_000n * E18);
+  // a pool against a token that is not a first-party stable has no USD price, and an empty pool has no price at all
+  assert.equal(priceDexPool({ ...LIVE_AZNT_POOL, quoteToken: "0x" + "22".repeat(20) }, 1), null);
+  assert.equal(priceDexPool({ ...LIVE_AZNT_POOL, reserveQ: 0n }, 1), null);
+  assert.equal(dexSwapUrl(AZNT), `https://dex.ferminux.net/?inputCurrency=${AZNT}&outputCurrency=FMX`);
+});
+
+test("bridge state from the relayer report: stale, empty or any chain not signing is paused; unknown is paused", () => {
+  const now = 1_790_000_000_000;
+  const chain = (name, paused, reason = null) => ({ name, finality: { signing: { paused, reason } } });
+  assert.deepEqual(bridgeStateFrom({ generatedAt: now - 60_000, chains: [chain("ferminux", false), chain("bsc", false)] }, now), { paused: false, reason: null, at: now });
+  const off = bridgeStateFrom({ generatedAt: now - 60_000, chains: [chain("ferminux", false), chain("bsc", true, "checkpoint unreadable")] }, now);
+  assert.equal(off.paused, true);
+  assert.match(off.reason, /not signing on bsc \(checkpoint unreadable\)/);
+  assert.equal(bridgeStateFrom({ generatedAt: now - 11 * 60_000, chains: [chain("ferminux", false)] }, now).paused, true, "a report older than 10 min is not trusted");
+  assert.equal(bridgeStateFrom({ generatedAt: now, chains: [] }, now).paused, true);
+  assert.equal(bridgeStateFrom(null, now).paused, true);
+});
+
+/** StubFeed with the Ferminux DEX, the PancakeSwap pool and the bridge report stubbed in. */
+class MarketFeed extends StubFeed {
+  constructor(now) { super(now); this.dexReads = 0; this.poolReads = 0; this.bridgeReads = 0; this.dexFail = false; this.pancakeFail = false; this.dexPools = [LIVE_AZNT_POOL]; this.bridgeReport = null; }
+  async readDexPools() { this.dexReads++; if (this.dexFail) throw new Error("rpc.ferminux.net down"); return this.dexPools; }
+  async readPoolReserves() {
+    this.poolReads++;
+    if (this.pancakeFail) throw new Error("bsc rpc down");
+    // 123.55 wFMX against 0.064 WBNB; WBNB = 800 USD (StubFeed) → 0.4144… USD per wFMX, 102.4 USD deep
+    return { reserveW: (12355n * E18) / 100n, reserveQ: (64n * E18) / 1000n, quoteDecimals: 18, quoteSymbol: "WBNB", lastTradeAt: 1_758_390_000 };
+  }
+  async fetchBridgeStatus() { this.bridgeReads++; if (!this.bridgeReport) throw new Error("status.json unreachable"); return this.bridgeReport; }
+}
+
+test("market price: the Ferminux DEX pool is the primary reference; PancakeSwap rides along as a secondary with the bridge's live state", async (t) => {
+  let now = 1_758_400_000_000;
+  const feed = new MarketFeed(() => now);
+  const d = await feed.dexMarket();
+  assert.equal(d.pools.length, 1);
+  assert.equal(d.pools[0].pair, DEX_AZNT_PAIR);
+  await feed.dexMarket();
+  assert.equal(feed.dexReads, 1, "cached for 60 s");
+  const m = await feed.market();
+  assert.equal(m.venue, "ferminux-dex");
+  assert.equal(m.priceE18, d.pools[0].priceE18);
+  assert.equal((await feed.price()).priceE18, (52n * E18) / 100n, "the quote stays the operator's fixed price");
+
+  const { app, inject } = await setup(feed);
+  t.after(() => app.close());
+  let r = (await inject("GET", "/api/payin/market")).json();
+  assert.equal(r.venue, "ferminux-dex");
+  assert.match(r.source, /Ferminux DEX WFMX\/AZNT pool on chain 3961/);
+  assert.equal(r.chain, "ferminux");
+  assert.equal(r.chainId, 3961);
+  assert.equal(r.pair, DEX_AZNT_PAIR);
+  assert.equal(r.token, "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae", "WFMX on chain 3961, not the bridge's wFMX on BNB Chain");
+  assert.equal(r.quoteSymbol, "AZNT");
+  assert.equal(r.quoteToken, AZNT);
+  assert.equal(r.quoteReserve, "45100.0");
+  assert.equal(r.wfmxReserve, "138767.184453857319492643");
+  assert.equal(r.priceInQuote.slice(0, 6), "0.3250");
+  assert.equal(r.usdPerFmx.slice(0, 6), "0.1911");
+  assert.equal(r.liquidityUsd.slice(0, 8), "53058.82");
+  assert.equal(r.lastTradeAt, 1_787_791_430);
+  assert.equal(r.at, Math.floor(1_758_400_000_000 / 1000));
+  assert.equal(r.swapUrl, `https://dex.ferminux.net/?inputCurrency=${AZNT}&outputCurrency=FMX`);
+  assert.equal(r.poolUrl, `https://explorer.ferminux.net/address/${DEX_AZNT_PAIR}`);
+  assert.equal(r.dexUrl, "https://dex.ferminux.net");
+  assert.equal(r.pools.length, 1);
+  assert.equal(r.quoteUsdPerFmx, "0.52");
+  assert.ok(r.quoteVsMarketPct > 170 && r.quoteVsMarketPct < 173, `the quote sits ~172 % above the DEX price (${r.quoteVsMarketPct})`);
+  assert.match(r.note, /1 AZNT = 1 AZN; 1 USD = 1\.70 AZN/);
+  // secondary: the BNB Chain pool, with the bridge state — unreadable report counts as paused
+  assert.equal(r.secondary.venue, "pancakeswap");
+  assert.equal(r.secondary.pair, "0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0");
+  assert.equal(r.secondary.usdPerFmx.slice(0, 6), "0.4144");
+  assert.equal(r.secondary.liquidityUsd, "102.4");
+  assert.equal(r.secondary.bridgePaused, true);
+  assert.match(r.secondary.bridgeReason, /could not be read/);
+  assert.equal((await inject("GET", "/api/payin/assets")).json().priceUsdPerFmx, "0.52", "the asset list is unchanged");
+
+  // a deeper USDF pool takes over as the reference; the bridge report says every chain is signing
+  now += 61_000;
+  feed.dexPools = [LIVE_AZNT_POOL, { pair: "0x" + "33".repeat(20), quoteToken: USDF, reserveW: 400_000n * E18, reserveQ: 200_000_000_000n, lastTradeAt: 5 }];
+  feed.bridgeReport = { generatedAt: now - 5_000, chains: [{ name: "ferminux", finality: { signing: { paused: false } } }, { name: "bsc", finality: { signing: { paused: false } } }] };
+  r = (await inject("GET", "/api/payin/market")).json();
+  assert.equal(r.quoteSymbol, "USDF");
+  assert.equal(r.usdPerFmx, "0.5");
+  assert.equal(r.quoteVsMarketPct, 4);
+  assert.deepEqual(r.pools.map((p) => p.quoteSymbol), ["USDF", "AZNT"], "deepest first");
+  assert.equal(r.secondary.bridgePaused, false);
+  assert.equal(r.secondary.bridgeReason, null);
+
+  // PancakeSwap down: the primary still answers, the secondary is simply absent
+  now += 61_000;
+  feed.pancakeFail = true;
+  r = (await inject("GET", "/api/payin/market")).json();
+  assert.equal(r.venue, "ferminux-dex");
+  assert.equal(r.secondary, null);
+});
+
+test("market price: PancakeSwap stands in, labelled, only when chain 3961 cannot be read; both down is a 503 that never blocks a quote", async (t) => {
+  let now = 1_758_400_000_000;
+  const feed = new MarketFeed(() => now);
+  feed.dexFail = true;
+  const { app, inject } = await setup(feed);
+  t.after(() => app.close());
+  const r = (await inject("GET", "/api/payin/market")).json();
+  assert.equal(r.venue, "pancakeswap");
+  assert.match(r.source, /PancakeSwap v2 wFMX\/WBNB pool on BNB Chain/);
+  assert.equal(r.chain, "bsc");
+  assert.equal(r.pair, "0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0");
+  assert.equal(r.usdPerFmx.slice(0, 6), "0.4144");
+  assert.equal(r.liquidityUsd, "102.4");
+  assert.equal(r.lastTradeAt, 1_758_390_000);
+  assert.equal(r.quoteVsMarketPct, 25.48, "the quote is 25.48 % above the pool's spot price");
+  assert.equal(r.bridgePaused, true);
+  assert.match(r.primaryError, /Ferminux DEX unreadable: rpc\.ferminux\.net down/);
+  assert.equal(r.secondary, null);
+
+  now += 61_000;
+  feed.pancakeFail = true;
+  const down = await inject("GET", "/api/payin/market");
+  assert.equal(down.statusCode, 503);
+  assert.match(down.json().error, /rpc\.ferminux\.net down/);
+  assert.match(down.json().error, /bsc rpc down/);
+  assert.equal((await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "USDC", amount: "5", to: alice.address })).statusCode, 201, "a market read failure never blocks a fixed-price quote");
+});
+
+test("unfixed pay-in price follows the Ferminux DEX (floored), and PancakeSwap only when chain 3961 is unreadable", async () => {
+  const now = 1_758_400_000_000;
+  class Unfixed extends PriceFeed {
+    constructor(floor) { super("http://127.0.0.1:1", { now: () => now, minPriceUsd: floor, ferminuxRpcUrl: "http://127.0.0.1:1" }); this.dexFail = false; }
+    async fetchCoingecko() { return { binancecoin: { usd: 800 } }; }
+    async readDexPools() { if (this.dexFail) throw new Error("down"); return [LIVE_AZNT_POOL]; }
+    async readPoolReserves() { return { reserveW: (12355n * E18) / 100n, reserveQ: (64n * E18) / 1000n, quoteDecimals: 18, quoteSymbol: "WBNB", lastTradeAt: 1 }; }
+    async fetchBridgeStatus() { throw new Error("offline"); }
+  }
+  const dexPrice = priceDexPool(LIVE_AZNT_POOL, 0).priceE18;
+  assert.equal((await new Unfixed(undefined).price()).priceE18, dexPrice);
+  assert.equal((await new Unfixed("0.25").price()).priceE18, E18 / 4n, "PAYIN_MIN_PRICE_USD floors it");
+  const fallback = new Unfixed(undefined);
+  fallback.dexFail = true;
+  assert.equal(formatUnits((await fallback.price()).priceE18, 18).slice(0, 6), "0.4144");
+});
+
+test("market reads: concurrent callers on a cold cache share one read; a failed read is remembered for 15 s", async () => {
+  let now = 1_758_400_000_000;
+  const feed = new MarketFeed(() => now);
+  await Promise.all([feed.dexMarket(), feed.dexMarket(), feed.dexMarket(), feed.pancakeMarket(), feed.pancakeMarket()]);
+  assert.equal(feed.dexReads, 1, "one DEX read for three callers");
+  assert.equal(feed.poolReads, 1, "one PancakeSwap read for two callers");
+
+  now += 61_000;
+  feed.dexFail = true;
+  feed.pancakeFail = true;
+  await assert.rejects(feed.dexMarket(), /rpc\.ferminux\.net down/);
+  await assert.rejects(feed.pancakeMarket(), /bsc rpc down/);
+  for (let i = 0; i < 5; i++) {
+    await assert.rejects(feed.dexMarket(), /rpc\.ferminux\.net down/);
+    await assert.rejects(feed.pancakeMarket(), /bsc rpc down/);
+  }
+  assert.equal(feed.dexReads, 2, "an outage costs one read per 15 s, not one per request");
+  assert.equal(feed.poolReads, 2);
+
+  feed.dexFail = false;
+  feed.pancakeFail = false;
+  now += 15_001;
+  assert.equal((await feed.dexMarket()).pools.length, 1, "read again once the failure is 15 s old");
+  assert.equal((await feed.pancakeMarket()).lastTradeAt, 1_758_390_000);
+  assert.equal(feed.dexReads, 3);
 });

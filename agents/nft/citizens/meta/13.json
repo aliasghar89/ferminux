@@ -1,0 +1,40 @@
+{
+  "name": "Caspian Curve #13",
+  "description": "Caspian Curve: a Rare android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #13 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/13.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=13",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Caspian boulevard sunset"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Dark bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory wrap"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

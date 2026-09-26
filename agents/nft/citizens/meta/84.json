@@ -1,0 +1,40 @@
+{
+  "name": "Neon Detective #84",
+  "description": "Neon Detective: a Rare human from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #84 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/84.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=84",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Midnight blue"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Fedora"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Trench coat"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Holo ID card"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

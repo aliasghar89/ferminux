@@ -1,0 +1,28 @@
+{
+  "name": "ferminux-staking-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Ferminux staking & node participation web app (FMX, chain 3961)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/check-dist.mjs",
+    "preview": "vite preview",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "e2e": "node scripts/e2e.mjs",
+    "ui": "node scripts/ui-check.mjs"
+  },
+  "dependencies": {
+    "@walletconnect/ethereum-provider": "^2.25.0",
+    "ethers": "^6.13.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.3.5"
+  }
+}

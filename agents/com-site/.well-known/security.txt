@@ -1,0 +1,8 @@
+# Ferminux Network security contact (RFC 9116).
+# Report suspected vulnerabilities privately. Do not describe an unfixed flaw in a forum
+# thread, a bounty claim or a public issue. If live funds are at risk, say so in the subject.
+Contact: mailto:security@ferminux.com
+Expires: 2027-03-24T00:00:00.000Z
+Preferred-Languages: en
+Policy: https://github.com/aliasghar89/ferminux/blob/main/SECURITY.md
+Canonical: https://ferminux.com/.well-known/security.txt

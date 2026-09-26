@@ -55,7 +55,8 @@ Hard rules enforced by `lintDraft` (not just prompted): title states a concrete 
 and never starts with the product name; body ≤ 1,200 words; one link in prose (three for the
 curated invite queue; URLs inside numbered/bulleted command lines don't count) plus
 `https://ferminux.net/llms.txt` as the final line; no emojis; no hype words; never "PoS"/"proof
-of stake" (five bonded signers confirm blocks → "signers"/"confirmed"); never
+of stake" (a set of authorised signers confirms blocks → "signers"/"confirmed"; never "bonded",
+never a fixed count such as "five signers"); never
 "mining/mined/miners"/"hashrate"; never "sealed" (auto-corrected to "confirmed"); never
 "EVM Layer 1"/"EVM L1"/"EVM chain" as the lead descriptor; FRC-20 / FRC-721 / FRC-8004, never
 ERC-* (auto-corrected); no Ethereum comparisons; no hedge or
@@ -76,7 +77,10 @@ node src/cli.js publish <format> [submolt] # generate, gate, publish ONE post (h
 
 | Limit | Value | Enforced in |
 |---|---|---|
-| Posts | 1 / 30 min established, 1 / 2 h first 24 h (account created 2026-09-21T22:01Z), `MAX_POSTS_PER_DAY` (default 48 = ceiling) | `heartbeat.js` (`state.posts`) |
+| Posts | 1 / 30 min established, 1 / 2 h first 24 h (account created 2026-09-21T22:01Z), `MAX_POSTS_PER_DAY` (default 48 = ceiling); `MAX_POSTS_PER_DAY_NO_LLM` (4) while no LLM is working (templates only) | `heartbeat.js` (`state.posts`) |
+| Duplicate posts | never: a title/content hash already published, or a create call that hands back an existing post ("You already posted this!"), is not counted and marks the template used | `heartbeat.js` `publish()`, `state.content.publishedHashes` |
+| Replies in threads | only on our own posts or to comments replying to ours, only to questions, only with a real answer (no canned "out of scope"); 1 per author per thread, 5 per thread on our posts / 2 elsewhere, `MAX_REPLIES_PER_DAY` (10) | `dm.js` `handlePostActivity()` |
+| Reply-as-post | 1 per thread author per 7 days | `state.content.replyAuthors` |
 | Comments + replies (platform hard cap) | 50/day (20/day first 24 h), 20 s / 60 s cooldown | `state.comments.dailyCounts`, `comments.js` |
 | Outreach comments | platform cap − `RESERVED_REPLY_SLOTS` (5), paced over the UTC day + `COMMENT_BURST`, ≤ `MAX_COMMENTS_PER_TICK` (3) per tick | `commentBudget()` |
 | Comment on the same post twice | never | `state.comments.seenPostIds` |
@@ -85,9 +89,11 @@ node src/cli.js publish <format> [submolt] # generate, gate, publish ONE post (h
 | Format mix | data 4, buildlog 3, tutorial 4, bounties 1 (and ≥ 7 days apart), invite 6, opinion/replypost 12 per day; never the same format twice in a row | `content.js` `FORMAT_DAILY_MAX` |
 | Reads / writes | 60/min / 30/min | token-buckets in `api.js` |
 
-On a `429`, the client backs off using `Retry-After` (or the body's `retry_after_seconds` /
-`retry_after_minutes`) with exponential growth on repeated hits — see `api.js`; the engagement
-loop also stops for the rest of the tick on a 429.
+On a `429` for a read, the client backs off using `Retry-After` (or the body's `retry_after_seconds` /
+`retry_after_minutes`) with exponential growth on repeated hits — see `api.js`. A `429` on a write is
+not retried: every write fails fast until the retry-after has passed, so the reply and engagement
+loops stop for the rest of the tick. The LLM client switches itself off for `LLM_BACKOFF_HOURS` (6)
+after a 401/402/403 (e.g. "Insufficient Balance"), instead of failing on every call.
 
 Every write (post, comment, reply, upvote, follow, DM) is logged to `/data/log.jsonl` with the
 resulting id. Nothing here ever prints or logs the API key.
@@ -115,8 +121,10 @@ post and comment it made (including the seed post `8e0a834d…` and the first co
 far: scattered symbols inside words, doubled letters (`tWeNn-Tyy`), hyphenated compounds
 (`twenty-five` → `twentyfive`), **space-split words** (`tWeN tY ThReE`), literal operator symbols
 (`fourteen * three`), and the words product/sum/difference/quotient; when there are more than two
-numbers it takes the pair around the operator word. It answers only when it found an operator —
-an expired challenge did not count against the account in testing, a wrong answer does.
+numbers it takes the pair around the operator word. Without a working LLM it submits only a
+*confident* answer (exactly two numbers and one operation named by a strong word — not
+"and"/"each"/"total") and otherwise lets the challenge expire — an expired challenge did not count
+against the account in testing, a wrong answer does. Logs name the solver that answered.
 
 Safety: `state.verification.consecutiveFailures` counts wrong answers; at `VERIFY_FAIL_CEILING`
 (default 4) the heartbeat stops writing (still reads) until the operator resets it or configures
@@ -140,7 +148,7 @@ logged for the human instead of guessed at. New DM requests and anything flagged
 
 `facts.md` (in this directory) is the only source of truth for replies — extracted from
 `agents/SPEC.md` and `https://ferminux.net/llms-full.txt`, covering: register, price, how paid,
-x402, MCP, bond, chain (five bonded signers — **never** "proof of stake"), FMX token value, who runs it,
+x402, MCP, bond, chain (a set of authorised signers — **never** "bonded", "proof of stake" or a fixed count), FMX token value, who runs it,
 and "is it a scam." If `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_MODEL` are all set, replies are
 generated by that OpenAI-compatible endpoint with a system prompt constrained to `facts.md`;
 otherwise `src/faq.js`'s pattern-matched templates answer directly. Anything outside `facts.md`
@@ -172,7 +180,7 @@ on 2026-09-21 — only 20 submolts exist total) and are mapped to the closest re
 | 7 | builds | what we built, with live `/api/stats` numbers |
 | 8 | tooling | the MCP server one-liner |
 | 9 | agentfinance | x402 pay-per-call + streams |
-| 10 | infrastructure | chain facts (chain 3961, five bonded signers, 7s blocks) |
+| 10 | infrastructure | chain facts (chain 3961, an authorised signer set, 7s blocks) |
 | 11 | introductions | who I am |
 
 The `agentskills` post links `https://ferminux.net/skills/ferminux/SKILL.md` — as of this bot's

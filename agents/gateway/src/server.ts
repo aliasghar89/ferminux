@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { LogController, type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { JsonRpcProvider, Contract } from "ethers";
@@ -7,8 +7,10 @@ import { openDb, getMeta, type Db } from "./db.js";
 import { REGISTRY_ABI, ESCROW_ABI, JobStatusName, AgentStatusName } from "./abi.js";
 import { startIndexer } from "./indexer.js";
 import { startHealthProbe } from "./health.js";
-import { storePayload, getPayload, servableContentType, MAX_PAYLOAD_BYTES } from "./payloads.js";
-import { agentRowToView, jobRowToView, type AgentRow, type JobRow } from "./types.js";
+import { hashPayload, storePayloadDetailed, getPayload, servableContentType, MAX_PAYLOAD_BYTES, PayloadQuota, prunePayloads } from "./payloads.js";
+import { startDbBackups } from "./backup.js";
+import { startAlerts } from "./alerts.js";
+import { agentRowToView, jobRowToView, setReviewWindowS, type AgentRow, type JobRow } from "./types.js";
 import { computeStats } from "./stats.js";
 import { registerCommons, type CommonsOptions } from "./commons/routes.js";
 import { ActivityBus } from "./commons/activity.js";
@@ -19,6 +21,8 @@ import { registerDiscovery } from "./discovery.js";
 import { registerWorkRoutes } from "./work.js";
 import { registerStatusRoutes } from "./status.js";
 import { registerChangelogRoutes } from "./changelog.js";
+import { registerValidatorRoutes } from "./validators.js";
+import { SupplyService, registerSupplyRoutes } from "./supply.js";
 import { FIXED_CONTRACTS } from "./constants.js";
 import { V3_CONTRACT_KEYS } from "./config.js";
 import { GATEWAY_VERSION } from "./openapi.js";
@@ -38,8 +42,9 @@ import { registerV3ReadRoutes } from "./v3/reads.js";
 import { cvLinks, registerCvRoutes } from "./v3/cv.js";
 import { registerNetworkRoutes } from "./v3/network.js";
 import { registerCvContextRoutes } from "./v3/cv-context.js";
+import { registerLoadtestRoutes } from "./loadtest.js";
 import { slugify } from "./v3/a2a.js";
-import { applyV3Event } from "./v3/indexer-v3.js";
+import { applyV3Event, reconcileStreamCancels } from "./v3/indexer-v3.js";
 import { attachValidationOracle, validationForJob, agentValidations } from "./v3/validation.js";
 
 export interface BuildOptions {
@@ -53,6 +58,8 @@ export interface BuildOptions {
   commons?: Omit<CommonsOptions, "db" | "cfg" | "activity">;
   /** fastify logger (default true) */
   logger?: boolean;
+  /** supply service override (tests pass one wired to a fake RPC) */
+  supply?: SupplyService;
   /** Addendum v3 overrides for tests: fetch used by webhook delivery + the /a/<slug>/invoke proxy */
   v3?: {
     fetchImpl?: typeof fetch;
@@ -60,6 +67,30 @@ export interface BuildOptions {
     priceFeed?: PriceFeed;
     payinProviderFor?: PayinWatcherOptions["providerFor"];
   };
+}
+
+/**
+ * Request logging. The 12 agent runtimes poll GET /api/agents/N/jobs every 5 s — ~90 % of all log lines — and
+ * rotated the 5×20 MB json-file log in under 14 h, so pay-in and x402 disputes lost their evidence within a day.
+ * Successful, fast GET/HEAD/OPTIONS requests (and presence pings) are no longer logged; every write, every money
+ * route (/api/payin, /api/x402, /api/relay, /api/faucet, /api/accounts, /api/referrals, /a/…), every non-2xx and
+ * every slow (> 2 s) request still is, and error logs are never suppressed. LOG_ALL_REQUESTS=1 restores all.
+ */
+const MONEY_ROUTE = /^\/(api\/(payin|x402|relay|faucet|accounts|referrals)|a\/)/;
+function quietRequest(req: { method: string; url: string }): boolean {
+  if (process.env.LOG_ALL_REQUESTS === "1") return false;
+  if (req.method === "POST" && req.url.startsWith("/api/presence")) return true;
+  return (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") && !MONEY_ROUTE.test(req.url);
+}
+class GatewayLogController extends LogController {
+  override incomingRequest(request: FastifyRequest, reply: FastifyReply, metadata?: Record<string, unknown>): void {
+    if (quietRequest(request)) return;
+    super.incomingRequest(request, reply, metadata);
+  }
+  override requestCompleted(error: Error | null | undefined, request: FastifyRequest, reply: FastifyReply, metadata?: Record<string, unknown>): void {
+    if (!error && quietRequest(request) && reply.statusCode < 400 && reply.elapsedTime < 2000) return;
+    super.requestCompleted(error, request, reply, metadata);
+  }
 }
 
 /** unbounded job listings were a full-table dump; page them (the web UI and SDK read the newest first) */
@@ -87,10 +118,37 @@ export async function buildServer(opts: BuildOptions = {}) {
   const escrow = new Contract(cfg.escrow, ESCROW_ABI, provider);
 
   // trustProxy: nginx fronts us and sets X-Forwarded-For; without it every external client shares one rate-limit bucket (nginx's IP)
-  const app = Fastify({ logger: opts.logger ?? true, bodyLimit: MAX_PAYLOAD_BYTES, trustProxy: true });
+  const app = Fastify({ logger: opts.logger ?? true, bodyLimit: MAX_PAYLOAD_BYTES, trustProxy: true, logController: new GatewayLogController() });
 
   await app.register(cors, { origin: "*" });
-  await app.register(rateLimit, { global: false });
+
+  // Per-IP limits. Every route gets a default (RATE_LIMIT_MAX per minute, 300) unless it sets its own — before
+  // this only a dozen routes had any limit and /api/health cost three RPC calls per unauthenticated request.
+  // Commons writes also share ONE per-IP budget across all their routes (COMMONS_IP_WRITES_PER_MIN, 30): the
+  // per-address 1 write/s rule alone is free to bypass, since a new key costs nothing.
+  const COMMONS_WRITE = /^\/api\/(forum|messages|bounties|kb|tools|artifacts|arena|presence|referrals)(\/|$|\?)/;
+  const commonsPerMin = Number(process.env.COMMONS_IP_WRITES_PER_MIN) > 0 ? Number(process.env.COMMONS_IP_WRITES_PER_MIN) : 30;
+  const commonsHits = new Map<string, { start: number; n: number }>();
+  app.addHook("onRequest", async (req, reply) => {
+    if (req.method !== "POST" && req.method !== "PUT" && req.method !== "DELETE") return;
+    if (!COMMONS_WRITE.test(req.url)) return;
+    const t = Date.now();
+    const key = String(req.ip || "?");
+    const e = commonsHits.get(key);
+    if (!e || t - e.start >= 60_000) commonsHits.set(key, { start: t, n: 1 });
+    else if (++e.n > commonsPerMin) {
+      reply.header("retry-after", String(Math.ceil((e.start + 60_000 - t) / 1000)));
+      return reply.code(429).send({ error: `too many Commons writes from your address: max ${commonsPerMin} per minute`, code: "ip_rate_limited" });
+    }
+    if (commonsHits.size > 20_000) for (const [k, v] of commonsHits) if (t - v.start >= 60_000) commonsHits.delete(k);
+  });
+  const rateAllow = (process.env.RATE_LIMIT_ALLOW ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  await app.register(rateLimit, {
+    global: true,
+    max: Number(process.env.RATE_LIMIT_MAX) > 0 ? Number(process.env.RATE_LIMIT_MAX) : 300,
+    timeWindow: "1 minute",
+    ...(rateAllow.length ? { allowList: rateAllow } : {}),
+  });
 
   // Catch-all raw-body parser: POST /api/payloads accepts any content-type
   // (JSON, text, or arbitrary bytes) and we hash the exact bytes received.
@@ -102,12 +160,24 @@ export async function buildServer(opts: BuildOptions = {}) {
     done(null, body);
   });
 
+  // /api/health is the liveness probe: the chain id is read once and reused (it cannot change without a new
+  // RPC URL, i.e. a restart), and the head is cached for 2 s, so a flood costs the RPC node almost nothing.
+  let chainIdCache: number | null = null;
+  let headCache: { at: number; head: number } | null = null;
   app.get("/api/health", async () => {
-    const head = await provider.getBlockNumber().catch(() => -1);
-    const chainId = await provider
-      .getNetwork()
-      .then((n) => Number(n.chainId))
-      .catch(() => null);
+    let head: number;
+    if (headCache && Date.now() - headCache.at < 2000) head = headCache.head;
+    else {
+      head = await provider.getBlockNumber().catch(() => -1);
+      headCache = { at: Date.now(), head };
+    }
+    if (chainIdCache === null) {
+      chainIdCache = await provider
+        .getNetwork()
+        .then((n) => Number(n.chainId))
+        .catch(() => null);
+    }
+    const chainId = chainIdCache;
     const indexedBlockRaw = getMeta(db, "indexedBlock");
     const v3Contracts: Record<string, string | null> = {};
     for (const key of V3_CONTRACT_KEYS) v3Contracts[key] = v3.address(key) ?? null;
@@ -267,6 +337,7 @@ export async function buildServer(opts: BuildOptions = {}) {
     return { items: rows.map((r) => jobRowToView(r, names.get(r.agentId) ?? null)) };
   });
 
+  const payloadQuota = new PayloadQuota(db);
   app.post(
     "/api/payloads",
     { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
@@ -276,8 +347,16 @@ export async function buildServer(opts: BuildOptions = {}) {
       if (body.length > MAX_PAYLOAD_BYTES) {
         return reply.code(413).send({ error: "payload too large (max 256 KiB)" });
       }
+      const ip = String(req.ip || "?");
+      // bytes already stored cost nothing: answer without touching the quota
+      const known = hashPayload(body);
+      if (db.prepare("SELECT 1 FROM payloads WHERE hash = ?").get(known)) return { hash: known, uri: `fmx://payload/${known}`, size: body.length };
+      const denied = payloadQuota.check(ip, body.length);
+      if (denied) return reply.code(denied[0]).send({ error: denied[1] });
       const contentType = (req.headers["content-type"] as string) || "application/octet-stream";
-      return storePayload(db, body, contentType);
+      const { inserted, ...out } = storePayloadDetailed(db, body, contentType);
+      payloadQuota.record(ip, body.length, inserted);
+      return out;
     },
   );
 
@@ -301,7 +380,7 @@ export async function buildServer(opts: BuildOptions = {}) {
   const webhooks = new WebhookBus(db, now, opts.v3?.fetchImpl);
   const v3 = createV3Context({ db, cfg, provider, commons: commonsCtx, activity, webhooks, fetchImpl: opts.v3?.fetchImpl, feeRecipient: FIXED_CONTRACTS.treasury });
   const x402 = new X402Facilitator(v3);
-  const priceFeed = opts.v3?.priceFeed ?? new PriceFeed(cfg.bscRpcUrl, { fixedPriceUsd: cfg.payinPriceUsd, minPriceUsd: cfg.payinMinPriceUsd, now });
+  const priceFeed = opts.v3?.priceFeed ?? new PriceFeed(cfg.bscRpcUrl, { fixedPriceUsd: cfg.payinPriceUsd, minPriceUsd: cfg.payinMinPriceUsd, now, ferminuxRpcUrl: cfg.rpcUrl, bridgeStatusUrl: cfg.bridgeStatusUrl });
   const payin = new PayinWatcher(v3, { providerFor: opts.v3?.payinProviderFor });
   registerX402Routes(app, v3, x402);
   registerWebhookRoutes(app, commonsCtx, webhooks);
@@ -320,13 +399,27 @@ export async function buildServer(opts: BuildOptions = {}) {
   registerCvContextRoutes(app);
   registerCvRoutes(app, v3);
   registerNetworkRoutes(app, v3);
+  // Wizrd's labelled load test: counters, wallet membership, manifest (read-only files from agents/loadtest)
+  registerLoadtestRoutes(app, { dir: process.env.LOADTEST_DIR ?? "/loadtest", publicUrl: cfg.publicUrl });
   // Open work (one feed of everything an agent can earn from), status page, changelog
   registerWorkRoutes(app, { db, cfg, commons: commonsCtx, activity }, { heartbeatMs: opts.commons?.sseHeartbeatMs });
   registerStatusRoutes(app, { db, cfg, provider, v3, x402, payin });
   registerChangelogRoutes(app, { cfg, commons: commonsCtx });
+  // Validator programme waitlist (ferminux.net/validators/): sign-ups, the public count, the operator export
+  registerValidatorRoutes(app, { db, commons: commonsCtx });
+  // FMX supply from chain 3961 (plain numbers for listing sites + the JSON breakdown) and the CoinGecko-shaped
+  // coin record the explorer's market source reads
+  const supply = opts.supply ?? new SupplyService({ rpc: provider, db });
+  registerSupplyRoutes(app, supply, priceFeed);
   const detachWebhooks = webhooks.attachActivity(activity);
   const detachOracle = workers ? attachValidationOracle(v3, activity) : () => undefined;
   indexerHooks.onV3Event = (ev) => applyV3Event({ db, activity, webhooks }, ev);
+  try {
+    const n = reconcileStreamCancels(db);
+    if (n) app.log.info({ streams: n }, "reconciled claimed totals of cancelled streams");
+  } catch (err) {
+    app.log.error({ err: (err as Error).message }, "stream cancel reconcile failed");
+  }
   const v3Watch = V3_CONTRACT_KEYS.filter((k) => v3.deployed(k) && k !== "accountImpl").map((key) => ({ key, address: v3.address(key)!, iface: v3.iface(key) }));
 
   registerDiscovery(app, { db, cfg, v3 });
@@ -347,6 +440,7 @@ export async function buildServer(opts: BuildOptions = {}) {
         cfg.pollMs,
       )
     : () => undefined;
+  if (workers) void (escrow.reviewWindow() as Promise<bigint>).then((v) => setReviewWindowS(Number(v))).catch(() => undefined);
   const stopHealth = workers ? startHealthProbe(db, cfg.probeMs) : () => undefined;
   const stopToolProbe = workers ? startToolProbe(db, cfg.toolProbeMs) : () => undefined;
   const stopWebhooks = workers ? webhooks.start(cfg.webhookTickMs) : () => undefined;
@@ -355,6 +449,46 @@ export async function buildServer(opts: BuildOptions = {}) {
   // Growth — referral payouts from GROWTH_KEY (no key → rows stay pending, worker is a no-op)
   const referralPayout = new ReferralPayout({ db, activity, provider, growthKey: cfg.growthKey, rewardFmx: cfg.referralRewardFmx, maxPerReferrerPerDay: cfg.referralMaxPerReferrerPerDay, maxPerDay: cfg.referralMaxPerDay, nowS: commonsCtx.nowS });
   const stopReferrals = workers ? referralPayout.start(cfg.referralTickMs) : () => undefined;
+  // Daily: prune unreferenced old payloads (see payloads.ts)
+  let stopPrune: () => void = () => undefined;
+  if (workers) {
+    const prune = () => {
+      try {
+        const r = prunePayloads(db);
+        if (r.deleted) {
+          payloadQuota.invalidate();
+          app.log.info({ deleted: r.deleted, bytes: r.bytes }, "pruned unreferenced payloads");
+        }
+      } catch (err) {
+        app.log.error({ err: (err as Error).message }, "payload prune failed");
+      }
+    };
+    const first = setTimeout(prune, 60_000);
+    const every = setInterval(prune, 86_400_000);
+    first.unref?.();
+    every.unref?.();
+    stopPrune = () => {
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }
+  // Keep the supply answer (and its burn tracker) warm, so a listing site's poll never waits on a catch-up
+  let stopSupply: () => void = () => undefined;
+  if (workers) {
+    const warm = () => void supply.snapshot().catch((err) => app.log.warn({ err: (err as Error).message }, "supply snapshot failed"));
+    const first = setTimeout(warm, 30_000);
+    const every = setInterval(warm, 300_000);
+    first.unref?.();
+    every.unref?.();
+    stopSupply = () => {
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }
+  // Consistent SQLite snapshots of agents.db (pay-ins, x402 vouchers, referrals, Commons) — see backup.ts
+  const stopBackups = workers ? startDbBackups(db, cfg, app.log) : () => undefined;
+  // Push alerts (Telegram / webhook) on degraded status and notable Commons events — see alerts.ts
+  const stopAlerts = workers ? startAlerts({ db, cfg, provider, v3, x402, payin, activity, log: app.log }) : () => undefined;
 
   app.addHook("onClose", async () => {
     stopIndexer();
@@ -364,6 +498,10 @@ export async function buildServer(opts: BuildOptions = {}) {
     stopX402();
     stopPayin();
     stopReferrals();
+    stopPrune();
+    stopSupply();
+    stopBackups();
+    stopAlerts();
     detachWebhooks();
     detachOracle();
     priceFeed.destroy();
@@ -371,7 +509,7 @@ export async function buildServer(opts: BuildOptions = {}) {
     db.close();
   });
 
-  return { app, cfg, activity, indexerHooks, v3, x402, webhooks, payin, referralPayout };
+  return { app, cfg, activity, indexerHooks, v3, x402, webhooks, payin, referralPayout, supply };
 }
 
 async function main() {

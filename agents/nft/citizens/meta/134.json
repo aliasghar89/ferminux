@@ -1,0 +1,40 @@
+{
+  "name": "Sun Sovereign #134",
+  "description": "Sun Sovereign: a Legendary cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #134 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/134.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=134",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Vanguard"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Cyborg"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Dark throne hall"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Golden sun halo"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black and gold regalia"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Throne"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

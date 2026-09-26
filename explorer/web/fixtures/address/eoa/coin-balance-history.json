@@ -1,0 +1,201 @@
+{
+    "items": [
+        {
+            "block_number": 368536,
+            "block_timestamp": "2026-09-22T10:44:16Z",
+            "delta": "-1000027960000195720",
+            "transaction_hash": "0x754e6355a79ecaa3ddd97120d2779b05ba2214dc165bfda567b0a37a8b9545c6",
+            "value": "114895613017027462559404"
+        },
+        {
+            "block_number": 362872,
+            "block_timestamp": "2026-09-21T22:11:53Z",
+            "delta": "-4999000101419000709933",
+            "transaction_hash": "0xd9dec4be0ff7048a9a696cac9ba24d9ac91250e8a3dff749a79b0069c7c78071",
+            "value": "114896613044987462755124"
+        },
+        {
+            "block_number": 362869,
+            "block_timestamp": "2026-09-21T22:11:29Z",
+            "delta": "-76240000533680",
+            "transaction_hash": "0xc5b1d133fa3ab86197967e8d7b4c15a91197ca777b285256991915d52be15596",
+            "value": "119895613146406463465057"
+        },
+        {
+            "block_number": 362859,
+            "block_timestamp": "2026-09-21T22:10:10Z",
+            "delta": "-1000099901000699307",
+            "transaction_hash": "0x91dfcad6b40b245c6741c40a65873072446a4e11c6073c648b718ae7466ec905",
+            "value": "119895613222646463998737"
+        },
+        {
+            "block_number": 361974,
+            "block_timestamp": "2026-09-21T20:12:36Z",
+            "delta": "-100265173001856211",
+            "transaction_hash": "0x40d199e9c8818ce4dbae1d73078823b4892e964714951d587b049a54ac421ea5",
+            "value": "119896613322547464698044"
+        },
+        {
+            "block_number": 361966,
+            "block_timestamp": "2026-09-21T20:11:32Z",
+            "delta": "-5000045060000315420",
+            "transaction_hash": "0x392c969aa51eaa982ded16cf5fa2d0fce29ba75874395f48edfd334cd5d043f2",
+            "value": "119896713587720466554255"
+        },
+        {
+            "block_number": 351008,
+            "block_timestamp": "2026-09-20T19:55:56Z",
+            "delta": "-107025000749175",
+            "transaction_hash": "0xcb762952d6784f46c6309366f9713ea025bd8c995cb12150f12e5e6231ae0787",
+            "value": "119901713632780466869675"
+        },
+        {
+            "block_number": 351004,
+            "block_timestamp": "2026-09-20T19:55:25Z",
+            "delta": "-100265173001856211",
+            "transaction_hash": "0x1bc32cbdb289128c00ea35fe28fec8b0be81e9f99de5166d4cb00c6511e1686c",
+            "value": "119901713739805467618850"
+        },
+        {
+            "block_number": 83022,
+            "block_timestamp": "2026-08-27T02:38:14Z",
+            "delta": "-50796900369432",
+            "transaction_hash": "0x1c13c952b137fdb08d79395fb95195b09d2bd301075aa867467a5d6f5f32bd67",
+            "value": "119901814004978469475061"
+        },
+        {
+            "block_number": 83014,
+            "block_timestamp": "2026-08-27T02:37:10Z",
+            "delta": "-5000000032661200237536",
+            "transaction_hash": "0x0e25c48dd1755fe415834c285b66c476aad1d9b2c1ac5f078f114b5114327362",
+            "value": "119901814055775369844493"
+        },
+        {
+            "block_number": 82729,
+            "block_timestamp": "2026-08-27T01:59:18Z",
+            "delta": "-100000051471200374336",
+            "transaction_hash": "0x039c0e532e21be247390cd0074115c1d637fa238b59cbceccf9c6e64042ea638",
+            "value": "124901814088436570082029"
+        },
+        {
+            "block_number": 82711,
+            "block_timestamp": "2026-08-27T01:56:55Z",
+            "delta": "42500680354695611917",
+            "transaction_hash": "0x4b901e895aa9073bd6d1a1e5fdc643f41485786d6790e6e15b4183a40e2f200f",
+            "value": "125001814139907770456365"
+        },
+        {
+            "block_number": 21023,
+            "block_timestamp": "2026-08-21T09:22:38Z",
+            "delta": "15349199157796810242",
+            "transaction_hash": "0x4a426446e2d76494679c9e2227bd3aa343c6d947f40b6b6922a0f73ec89a89cc",
+            "value": "124959313459553074844448"
+        },
+        {
+            "block_number": 20808,
+            "block_timestamp": "2026-08-21T08:54:05Z",
+            "delta": "15352599253999325926",
+            "transaction_hash": "0xf7d61d0a8e47fe4cdd30045c5f676348067eed536302c405e6681ebd520be693",
+            "value": "124943964260395278034206"
+        },
+        {
+            "block_number": 20807,
+            "block_timestamp": "2026-08-21T08:53:57Z",
+            "delta": "15356000480646525406",
+            "transaction_hash": "0xdd8c366df616bf260d81fb16cda4c7f009820d781afb12119c2d7533fca56809",
+            "value": "124928611661141278708280"
+        },
+        {
+            "block_number": 20803,
+            "block_timestamp": "2026-08-21T08:53:25Z",
+            "delta": "15359402838239714811",
+            "transaction_hash": "0xdf0d4a1f197dd1b27210e5f1b2dee5f3bc85df2cbe4d908068d26769b9b2eb86",
+            "value": "124913255660660632182874"
+        },
+        {
+            "block_number": 20801,
+            "block_timestamp": "2026-08-21T08:53:09Z",
+            "delta": "15362819910380614056",
+            "transaction_hash": "0x6d3b43b9fb670a27cd4209bbb8e6dc90b83b0d4fe81121209686416a6f0f1a19",
+            "value": "124897896257822392468063"
+        },
+        {
+            "block_number": 20590,
+            "block_timestamp": "2026-08-21T08:25:07Z",
+            "delta": "-29077000203539",
+            "transaction_hash": "0xc07f166be442f9160c47a6bf5aa14b844298288fbce18a1dd7dccc042448e93a",
+            "value": "124882533437912011854007"
+        },
+        {
+            "block_number": 20585,
+            "block_timestamp": "2026-08-21T08:24:27Z",
+            "delta": "-46165000323155",
+            "transaction_hash": "0x9734b9603d228f9db754165b6d97a7f31e9194251c8ab9be406fd43334cd55f0",
+            "value": "124882533466989012057546"
+        },
+        {
+            "block_number": 20576,
+            "block_timestamp": "2026-08-21T08:23:16Z",
+            "delta": "-23100000168000",
+            "transaction_hash": "0x468acd4b5a29a754afc6945bef897c003a4b2307ae45147aad356ebda6ec9ee8",
+            "value": "124882533513154012380701"
+        },
+        {
+            "block_number": 14120,
+            "block_timestamp": "2026-08-20T18:05:41Z",
+            "delta": "-120000136178000953246",
+            "transaction_hash": "0xa8eb6ee9caac140b05f57a3562c893ce704427ab4637027c9841fc543eb0706b",
+            "value": "124882533536254012548701"
+        },
+        {
+            "block_number": 13848,
+            "block_timestamp": "2026-08-20T17:29:33Z",
+            "delta": "111233533810674014469641",
+            "transaction_hash": "0x15c0c60d42edf9dd32a900569315e5d220860e83aa6dadac801915284327378c",
+            "value": "125002533672432013501947"
+        },
+        {
+            "block_number": 13833,
+            "block_timestamp": "2026-08-20T17:27:34Z",
+            "delta": "-29077000203539",
+            "transaction_hash": "0x74c508a8484212906db495cb3d8a30f1683a83e3e9af0e4c5fc98f632f8d7f85",
+            "value": "13768999861757999032306"
+        },
+        {
+            "block_number": 13796,
+            "block_timestamp": "2026-08-20T17:22:39Z",
+            "delta": "-46165000323155",
+            "transaction_hash": "0xa36011f10f787aa9a2bbfe377126f647b7594ed1c24cd4d53436a7b9980f8491",
+            "value": "13768999890834999235845"
+        },
+        {
+            "block_number": 13361,
+            "block_timestamp": "2026-08-20T16:24:52Z",
+            "delta": "-5677000021000000147000",
+            "transaction_hash": "0xb83deb0834c520678a0bcf749926c8d0e14d1a5a6d48dfb51393c302a2b4bbbe",
+            "value": "13768999936999999559000"
+        },
+        {
+            "block_number": 13356,
+            "block_timestamp": "2026-08-20T16:24:12Z",
+            "delta": "-5555000021000000147000",
+            "transaction_hash": "0x1d633096667874e658c4367a94c8c6d327fb3ecdbf6e99105dfcc61b14927822",
+            "value": "19445999957999999706000"
+        },
+        {
+            "block_number": 13305,
+            "block_timestamp": "2026-08-20T16:17:25Z",
+            "delta": "20000000000000000000000",
+            "transaction_hash": "0x550a33554dfb8902ce4f40688fdffcca7a9646f21db3b9a97e9fdb18a7cc205b",
+            "value": "25000999978999999853000"
+        },
+        {
+            "block_number": 13299,
+            "block_timestamp": "2026-08-20T16:16:38Z",
+            "delta": "5000999978999999853000",
+            "transaction_hash": "0x579c5a49fbfdb072889e79076937667cdda9ba75d3d46283e5828e4634fd8d0d",
+            "value": "5000999978999999853000"
+        }
+    ],
+    "next_page_params": null
+}

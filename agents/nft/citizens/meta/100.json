@@ -1,0 +1,40 @@
+{
+  "name": "Quiet Scholar #100",
+  "description": "Quiet Scholar: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #100 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/100.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=100",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "White"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Gold glasses"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Lab coat"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Open book"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

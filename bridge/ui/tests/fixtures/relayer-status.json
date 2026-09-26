@@ -1,5 +1,5 @@
 {
-  "_comment": "A capture of the relayer's GET /status (RelayerService.status(), served same-origin as status.json — see RELAYER_STATUS_URL). The per-chain `finality` block is EXACTLY FinalityMonitor.status() / unmonitoredFinalityStatus() in bridge/relayer/src/finality.ts; relayer/test/finality.test.mjs asserts this file's key sets against the real emitter so the two sides cannot drift. Every *Ms field is milliseconds; attestedAt, measuredAt, checkedAt, lastRefreshAt and generatedAt are unix ms. The UI reads generatedAt, chains[].chainId, chains[].name, chains[].confirmations and chains[].finality.{mode,pace,checkpoint,signing}; everything else is ignored.",
+  "_comment": "A capture of the relayer's GET /status (RelayerService.status(), served same-origin as status.json — see RELAYER_STATUS_URL). The per-chain `finality` block is EXACTLY FinalityMonitor.status() / unmonitoredFinalityStatus() in bridge/relayer/src/finality.ts; relayer/test/finality.test.mjs asserts this file's key sets against the real emitter so the two sides cannot drift. Every *Ms field is milliseconds; attestedAt, measuredAt, checkedAt, lastRefreshAt and generatedAt are unix ms. The UI reads generatedAt, chains[].chainId, chains[].name, chains[].confirmations, chains[].finality.{mode,pace,checkpoint,signing} and chains[].scan.{lagging,lagBlocks,reason} (scanHealth() in bridge/relayer/src/watcher.ts; its key set is asserted in relayer/test/scan-resilience.test.mjs); everything else is ignored.",
   "role": "validator",
   "network": "ferminux-bridge-mainnet",
   "generatedAt": 1755820800000,
@@ -20,6 +20,7 @@
         { "url": "https://fmx-node-c.example", "host": "fmx-node-c.example", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 }
       ],
       "watcher": { "cursor": 412340, "head": 412345, "lastPollAt": 1755820795000 },
+      "scan": { "head": 412345, "cursor": 412340, "lagBlocks": 5, "lastPollAt": 1755820795000, "lastSuccessAt": 1755820795000, "lagging": false, "reason": null },
       "finality": {
         "mode": "work-and-time",
         "confirmationsFloor": 64,
@@ -70,6 +71,7 @@
         { "url": "https://1rpc.io/bnb", "host": "1rpc.io", "healthy": true, "lastError": null, "lastCheckedAt": 1755820790000 }
       ],
       "watcher": { "cursor": 60000000, "head": 60000010, "lastPollAt": 1755820798000 },
+      "scan": { "head": 60000010, "cursor": 60000000, "lagBlocks": 10, "lastPollAt": 1755820798000, "lastSuccessAt": 1755820798000, "lagging": false, "reason": null },
       "finality": {
         "mode": "count",
         "confirmationsFloor": 20,

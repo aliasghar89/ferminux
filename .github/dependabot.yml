@@ -19,6 +19,11 @@ updates:
       # bump is a deliberate migration, not a dependency update.
       - dependency-name: ethers
         update-types: ["version-update:semver-major"]
+      # @types/node describes the Node that runs the code: the gateway, runtime
+      # and load-test images are node:20. A newer major types APIs production
+      # does not have, so it moves with the Dockerfiles, by hand.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

@@ -1,0 +1,72 @@
+{
+    "priority_fee": "174382000000000",
+    "raw_input": "0x3fa602c3000000000000000000000000000000000000000000000000000000000000000622bd29c6f4e6b41bcee9feabf66d931eb3c5ad1c8a8586bcd670fe7d6424528900000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000050666d783a2f2f7061796c6f61642f30783232626432396336663465366234316263656539666561626636366439333165623363356164316338613835383662636436373066653764363432343532383900000000000000000000000000000000",
+    "result": "success",
+    "hash": "0xd71f38995c4789e1334da92a9b3a20a37c83ed8cbd322acfc608098ead9d76e3",
+    "max_fee_per_gas": "1000000014",
+    "revert_reason": null,
+    "confirmation_duration": [
+        0,
+        7000.0
+    ],
+    "transaction_burnt_fee": "1220674",
+    "type": 2,
+    "token_transfers_overflow": false,
+    "confirmations": 34528,
+    "position": 1,
+    "max_priority_fee_per_gas": "1000000000",
+    "transaction_tag": null,
+    "created_contract": null,
+    "value": "0",
+    "from": {
+        "ens_domain_name": null,
+        "hash": "0xbe81F8213D94A0ed72215027C537D974ccd8CED0",
+        "implementations": [],
+        "is_contract": false,
+        "is_scam": false,
+        "is_verified": false,
+        "metadata": null,
+        "name": null,
+        "private_tags": [],
+        "proxy_type": null,
+        "public_tags": [],
+        "watchlist_names": []
+    },
+    "gas_used": "174382",
+    "status": "ok",
+    "to": {
+        "ens_domain_name": null,
+        "hash": "0x99b331495951dB91857902de91EAe9Ff54d8a719",
+        "implementations": [],
+        "is_contract": true,
+        "is_scam": false,
+        "is_verified": false,
+        "metadata": null,
+        "name": null,
+        "private_tags": [],
+        "proxy_type": "unknown",
+        "public_tags": [],
+        "watchlist_names": []
+    },
+    "authorization_list": [],
+    "method": "0x3fa602c3",
+    "fee": {
+        "type": "actual",
+        "value": "174382001220674"
+    },
+    "actions": [],
+    "gas_limit": "174382",
+    "gas_price": "1000000007",
+    "decoded_input": null,
+    "token_transfers": [],
+    "base_fee_per_gas": "7",
+    "timestamp": "2026-09-21T21:58:49.000000Z",
+    "nonce": 4,
+    "historic_exchange_rate": null,
+    "transaction_types": [
+        "contract_call"
+    ],
+    "exchange_rate": null,
+    "block_number": 361975,
+    "has_error_in_internal_transactions": null
+}

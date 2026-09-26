@@ -1,0 +1,40 @@
+{
+  "name": "Mint Tiger #30",
+  "description": "Mint Tiger: a Common animal from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #30 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/30.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=30",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Mint green"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "None"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Ice-blue eyes"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

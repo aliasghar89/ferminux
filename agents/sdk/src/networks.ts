@@ -11,6 +11,7 @@ import {
   GENERATED_REGISTRY,
   GENERATED_ESCROW,
   GENERATED_NFT,
+  GENERATED_CITIZENS,
   GENERATED_DEPLOY_BLOCK,
   GENERATED_FOUND,
   GENERATED_X402VAULT,
@@ -33,6 +34,8 @@ export interface NetworkConfig {
   registry: string;
   escrow: string;
   nft: string;
+  /** Ferminux Citizens (FMXC), deployments-citizens.3961.json; "" = not deployed. */
+  citizens: string;
   deployBlock: number;
   gateway: string;
   // Addendum v3 — Agent Economy (SPEC.md "## S."). "" = not deployed yet; the
@@ -81,6 +84,7 @@ export const NETWORKS: Record<number, NetworkConfig> = {
     registry: envAddr("FERMINUX_REGISTRY", GENERATED_REGISTRY),
     escrow: envAddr("FERMINUX_ESCROW", GENERATED_ESCROW),
     nft: envAddr("FERMINUX_NFT", GENERATED_NFT),
+    citizens: envAddr("FERMINUX_CITIZENS", GENERATED_CITIZENS),
     deployBlock: GENERATED_DEPLOY_BLOCK,
     gateway: "https://ferminux.net/api",
     x402Vault: envAddr("FERMINUX_X402_VAULT", GENERATED_X402VAULT),

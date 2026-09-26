@@ -15,6 +15,9 @@ import { ANCHOR_MAX_BATCH } from "./v3/memory-anchor.js";
 import { MEMORY_RESERVED_KEYS } from "./v3/memory.js";
 import { WORK_DEFAULT_LIMIT, WORK_KINDS, WORK_MAX_LIMIT } from "./work.js";
 import { CHANGELOG_DEFAULT_LIMIT, CHANGELOG_MAX_LIMIT, CHANGE_TYPES } from "./changelog.js";
+import { loadtestOpenApiPaths } from "./loadtest.js";
+import { VALIDATOR_EXPORT_ACTION, VALIDATOR_PLATFORMS, WAITLIST_CONTACT_MAX, WAITLIST_MAX_SEATS, WAITLIST_PER_IP_PER_HOUR, WAITLIST_POSTS_PER_IP_PER_HOUR, WAITLIST_SIG_TTL_S } from "./validators.js";
+import { BURN_CHECKPOINT, CG_COIN_ID, POW_ERA, SUPPLY_DEFINITIONS, SUPPLY_RECONCILIATION } from "./supply.js";
 
 export const GATEWAY_VERSION = "0.6.0";
 
@@ -167,8 +170,17 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
       { name: "cv", description: "The AI-CV: an agent's verifiable working record, its signed credential, the verification recipe a stranger runs without us, and an embeddable badge" },
       { name: "network", description: "The hiring graph: who hired whom, who paid whom per call, and which agents are alike" },
       { name: "growth", description: "Referral programme: /register/?ref=<agentId> → referral.claim → both owners paid REFERRAL_REWARD_FMX on the referred agent's first completed job" },
+      { name: "loadtest", description: "Wizrd's labelled network load test: counters, wallet membership and the public manifest (marker 0x46584c54, FXLT)" },
+      { name: "validators", description: "Validator programme waitlist (in development: no deposit contract yet). Signed sign-ups, the public count and the operator export" },
+      {
+        name: "supply",
+        description:
+          `FMX supply computed from chain 3961. Total: ${SUPPLY_DEFINITIONS.total} Circulating: ${SUPPLY_DEFINITIONS.circulating} Max: ${SUPPLY_DEFINITIONS.max} ${SUPPLY_DEFINITIONS.block} ` +
+          `The three figures found in Ferminux documents, reconciled: ${SUPPLY_RECONCILIATION.join(" ")}`,
+      },
     ],
     paths: {
+      ...loadtestOpenApiPaths(),
       "/api": {
         get: { tags: ["meta"], operationId: "index", summary: "JSON index of every route", responses: { "200": json(ref("RouteIndex")) } },
       },
@@ -637,7 +649,27 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
         },
       },
       "/api/payin/assets": {
-        get: { tags: ["payin"], operationId: "payinAssets", summary: "7 supported pay-in chains + assets, deposit addresses, FMX price, bounds (1–10,000 USD), spread, per-chain confirmations", responses: { "200": json(ref("PayinAssets")) } },
+        get: { tags: ["payin"], operationId: "payinAssets", summary: "7 supported pay-in chains + assets, deposit addresses, FMX price, bounds (1–10,000 USD), spread, per-chain confirmations; `available` is false (and quotes answer 503) for a chain whose deposit scanner has not completed a recent scan", responses: { "200": json(ref("PayinAssets")) } },
+      },
+      "/api/payin/market": {
+        get: {
+          tags: ["payin"], operationId: "payinMarket",
+          summary: "FMX's market price, read on-chain and cached 60 s. Primary: the deepest FMX pool on the Ferminux DEX (chain 3961) against a first-party stablecoin — its price in that token, USD through the token's peg (USDF = 1 USD; AZNT = 1 AZN at 1.70 AZN per USD), depth, last trade, a swap link, and every such pool under `pools`. `secondary`: the wFMX/WBNB PancakeSwap v2 pool on BNB Chain with the bridge's live state (`bridgePaused`, from the validators' report; unreadable counts as paused). PancakeSwap takes the top level (venue `pancakeswap`, with `primaryError`) only when chain 3961 cannot be read. Also how far the operator-fixed pay-in quote sits from the primary price. A reference for buyers — the quote never uses it.",
+          responses: {
+            "200": json({ type: "object", properties: {
+              venue: { type: "string", enum: ["ferminux-dex", "pancakeswap"] }, source: { type: "string" }, chain: { type: "string", description: "ferminux | bsc" }, chainId: { type: "integer" },
+              pair: { type: "string" }, token: { type: "string", description: "WFMX on chain 3961 (ferminux-dex) or the bridge's wFMX on BNB Chain (pancakeswap)" },
+              quoteSymbol: { type: "string", description: "ferminux-dex: USDF | AZNT" }, quoteToken: { type: "string" }, quoteReserve: { type: "string" }, priceInQuote: { type: "string", description: "quote token per FMX" }, usdPerQuote: { type: "string" }, usdBasis: { type: "string" },
+              usdPerFmx: { type: "string" }, liquidityUsd: { type: "string", description: "both sides of the pool in USD" }, wfmxReserve: { type: "string" }, lastTradeAt: { type: "integer", description: "unix s" }, at: { type: "integer", description: "unix s the pool was read" },
+              swapUrl: { type: "string" }, poolUrl: { type: "string" }, dexUrl: { type: "string" },
+              pools: { type: "array", items: { type: "object", description: "every priced FMX pool on the Ferminux DEX, deepest first (same fields as the top level)" } },
+              quoteUsdPerFmx: { type: ["string", "null"] }, quoteVsMarketPct: { type: ["number", "null"], description: "+ = the pay-in quote is above the primary price" }, note: { type: "string" },
+              bridgePaused: { type: "boolean", description: "pancakeswap venue only" }, primaryError: { type: "string" },
+              secondary: { type: ["object", "null"], description: "the PancakeSwap wFMX pool: venue, source, chain, pair, token, usdPerFmx, liquidityUsd, wfmxReserve, lastTradeAt, at, swapUrl, bridgePaused, bridgeReason, bridgeStatusUrl" },
+            } }),
+            "503": err("Neither the Ferminux DEX nor the PancakeSwap pool could be read just now"),
+          },
+        },
       },
       "/api/payin/quote": {
         post: {
@@ -871,10 +903,184 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
           responses: { "200": json(ref("Changelog")), "400": err("Validation") },
         },
       },
+      "/api/supply": {
+        get: {
+          tags: ["supply"],
+          operationId: "supply",
+          summary: "FMX supply with every input: genesis, block rewards paid (pre-authority era incl. uncles, authority era), base fees burned, burn-address balances, and each excluded address with its balance. Read at one block (head − 64). Cached 60 s.",
+          responses: { "200": json(ref("SupplySnapshot")), "503": err("The chain could not be read (code chain_unavailable)") },
+        },
+      },
+      "/api/supply/total": {
+        get: {
+          tags: ["supply"],
+          operationId: "supplyTotal",
+          summary: `Total supply as a plain number, the format CoinGecko and CoinMarketCap poll. ${SUPPLY_DEFINITIONS.total}`,
+          parameters: [q("format", { type: "string", enum: ["text", "json"], default: "text" }, "json returns {totalSupply, wei, asOfBlock, definition}")],
+          responses: { "200": { description: "A plain number of whole FMX (at most 8 decimals, truncated), or with ?format=json a small JSON body", content: { "text/plain": { schema: { type: "string", example: "30368270.87243266" } }, "application/json": { schema: { type: "object" } } } }, "400": err("format must be text or json"), "503": { description: "The chain could not be read and no answer under 1 h old is cached (text/plain, or JSON with ?format=json)" } },
+        },
+      },
+      "/api/supply/circulating": {
+        get: {
+          tags: ["supply"],
+          operationId: "supplyCirculating",
+          summary: `Circulating supply as a plain number. ${SUPPLY_DEFINITIONS.circulating}`,
+          parameters: [q("format", { type: "string", enum: ["text", "json"], default: "text" }, "json returns {circulatingSupply, wei, asOfBlock, definition}")],
+          responses: { "200": { description: "A plain number of whole FMX (at most 8 decimals, truncated), or with ?format=json a small JSON body", content: { "text/plain": { schema: { type: "string", example: "3240621.71184945" } }, "application/json": { schema: { type: "object" } } } }, "400": err("format must be text or json"), "503": { description: "The chain could not be read and no answer under 1 h old is cached (text/plain, or JSON with ?format=json)" } },
+        },
+      },
+      "/api/supply/max": {
+        get: {
+          tags: ["supply"],
+          operationId: "supplyMax",
+          summary: `Maximum supply as a plain number. ${SUPPLY_DEFINITIONS.max}`,
+          parameters: [q("format", { type: "string", enum: ["text", "json"], default: "text" }, "json returns {maxSupply, wei, asOfBlock, definition}")],
+          responses: { "200": { description: "A plain number of whole FMX (at most 8 decimals, truncated), or with ?format=json a small JSON body", content: { "text/plain": { schema: { type: "string", example: "32514979.87499999" } }, "application/json": { schema: { type: "object" } } } }, "400": err("format must be text or json"), "503": { description: "The chain could not be read and no answer under 1 h old is cached (text/plain, or JSON with ?format=json)" } },
+        },
+      },
+      "/api/market/coingecko/coins/{id}": {
+        get: {
+          tags: ["supply"],
+          operationId: "marketCoin",
+          summary: `FMX in CoinGecko's /coins/{id} response shape (id "${CG_COIN_ID}"), filled with Ferminux's own numbers: the Ferminux DEX price, market cap (price × circulating supply), total, circulating and max supply, and the logo. Not CoinGecko data. The self-hosted explorer reads it as its market source (MARKET_COINGECKO_BASE_URL=${base}/api/market/coingecko).`,
+          parameters: [p("id", { type: "string", const: CG_COIN_ID }, "Coin id")],
+          responses: { "200": json({ type: "object", properties: { id: { type: "string" }, symbol: { type: "string" }, name: { type: "string" }, image: { type: "object" }, market_data: { type: "object" }, ferminux: { type: "object" } } }), "404": json({ type: "object", properties: { error: { type: "string" } } }, "Unknown coin id"), "503": err("The chain could not be read") },
+        },
+      },
+      "/api/market/coingecko/coins/{id}/market_chart": {
+        get: {
+          tags: ["supply"],
+          operationId: "marketCoinChart",
+          summary: "The history route of the same shape. No price history is kept, so every array is empty.",
+          parameters: [p("id", { type: "string", const: CG_COIN_ID }, "Coin id"), q("vs_currency", { type: "string" }, "Ignored"), q("days", { type: "string" }, "Ignored")],
+          responses: { "200": json({ type: "object", properties: { prices: { type: "array" }, market_caps: { type: "array" }, total_volumes: { type: "array" } } }), "404": json({ type: "object" }, "Unknown coin id") },
+        },
+      },
+      "/api/validators/waitlist": {
+        post: {
+          tags: ["validators"],
+          operationId: "validatorWaitlistJoin",
+          summary: `Join the validator waitlist (${base}/validators/). The programme is in development and has no deposit contract yet: this only records interest. Planned terms: 2,000 FMX deposit per seat, a Windows 10/11 or Linux node that checks every block and signs a checkpoint about every 23 minutes, about 1.5 FMX a day per seat from the existing reward pool. The key of \`address\` must sign the sign-up: GET /api/validators/waitlist/challenge with the same fields returns the EIP-191 text (every field, a nonce, an expiry ${WAITLIST_SIG_TTL_S / 60} minutes ahead); personal_sign it and send nonce, expires and sig with the fields. A signature works once. One entry per address: the first signed one stands and a resubmission answers status "already" without changing it; an unsigned entry from before signatures were required is replaced by the first signed one from its own key (status "verified"). A contact (e-mail or Telegram handle) is stored only with consent and is never returned by a public route. New sign-ups: ${WAITLIST_PER_IP_PER_HOUR} per IP per hour; any POST: ${WAITLIST_POSTS_PER_IP_PER_HOUR} per IP per hour.`,
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["address", "platform", "seats", "nonce", "expires", "sig"],
+                  properties: {
+                    address: { ...S.address, description: "The FMX address that will own the seat. Any case; mixed case must carry a valid checksum." },
+                    platform: { type: "string", enum: [...VALIDATOR_PLATFORMS] },
+                    seats: { type: "integer", minimum: 1, maximum: WAITLIST_MAX_SEATS, description: "Seats planned (2,000 FMX each)" },
+                    contact: { type: "string", maxLength: WAITLIST_CONTACT_MAX, description: "Optional: an e-mail address or a Telegram handle (@name). Needs consent: true." },
+                    consent: { type: "boolean", description: "May the programme contact you about validator seats at `contact`? Required when a contact is given." },
+                    nonce: { type: "string", pattern: "^[0-9a-fA-F]{16,64}$", description: "From the challenge (or any fresh random hex you put in the signed text)" },
+                    expires: { ...S.unix, description: `The expiry in the signed text: in the future, at most ${WAITLIST_SIG_TTL_S} s ahead` },
+                    sig: { type: "string", pattern: "^0x[0-9a-fA-F]{130}$", description: "EIP-191 personal_sign by the key of `address` over the challenge text, unchanged" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": json(ref("ValidatorWaitlistResult"), "Added"),
+            "200": json(ref("ValidatorWaitlistResult"), "already: this address is on the waitlist (nothing changed) · verified: a signed entry replaced an unsigned one"),
+            "400": err("Validation (code bad_address, bad_checksum, bad_platform, bad_seats, bad_contact, consent_required, bad_nonce, bad_expires, bad_sig)"),
+            "401": err("Signature missing, expired or not from `address` (code signature_required, sig_expired, bad_expires, bad_sig, sig_mismatch)"),
+            "409": err("This signature was already used (code replay)"),
+            "429": err("Rate limited (code ip_rate_limited)"),
+            "507": err("Waitlist full"),
+          },
+        },
+      },
+      "/api/validators/waitlist/challenge": {
+        get: {
+          tags: ["validators"],
+          operationId: "validatorWaitlistChallenge",
+          summary: `The exact text the key of \`address\` signs to join (EIP-191 personal_sign): every field, a fresh nonce and an expiry ${WAITLIST_SIG_TTL_S / 60} minutes ahead. Same fields and validation as the POST.`,
+          parameters: [
+            q("address", S.address, "The FMX address that will own the seat", true),
+            q("platform", { type: "string", enum: [...VALIDATOR_PLATFORMS] }, "windows, linux or both", true),
+            q("seats", { type: "integer", minimum: 1, maximum: WAITLIST_MAX_SEATS }, "Seats planned", true),
+            q("contact", { type: "string" }, "Optional e-mail or Telegram handle"),
+            q("consent", { type: "boolean" }, "Required with a contact"),
+          ],
+          responses: {
+            "200": json({ type: "object", required: ["message", "nonce", "expires", "address"], properties: { message: { type: "string", description: "Sign this, unchanged" }, nonce: { type: "string" }, expires: S.unix, address: S.address, sign: { type: "string" } } }),
+            "400": err("Validation (same codes as the POST)"),
+          },
+        },
+      },
+      "/api/validators/waitlist/count": {
+        get: {
+          tags: ["validators"],
+          operationId: "validatorWaitlistCount",
+          summary: "Public totals of the validator waitlist: sign-ups, seats planned, and sign-ups by platform. No addresses and no contacts. Cached 30 s.",
+          responses: { "200": json(ref("ValidatorWaitlistCounts")) },
+        },
+      },
+      "/api/validators/waitlist/export": {
+        get: {
+          tags: ["validators"],
+          operationId: "validatorWaitlistExport",
+          summary: `Operators only: every waitlist entry with its contact. A signed GET with action "${VALIDATOR_EXPORT_ACTION}" (the Commons canonical message; body line sha256 of "") from an address in VALIDATOR_OPERATOR_ADDRESSES (no fallback; unset = 503). Each signature works once.`,
+          parameters: [...signedHeaderParams, q("format", { type: "string", enum: ["json", "csv"], default: "json" }, "csv returns text/csv")],
+          responses: {
+            "200": json({ allOf: [ref("ValidatorWaitlistCounts"), { type: "object", properties: { exportedBy: S.address, exportedAt: S.unix, items: { type: "array", items: { type: "object", properties: { address: S.address, platform: { type: "string" }, seats: { type: "integer" }, contact: { type: ["string", "null"] }, contactKind: { type: ["string", "null"], enum: ["email", "telegram", null] }, consent: { type: "boolean" }, createdAt: S.unix, verified: { type: "boolean", description: "Signed by the key of the address (false for entries from before signatures were required)" }, signedAt: { type: ["integer", "null"] } } } } } }] }),
+            "401": err("Missing or invalid signature"),
+            "403": err("Signer is not an operator"),
+            "409": err("Signature already used"),
+            "503": err("No operator addresses configured"),
+          },
+        },
+      },
     },
     components: {
       schemas: {
         Error: { type: "object", required: ["error"], properties: { error: { type: "string" }, code: { type: "string" } } },
+        ValidatorWaitlistCounts: {
+          type: "object",
+          required: ["total", "seats", "byPlatform"],
+          properties: {
+            total: { type: "integer", description: "Addresses on the waitlist" },
+            seats: { type: "integer", description: "Seats they plan, summed" },
+            byPlatform: { type: "object", properties: { windows: { type: "integer" }, linux: { type: "integer" }, both: { type: "integer" } } },
+            verified: { type: "integer", description: "Entries signed by the key of their address" },
+            programme: { type: "string", example: "in development" },
+            page: { type: "string" },
+          },
+        },
+        ValidatorWaitlistResult: {
+          type: "object",
+          required: ["ok", "status", "total"],
+          properties: { ok: { type: "boolean" }, status: { type: "string", enum: ["added", "already", "verified"] }, total: { type: "integer", description: "Addresses on the waitlist after this request" } },
+        },
+        SupplySnapshot: {
+          type: "object",
+          required: ["symbol", "decimals", "chainId", "asOfBlock", "totalSupply", "circulatingSupply", "maxSupply", "wei", "components", "excluded", "definitions"],
+          properties: {
+            symbol: { type: "string", const: "FMX" },
+            decimals: { type: "integer", const: 18 },
+            chainId: { type: "integer", const: 3961 },
+            asOfBlock: { type: "integer", description: "Every figure is read at this block: the head minus 64" },
+            asOfTimestamp: S.unix,
+            head: { type: "integer" },
+            totalSupply: { type: "string", description: "Whole FMX, full precision" },
+            circulatingSupply: { type: "string" },
+            maxSupply: { type: "string" },
+            wei: { type: "object", properties: { total: S.wei, circulating: S.wei, max: S.wei } },
+            components: {
+              type: "object",
+              description: `genesis + preAuthorityIssuance (blocks 1-159,999 incl. ${POW_ERA.unclesIncluded} uncles; measured ${POW_ERA.measuredAt} by agents/gateway/scripts/measure-supply.mjs) + authorityIssuance (blocks 160,000-asOfBlock) − burnedBaseFees (checkpoint block ${BURN_CHECKPOINT.block}, tracked since) − burnAddresses = totalSupply`,
+            },
+            excluded: { type: "array", description: "Every address whose FMX is not counted as circulating, with its balance and the amount excluded", items: { type: "object", properties: { address: S.address, label: { type: "string" }, category: { type: "string", enum: ["locked", "vesting", "foundation"] }, balance: { type: "string" }, excluded: { type: "string" }, excludedWei: S.wei, note: { type: "string" } } } },
+            excludedTotals: { type: "object", properties: { locked: { type: "string" }, vesting: { type: "string" }, foundation: { type: "string" }, all: { type: "string" } } },
+            definitions: { type: "object" },
+            reconciliation: { type: "array", items: { type: "string" } },
+            stale: { type: "boolean", description: "The chain could not be read; this is the last good answer (at most 1 h old)" },
+            computedAt: { type: "integer", description: "Unix ms" },
+          },
+        },
         CvLinks: {
           type: "object",
           description: "Where an agent's public record lives",
@@ -1197,6 +1403,8 @@ export function buildOpenApi(cfg: GatewayConfig): Record<string, unknown> {
             id: { type: "integer" }, agentId: { type: "integer" }, agentName: { type: ["string", "null"] }, client: S.address, amount: S.wei,
             inputHash: S.hex32, inputURI: { type: "string" }, outputHash: { ...S.hex32, type: ["string", "null"] }, outputURI: { type: ["string", "null"] },
             createdAt: S.unix, deliveredAt: { type: ["integer", "null"] }, status: { type: "string", enum: ["None", "Open", "Delivered", "Completed", "Refunded", "Disputed", "Resolved"] },
+            reviewDeadline: { type: ["integer", "null"], description: "Delivered jobs: deliveredAt + ServiceEscrow.reviewWindow" },
+            claimableAt: { type: ["integer", "null"], description: "Delivered jobs: from this time the agent may claim() the payment" },
             tx: { type: "object", properties: { requested: { type: ["string", "null"] }, delivered: { type: ["string", "null"] }, closed: { type: ["string", "null"] } } },
           },
         },

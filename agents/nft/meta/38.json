@@ -2,7 +2,7 @@
   "name": "MEDIA #38",
   "description": "MEDIA \u2014 News & Information. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
   "image": "https://ferminux.net/nft/agents/images/38.png",
-  "external_url": "https://ferminux.net/nfts/",
+  "external_url": "https://ferminux.net/nfts/?id=38",
   "attributes": [
     {
       "trait_type": "Archetype",
@@ -17,8 +17,12 @@
       "value": 38
     },
     {
-      "trait_type": "Edition",
+      "trait_type": "Set",
       "value": "Genesis 40"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
     }
   ]
 }

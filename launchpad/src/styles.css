@@ -1,0 +1,646 @@
+/* Ferminux Launchpad — light, institutional, data-first. Matches the canonical
+   palette of ferminux.net/security.html. No gradients, no glass, no shadows
+   beyond a hairline; amber only for links and small marks. */
+
+:root {
+  --bg: #ffffff;
+  --panel: #fbfbfa;
+  --panel-2: #f4f4f2;
+  --border: #e3e3e0;
+  --border-strong: #c9c9c4;
+  --border-hover: #b3b3ad;
+  --text: #16181c;
+  --muted: #5b6169;
+  --faint: #8b9198;
+  --accent: #a8761c;
+  --accent-dim: rgba(168, 118, 28, 0.35);
+  --green: #1f7a45;
+  --red: #a33a1f;
+  --radius: 6px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.num,
+.addr,
+td.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.addr,
+.mono {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+
+/* ------------------------------------------------------------- header */
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.site-header .inner {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  /* wrap: on a phone the wordmark, pill and two buttons do not fit one row;
+     without it the page was 522px wide at 390 and "Connect wallet" sat
+     off-screen. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  row-gap: 10px;
+}
+.wordmark {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+/* The canonical brand: the Ferminux F from the brand artwork, ink text. */
+.wordmark::before {
+  content: "";
+  width: 14px;
+  height: 16px;
+  background: url('./fmx-mark.svg') center / contain no-repeat;
+  flex: none;
+}
+.wordmark .fx {
+  color: var(--muted);
+  font-weight: 400;
+}
+.header-spacer {
+  flex: 1;
+}
+.net-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.net-pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.net-pill.ok .dot {
+  background: var(--green);
+}
+.net-pill.warn .dot {
+  background: var(--red);
+}
+
+/* ------------------------------------------------------------- buttons */
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  padding: 7px 14px;
+  transition: border-color 120ms ease, background 120ms ease;
+  white-space: nowrap;
+}
+button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* Primary action: ink on white — never an amber fill. */
+button.primary {
+  background: var(--text);
+  border-color: var(--text);
+  color: #ffffff;
+  font-weight: 600;
+}
+button.primary:hover:not(:disabled) {
+  background: #2b2f36;
+  border-color: #2b2f36;
+}
+button.subtle {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+button.subtle:hover:not(:disabled) {
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------- tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 28px 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+.tabs button {
+  border: none;
+  background: none;
+  border-radius: 0;
+  padding: 8px 14px 10px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+/* ------------------------------------------------------------- panels */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.panel + .panel {
+  margin-top: 16px;
+}
+.panel h2 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--faint);
+  margin-bottom: 4px;
+}
+.panel .sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+/* ------------------------------------------------------------- form */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+}
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+label.field {
+  display: block;
+}
+label.field .label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+label.field .hint {
+  display: block;
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 5px;
+}
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-variant-numeric: tabular-nums;
+}
+input:focus {
+  outline: none;
+  border-color: var(--border-hover);
+}
+input.invalid {
+  border-color: var(--red);
+}
+.field-error {
+  font-size: 11.5px;
+  color: var(--red);
+  margin-top: 5px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+.toggle-row input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--text);
+}
+.toggle-row .t-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+.toggle-row .t-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fee-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.fee-row .fee-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+.fee-row .fee-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 15px;
+}
+.fee-dest {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.fee-dest strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.notice {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel-2);
+}
+.notice.error {
+  border-left: 3px solid var(--red);
+  background: var(--panel);
+  color: var(--red);
+}
+.notice a {
+  color: var(--accent);
+}
+
+/* ------------------------------------------------------------- success */
+.success-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--green);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+.kv {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px 16px;
+  margin: 18px 0;
+  font-size: 13px;
+}
+.kv dt {
+  color: var(--muted);
+}
+.kv dd {
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------- table */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 760px;
+}
+th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  white-space: nowrap;
+}
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td {
+  border-bottom: none;
+}
+td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+th.num {
+  text-align: right;
+}
+.token-name {
+  font-weight: 600;
+}
+.token-symbol {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.badge.verified {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+.badge.renounced {
+  color: var(--green);
+  border-color: rgba(31, 122, 69, 0.4);
+}
+.badge.fixed {
+  color: #3f5b70;
+  border-color: #bcc8d0;
+}
+
+/* ------------------------------------------------------------- list chrome */
+.list-toolbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.list-toolbar .count {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.pager .page-ind {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.state-block {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.state-block .headline {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.state-block button {
+  margin-top: 14px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: -2px;
+  margin-right: 8px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+footer.site-footer {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 20px 24px 40px;
+  color: var(--faint);
+  font-size: 12px;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .container {
+    padding: 0 16px 48px;
+  }
+  .site-header .inner {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+  /* "Not connected" repeats what the Connect button already says. */
+  .net-pill:not(.ok):not(.warn) {
+    display: none;
+  }
+  .net-pill {
+    max-width: 100%;
+    white-space: normal;
+  }
+  /* Header actions share the row they wrap onto instead of overflowing it. */
+  .site-header .inner > button {
+    flex: 1 1 auto;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .kv {
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+  }
+  .kv dt {
+    margin-top: 10px;
+  }
+}
+
+/* ------------------------------------------------------------- wallet chooser */
+.lp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(22, 24, 28, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+.lp-dialog {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 420px;
+  padding: 16px 18px 18px;
+}
+.lp-dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -2px 0 14px;
+}
+.lp-dialog-head h3 {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+}
+.wallet-choices {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.wallet-choice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  text-align: left;
+  white-space: normal;
+}
+.wallet-choice:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+.wallet-choice:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.wallet-choice-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex: none;
+  display: block;
+}
+.wallet-choice-mono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.wallet-choice-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.wallet-choice-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.wallet-choice-detail {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.wallet-choice-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  vertical-align: 1px;
+}
+.wallet-choice-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}

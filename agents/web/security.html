@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!--
+  Bridge security record. Every number on this page is read live (src/pages/security.ts) or stated with the
+  command that produces it. A read that fails shows an em-dash, never a reassuring default.
+  Dated statements carry their date; update or remove them when they stop being true.
+-->
+<title>Security — Ferminux Network</title>
+<meta name="description" content="What protects funds on the Ferminux bridge, what does not, whether the bridge is signing right now, and how to verify all of it yourself without trusting this page.">
+<link rel="canonical" href="https://ferminux.net/security.html">
+<meta property="og:title" content="Security — Ferminux Network">
+<meta property="og:description" content="What protects the bridge, what does not, its live state, and how to check it yourself.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container read">
+    <section class="hero-sm">
+      <p class="kicker">Chain 3961 · the record</p>
+      <h1>What protects your funds, and what does not</h1>
+      <p class="lede">Every claim on this page is checkable on-chain. Where a number appears, the command that produces it appears with it, so you never have to take this page's word for anything.</p>
+      <p class="asof" id="asof">Figures load live from Ferminux, BNB Smart Chain and the bridge validators' own status report.</p>
+    </section>
+
+    <div class="doc">
+      <section id="status">
+        <h2>Bridge status right now</h2>
+        <div class="callout warn" id="br-now" aria-live="polite">
+          <p id="br-verdict">Reading the validators' status report…</p>
+          <ul id="br-chains" hidden></ul>
+        </div>
+        <p>The bridge app is offline while the proof bridge is in testing. The contracts below are live and hold funds; the status above is the validators' own report (<a class="link-inline" href="/bridge/status.json">/bridge/status.json</a>), and it is the first thing to check before you rely on a transfer.</p>
+      </section>
+
+      <section id="invariant">
+        <h2>The invariant that matters most</h2>
+        <p>The Ferminux bridge is lock-and-mint. Every wrapped FMX on BNB Smart Chain exists because real FMX is locked on Ferminux. If those two numbers ever diverge, wrapped tokens are circulating that nothing backs — which is how bridges fail. You can check them yourself right now.</p>
+        <div class="callout">
+          <div class="figs">
+            <div class="fig"><div class="k">FMX locked on Ferminux</div><div class="v" id="locked">—</div></div>
+            <div class="fig"><div class="k">wFMX outstanding on BSC</div><div class="v" id="minted">—</div></div>
+          </div>
+          <p class="verdict" id="verdict">checking…</p>
+        </div>
+        <pre>cast call --rpc-url https://rpc.ferminux.net \
+  0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 \
+  "lockedBalance(address)(uint256)" 0x0000000000000000000000000000000000000000
+
+cast call --rpc-url https://bsc-dataseed.bnbchain.org \
+  0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0 "totalSupply()(uint256)"</pre>
+      </section>
+
+      <section id="controls">
+        <h2>What actually protects the bridge</h2>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Control</th><th scope="col">What it does</th><th scope="col" class="r">Setting</th></tr></thead>
+          <tbody>
+            <tr><td>Validator quorum</td><td>Nothing is released or minted without signatures from a majority of the registered validators, each verifying against its own node. As of 24 September 2026 two of the three registered validator services are running, so the quorum has no spare: if one more stops, transfers stop.</td><td class="r" id="quorum">—</td></tr>
+            <tr><td>Per-transfer cap</td><td>The largest single transfer the contract will accept, in either direction.</td><td class="r" id="maxper">—</td></tr>
+            <tr><td>Rolling 24-hour cap</td><td>Total volume permitted per direction in any 24 hours. This is the ceiling on what any failure — including a compromised quorum — could remove before a human intervenes.</td><td class="r" id="daily">—</td></tr>
+            <tr><td>Governance timelock</td><td>Every privileged change — adding a validator, raising a cap, changing the wrapper — is announced on-chain and cannot take effect until the delay elapses. That window is the time anyone watching has to react.</td><td class="r" id="timelock">—</td></tr>
+            <tr><td>Emergency pause</td><td>Halts every transfer immediately, with no delay and no quorum required. The pause key is held separately from the validator keys, so one does not imply the other.</td><td class="r" id="pause">—</td></tr>
+            <tr><td>Reconciliation</td><td>A process that reads both chains and matches every mint against its lock; a mint with no lock behind it is the signature of a forged quorum. It is not running while the bridge is offline, so until it is restarted the collateral check above is the check — and you can run it yourself.</td><td class="r">offline</td></tr>
+            <tr><td>Bytecode pinning</td><td>The bridge only accepts a wrapper whose exact runtime code matches a pinned hash, which rejects proxies and any contract that could change behaviour later.</td><td class="r">enforced</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="limits">
+        <h2>What we do not claim</h2>
+        <p>A security page that lists only strengths is not telling you the truth. These are the real limits as they stand today. They are stated here because you would find them anyway, and because knowing them is what lets you size your own risk.</p>
+        <div class="callout warn">
+          <p><strong>This is a validator-secured bridge, not a trustless one.</strong></p>
+          <ul>
+            <li><strong>A compromised quorum could mint tokens that nothing backs.</strong> Two of the three validators, acting together, could sign a transfer that never happened. The caps above are what bound the damage, and the collateral check is what would surface it — neither prevents it.</li>
+            <li><strong>All registered validators are operated by one party.</strong> Each runs on its own machine, so no single compromised host yields a quorum. But they answer to the same operator, which buys machine independence, not independence of interest. Distributing custody to unrelated parties is the next step, and it has not been taken.</li>
+            <li><strong>Ferminux history is secured by signer keys, not by work.</strong> Blocks are confirmed by a set of authorised signers in rotation (Clique proof-of-authority, since block 160,000). They are not bonded: no stake stands behind them, and all are run by one operator. A majority of them signing a competing branch could rewrite recent history at no cost. The bridge waits 64 blocks before acting on a Ferminux transfer, every node refuses a reorganisation deeper than 64 blocks by default, and the 24-hour cap bounds what a signer majority could take by rewriting transfers it has already credited. How many signers are confirming right now: <a class="link-inline" href="/consensus.html#now">Consensus</a>.</li>
+            <li><strong>The contracts have not been reviewed by an external audit firm.</strong> They have been through repeated adversarial review, including a preflight audit that caught a hundred-fold cap error before it became permanent, and the full source is published. That is not the same as an independent professional audit, and it should not be read as one.</li>
+            <li><strong>A bridge transfer cannot be reversed.</strong> No operator, including us, can recall or refund a delivered transfer. Send only to an address you control on the destination chain.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="lockup">
+        <h2>Foundation commitment</h2>
+        <p>The foundation holds most of the supply, so "we are not selling" is worth nothing unless it can be checked. These coins sit in a contract that cannot release them before the date shown, and after it only to the multisig. It is a credibility instrument — it is not staking and it does not secure the chain.</p>
+        <div class="callout">
+          <div class="figs">
+            <div class="fig"><div class="k">FMX locked</div><div class="v" id="lk-amt">—</div></div>
+            <div class="fig"><div class="k">Releasable from</div><div class="v" id="lk-date">—</div></div>
+          </div>
+          <p class="verdict">Contract <span class="addr">0xC0E01D9F49eE0967F34e1CB045B74D3Aefac189d</span></p>
+        </div>
+        <pre>cast call --rpc-url https://rpc.ferminux.net \
+  0xC0E01D9F49eE0967F34e1CB045B74D3Aefac189d "locked()(uint256)"
+cast call --rpc-url https://rpc.ferminux.net \
+  0xC0E01D9F49eE0967F34e1CB045B74D3Aefac189d "unlockAt()(uint64)"</pre>
+      </section>
+
+      <section id="verify">
+        <h2>Verify any of this yourself</h2>
+        <p>None of the following requires trusting us. Every address is public and every value is readable by anyone.</p>
+        <div class="tbl-wrap"><table class="tbl auto">
+          <thead><tr><th scope="col">Contract</th><th scope="col">Chain</th><th scope="col">Address</th></tr></thead>
+          <tbody>
+            <tr><td>Bridge</td><td>Ferminux</td><td class="addr">0xe162eeDa683f067d4Ebf61060Fa322332a779EF4</td></tr>
+            <tr><td>Bridge</td><td>BNB Smart Chain</td><td class="addr">0xe43951a0E421A6B3Cb9C6ae66273dc0D3c8a70ff</td></tr>
+            <tr><td>Wrapped FMX</td><td>BNB Smart Chain</td><td class="addr">0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0</td></tr>
+            <tr><td>Owner multisig</td><td>Ferminux</td><td class="addr">0x910BD467D8576277f8f96DF47428377FFD94fEfe</td></tr>
+            <tr><td>Owner multisig</td><td>BNB Smart Chain</td><td class="addr">0x15D0791d49A089863243BE2C2050e5d26E1bBA9c</td></tr>
+          </tbody>
+        </table></div>
+        <h3>Confirm the validator set and quorum</h3>
+        <pre>cast call --rpc-url https://rpc.ferminux.net \
+  0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "getValidators()(address[])"
+
+cast call --rpc-url https://rpc.ferminux.net \
+  0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "threshold()(uint256)"</pre>
+        <h3>See whether anything is queued against the bridge right now</h3>
+        <p>Every privileged change appears here before it can take effect. If you are holding wrapped FMX, this is the one thing worth checking periodically — a queued change you did not expect is your warning, and you have the full timelock window to act on it.</p>
+        <pre>cast call --rpc-url https://rpc.ferminux.net \
+  0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "actionCount()(uint256)"
+
+# then, for each id, the pending action and when it becomes executable
+cast call --rpc-url https://rpc.ferminux.net \
+  0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 \
+  "getAction(uint256)(bytes,uint64,bool,bool)" 0</pre>
+      </section>
+
+      <section id="report">
+        <h2>If something looks wrong</h2>
+        <p>Stop using the bridge and tell us: email <a class="link-inline" href="mailto:security@ferminux.com">security@ferminux.com</a>, and put "live funds" in the subject if funds are at risk. A pause costs us very little and costs you nothing; a delayed pause is how bridge losses become large. Reports of a suspected flaw are welcome whether or not you are certain, and we would rather investigate ten false alarms than miss one. Do not describe an unfixed flaw in a public forum thread or bounty. The same contact is published at <a class="link-inline" href="/.well-known/security.txt">/.well-known/security.txt</a>.</p>
+        <p class="small faint">This page describes the system as deployed. Where it and the contracts disagree, the contracts are authoritative.</p>
+      </section>
+    </div>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/security.ts"></script>
+</body>
+</html>

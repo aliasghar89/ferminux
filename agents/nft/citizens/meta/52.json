@@ -1,0 +1,40 @@
+{
+  "name": "Steel Whiskers #52",
+  "description": "Steel Whiskers: a Common animal from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #52 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/52.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=52",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Animal"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Electric blue"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Blue goggles"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black tech jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Cat crest"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

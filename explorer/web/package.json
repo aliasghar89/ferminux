@@ -1,0 +1,27 @@
+{
+  "name": "ferminux-explorer-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ferminux Explorer: the static front end for explorer.ferminux.net (chain 3961).",
+  "scripts": {
+    "dev": "vite",
+    "dev:fixtures": "VITE_FIXTURES=1 vite",
+    "build": "npm run typecheck && node scripts/sitemap.mjs && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test:signer": "node scripts/clique-signer.test.mjs",
+    "test:validators-abi": "node scripts/validators-abi.test.mjs",
+    "test:e2e": "playwright test",
+    "book": "node scripts/contract-book.mjs && node scripts/abi-data.mjs",
+    "noncanonical": "node scripts/noncanonical.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.13.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  }
+}

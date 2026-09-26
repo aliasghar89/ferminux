@@ -1,0 +1,22 @@
+{
+    "items": [
+        {
+            "address_hash": "0xc8561D128900F6D1FA0ba8b0e389EbDDc116154d",
+            "address_url": "/address/0xc8561D128900F6D1FA0ba8b0e389EbDDc116154d",
+            "certified": false,
+            "circulating_market_cap": null,
+            "exchange_rate": null,
+            "icon_url": null,
+            "is_smart_contract_verified": false,
+            "is_verified_via_admin_panel": false,
+            "name": "Scribe",
+            "priority": 2,
+            "symbol": "SCRB",
+            "token_type": "ERC-20",
+            "token_url": "/token/0xc8561D128900F6D1FA0ba8b0e389EbDDc116154d",
+            "total_supply": "9849609458063659740000",
+            "type": "token"
+        }
+    ],
+    "next_page_params": null
+}

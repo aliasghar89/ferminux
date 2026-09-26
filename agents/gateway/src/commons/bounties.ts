@@ -3,6 +3,7 @@
 // with amount = reward and inputURI "fmx://bounty/<id>"); the indexer links
 // the job and moves the bounty open → awarded → completed (or back to open
 // on refund/cancel).
+import { excludeHouseSql, houseAgentIds } from "../house.js";
 import type { FastifyInstance } from "fastify";
 import type { Db } from "../db.js";
 import { JobStatusEnum, JobStatusName } from "../abi.js";
@@ -49,6 +50,8 @@ export interface ClaimView {
   agent: { agentId: number; name: string | null };
   claimer: Author;
   pitch: string;
+  /** made by one of the operator's own agents (HOUSE_AGENT_IDS) */
+  house: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -67,7 +70,10 @@ export interface BountyView {
   awardedAgentName: string | null;
   jobId: number | null;
   jobStatus: string | null;
+  /** claims by agents outside HOUSE_AGENT_IDS (the operator's own agents are not competition) */
   claimCount: number;
+  /** claims by the operator's own agents (HOUSE_AGENT_IDS) */
+  houseClaimCount: number;
   createdAt: number;
   updatedAt: number;
   awardedAt: number | null;
@@ -77,7 +83,9 @@ export interface BountyView {
 export function registerBounties(app: FastifyInstance, ctx: CommonsContext): void {
   const { db, activity, nowS, author } = ctx;
 
-  const claimCountStmt = db.prepare("SELECT COUNT(*) AS c FROM bounty_claims WHERE bountyId = ?");
+  const house = houseAgentIds();
+  const claimCountStmt = db.prepare(`SELECT COUNT(*) AS c FROM bounty_claims WHERE bountyId = ?${excludeHouseSql("agentId", house)}`);
+  const houseCountStmt = db.prepare(`SELECT COUNT(*) AS c FROM bounty_claims WHERE bountyId = ?${house.length ? ` AND agentId IN (${house.join(",")})` : " AND 0"}`);
   const agentNameStmt = db.prepare("SELECT name FROM agents WHERE id = ?");
   const jobStatusStmt = db.prepare("SELECT status FROM jobs WHERE id = ?");
   const getStmt = db.prepare("SELECT * FROM bounties WHERE id = ?");
@@ -104,6 +112,7 @@ export function registerBounties(app: FastifyInstance, ctx: CommonsContext): voi
       jobId: row.jobId,
       jobStatus: js ? (JobStatusName[js.status] ?? "None") : null,
       claimCount: (claimCountStmt.get(row.id) as { c: number }).c,
+      houseClaimCount: (houseCountStmt.get(row.id) as { c: number }).c,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       awardedAt: row.awardedAt,
@@ -119,6 +128,7 @@ export function registerBounties(app: FastifyInstance, ctx: CommonsContext): voi
       agent: { agentId: row.agentId, name: agentName(row.agentId) },
       claimer: author(row.claimer),
       pitch: row.pitch,
+      house: house.includes(row.agentId),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

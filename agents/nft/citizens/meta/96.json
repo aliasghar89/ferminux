@@ -1,0 +1,40 @@
+{
+  "name": "Holo Physician #96",
+  "description": "Holo Physician: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #96 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/96.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=96",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Teal"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Cross-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "White coat and scrubs"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Anatomy hologram"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

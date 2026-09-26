@@ -1,0 +1,310 @@
+name: validator-release
+
+# Ferminux Validator (Step 1: checkpoint validator nodes) release build.
+#
+# Source of truth: the validator plan (Step 1 and its 10.1 rehearsal
+# checklist). No consensus change: nothing here alters chain/consensus, and
+# nothing in this workflow ever sends a transaction to chain 3961 or any other
+# public chain. What runs a built binary does so on throwaway local networks
+# only: the node's --dev smoke test (no p2p at all), the sidecar's anvil
+# integration test (127.0.0.1), and the packaging smoke tests, which register
+# the mainnet service without starting it and then run a devnet sidecar
+# attached to a node address where nothing listens.
+#
+# Two binaries per platform:
+#   ferminux[.exe]       the chain 3961 node (chain/), built natively with the
+#                        release's own command because it needs cgo for secp256k1
+#   fmx-validator[.exe]  the sidecar (validator/cmd/fmx-validator), pure Go
+#                        (CGO_ENABLED=0), which runs the node, signs checkpoint
+#                        attestations and keeps the slashing-protection database
+#
+# The packages are laid out the way validator/packaging/ expects: the two
+# programs next to install/uninstall scripts that drive the sidecar's own
+# `install`, `keys` and `uninstall` commands.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/validator-release.yml'
+      - 'chain/**'
+      - 'validator/**'
+      - 'agents/contracts/src/validators/**'
+      - 'agents/contracts/script/DeployValidators*.s.sol'
+  pull_request:
+    paths:
+      - '.github/workflows/validator-release.yml'
+      - 'chain/**'
+      - 'validator/**'
+      - 'agents/contracts/src/validators/**'
+      - 'agents/contracts/script/DeployValidators*.s.sol'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validator-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The toolchain the chain and the sidecar are built with. GOTOOLCHAIN pins it
+  # so a toolchain directive added to a go.mod later can never pull another
+  # compiler in CI.
+  GO_VERSION: '1.20.14'
+  GOTOOLCHAIN: 'go1.20.14'
+  # forge-std for the contract half of the signing cross-test (as in ci.yml)
+  FORGE_STD_VERSION: v1.16.2
+
+jobs:
+  # ---------------------------------------------------------------------
+  # The signing format and the ABI the sidecar embeds, against the real
+  # ValidatorHub compiled from agents/contracts/src/validators.
+  hub-crosstest:
+    name: sidecar vs ValidatorHub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            chain/go.sum
+            validator/go.sum
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Fetch forge-std
+        run: |
+          git clone --depth 1 --branch "$FORGE_STD_VERSION" \
+            https://github.com/foundry-rs/forge-std.git contracts/lib/forge-std
+          rm -rf contracts/lib/forge-std/.git
+
+      # testdata/attestation_vectors.json is pinned by the Go tests; the same
+      # file must hold against the compiled hub
+      - name: Signing vectors against the hub (forge)
+        working-directory: validator/testdata/hubtest
+        run: forge test -vv
+
+      - name: Signing vectors (go)
+        working-directory: validator
+        run: go test -count=1 ./internal/attest ./internal/hub
+
+      - name: internal/hub/abi.json matches the hub
+        working-directory: validator
+        run: |
+          ./testdata/hubtest/gen-abi.sh
+          git diff --exit-code -- internal/hub/abi.json
+
+      # the built sidecar against the real hub on a local anvil chain (127.0.0.1 only)
+      - name: Sidecar against the hub on anvil
+        working-directory: validator
+        run: go test -count=1 -run TestSidecarAgainstRealHubOnAnvil -v ./internal/integration
+
+  # ---------------------------------------------------------------------
+  windows-amd64:
+    name: windows-amd64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            chain/go.sum
+            validator/go.sum
+
+      # The node needs cgo for secp256k1, and windows-latest does not reliably
+      # have a usable mingw-w64 gcc on PATH, so install one explicitly.
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
+          path-type: inherit
+          update: false
+
+      - name: Put mingw64 gcc on PATH for every later step
+        shell: pwsh
+        run: |
+          'C:\msys64\mingw64\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build the node (ferminux.exe)
+        shell: pwsh
+        working-directory: chain
+        # With gcc on PATH, `go build` enables cgo by itself for this native
+        # build. build/ci.go puts the result in build/bin/ferminux.exe.
+        run: |
+          go run build/ci.go install ./cmd/ferminux
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item build\bin\ferminux.exe dist\ferminux.exe
+
+      - name: Node unit tests
+        shell: pwsh
+        working-directory: chain
+        # Scoped to consensus/...: the full node suite is too slow to run
+        # natively on Windows for every push, and consensus/... (clique, posa,
+        # the reorg-depth cap) is what the sidecar depends on.
+        run: go test ./consensus/...
+
+      - name: Build the sidecar (fmx-validator.exe)
+        shell: pwsh
+        working-directory: validator
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          $version = git describe --tags --always --dirty
+          go build -trimpath -ldflags "-s -w -X main.version=$version" -o ..\chain\dist\fmx-validator.exe ./cmd/fmx-validator
+          ..\chain\dist\fmx-validator.exe version
+
+      - name: Sidecar unit tests
+        shell: pwsh
+        working-directory: validator
+        env:
+          CGO_ENABLED: '0'
+        run: go test -short ./...
+
+      - name: Devnet smoke test (the built node produces and re-imports blocks)
+        shell: pwsh
+        run: .\validator\packaging\ci\devnet-smoke.ps1 -NodeExe chain\dist\ferminux.exe
+
+      - name: Stage the release package
+        shell: pwsh
+        run: |
+          $stage = 'stage\windows'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item chain\dist\ferminux.exe $stage\ferminux.exe
+          Copy-Item chain\dist\fmx-validator.exe $stage\fmx-validator.exe
+          Copy-Item validator\packaging\windows\install.ps1 $stage\install.ps1
+          Copy-Item validator\packaging\windows\uninstall.ps1 $stage\uninstall.ps1
+          Copy-Item validator\packaging\README-windows.txt $stage\README.txt
+
+      # install.ps1 on the runner: registration, program folder permissions,
+      # a devnet service start (DPAPI password), a failed start reported with
+      # its reason, uninstall.ps1
+      - name: Packaging smoke test (install, service start, failed start, uninstall)
+        shell: pwsh
+        run: .\validator\packaging\ci\windows-service-smoke.ps1 -Release stage\windows
+
+      # Optional: sign both binaries when a code-signing certificate is
+      # configured (a base64 .pfx in WINDOWS_CERT_PFX, its password in
+      # WINDOWS_CERT_PASSWORD). Nothing fails or changes when they are not set.
+      # `secrets` cannot be read in a step `if:`, so this step turns them into
+      # an output the signing step gates on.
+      - name: Check whether a code-signing certificate is configured
+        id: signing
+        shell: pwsh
+        env:
+          CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $has = [bool]($env:CERT_PFX) -and [bool]($env:CERT_PASSWORD)
+          "has_cert=$($has.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: "Code sign (only when WINDOWS_CERT_PFX/WINDOWS_CERT_PASSWORD are set)"
+        if: steps.signing.outputs.has_cert == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'ferminux-codesign.pfx'
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERT_PFX))
+          $securePwd = ConvertTo-SecureString $env:WINDOWS_CERT_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePwd
+          Set-AuthenticodeSignature -FilePath 'stage\windows\ferminux.exe', 'stage\windows\fmx-validator.exe' `
+            -Certificate $cert -TimestampServer 'http://timestamp.digicert.com' -HashAlgorithm SHA256
+          Remove-Item $pfxPath -Force
+          Get-AuthenticodeSignature 'stage\windows\ferminux.exe', 'stage\windows\fmx-validator.exe' |
+            Format-Table Path, Status
+
+      - name: Zip the release artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist-out | Out-Null
+          7z a dist-out\ferminux-validator-windows-amd64.zip .\stage\windows\*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ferminux-validator-windows-amd64
+          path: dist-out\ferminux-validator-windows-amd64.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------
+  linux-amd64:
+    name: linux-amd64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            chain/go.sum
+            validator/go.sum
+
+      # ubuntu-latest ships gcc, which is all the node's cgo build needs.
+      - name: Build the node (ferminux)
+        working-directory: chain
+        run: |
+          go run build/ci.go install ./cmd/ferminux
+          mkdir -p dist
+          cp build/bin/ferminux dist/ferminux
+
+      - name: Node unit tests
+        working-directory: chain
+        # Same scope as the Windows leg.
+        run: go test ./consensus/...
+
+      - name: Build the sidecar (fmx-validator), and cross-compile it for every target
+        working-directory: validator
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          make cross
+          cp bin/fmx-validator-linux-amd64 ../chain/dist/fmx-validator
+          ../chain/dist/fmx-validator version
+
+      - name: Sidecar unit tests
+        working-directory: validator
+        run: go test -short ./...
+
+      - name: Devnet smoke test (the built node produces and re-imports blocks)
+        run: |
+          chmod +x chain/dist/ferminux
+          ./validator/packaging/ci/devnet-smoke.sh chain/dist/ferminux
+
+      - name: Stage the release package
+        run: |
+          stage=stage/ferminux-validator-linux-amd64
+          mkdir -p "$stage"
+          cp chain/dist/ferminux "$stage/ferminux"
+          cp chain/dist/fmx-validator "$stage/fmx-validator"
+          cp validator/packaging/linux/install.sh "$stage/install.sh"
+          cp validator/packaging/linux/uninstall.sh "$stage/uninstall.sh"
+          cp validator/packaging/README-linux.txt "$stage/README.txt"
+          chmod +x "$stage/ferminux" "$stage/fmx-validator" "$stage/install.sh" "$stage/uninstall.sh"
+
+      # install.sh on the runner's real systemd: what it sets up, a devnet
+      # service start with the password through LoadCredential=, a failed
+      # start reported with its reason, uninstall.sh
+      - name: Packaging smoke test (install, service start, failed start, uninstall)
+        run: sudo ./validator/packaging/ci/linux-install-smoke.sh stage/ferminux-validator-linux-amd64
+
+      - name: tar.gz the release artifact
+        run: |
+          mkdir -p dist-out
+          tar czf dist-out/ferminux-validator-linux-amd64.tar.gz -C stage ferminux-validator-linux-amd64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ferminux-validator-linux-amd64
+          path: dist-out/ferminux-validator-linux-amd64.tar.gz
+          if-no-files-found: error

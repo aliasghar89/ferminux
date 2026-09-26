@@ -1,0 +1,40 @@
+{
+  "name": "Rose Quiet #12",
+  "description": "Rose Quiet: a Common android from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #12 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/12.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=12",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Warm sand"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Rose bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

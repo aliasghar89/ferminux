@@ -1,0 +1,51 @@
+{
+    "items": [
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x8e97f419F388c20E745dFF826587f359C31EF693",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "288683000000000",
+            "balance_before": "0",
+            "change": "288683000000000",
+            "is_miner": true,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x38A358681199a42B11085A46cEF390D7C26FF68d",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "499711316997979219",
+            "balance_before": "500000000000000000",
+            "change": "-288683002020781",
+            "is_miner": false,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        }
+    ],
+    "next_page_params": null
+}

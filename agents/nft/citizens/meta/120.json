@@ -1,0 +1,40 @@
+{
+  "name": "Nano Surgeon #120",
+  "description": "Nano Surgeon: a Rare cyborg from the Vanguard series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #120 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/120.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=120",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Vanguard"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Cyborg"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Lilac"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Surgical mask"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "White coat and scrubs"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Nanobot and tweezers"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

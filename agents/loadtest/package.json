@@ -1,0 +1,24 @@
+{
+  "name": "@ferminux/wizrd-loadtest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wizrd's labelled network load test: HD wallets that make small marked FMX transfers and sweep every coin back to Wizrd.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "test": "node --test test/*.test.mjs",
+    "test:integration": "node scripts/integration.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.13.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4"
+  },
+  "license": "MIT"
+}

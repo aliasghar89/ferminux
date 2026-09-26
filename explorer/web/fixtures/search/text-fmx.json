@@ -1,0 +1,56 @@
+{
+    "items": [
+        {
+            "address_hash": "0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+            "address_url": "/address/0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+            "certified": false,
+            "circulating_market_cap": null,
+            "exchange_rate": null,
+            "icon_url": null,
+            "is_smart_contract_verified": false,
+            "is_verified_via_admin_panel": false,
+            "name": "Wrapped FMX",
+            "priority": 2,
+            "symbol": "WFMX",
+            "token_type": "ERC-20",
+            "token_url": "/token/0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae",
+            "total_supply": "168867184453857319492643",
+            "type": "token"
+        },
+        {
+            "address_hash": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+            "address_url": "/address/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+            "certified": false,
+            "circulating_market_cap": null,
+            "exchange_rate": null,
+            "icon_url": null,
+            "is_smart_contract_verified": false,
+            "is_verified_via_admin_panel": false,
+            "name": "Ferminux Agents",
+            "priority": 2,
+            "symbol": "FMXA",
+            "token_type": "ERC-721",
+            "token_url": "/token/0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+            "total_supply": "2",
+            "type": "token"
+        },
+        {
+            "address_hash": "0xbab12e7B817F0686e11949eC06697235DC146845",
+            "address_url": "/address/0xbab12e7B817F0686e11949eC06697235DC146845",
+            "certified": false,
+            "circulating_market_cap": null,
+            "exchange_rate": null,
+            "icon_url": null,
+            "is_smart_contract_verified": false,
+            "is_verified_via_admin_panel": false,
+            "name": "Ferminux LP",
+            "priority": 2,
+            "symbol": "FMX-LP",
+            "token_type": "ERC-20",
+            "token_url": "/token/0xbab12e7B817F0686e11949eC06697235DC146845",
+            "total_supply": "79056941504209483",
+            "type": "token"
+        }
+    ],
+    "next_page_params": null
+}

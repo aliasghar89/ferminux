@@ -75,6 +75,12 @@ miner-app/bin/*/ferminux-geth.exe
 site/downloads/*.tar.gz
 site/downloads/*.zip
 
+# Playwright (explorer/web/tests/*.spec.ts)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # =============================================================================
 # OS / editor noise
 # =============================================================================

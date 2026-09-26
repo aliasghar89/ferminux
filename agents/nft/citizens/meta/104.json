@@ -1,0 +1,40 @@
+{
+  "name": "Volcano Observer #104",
+  "description": "Volcano Observer: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #104 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/104.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=104",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Tangerine"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Volcano-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ash-stained field jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Glowing lava rock"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

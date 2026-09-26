@@ -1,0 +1,39 @@
+
+## rewards: 0.025 FMX per accepted attestation from a funded pool; claim and claimToAttester by the seat owner (2026-09-26T01:57:16Z, block 16253)
+h 13400 seat 7 included 13496 (h+96) reward 0.0 tx 0x444bc380f2fbdf907ad317b9ea51192a136417def88d610cfb07c07b1e06f70f
+h 13600 seat 7 included 13666 (h+66) reward 0.0 tx 0xcd53730e9ed06319d1280571d3ffa136de5ab3ed6a17fc9ee70f01570fc23614
+h 13800 seat 7 included 13866 (h+66) reward 0.0 tx 0x6a0b0218bc0fe758c5b022bfbc55c11f88b669681097dd040976e8b999544dd9
+h 14000 seat 7 included 14066 (h+66) reward 0.0 tx 0xb32d5eaa2afa72cda1233eab133066b30b4b7d40f54222a495234e907af9fe4b
+h 14200 seat 7 included 14266 (h+66) reward 0.025 tx 0xe8fdbac0f0503a1d56ea492bc8109c525aa45c47b6fff5693ec54f461c0f4cbb
+h 14400 seat 7 included 14466 (h+66) reward 0.025 tx 0x5eb2ec6d2d7370e88feda9d964003fd965af615ca7d40bd8b4d8f427259a4825
+h 14600 seat 7 included 14666 (h+66) reward 0.025 tx 0xcd41a353be16baf05d85d7c87727813694ae4e112fbdd94eafe9994bdc6d4cba
+h 14800 seat 7 included 14866 (h+66) reward 0.025 tx 0x8c6a3869cef33c9d1ea97a2a2e9759b0b6367fa9d44bbfded98fd4edd547cc72
+h 15000 seat 7 included 15066 (h+66) reward 0.025 tx 0x7089c7a29f5ec7a4b2eac7eb5c3c44c97f4fbe4b3d85557851d1cdd6ee88b54c
+h 15200 seat 7 included 15266 (h+66) reward 0.025 tx 0x17023168ca8ac9de41784839a7bf5b88b07e3bb3317d5922a4a0401e375f819c
+h 15400 seat 7 included 15466 (h+66) reward 0.025 tx 0x52e16246f97d27a26de3bae98316babb00e13d6c2095126543daaef68a114d37
+h 15600 seat 7 included 15666 (h+66) reward 0.025 tx 0xd25776ffc06d781964fe8ddc8e59a7319924d7621dd5fd7c65d466d6fc62b3da
+h 15800 seat 7 included 15866 (h+66) reward 0.025 tx 0x96cf0d6983fcf642ba1cd3a76ab06ad7a255183cd2570cde36d1d7b3893047f4
+h 16000 seat 7 included 16066 (h+66) reward 0.025 tx 0x8ea6858e4a6ae2a7bef18a6e6fbd6835ab88a6372459372777d2adefe4f1d245
+  seat 7: 10 paid attestations, claimable 0.25 FMX, expected 0.250 FMX
+  ok: claimable = paid attestations x 0.025
+  the planned rate: 0.025 FMX x 61.7 checkpoints a day at 7 s blocks = 1.54 FMX a day (the dashboard's estimate):
+{
+  "rewardPerAttestWei": 25000000000000000,
+  "expectedPerDayWei": 1542857142857142857,
+  "rewardPoolWei": 19998660000000000000000,
+  "poolEmpty": false,
+  "occupiedSeats": 6,
+  "eligibleSeats": 0,
+  "maxSeats": 100,
+  "claimableWei": 250000000000000000
+}
+  ok: claim by someone other than the seat owner refused: REVERTED: NotSeatOwner()
+  claim to a fresh address: tx=0xb4abbe95c140ea3821285c9e2710f6135e8563b21c81e0d8f1ec5ef025c4e6ba block=16256 status=1 gas=53758
+  ok: the recipient received exactly the claimable amount
+  ok: claimable is 0 after the claim
+  claimToAttester 0.025 (gas top-up): tx=0x8cf2f8d957c14de8a8970096dc8bdb5c38e37ddbdfd7034a4d08039011b5adfb block=16653 status=1 gas=55599
+  ok: the attester key received 0.025 FMX
+16653 Claimed seatId=7 to=att-v07 amount=0.025
+<<< step rewards done (block 16653, fails so far 1)
+
+>>> step jail-early (2026-09-26T02:03:56Z, block 16653)

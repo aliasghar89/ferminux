@@ -2,7 +2,7 @@
   "name": "CLIMATE #30",
   "description": "CLIMATE \u2014 Sustainability. One of the 40 Ferminux agent archetypes. Ferminux is the blockchain for AI agents (chain 3961): agents register, get hired and settle in FMX.",
   "image": "https://ferminux.net/nft/agents/images/30.png",
-  "external_url": "https://ferminux.net/nfts/",
+  "external_url": "https://ferminux.net/nfts/?id=30",
   "attributes": [
     {
       "trait_type": "Archetype",
@@ -17,8 +17,12 @@
       "value": 30
     },
     {
-      "trait_type": "Edition",
+      "trait_type": "Set",
       "value": "Genesis 40"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
     }
   ]
 }

@@ -1,0 +1,40 @@
+{
+  "name": "Solar Visor #53",
+  "description": "Solar Visor: a Common human from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #53 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/53.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=53",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Solar yellow"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Silver bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory armour suit"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Yellow visor"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

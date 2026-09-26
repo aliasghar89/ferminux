@@ -1,0 +1,40 @@
+{
+  "name": "Porcelain Blue #55",
+  "description": "Porcelain Blue: a Common android from the Crew series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #55 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/55.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=55",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Crew"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "White"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Porcelain dome"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory armour"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Blue eyes"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

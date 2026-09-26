@@ -1,0 +1,160 @@
+{
+    "items": [
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+                "implementations": [],
+                "is_contract": true,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": "Ferminux Agents",
+                "private_tags": [],
+                "proxy_type": "unknown",
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "50000000000000000000",
+            "balance_before": "0",
+            "change": "50000000000000000000",
+            "is_miner": false,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x4660E707371db34E8229A66b1e141053F61b2AD4",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "39999379722995658061",
+            "balance_before": "89999459041996213294",
+            "change": "-50000079319000555233",
+            "is_miner": false,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x3322f60aCEA9f88658665E83BeB30a516036187D",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "79319000000000",
+            "balance_before": "0",
+            "change": "79319000000000",
+            "is_miner": true,
+            "token": null,
+            "token_id": null,
+            "type": "coin"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x0000000000000000000000000000000000000000",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": null,
+            "balance_before": null,
+            "change": [
+                {
+                    "direction": "from",
+                    "total": {
+                        "token_id": "10",
+                        "token_instance": null
+                    }
+                }
+            ],
+            "is_miner": false,
+            "token": {
+                "address_hash": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+                "circulating_market_cap": null,
+                "decimals": null,
+                "exchange_rate": null,
+                "holders_count": "2",
+                "icon_url": null,
+                "name": "Ferminux Agents",
+                "symbol": "FMXA",
+                "total_supply": "2",
+                "type": "ERC-721",
+                "volume_24h": null
+            },
+            "token_id": null,
+            "type": "token"
+        },
+        {
+            "address": {
+                "ens_domain_name": null,
+                "hash": "0x4660E707371db34E8229A66b1e141053F61b2AD4",
+                "implementations": [],
+                "is_contract": false,
+                "is_scam": false,
+                "is_verified": false,
+                "metadata": null,
+                "name": null,
+                "private_tags": [],
+                "proxy_type": null,
+                "public_tags": [],
+                "watchlist_names": []
+            },
+            "balance_after": "1",
+            "balance_before": "0",
+            "change": [
+                {
+                    "direction": "to",
+                    "total": {
+                        "token_id": "10",
+                        "token_instance": null
+                    }
+                }
+            ],
+            "is_miner": false,
+            "token": {
+                "address_hash": "0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd",
+                "circulating_market_cap": null,
+                "decimals": null,
+                "exchange_rate": null,
+                "holders_count": "2",
+                "icon_url": null,
+                "name": "Ferminux Agents",
+                "symbol": "FMXA",
+                "total_supply": "2",
+                "type": "ERC-721",
+                "volume_24h": null
+            },
+            "token_id": null,
+            "type": "token"
+        }
+    ],
+    "next_page_params": null
+}

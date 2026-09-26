@@ -1,0 +1,25 @@
+{
+  "note": "Forked (reorg) and uncle blocks per confirming address, from the explorer's index. The index's blocks-confirmed counter counts them; the explorer subtracts them. Regenerate with `npm run noncanonical`.",
+  "generatedAt": "2026-09-25",
+  "reorg": {
+    "count": 832,
+    "minHeight": 160031,
+    "maxHeight": 266652,
+    "byAddr": {
+      "0x71377e0f553a5b0cb847443ab6648235977919b0": 78,
+      "0x8e97f419f388c20e745dff826587f359c31ef693": 63,
+      "0x3322f60acea9f88658665e83beb30a516036187d": 18,
+      "0x1538249e04c767dffc50845068c19f633341bb0f": 14,
+      "0xa46a721f25771bb2be312a63a5d891539ff1de23": 3
+    }
+  },
+  "uncle": {
+    "count": 16130,
+    "minHeight": 305,
+    "maxHeight": 98903,
+    "byAddr": {
+      "0x7f16433359e4ef704e90ce08460c6238e45130f7": 16110,
+      "0x4adbea699af36ede04b71a8c8656b376742669bd": 20
+    }
+  }
+}

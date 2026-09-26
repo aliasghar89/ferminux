@@ -1,0 +1,40 @@
+{
+  "name": "Morning Recruit #22",
+  "description": "Morning Recruit: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #22 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/22.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=22",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "White"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Wild bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory tech jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Cheek marks"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

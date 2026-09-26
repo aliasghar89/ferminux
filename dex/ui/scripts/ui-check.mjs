@@ -19,8 +19,10 @@
 //   • the page is checked at 390 px wide for horizontal overflow
 //   • the SHIPPED default (no addresses configured) renders the "Not
 //     configured" screen naming all four missing addresses
-//   • the Bridge tab mounts across the @bridge alias, shows its direction, and
-//     offers no send until a wallet is connected
+//   • the Bridge tab (built with VITE_ENABLE_BRIDGE=1) mounts across the
+//     @bridge alias, shows its direction, offers no send until a wallet is
+//     connected, and says bridging is unavailable when the relayer report
+//     (served here as a fixture) has the source chain's signing paused
 //
 // Screenshots are written next to the temporary build and the path is printed.
 //
@@ -54,7 +56,8 @@ import { addLiquidity, quoteAddLiquidity } from '../src/lib/liquidity.ts';
 import { TokenMetaCache, approveLp, fetchLpBalance, findPair } from '../src/lib/pairs.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const RPC_PORT = 8602;
+// DEX_TEST_PORT moves it when 8602 is taken (another run, or the dev server).
+const RPC_PORT = Number(process.env.DEX_TEST_PORT) || 8602;
 const RPC = `http://127.0.0.1:${RPC_PORT}`;
 const KEY0 = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 // Deliberately dead: exercises the "explorer link never fetched" path.
@@ -63,6 +66,24 @@ const DEAD_EXPLORER = 'http://127.0.0.1:9';
 const DEX_OUT = (name, contract = name) =>
   fileURLToPath(new URL(`../../contracts/out/${name}.sol/${contract}.json`, import.meta.url));
 const CORE_OUT = (name) => fileURLToPath(new URL(`../../../contracts/out/${name}.sol/${name}.json`, import.meta.url));
+
+const PAUSED_STATUS = (now) => ({
+  generatedAt: now,
+  chains: [
+    {
+      name: 'ferminux',
+      chainId: 3961,
+      confirmations: 64,
+      finality: {
+        mode: 'work-and-time',
+        pace: { state: 'ok', targetBlockTimeMs: 7000, medianGapMs: 7000, samples: 32, headNumber: 1, headAgeMs: 1000, reason: null },
+        checkpoint: { state: 'unreadable', number: null, hash: null, attestedAt: null, ageMs: null, maxAgeMs: 21600000, lagBlocks: null, hashVerified: false, reason: 'fixture: registry unreadable' },
+        signing: { paused: true, reason: 'fixture: checkpoint unreadable' },
+      },
+    },
+    { name: 'bsc', chainId: 56, confirmations: 20, finality: { mode: 'count', pace: null, checkpoint: null, signing: { paused: false, reason: null } } },
+  ],
+});
 
 let step = 0;
 const ok = (msg) => console.log(`  ✓ ${String(++step).padStart(2)}. ${msg}`);
@@ -225,6 +246,10 @@ async function main() {
         VITE_ROUTER_ADDRESS: addresses.router,
         VITE_WFMX_ADDRESS: addresses.wfmx,
         VITE_LOCKER_ADDRESS: addresses.locker,
+        // The tab ships off; this run opts in so it can be checked, and points
+        // the liveness report at the fixture the static server answers below.
+        VITE_ENABLE_BRIDGE: '1',
+        VITE_RELAYER_STATUS_URL: './status.json',
       },
       encoding: 'utf8',
     });
@@ -238,6 +263,13 @@ async function main() {
       // console-error assertion below only ever sees real application errors.
       if (path === '/favicon.ico') {
         res.writeHead(204).end();
+        return;
+      }
+      // Relayer liveness report, in the shape fmx-publish-status writes, with
+      // Ferminux signing paused — what the live report said on 2026-09-24.
+      if (path === '/status.json') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(PAUSED_STATUS(Date.now())));
         return;
       }
       const file = join(distRoot, path === '/' ? 'index.html' : path);
@@ -310,12 +342,20 @@ async function main() {
     const bridgeText = await page.textContent('.panel');
     assert.match(bridgeText, /Ferminux\s*→\s*BSC/, 'the Bridge tab must render its direction control');
     assert.doesNotMatch(bridgeText, /not configured/i, 'the deployed addresses are tracked defaults, so it must be configured');
+    // The relayer fixture has Ferminux signing paused: the panel must say so
+    // before (and regardless of) the two live registry reads.
+    await page.waitForSelector('[data-testid=bridge-gate]', { timeout: 15000 });
+    assert.match(
+      await page.textContent('[data-testid=bridge-gate]'),
+      /Bridging is unavailable from Ferminux.*paused/is,
+      'a paused source chain must be stated, not left to a silent deposit',
+    );
     // No wallet is connected at this point in the run.
     const bridgeBtn = page.locator('.panel button.btn-primary');
     assert.equal(await bridgeBtn.textContent(), 'Connect a wallet', 'no send may be offered without a wallet');
     assert.equal(await bridgeBtn.isDisabled(), true, 'and it must be disabled');
     await page.screenshot({ path: join(workDir, '00-bridge.png'), fullPage: true });
-    ok('Bridge tab mounts across the @bridge alias, shows Ferminux → BSC, and gates on a wallet');
+    ok('Bridge tab mounts across the @bridge alias, shows Ferminux → BSC, gates on a wallet and on relayer liveness');
 
     // --- Pools --------------------------------------------------------------
     await page.click('.tab:has-text("Pools")');
@@ -383,6 +423,8 @@ async function main() {
 
     // --- connect the injected wallet ---------------------------------------
     await page.click('.app-header .btn:has-text("Connect")');
+    // The chooser lists Ferminux Wallet first; the test shim is the injected entry.
+    await page.click('[data-testid=choice-injected]');
     await page.waitForFunction(() => /0x[0-9a-fA-F]{4}…/.test(document.querySelector('.app-header')?.textContent ?? ''), {
       timeout: 15000,
     });

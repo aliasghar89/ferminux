@@ -1,0 +1,108 @@
+
+## double attestation by seat 2 (v02) -> slash 1 (2026-09-26T01:27:15Z, block 14452)
+  seat 2 (v02) attested h=14200 hash=0x184731191b9c94783664f3bc052b1537d0e8cb6775a97ea7cdd15f8187166037 on-chain (tx 0xd22c707232c79e5cd0c82d48af9f0707493c4c043a96f9318cef85e49dae57a2, signed by its sidecar)
+  manual second signature by the same attester key for h=14200 over a different hash 0x637cccb131594b886e1833396313eecbcfad953068f94188fd53639969bfe18c
+  (what a second machine on another fork would sign; the sidecar itself refuses: see 08/09)
+  proveDoubleAttestation by REPORTER: tx=0x05ee161f5ae1a1f228f9d36e18bd1aab9b8645df324c31af1443e9ea5c3da16a block=14455 status=1 gas=160262
+  ok: the same evidence a second time refused: REVERTED: EvidenceUsed()
+{
+ "slashId": 1,
+ "seatId": 2,
+ "kind": "DOUBLE_ATTESTATION",
+ "status": "PENDING",
+ "executableBlock": 39141,
+ "vetoSunsetBlock": 2221765,
+ "amount": "200.0",
+ "reporter": "REPORTER",
+ "height": 14200
+}
+{
+ "id": 2,
+ "state": "EXITING",
+ "owner": "owner-v02",
+ "attester": "att-v02",
+ "deposit": "2000.0",
+ "claimable": "0.05",
+ "activationBlock": 13456,
+ "eligibleFrom": 99856,
+ "countedSince": 0,
+ "lastAttestedHeight": 14200,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 187255,
+ "slash": "PENDING"
+}
+  ok: seat 2 ejected into unbonding at once
+  ok: executeSlash inside the 48 h window refused: REVERTED: TooEarly()
+  ok: veto by anyone but the multisig refused: REVERTED: NotOwner()
+
+## double attestation by seat 3 (v03) -> slash 2, vetoed by the multisig inside the window (2026-09-26T01:27:19Z, block 14456)
+  seat 3 (v03) attested h=14200 hash=0x184731191b9c94783664f3bc052b1537d0e8cb6775a97ea7cdd15f8187166037 on-chain (tx 0x2136e6f6f44aa2ce033c0aec362cfef596daef8f68240a6c222bef01455b5187, signed by its sidecar)
+  manual second signature by the same attester key for h=14200 over a different hash 0x637cccb131594b886e1833396313eecbcfad953068f94188fd53639969bfe18c
+  (what a second machine on another fork would sign; the sidecar itself refuses: see 08/09)
+  proveDoubleAttestation by REPORTER: tx=0x14df251ecf725e9db1f7110622ff4f8a8b0dc6b665bc543c45ce77691b1bd5ec block=14460 status=1 gas=143178
+  ok: the same evidence a second time refused: REVERTED: EvidenceUsed()
+    msig submit #3 by OWNER1: tx=0x7ca5623e3ccb3ac573043d8b1652ad9ed720b6054c89e4ec0717ba548d9a6e01 block=14462 status=1 gas=173875
+    msig confirm #3 by OWNER2: tx=0xdc8a144554e9168a7704c1e6788558d5d7df9dd90f645796899d296531871abc block=14464 status=1 gas=57582
+  veto(2) through the multisig: tx=0x723e3216dc8932c440be91674adb740f5742ddadbd928b02a435e9f70b7c6aa7 block=14466 status=1 gas=80736
+{
+ "slashId": 2,
+ "seatId": 3,
+ "kind": "DOUBLE_ATTESTATION",
+ "status": "VETOED",
+ "executableBlock": 39146,
+ "vetoSunsetBlock": 2221765,
+ "amount": "200.0",
+ "reporter": "REPORTER",
+ "height": 14200
+}
+  ok: slash 2 VETOED
+{
+ "id": 3,
+ "state": "EXITING",
+ "owner": "owner-v03",
+ "attester": "att-v03",
+ "deposit": "2000.0",
+ "claimable": "0.05",
+ "activationBlock": 13460,
+ "eligibleFrom": 99860,
+ "countedSince": 0,
+ "lastAttestedHeight": 14200,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 187260,
+ "slash": "NONE"
+}
+  ok: vetoed seat keeps its full deposit (stays in its unbond)
+  ok: executing a vetoed slash refused: REVERTED: SlashNotPending()
+14455 ExitRequested seatId=2 unbondEndBlock=187255
+14455 SlashProposed slashId=1 seatId=2 kind=1 height=14200 reporter=REPORTER amount=200.0 executableBlock=39141
+14460 ExitRequested seatId=3 unbondEndBlock=187260
+14460 SlashProposed slashId=2 seatId=3 kind=1 height=14200 reporter=REPORTER amount=200.0 executableBlock=39146
+14466 SlashVetoed slashId=2 seatId=3
+  dashboard of v02: evidence/dashboards/v02-slashed-unbonding-desktop.png, -phone.png, .txt, -api-status.json
+  --- v02 sidecar after the slash (its key is banned; it signs nothing more):
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Unbonding
+                 The deposit can be withdrawn by the owner wallet from block
+                 187,255 (in about 14 days). Nothing is signed meanwhile.
+      attester   att-v02(0x98ec92..)
+      hub        HUB(0x7cEE96..)
+      node       head 14476, 1 s old, 12 peers, ready to sign
+      process    running=yes pid=16 restarts=0
+      seat       #2 unbonding, counted for certification: no
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 0.0500 FMX
+      attested   5 of the last 62 checkpoints (24 h), 5 of 432 (7 days)
+      gas        0.9996 FMX
+      next       checkpoint 14600, signing opens at block 14664
+          14400  waiting   seat is unbonding
+          14200  included  
+          14000  included  
+          13800  included  
+          13600  included  
+          13400  included  
+          13200  missed    seat activates at block 13456
+          13000  missed    seat activates at block 13456
+<<< step slash done (block 14476, fails so far 0)
+
+>>> step bad (2026-09-26T01:27:39Z, block 14476)

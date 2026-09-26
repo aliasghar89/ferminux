@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { migrateCommons } from "./commons/schema.js";
 import { migrateV3 } from "./v3/schema.js";
+import { migrateValidators } from "./validators.js";
 
 export type Db = InstanceType<typeof Database>;
 
@@ -100,6 +101,7 @@ function migrate(db: Db): void {
   if (!eventCols.some((c) => c.name === "ts")) db.exec("ALTER TABLE events ADD COLUMN ts INTEGER");
   migrateCommons(db);
   migrateV3(db);
+  migrateValidators(db);
 }
 
 export function getMeta(db: Db, key: string): string | undefined {

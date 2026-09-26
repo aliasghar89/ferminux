@@ -9,10 +9,11 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadFerminuxData, dataPack } from "./ferminux.js";
-import { renderTemplate } from "./templates.js";
+import { renderTemplate, normTitle } from "./templates.js";
 import { loadStyle } from "./research.js";
 import { loadLearn } from "./learn.js";
 import { loadFacts } from "./faq.js";
+import { llmAvailable } from "./llm.js";
 
 export const LLMS = "https://ferminux.net/llms.txt";
 export const FORMATS = ["data", "buildlog", "opinion", "tutorial", "replypost", "bounties", "invite"];
@@ -47,6 +48,8 @@ const BANNED = [
   { re: /\bEVM[- ]?(Layer[- ]?1|L1|L-1|chain|blockchain|network)\b/gi, why: "\"EVM <noun>\" as the lead descriptor (lead with: settlement and record layer for AI agents, chain 3961)" },
   { re: /\bERC-?(20|721|8004)\b/g, why: "ERC-* (use FRC-20/FRC-721/FRC-8004)" },
   { re: /\bEthereum\b|\bETH\b(?!\s*on Base)/g, why: "Ethereum comparison" },
+  { re: /\bbonded signers?\b/gi, why: "\"bonded signers\" (signers are authorised by the on-chain signer set, not bonded)" },
+  { re: /\bfive\s+(?:authori[sz]ed\s+)?signers?\b/gi, why: "\"five signers\" (the set changes by vote; say \"a set of authorised signers\")" },
   { re: /\p{Extended_Pictographic}/gu, why: "emoji" },
   { re: /\b(revolutionary|game[- ]?changing|unleash|next[- ]gen|to the moon|100x|guaranteed returns|paradigm|cutting[- ]edge|seamless|supercharge)\b/gi, why: "hype word" },
   { re: /no guaranteed value|the network is new|we are (small|new|early)|still early|bear with us/gi, why: "hedge/disclaimer line (operator: none)" },
@@ -165,7 +168,7 @@ export async function scoreDraft({ draft, violations, llmComplete, style, logger
   if (violations.some((v) => !/auto-corrected/.test(v))) {
     return { score: Math.min(4, heuristicScore(draft, violations)), reasons: violations, judge: "lint" };
   }
-  if (llmComplete) {
+  if (llmAvailable(llmComplete)) {
     try {
       const system = `You are a strict editor for posts on Moltbook, a social network where AI agents post and only agents vote. Score the draft 0-10 for how likely it is to rank in the "general" feed, using the research notes and rubric below. Be harsh on anything that reads like marketing, a press release, or a product announcement; reward one concrete claim in the title, receipts in the body (numbers, ids, tx links, commands), first-person experience, plain language, and a specific closing question. Reply with JSON only: {"score": <number>, "reasons": ["<short reason>", ...]}.
 
@@ -261,8 +264,8 @@ HARD RULES (a post that breaks one is discarded):
 - Title: one concrete claim or number, 6-16 words, could only be written by someone who did the thing. Never start with the product name. Never "Introducing/Announcing".
 - Body: 90-260 words unless the format needs more (data digest up to 400; tutorial ≤ 12 numbered lines). Short paragraphs. No bullet walls. At most ONE link inside the body. Do NOT add https://ferminux.net/llms.txt yourself; it is appended automatically as the final line.
 - Ferminux is the evidence, not the subject. Lead with the mechanism, decision, or number; mention the network where the receipt comes from.
-- When you do describe the network, describe it in its own terms: "the settlement and record layer for autonomous AI agents — chain 3961, five bonded signers confirming a block every 7 seconds". NEVER open with "EVM Layer 1", "EVM L1" or "EVM chain"; bytecode compatibility is a later line for developers, never the first thing said.
-- Five bonded signers confirm blocks in rotation: say "signers" and "confirmed". NEVER "PoS", "proof of stake", "mining", "mined", "miners", "hashrate", "sealed".
+- When you do describe the network, describe it in its own terms: "the settlement and record layer for autonomous AI agents — chain 3961, a set of authorised signers confirming a block every 7 seconds". Signers are authorised, NOT bonded: never write "bonded signers", and never state a fixed signer count (the set changes; a live number only from DATA). NEVER open with "EVM Layer 1", "EVM L1" or "EVM chain"; bytecode compatibility is a later line for developers, never the first thing said.
+- A set of authorised signers confirms blocks in rotation: say "signers" and "confirmed". NEVER "PoS", "proof of stake", "mining", "mined", "miners", "hashrate", "sealed".
 - Standards: FRC-20 / FRC-721 tokens, FRC-8004 registries. NEVER "ERC-". No Ethereum comparisons at all — Ethereum is a foreign chain you can pay in from, never a yardstick for this one.
 - Only facts from the FACTS and DATA sections. Never invent numbers, incidents, tests, quotes or tx hashes. If a receipt is not in DATA, do not claim it.
 - End opinion and reply posts with one specific question another agent can answer from its own experience.
@@ -326,6 +329,12 @@ export async function generatePost({ cfg, state, logger, llmComplete, format, su
   const rejected = [];
   const avoidTitles = state.content.usedTitles;
   let feedback = null;
+  const replyAuthors = (state.content.replyAuthors ||= {});
+  // one reply-as-post per thread author per 7 days, whichever path drafts it
+  if (format === "replypost" && thread?.author && replyAuthors[thread.author] && Date.now() - Date.parse(replyAuthors[thread.author]) < 7 * 24 * 3600 * 1000) {
+    return { draft: null, attempts: [{ source: "author_cap", score: null }], rejected: [], score: null, reasons: ["replied to this author within 7 days"], judge: null };
+  }
+  const usedTitles = new Set([...(state.content.usedTitles || []), ...(state.published || []).map((p) => p.title)].map(normTitle));
 
   const tryOne = async (source, produce) => {
     let raw;
@@ -336,7 +345,11 @@ export async function generatePost({ cfg, state, logger, llmComplete, format, su
       return null;
     }
     if (!raw) return null;
-    const { draft, violations } = lintDraft({ ...raw, format, submolt, source, threadId: thread?.id || null });
+    if (usedTitles.has(normTitle(raw.title))) {
+      attempts.push({ source, score: null, duplicate: true });
+      return null; // already published under this title: Moltbook would hand back the old post
+    }
+    const { draft, violations } = lintDraft({ ...raw, format, submolt, source, threadId: thread?.id || null, threadAuthor: thread?.author || null });
     const { score, reasons, judge } = await scoreDraft({ draft, violations, llmComplete, style, logger });
     const rec = { ...draft, score, reasons, judge, violations, at: new Date().toISOString() };
     attempts.push({ source, score, judge, violations: violations.length });
@@ -347,12 +360,12 @@ export async function generatePost({ cfg, state, logger, llmComplete, format, su
   };
 
   let ok = null;
-  if (llmComplete) {
+  if (llmAvailable(llmComplete)) {
     ok = await tryOne("llm", () => llmDraft({ format, submolt, data, thread, facts, style, llmComplete, avoidTitles, feedback }));
     if (!ok) ok = await tryOne("llm-retry", () => llmDraft({ format, submolt, data, thread, facts, style, llmComplete, avoidTitles, feedback }));
   }
   if (!ok) {
-    ok = await tryOne("template", async () => renderTemplate(format, data, { thread }, state.content.templateCursor));
+    ok = await tryOne("template", async () => renderTemplate(format, data, { thread, usedTitles, replyAuthors }, state.content.templateCursor));
   }
   if (rejected.length) recordRejected(cfg, rejected);
   return { draft: ok, attempts, rejected, score: ok?.score ?? null, reasons: ok?.reasons ?? [], judge: ok?.judge ?? null };
@@ -369,7 +382,7 @@ export function recordRejected(cfg, records) {
 }
 
 /** Bookkeeping after a successful publish so the bandit and the "no repeats" rule see it. */
-export function recordPublished(state, { postId, format, submolt, title, source, score, judge, threadId }) {
+export function recordPublished(state, { postId, format, submolt, title, source, score, judge, threadId, threadAuthor }) {
   const today = new Date().toISOString().slice(0, 10);
   state.content.lastFormats.push(format);
   if (state.content.lastFormats.length > 20) state.content.lastFormats.splice(0, state.content.lastFormats.length - 20);
@@ -385,6 +398,12 @@ export function recordPublished(state, { postId, format, submolt, title, source,
   if (state.content.usedTitles.length > 200) state.content.usedTitles.splice(0, state.content.usedTitles.length - 200);
   if (format === "bounties") state.content.lastBountyDigestAt = new Date().toISOString();
   if (threadId) state.content.repliedThreadIds.push(threadId);
+  if (format === "replypost" && threadAuthor) {
+    const ra = (state.content.replyAuthors ||= {});
+    ra[threadAuthor] = new Date().toISOString();
+    const names = Object.keys(ra).sort((a, b) => Date.parse(ra[a]) - Date.parse(ra[b]));
+    for (const n of names.slice(0, Math.max(names.length - 500, 0))) delete ra[n];
+  }
   state.published.push({ postId, format, submolt, title, source, score, judge, postedAt: new Date().toISOString(), titlePattern: titlePattern(title) });
   if (state.published.length > 2000) state.published.splice(0, state.published.length - 2000);
 }

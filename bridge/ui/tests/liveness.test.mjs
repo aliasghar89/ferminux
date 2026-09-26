@@ -19,6 +19,7 @@ import {
   SLOW_PACE_FACTOR,
   STATUS_MAX_AGE_MS,
   assessLiveness,
+  canSend,
   describeWait,
   isStatusFresh,
   liveSourceWaitSeconds,
@@ -405,4 +406,56 @@ test('estimate: new-transfer source wait uses measured pace; paused → null; ch
 
 test('config: the status URL is relative by default, so the build guard has no new host to allow', () => {
   assert.ok(!/^https?:\/\//.test(RELAYER_STATUS_URL), RELAYER_STATUS_URL);
+});
+
+// ----------------------------------------------------------------- send gate
+//
+// The finding this closes (2026-09-24 audit): the form's submit button ignored
+// the verdict it displayed. With validators refusing to sign, a user could
+// still lock FMX or burn wFMX into a bridge that has no refund path.
+
+const NOW_MS = FIXTURE.generatedAt;
+
+test('gate: a fresh report with a healthy source chain lets the user send', () => {
+  const g = canSend(parseRelayerStatus(FIXTURE), 3961, 'Ferminux', NOW_MS);
+  assert.deepEqual(g, { ok: true, reason: null });
+});
+
+test('gate: no report, a stale report, or an unreported chain refuses — fail closed', () => {
+  assert.equal(canSend(null, 3961, 'Ferminux', NOW_MS).ok, false);
+  assert.match(canSend(null, 3961, 'Ferminux', NOW_MS).reason, /unavailable/);
+  const stale = canSend(parseRelayerStatus(FIXTURE), 3961, 'Ferminux', NOW_MS + STATUS_MAX_AGE_MS + 1);
+  assert.equal(stale.ok, false);
+  assert.match(stale.reason, /out of date/);
+  const other = canSend(parseRelayerStatus(FIXTURE), 137, 'Polygon', NOW_MS);
+  assert.equal(other.ok, false, 'a chain the validators do not report on');
+});
+
+test('gate: any pause refuses, with the same sentence the health panel shows', () => {
+  // The live 2026-09-24 state: checkpoint attested 320 h ago.
+  const doc = docWith((f) => {
+    f.checkpoint.state = 'stale';
+    f.checkpoint.ageMs = 320 * 3_600_000;
+    f.checkpoint.reason = 'checkpoint #232337 was attested 19157 min ago; max age is 360 min';
+    f.signing = { paused: true, reason: 'Checkpoint stale: …' };
+  });
+  const g = canSend(parseRelayerStatus(doc), 3961, 'Ferminux', NOW_MS);
+  assert.equal(g.ok, false);
+  assert.match(g.reason, /stale/);
+});
+
+test('gate: a lagging scanner refuses even when the relayer still says "not paused"', () => {
+  // The live 2026-09-24 BSC row: count mode, signing not paused, cursor 1.9M
+  // blocks behind. An older relayer publishes scan without folding it in.
+  const doc = clone(FIXTURE);
+  const bsc = doc.chains.find((c) => c.chainId === 56);
+  bsc.scan = { ...bsc.scan, lagging: true, lagBlocks: 1_935_979, reason: 'the bsc scanner has not completed a scan for 14400 min' };
+  const status = parseRelayerStatus(doc);
+  const verdict = assessLiveness(livenessForChain(status, 56), 'BSC', NOW_S);
+  assert.equal(verdict.paused, true);
+  assert.match(verdict.message, /not seeing new transfers from BSC/);
+  assert.equal(canSend(status, 56, 'BSC', NOW_MS).ok, false);
+  // Without the scan block (an older relayer) the chain is judged on signing alone.
+  delete bsc.scan;
+  assert.equal(canSend(parseRelayerStatus(doc), 56, 'BSC', NOW_MS).ok, true);
 });

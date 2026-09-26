@@ -1,5 +1,15 @@
 name: CI
 
+# Every package the repository ships, on every push to main and every pull
+# request. Nothing here deploys, signs with a real key or sends a transaction
+# to chain 3961 or any public chain: the end-to-end suites run on throwaway
+# local anvil chains (127.0.0.1), and the one job that reads the live chain
+# (explorer-live) only reads.
+#
+# Actions are pinned to full commit SHAs (the tag is in the comment), so a
+# moved tag can never change what runs here. Dependabot's github-actions entry
+# keeps the pins current.
+
 on:
   push:
     branches: [main]
@@ -16,61 +26,114 @@ concurrency:
 env:
   # Pinned to the version the contracts were developed against.
   FORGE_STD_VERSION: v1.16.2
+  # The Foundry release the suites were last verified with. Pinned rather than
+  # `stable` so a new forge cannot change compiler output or test semantics
+  # under an unrelated pull request.
+  FOUNDRY_VERSION: v1.7.1
+  # The chain (and the validator sidecar built against it) targets this
+  # toolchain; GOTOOLCHAIN stops a toolchain directive from pulling another.
+  GO_VERSION: '1.20.14'
+  # Production images for the gateway, runtime and load test are node:20;
+  # the relayer image, the dApps' build tooling and the tests that import .ts
+  # sources directly (type stripping, Node 22.18+) use Node 24.
+  NODE_RUNTIME: '20'
+  NODE_TOOLING: '24'
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Solidity: every Foundry project.
   contracts:
-    name: contracts (forge test)
+    name: ${{ matrix.dir }} (forge)
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: stable
-
-      # agents/contracts resolves forge-std through ../../contracts/lib
-      # (see agents/contracts/remappings.txt). That directory is not vendored,
-      # so CI fetches the pinned release.
-      - name: Fetch forge-std
-        run: |
-          git clone --depth 1 --branch "$FORGE_STD_VERSION" \
-            https://github.com/foundry-rs/forge-std.git contracts/lib/forge-std
-          rm -rf contracts/lib/forge-std/.git
-
-      # the ferminux node client (v1.10.26 lineage, pre-Shanghai): PUSH0 is not a
-      # valid opcode on chain 3961, so the bytecode must target Paris. This is
-      # already set in agents/contracts/foundry.toml; passing it here keeps the
-      # guarantee explicit and fails loudly if the config ever drifts.
-      - name: forge build
-        working-directory: agents/contracts
-        run: forge build --evm-version paris
-
-      - name: forge test
-        working-directory: agents/contracts
-        run: forge test --evm-version paris -vv
-
-  node:
-    name: ${{ matrix.package }} (node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        node: ['20']
-        package: [sdk, gateway, runtime]
+        dir:
+          - agents/contracts
+          - contracts
+          - dex/contracts
+          - staking/contracts
+          - bridge/contracts
+          - liquidity/contracts
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          node-version: ${{ matrix.node }}
+          persist-credentials: false
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      # contracts/lib (used by contracts/ and, through remappings.txt, by
+      # agents/contracts) and bridge/contracts/lib (used by bridge/ and, through
+      # the liquidity/contracts/lib symlink, by liquidity/) are not vendored.
+      # dex/ and staking/ vendor their own copy of the same release.
+      - name: Fetch forge-std
+        run: |
+          for lib in contracts/lib bridge/contracts/lib; do
+            git clone --quiet --depth 1 --branch "$FORGE_STD_VERSION" \
+              https://github.com/foundry-rs/forge-std.git "$lib/forge-std"
+            rm -rf "$lib/forge-std/.git"
+          done
+
+      # Incremental compilation: forge only recompiles sources whose content
+      # hash changed, so a restored cache/out from an older commit is safe.
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ${{ matrix.dir }}/cache
+            ${{ matrix.dir }}/out
+          key: forge-${{ matrix.dir }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles(format('{0}/src/**', matrix.dir), format('{0}/test/**', matrix.dir), format('{0}/script/**', matrix.dir), format('{0}/foundry.toml', matrix.dir)) }}
+          restore-keys: forge-${{ matrix.dir }}-${{ env.FOUNDRY_VERSION }}-
+
+      # The node client is pre-Shanghai: PUSH0 is not a valid opcode on chain
+      # 3961, so every project must target Paris. Each foundry.toml sets it;
+      # this fails loudly if one ever drifts.
+      - name: evm_version is paris
+        working-directory: ${{ matrix.dir }}
+        run: |
+          v="$(forge config --json | jq -r .evm_version)"
+          echo "evm_version=$v"
+          test "$v" = paris
+
+      - name: forge build
+        working-directory: ${{ matrix.dir }}
+        run: forge build
+
+      - name: forge test
+        working-directory: ${{ matrix.dir }}
+        run: forge test -vv
+
+  # ---------------------------------------------------------------------------
+  # agents/ workspace packages that run on Node 20 in production. agents/ is a
+  # single npm workspace root (gateway, sdk, runtime, web) with one lockfile;
+  # loadtest is built from the same install. Install once at the root, never
+  # per package.
+  agents:
+    name: agents/${{ matrix.package }} (node 20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [sdk, gateway, runtime, loadtest]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_RUNTIME }}
           cache: npm
           cache-dependency-path: agents/package-lock.json
 
-      # agents/ is a single npm workspace root (gateway, sdk, runtime, web)
-      # with one lockfile. Install once at the root, never per package.
       - name: Install workspace
         working-directory: agents
-        run: npm ci
+        run: npm ci --prefer-offline
 
       # runtime depends on @ferminux/agent (file:../sdk), so the SDK is built
       # before anything that imports it.
@@ -79,29 +142,35 @@ jobs:
         run: npm run build -w sdk
 
       - name: Build
-        working-directory: agents
-        run: npm run build -w ${{ matrix.package }}
+        working-directory: agents/${{ matrix.package }}
+        run: npm run build
 
-      # npm test is `node --test test/` and runs against dist/, so build first.
+      # npm test runs node --test over test/*.test.js(.mjs) against dist/,
+      # so build first.
       - name: Test
-        working-directory: agents
-        run: npm test -w ${{ matrix.package }}
+        working-directory: agents/${{ matrix.package }}
+        run: npm test
 
-  web:
-    name: web (build + typecheck)
+  agents-web:
+    name: agents/web (build, typecheck, tests)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          node-version: '20'
+          persist-credentials: false
+
+      # The site is static; Node only runs the build and the tests, which
+      # import src/*.ts directly (Node 22.18+).
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_TOOLING }}
           cache: npm
           cache-dependency-path: agents/package-lock.json
 
       - name: Install workspace
         working-directory: agents
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Build
         working-directory: agents
@@ -110,3 +179,352 @@ jobs:
       - name: Typecheck
         working-directory: agents/web
         run: npx tsc --noEmit
+
+      - name: Test
+        working-directory: agents/web
+        run: npm test
+
+  # ---------------------------------------------------------------------------
+  # explorer.ferminux.net
+  explorer:
+    name: explorer/web (build, ABI sync, browser smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: explorer/web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_TOOLING }}
+          cache: npm
+          cache-dependency-path: explorer/web/package-lock.json
+
+      - name: Install
+        run: npm ci --prefer-offline
+
+      # typecheck + sitemap + vite build
+      - name: Build
+        run: npm run build
+
+      # the validators pages' ABI fragments and constants against
+      # agents/contracts/src/validators
+      - name: Validators ABI in sync
+        run: npm run test:validators-abi
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('explorer/web/package-lock.json') }}
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Browser smoke (phone and desktop)
+        run: npm run test:e2e
+
+  # Reads recent blocks from the public RPC and checks the explorer's signer
+  # recovery and token classification against the node's own answers. Read-only
+  # (eth_getBlockByNumber, clique_getSigner, eth_call). Its own job so an RPC
+  # outage shows up here without failing the build jobs.
+  explorer-live:
+    name: explorer/web (live chain, read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: explorer/web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_TOOLING }}
+          cache: npm
+          cache-dependency-path: explorer/web/package-lock.json
+
+      - name: Install
+        run: npm ci --prefer-offline
+
+      - name: Clique signer recovery
+        run: npm run test:signer
+
+      - name: Token classification
+        run: node scripts/chain-token.test.mjs
+
+  # ---------------------------------------------------------------------------
+  # The dApps: build, unit tests, then an end-to-end run of each app's own lib
+  # modules against the real contracts deployed on a local anvil.
+  dapps:
+    name: ${{ matrix.package }} (build, tests, anvil e2e)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # AMM from dex/contracts, AZNT from contracts/
+          - package: dex/ui
+            contracts: contracts dex/contracts
+          # compiles its own fixtures (staking/ui/fixtures) during the e2e
+          - package: staking/ui
+            contracts: ''
+          - package: bridge/ui
+            contracts: bridge/contracts
+          # TokenFactory from contracts/
+          - package: launchpad
+            contracts: contracts
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Fetch forge-std
+        if: matrix.contracts != ''
+        run: |
+          for lib in contracts/lib bridge/contracts/lib; do
+            git clone --quiet --depth 1 --branch "$FORGE_STD_VERSION" \
+              https://github.com/foundry-rs/forge-std.git "$lib/forge-std"
+            rm -rf "$lib/forge-std/.git"
+          done
+
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            contracts/cache
+            contracts/out
+            dex/contracts/cache
+            dex/contracts/out
+            bridge/contracts/cache
+            bridge/contracts/out
+            staking/ui/fixtures/cache
+            staking/ui/fixtures/out
+          key: dapp-forge-${{ matrix.package }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('contracts/src/**', 'contracts/script/**', 'dex/contracts/src/**', 'dex/contracts/script/**', 'bridge/contracts/src/**', 'staking/ui/fixtures/src/**') }}
+          restore-keys: dapp-forge-${{ matrix.package }}-${{ env.FOUNDRY_VERSION }}-
+
+      - name: Compile the contracts the e2e deploys
+        if: matrix.contracts != ''
+        run: |
+          for dir in ${{ matrix.contracts }}; do
+            (cd "$dir" && forge build)
+          done
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_TOOLING }}
+          cache: npm
+          cache-dependency-path: ${{ matrix.package }}/package-lock.json
+
+      - name: Install
+        working-directory: ${{ matrix.package }}
+        run: npm ci --prefer-offline
+
+      - name: Build
+        working-directory: ${{ matrix.package }}
+        run: npm run build
+
+      - name: Unit tests
+        working-directory: ${{ matrix.package }}
+        run: npm run test --if-present
+
+      - name: End-to-end on a local anvil
+        working-directory: ${{ matrix.package }}
+        run: npm run e2e
+
+  # ---------------------------------------------------------------------------
+  # Bridge relayer (validator + submitter) and the reconciliation watcher.
+  bridge-relayer:
+    name: bridge/relayer + watcher (typecheck, tests, anvil e2e)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Fetch forge-std
+        run: |
+          git clone --quiet --depth 1 --branch "$FORGE_STD_VERSION" \
+            https://github.com/foundry-rs/forge-std.git bridge/contracts/lib/forge-std
+          rm -rf bridge/contracts/lib/forge-std/.git
+
+      # The relayer image runs node:24 and executes src/*.ts directly.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_TOOLING }}
+          cache: npm
+          cache-dependency-path: bridge/relayer/package-lock.json
+
+      - name: Install
+        working-directory: bridge/relayer
+        run: npm ci --prefer-offline
+
+      - name: Typecheck
+        working-directory: bridge/relayer
+        run: npm run typecheck
+
+      - name: Unit tests
+        working-directory: bridge/relayer
+        run: npm test
+
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            bridge/relayer/artifacts
+            bridge/relayer/.forge-cache
+          key: relayer-forge-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('bridge/contracts/src/**', 'bridge/contracts/test/**', 'bridge/contracts/script/**', 'bridge/contracts/foundry.toml') }}
+          restore-keys: relayer-forge-${{ env.FOUNDRY_VERSION }}-
+
+      # The e2e reads compiled artifacts from ./artifacts so that
+      # bridge/contracts is only ever read (test/helpers.mjs).
+      - name: Compile the bridge contracts into artifacts/
+        working-directory: bridge/relayer
+        run: forge build --root ../contracts --out "$PWD/artifacts" --cache-path "$PWD/.forge-cache"
+
+      - name: End-to-end on two local anvils
+        working-directory: bridge/relayer
+        run: npm run e2e
+
+      - name: Watcher tests
+        run: node --test bridge/watcher/test/*.test.mjs
+
+  # ---------------------------------------------------------------------------
+  # Dependency-free Node packages.
+  node-units:
+    name: shared/fxwallet + moltbook (node tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # fxwallet's tests import its .ts sources directly (Node 22.18+).
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_TOOLING }}
+
+      - name: shared/fxwallet
+        run: node --test shared/fxwallet/test/*.test.mjs
+
+      - name: agents/marketing/moltbook
+        working-directory: agents/marketing/moltbook
+        run: npm test
+
+  # ---------------------------------------------------------------------------
+  # The Ferminux parts of the node client: the authority engine, the Clique
+  # engine it wraps, the pre-fork proof-of-work engine and its guard against
+  # authority blocks, the chain parameters, and the fork-choice / reorg-cap /
+  # genesis tests in core. The rest of chain/ is upstream and is tested by
+  # rebasing onto upstream, not here.
+  chain:
+    name: chain (Ferminux packages, go 1.20.14)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: go1.20.14
+    defaults:
+      run:
+        working-directory: chain
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: chain/go.sum
+
+      - name: go vet
+        run: go vet ./consensus/posa/ ./consensus/clique/ ./consensus/powhash/ ./params/ ./core/forkid/
+
+      - name: Consensus engines and parameters
+        run: go test -count=1 ./consensus/posa/... ./consensus/clique/... ./consensus/powhash/... ./params/... ./core/forkid/...
+
+      # core/*ferminux*_test.go: fork choice across the authority fork, the
+      # 64-block reorg cap, the default genesis hash
+      - name: core (Ferminux fork choice, reorg cap, genesis)
+        run: go test -count=1 -run Ferminux -v ./core
+
+  # ---------------------------------------------------------------------------
+  # Owned by the validator workflow; CI only runs its tests (the release build
+  # and the hub cross-test are in validator-release.yml).
+  validator:
+    name: validator (go test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: go1.20.14
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            chain/go.sum
+            validator/go.sum
+
+      # internal/integration drives the sidecar against a local anvil
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: go test
+        working-directory: validator
+        run: go test -count=1 ./...
+
+  # Owned by the wallet workflow; CI only runs its build and tests.
+  wallet-web:
+    name: wallet-web (build, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: wallet-web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_TOOLING }}
+          cache: npm
+          cache-dependency-path: wallet-web/package-lock.json
+
+      - name: Install
+        run: npm ci --prefer-offline
+
+      # tsc --noEmit, vite build, and check-dist (no unexpected external URLs)
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test

@@ -12,6 +12,9 @@ import { dailyCount, incrDaily, todayKey } from "./state.js";
 import { runResearch, researchIsStale } from "./research.js";
 import { runLearn, learnIsStale } from "./learn.js";
 import { pickFormat, pickSubmolt, generatePost, recordPublished, loadContentContext, lintDraft, titlePattern } from "./content.js";
+import { normTitle } from "./templates.js";
+import { llmAvailable } from "./llm.js";
+import { createHash } from "node:crypto";
 
 function isNewAgent(createdAtISO) {
   if (!createdAtISO) return true;
@@ -33,11 +36,55 @@ function nextInviteEntry(state, summary) {
   return entry;
 }
 
-async function publish({ client, state, logger, submolt, title, content, meta }) {
-  const res = await client.createPost({ submolt_name: submolt, title, content });
+/** sha256 of the normalised title + body — the local "have we already posted this?" key. */
+export function contentHash(title, body) {
+  return createHash("sha256").update(`${normTitle(title)}\n${String(body || "").replace(/\s+/g, " ").trim()}`).digest("hex");
+}
+
+/**
+ * Creates a post, or reports that it is a duplicate. Moltbook answers a repeat with the EXISTING post ("You
+ * already posted this! Here is your existing post."), and this used to be counted as a new post: 57 "post"
+ * writes for 26 distinct posts, the daily budget spent on nothing (audit 2026-09-24). A duplicate — known
+ * locally by content hash or title, a returned id we already have, or a returned post older than a minute —
+ * does not bump the counters or lastPostAt, and its title is marked used so the template is not tried again.
+ */
+export async function publish({ client, state, logger, submolt, title, content, meta }) {
+  const hashes = (state.content.publishedHashes ||= []);
+  const hash = contentHash(title, content);
+  const markUsed = () => {
+    if (!hashes.includes(hash)) hashes.push(hash);
+    if (hashes.length > 2000) hashes.splice(0, hashes.length - 2000);
+    state.content.usedTitles.push(title);
+    if (state.content.usedTitles.length > 200) state.content.usedTitles.splice(0, state.content.usedTitles.length - 200);
+  };
+  const knownTitles = new Set((state.published || []).map((p) => normTitle(p.title)));
+  if (hashes.includes(hash) || knownTitles.has(normTitle(title))) {
+    logger.warn("post_duplicate_skipped", { submolt, title, reason: "already published (local)" });
+    markUsed();
+    return { duplicate: true };
+  }
+  let res;
+  try {
+    res = await client.createPost({ submolt_name: submolt, title, content });
+  } catch (err) {
+    if (/already posted/i.test(err.message || "") || /already posted/i.test(JSON.stringify(err.body || ""))) {
+      logger.warn("post_duplicate_refused", { submolt, title });
+      markUsed();
+      return { duplicate: true };
+    }
+    throw err;
+  }
   const postId = res?.post?.id;
+  const createdAt = Date.parse(res?.post?.created_at || "");
+  const knownIds = new Set((state.published || []).map((p) => p.postId));
+  if ((postId && knownIds.has(postId)) || (Number.isFinite(createdAt) && Date.now() - createdAt > 60_000) || /already posted/i.test(res?.message || "")) {
+    logger.warn("post_duplicate_returned", { submolt, title, postId, created_at: res?.post?.created_at ?? null });
+    markUsed();
+    return { postId, duplicate: true };
+  }
   state.posts.lastPostAt = new Date().toISOString();
   incrDaily(state.posts.dailyCounts);
+  markUsed();
   logger.write_action("post", { submolt, postId, title, verified: res?.verified, ...meta });
   return { postId, verified: res?.verified };
 }
@@ -127,9 +174,12 @@ export async function runHeartbeat({ client, cfg, state, logger, llmComplete, ag
     const elapsed = Date.now() - lastPostAt;
     const postedToday = dailyCount(state.posts.dailyCounts, todayKey());
     const inviteEntry = nextInviteEntry(state, summary);
+    // No working LLM = every post is a template: post a handful a day, not the full budget, or the same few
+    // templates get recycled all day (09-24: 19 "posts", 1 visible)
+    const maxToday = llmAvailable(llmComplete) ? cfg.maxPostsPerDay : Math.min(cfg.maxPostsPerDay, cfg.maxPostsPerDayNoLlm ?? 4);
 
-    if (postedToday >= cfg.maxPostsPerDay) {
-      summary.actions.push({ type: "post", result: "daily_post_cap_reached", postedToday });
+    if (postedToday >= maxToday) {
+      summary.actions.push({ type: "post", result: "daily_post_cap_reached", postedToday, maxToday });
     } else if (elapsed < cooldownMs) {
       summary.actions.push({ type: "post", result: "cooldown_not_elapsed", waitMs: cooldownMs - elapsed, newAgent });
     } else {
@@ -153,11 +203,15 @@ export async function runHeartbeat({ client, cfg, state, logger, llmComplete, ag
           summary.actions.push({ type: "post", result: "would_post", format, submolt: entry.submolt, title: draft.title, contentPreview: draft.body.slice(0, 200) });
         } else {
           try {
-            const { postId, verified } = await publish({ client, state, logger, submolt: entry.submolt, title: draft.title, content: draft.body, meta: { format, index: entry.index } });
-            state.queue.posted[entry.index] = { postId, submolt: entry.submolt, postedAt: new Date().toISOString() };
+            const { postId, verified, duplicate } = await publish({ client, state, logger, submolt: entry.submolt, title: draft.title, content: draft.body, meta: { format, index: entry.index } });
+            state.queue.posted[entry.index] = { postId: postId ?? null, submolt: entry.submolt, postedAt: new Date().toISOString(), ...(duplicate ? { duplicate: true } : {}) };
             state.queue.nextIndex += 1;
-            recordPublished(state, { postId, format, submolt: entry.submolt, title: draft.title, source: "queue", score: null, judge: null });
-            summary.actions.push({ type: "post", result: "posted", format, submolt: entry.submolt, postId, verified, title: draft.title });
+            if (duplicate) {
+              summary.actions.push({ type: "post", result: "duplicate_skipped", format, index: entry.index, title: draft.title });
+            } else {
+              recordPublished(state, { postId, format, submolt: entry.submolt, title: draft.title, source: "queue", score: null, judge: null });
+              summary.actions.push({ type: "post", result: "posted", format, submolt: entry.submolt, postId, verified, title: draft.title });
+            }
           } catch (err) {
             logger.error("post_create_failed", { format, index: entry.index, err: err.message });
             summary.actions.push({ type: "post", result: "failed", format, err: err.message });
@@ -172,9 +226,13 @@ export async function runHeartbeat({ client, cfg, state, logger, llmComplete, ag
           summary.actions.push({ type: "post", result: "would_post", format, submolt, score: gen.score, judge: gen.judge, source: gen.draft.source, title: gen.draft.title, contentPreview: gen.draft.body.slice(0, 200) });
         } else {
           try {
-            const { postId, verified } = await publish({ client, state, logger, submolt, title: gen.draft.title, content: gen.draft.body, meta: { format, score: gen.score, judge: gen.judge, source: gen.draft.source } });
-            recordPublished(state, { postId, format, submolt, title: gen.draft.title, source: gen.draft.source, score: gen.score, judge: gen.judge, threadId: gen.draft.threadId });
-            summary.actions.push({ type: "post", result: "posted", format, submolt, postId, verified, score: gen.score, title: gen.draft.title });
+            const { postId, verified, duplicate } = await publish({ client, state, logger, submolt, title: gen.draft.title, content: gen.draft.body, meta: { format, score: gen.score, judge: gen.judge, source: gen.draft.source } });
+            if (duplicate) {
+              summary.actions.push({ type: "post", result: "duplicate_skipped", format, submolt, title: gen.draft.title });
+            } else {
+              recordPublished(state, { postId, format, submolt, title: gen.draft.title, source: gen.draft.source, score: gen.score, judge: gen.judge, threadId: gen.draft.threadId, threadAuthor: gen.draft.threadAuthor });
+              summary.actions.push({ type: "post", result: "posted", format, submolt, postId, verified, score: gen.score, title: gen.draft.title });
+            }
           } catch (err) {
             logger.error("post_create_failed", { format, submolt, err: err.message });
             summary.actions.push({ type: "post", result: "failed", format, submolt, err: err.message });

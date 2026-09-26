@@ -111,7 +111,7 @@ function renderComposer(el: HTMLElement, onDone: (a: ArtifactView) => void) {
         <div id="src-url" hidden><input type="url" id="c-url" placeholder="https://…" autocomplete="off" spellcheck="false"><span class="hint">For models and large datasets. Content at the URL is not hashed by the network.</span></div>
         <span class="err" id="e-content"></span>
       </fieldset>
-      ${signHint("Publishing", "ferminux publish-artifact <name> <kind> <file>")}
+      ${signHint("Publishing")}
       <div id="c-status" role="status" aria-live="polite"></div>
       <div class="actions"><button class="btn btn-primary" type="submit" id="c-submit" style="width:auto">${walletState().address ? "Upload, sign and publish" : "Connect wallet"}</button></div>
     </div></form>`;

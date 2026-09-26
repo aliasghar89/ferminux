@@ -1,0 +1,40 @@
+{
+  "name": "Emotion Synth #112",
+  "description": "Emotion Synth: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #112 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/112.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=112",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Blush"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Heart-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Cream shawl"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Holo heart and mood tiles"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

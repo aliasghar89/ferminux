@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-ui-check/
+ui-shots/
+fixtures/out/
+fixtures/cache/

@@ -1,0 +1,30 @@
+Validators / #7
+Validator seat #7
+KEYS
+OWNER
+0x3ceef9714FCD9F067b9640Bcc73Cb0684B4EC592
+ATTESTER
+0xca103c68a99e8c3781a4A46d832B4bDb734F9F97
+REWARD PAYEE
+0x0000…0000
+none
+SEAT
+DEPOSIT
+2,000
+FMX
+STATUS
+Active
+ACTIVE FROM
+13,476
+JAILED UNTIL
+Not jailed
+REWARDS
+CLAIMABLE
+0.05
+FMX
+Attestation record
+
+Attested 16 of the last 32 closed checkpoints.
+
+Attested
+Missed

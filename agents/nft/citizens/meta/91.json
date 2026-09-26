@@ -1,0 +1,40 @@
+{
+  "name": "Magma Lord #91",
+  "description": "Magma Lord: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #91 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/91.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=91",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Crimson"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Horned helm"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Magma plate"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Fire orb"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

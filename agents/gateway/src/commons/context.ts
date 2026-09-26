@@ -253,7 +253,11 @@ export function createCommonsContext(app: FastifyInstance, opts: CommonsContextO
         "rate_limited",
       );
     }
-    const sigHash = sha256Hex(String(body.sig).toLowerCase());
+    // Keyed on r‖s, not the string: an EIP-191 signature verifies with v = 27/28 or 0/1, so the same signature
+    // re-sent with its last byte changed from 1b to 00 used to pass as new and replayed the write once more.
+    // (A high-s twin is refused by the verifier, so r‖s is canonical.)
+    const raw = String(body.sig).toLowerCase();
+    const sigHash = sha256Hex(/^0x[0-9a-f]{130}$/.test(raw) ? raw.slice(0, 130) : raw);
     seenPrune.run(nowS() - SEEN_SIG_TTL_S);
     const res = seenInsert.run(sigHash, nowS());
     if (res.changes === 0) throw new HttpError(409, "duplicate request: this signature was already used", "replay");

@@ -10,6 +10,7 @@ import {
 import { EXPLORER_URL, NATIVE_SYMBOL } from '../config.ts';
 import { formatAmount, formatAmountExact, shortAddress } from '../lib/validate.ts';
 import { Identicon } from '../components/Identicon.tsx';
+import { IconAlert, IconExternal, IconReceive, IconSend, IconCheck, IconRefresh } from '../components/icons.tsx';
 
 type State =
   | { kind: 'loading' }
@@ -81,21 +82,23 @@ export function ActivityPanel({
     return (
       <>
       {context}
-      <ul className="row-list" aria-busy="true">
-        {[0, 1, 2].map((i) => (
-          <li key={i}>
-            <span className="skeleton" style={{ width: 42, height: 20 }} />
-            <div className="row-main">
-              <span className="skeleton" style={{ width: 140 }}>
-                loading
+      <div className="list">
+        <ul className="row-list" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <li key={i}>
+              <span className="skeleton" style={{ width: 40, height: 40, borderRadius: '50%' }} />
+              <div className="row-main">
+                <span className="skeleton" style={{ width: 140 }}>
+                  loading
+                </span>
+              </div>
+              <span className="skeleton" style={{ width: 90 }}>
+                0.0
               </span>
-            </div>
-            <span className="skeleton" style={{ width: 90 }}>
-              0.0
-            </span>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      </div>
       </>
     );
   }
@@ -104,12 +107,15 @@ export function ActivityPanel({
     return (
       <>
       {context}
-      <div className="empty-state">
+      <div className="list empty-state">
+        <div className="ic-wrap">
+          <IconAlert />
+        </div>
         <div className="title">History unavailable</div>
         The explorer API could not be reached. Balances and sending keep working over RPC.
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 16 }}>
           <button className="btn btn-sm" onClick={() => setAttempt((a) => a + 1)}>
-            Retry
+            <IconRefresh /> Retry
           </button>
         </div>
       </div>
@@ -121,7 +127,7 @@ export function ActivityPanel({
     return (
       <>
         {context}
-        <div className="empty-state">
+        <div className="list empty-state">
           <div className="title">No activity yet</div>
           Transfers and block rewards for {label} will appear here once the explorer has indexed them.
         </div>
@@ -134,16 +140,18 @@ export function ActivityPanel({
       {context}
       {state.signing && <SigningCard summary={state.signing} />}
       {state.txsMissing && (
-        <div className="notice" style={{ margin: '16px 20px 0' }}>
+        <div className="notice">
           Showing block rewards only — the transactions endpoint did not respond.{' '}
           <button className="btn btn-ghost btn-sm" onClick={() => setAttempt((a) => a + 1)}>
             Retry
           </button>
         </div>
       )}
-      <ul className="row-list">
-        {state.rows.map((row) => (row.kind === 'signed' ? <SignedRow key={row.id} row={row} /> : <TxRow key={row.id} tx={row.tx} />))}
-      </ul>
+      <div className="list">
+        <ul className="row-list">
+          {state.rows.map((row) => (row.kind === 'signed' ? <SignedRow key={row.id} row={row} /> : <TxRow key={row.id} tx={row.tx} />))}
+        </ul>
+      </div>
     </>
   );
 }
@@ -154,8 +162,10 @@ function SigningCard({ summary }: { summary: SigningSummary }) {
   return (
     <div className="signing-card" data-testid="signing-card">
       <div className="signing-head">
-        <span className="dir-badge dir-signed">SIGNED</span>
-        <span className="signing-title">Block rewards</span>
+        <span className="tx-ic signed" aria-hidden="true" style={{ width: 32, height: 32 }}>
+          <IconCheck />
+        </span>
+        <span className="signing-title">Blocks this address signed</span>
       </div>
       <div className="signing-stats">
         <div>
@@ -188,12 +198,14 @@ function SigningCard({ summary }: { summary: SigningSummary }) {
 function SignedRow({ row }: { row: Extract<FeedRow, { kind: 'signed' }> }) {
   return (
     <li className="row-signed">
-      <span className="dir-badge dir-signed">SIGNED</span>
+      <span className="tx-ic signed" aria-hidden="true">
+        <IconCheck />
+      </span>
       <div className="row-main">
-        <div className="row-title num" style={{ fontSize: 13 }}>
-          Block #{row.blockNumber.toLocaleString('en-US')}
-          <span className="muted small" style={{ fontWeight: 400 }}>
-            · block reward
+        <div className="row-title">
+          Block reward
+          <span className="mono faint" style={{ fontWeight: 400, fontSize: 12.5 }}>
+            #{row.blockNumber.toLocaleString('en-US')}
           </span>
         </div>
         <div className="row-sub">
@@ -210,13 +222,14 @@ function SignedRow({ row }: { row: Extract<FeedRow, { kind: 'signed' }> }) {
       </div>
       <div className="row-actions">
         <a
-          className="btn btn-ghost btn-sm"
+          className="row-link"
           href={`${EXPLORER_URL}/block/${row.blockNumber}`}
           target="_blank"
           rel="noreferrer noopener"
           title={`Block ${row.blockNumber} on the explorer`}
+          aria-label={`Block ${row.blockNumber} on the explorer`}
         >
-          ↗
+          <IconExternal />
         </a>
       </div>
     </li>
@@ -225,33 +238,30 @@ function SignedRow({ row }: { row: Extract<FeedRow, { kind: 'signed' }> }) {
 
 function TxRow({ tx }: { tx: ActivityItem }) {
   const counterparty = tx.direction === 'in' ? tx.from : tx.to;
+  const failed = tx.success === false;
+  const kind = failed ? 'Failed' : tx.direction === 'in' ? 'Received' : tx.direction === 'self' ? 'To yourself' : tx.isContractCall ? 'Contract call' : 'Sent';
   return (
     <li>
-      <span
-        className={
-          'dir-badge ' + (tx.success === false ? 'dir-fail' : tx.direction === 'in' ? 'dir-in' : 'dir-out')
-        }
-      >
-        {tx.success === false ? 'FAIL' : tx.direction === 'in' ? 'IN' : tx.direction === 'self' ? 'SELF' : 'OUT'}
+      <span className={'tx-ic' + (failed ? ' fail' : tx.direction === 'in' ? ' in' : '')} aria-hidden="true">
+        {failed ? <IconAlert /> : tx.direction === 'in' ? <IconReceive /> : <IconSend />}
       </span>
       <div className="row-main">
-        <div className="row-title mono" style={{ fontSize: 13 }}>
-          {counterparty ? shortAddress(counterparty) : 'Contract creation'}
-          {tx.isContractCall && <span className="muted small"> · contract call</span>}
+        <div className="row-title">
+          {kind}
         </div>
-        <div className="row-sub">{tx.timestamp ? timeAgo(tx.timestamp) : 'pending'}</div>
+        <div className="row-sub">
+          {tx.direction === 'in' ? 'from ' : 'to '}
+          <span className="mono">{counterparty ? shortAddress(counterparty) : 'contract creation'}</span>
+          {' · '}
+          {tx.timestamp ? timeAgo(tx.timestamp) : 'pending'}
+        </div>
       </div>
-      <div className="row-value num">
+      <div className={'row-value' + (tx.direction === 'in' && !failed ? ' in' : '')}>
         {tx.valueWei > 0n ? `${tx.direction === 'in' ? '+' : '−'}${formatAmount(tx.valueWei)} ${NATIVE_SYMBOL}` : '—'}
       </div>
       <div className="row-actions">
-        <a
-          className="btn btn-ghost btn-sm"
-          href={`${EXPLORER_URL}/tx/${tx.hash}`}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          ↗
+        <a className="row-link" href={`${EXPLORER_URL}/tx/${tx.hash}`} target="_blank" rel="noreferrer noopener" aria-label="View on the explorer" title="View on the explorer">
+          <IconExternal />
         </a>
       </div>
     </li>

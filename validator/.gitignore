@@ -1,0 +1,5 @@
+# build output
+/bin/
+# anything a local test run leaves behind
+*.test
+/coverage.out

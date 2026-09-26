@@ -20,6 +20,48 @@ export function checkAddress(input: string): AddressCheck {
   }
 }
 
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+/**
+ * A recipient the Send form refuses outright, or null.
+ *
+ * - The zero address: whatever is sent there is burned.
+ * - For a token, any token contract the wallet lists on that network, the
+ *   token's own included. transfer() to a token contract succeeds on AZNT,
+ *   USDF, USDT and most other tokens, and nothing can move the tokens out
+ *   again. The Asset screen's "Copy contract address" sits one tap from Send,
+ *   which made pasting it as the recipient the easiest way to lose a balance.
+ *
+ * A native send to a token contract is left alone: WFMX takes FMX to wrap it,
+ * and a contract that cannot take the coin fails the gas estimate.
+ */
+export function sendRecipientProblem(
+  recipient: string,
+  token: { address: string; symbol: string } | null,
+  tokenContracts: readonly { address: string | null; symbol: string }[],
+): string | null {
+  const to = recipient.toLowerCase();
+  if (to === ZERO_ADDRESS) return 'That is the zero address: anything sent there is burned.';
+  if (!token) return null;
+  if (to === token.address.toLowerCase()) {
+    return `That is the ${token.symbol} contract itself, not an account. Tokens sent to it are lost for good — check the recipient address.`;
+  }
+  const other = tokenContracts.find((t) => t.address !== null && t.address.toLowerCase() === to);
+  if (other) {
+    return `That is the ${other.symbol} token contract, not an account. Tokens sent to it are lost for good — check the recipient address.`;
+  }
+  return null;
+}
+
+/**
+ * True when `code` (eth_getCode) belongs to an account a person holds: no code,
+ * or an EIP-7702 delegation (0xef0100 ‖ address), which is still a keyed account.
+ */
+export function isPersonalAccountCode(code: string): boolean {
+  const c = code.toLowerCase();
+  return c === '0x' || (c.startsWith('0xef0100') && c.length === 2 + 46);
+}
+
 export type AmountCheck = { ok: true; wei: bigint } | { ok: false; error: string };
 
 /** Parse a decimal amount string into base units, strictly. */
@@ -78,8 +120,12 @@ export function formatAmountExact(wei: bigint, decimals = 18): string {
   return formatUnits(wei, decimals);
 }
 
-/** Format a wei-per-gas price in gwei with 2 decimals. */
+/**
+ * Format a wei-per-gas price in gwei with 2 decimals. A non-zero price under
+ * 0.01 gwei (Ferminux's base fee is a few wei) reads "<0.01", not "0".
+ */
 export function formatGwei(weiPerGas: bigint): string {
+  if (weiPerGas > 0n && weiPerGas < 10_000_000n) return '<0.01';
   const gwei = formatUnits(weiPerGas, 9);
   const [w, f = ''] = gwei.split('.');
   const frac = f.slice(0, 2).replace(/0+$/, '');

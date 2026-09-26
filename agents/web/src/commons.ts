@@ -7,7 +7,7 @@ import { plain } from "./md";
 import { signAction, type CommonsAction } from "./sign";
 import type { ActivityEvent, AgentView, Author } from "./types";
 import { $, authorHtml, setBusy, txHtml } from "./ui";
-import { connect, errMessage, eventArg, hasInjected, sendTx, walletState } from "./wallet";
+import { connect, errMessage, eventArg, sendTx, walletState } from "./wallet";
 
 /* ------------------------------------------------------------ icons */
 // 16 px, stroke = currentColor, drawn inline (no emoji, no icon font).
@@ -44,7 +44,9 @@ interface Rendered { icon: string; tone: string; text: string }
 const jobLink = (id: number | string) => `<a class="ref num" href="/jobs/">job #${esc(String(id))}</a>`;
 function refLink(e: ActivityEvent): string {
   const r = e.ref; if (!r) return "";
-  const t = r.title ? esc(plain(String(r.title), 70)) : `#${esc(String(r.id))}`;
+  // Bounty and challenge titles often end "— 100 FMX …"; the feed keeps the part before the dash.
+  const raw = r.title ? (r.kind === "bounty" || r.kind === "arena" || r.kind === "challenge" ? String(r.title).split(/\s+[—–]\s+/)[0] : String(r.title)) : "";
+  const t = raw ? esc(plain(raw, 70)) : `#${esc(String(r.id))}`;
   switch (r.kind) {
     case "job": return jobLink(r.id);
     case "agent": return `<a class="ref" href="/agents/?id=${esc(String(r.id))}">${t}</a>`;
@@ -53,11 +55,11 @@ function refLink(e: ActivityEvent): string {
     case "kb": return `<a class="ref" href="/kb/?slug=${encodeURIComponent(String(r.id))}">${t}</a>`;
     case "tool": return `<a class="ref" href="/tools/?id=${esc(String(r.id))}">${t}</a>`;
     case "artifact": return `<a class="ref" href="/artifacts/?id=${esc(String(r.id))}">${t}</a>`;
-    case "arena": return `<a class="ref" href="/arena/?id=${esc(String(r.id))}">${t}</a>`;
+    case "arena": case "challenge": return `<a class="ref" href="/arena/?id=${esc(String(r.id))}">${t}</a>`;
     case "case": return `<a class="ref" href="/disputes/?id=${esc(String(r.id))}">case #${esc(String(r.id))}</a>`;
     case "stream": case "plan": case "sub": return `<a class="ref" href="/streams/">${r.kind} #${esc(String(r.id))}</a>`;
     case "token": return `<a class="ref" href="/tokens/">token</a>`;
-    case "account": return `<a class="ref" href="/wallet/">agent wallet</a>`;
+    case "account": return `<a class="ref" href="/agent-wallets/">agent wallet</a>`;
     case "x402": return `<a class="ref" href="/x402/">x402</a>`;
     default: return t;
   }
@@ -129,9 +131,8 @@ export function agentSelect(id: string, agents: AgentView[]): string {
 }
 
 /* ----------------------------------------------------- signed form */
-export const noWallet = () => !hasInjected() && !config.mock;
-export const signHint = (what: string, cli?: string) =>
-  `<p class="small faint">${esc(what)} signs a short message with your wallet key (<code>personal_sign</code>). Nothing goes on-chain and there is no fee.${noWallet() ? ` No browser wallet detected — install MetaMask${cli ? `, or use the CLI: <code>${esc(cli)}</code>` : ""}.` : ""}</p>`;
+export const signHint = (what: string) =>
+  `<p class="small faint">${esc(what)} signs a short message with your wallet key (<code>personal_sign</code>). Nothing goes on-chain and there is no fee.</p>`;
 export const say = (el: HTMLElement | null, m: string, k: "" | "warn" | "ok" | "info" = "") => { if (el) el.innerHTML = m ? `<div class="alert ${k}">${m}</div>` : ""; };
 
 /** Connect-or-sign button flow shared by every composer: returns false if the click only connected the wallet. */

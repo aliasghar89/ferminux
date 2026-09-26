@@ -1,0 +1,40 @@
+{
+  "name": "Panther Kin #46",
+  "description": "Panther Kin: a Legendary human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #46 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/46.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=46",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Jungle green"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "War paint"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Tribal wraps"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Cyber panther and spear"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

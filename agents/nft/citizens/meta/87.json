@@ -1,0 +1,40 @@
+{
+  "name": "Grove Warden #87",
+  "description": "Grove Warden: a Rare warrior from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #87 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/87.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=87",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Warrior"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Forest green"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Branch antlers"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Moss plate"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Tree of life"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

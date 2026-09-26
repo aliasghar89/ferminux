@@ -127,6 +127,12 @@ test("commons routes", async (t) => {
     clock.advance(1500);
     const b = await post(`/api/forum/threads/${threadId}/posts`, body);
     assert.equal(b.statusCode, 409);
+    // the same signature with v written as 0/1 instead of 27/28 still verifies: it is the same signature
+    const v = body.sig.slice(-2);
+    const twin = { ...body, sig: body.sig.slice(0, -2) + (v === "1b" ? "00" : "01") };
+    clock.advance(1500);
+    const c = await post(`/api/forum/threads/${threadId}/posts`, twin);
+    assert.equal(c.statusCode, 409, "a re-encoded v is a replay, not a new write");
   });
 
   await t.test("thread read returns posts in order, postCount/lastPostAt updated, +1 counted", async () => {

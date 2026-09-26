@@ -2,7 +2,7 @@
 // No browser globals — runs under Node for the e2e suite.
 
 import { Contract, Interface, getAddress, type JsonRpcProvider } from 'ethers';
-import { prepareTransaction, type PreparedTx } from './tx.ts';
+import { prepareTransaction, type FeePolicy, type PreparedTx } from './tx.ts';
 
 export const ERC20_ABI = [
   'function name() view returns (string)',
@@ -40,7 +40,8 @@ export async function fetchTokenMeta(provider: JsonRpcProvider, address: string)
     ]);
     return { address: checksummed, name, symbol, decimals: Number(decimals) };
   } catch {
-    throw new Error('Contract does not implement the FRC-20 token interface (name/symbol/decimals).');
+    // Worded without a standard's name: this runs on every supported chain.
+    throw new Error('Contract does not implement the token interface (name/symbol/decimals).');
   }
 }
 
@@ -69,7 +70,8 @@ export async function prepareTokenTransfer(
   tokenAddress: string,
   to: string,
   amountWei: bigint,
+  policy?: FeePolicy,
 ): Promise<PreparedTx> {
   const data = encodeTokenTransfer(to, amountWei);
-  return prepareTransaction(provider, chainId, from, getAddress(tokenAddress), 0n, data);
+  return prepareTransaction(provider, chainId, from, getAddress(tokenAddress), 0n, data, policy);
 }

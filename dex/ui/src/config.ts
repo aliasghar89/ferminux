@@ -51,17 +51,15 @@ export interface DexAddresses {
 }
 
 // ---------------------------------------------------------------------------
-// DEPLOYMENT ADDRESSES — SET AFTER DEPLOYMENT.
+// DEPLOYMENT ADDRESSES — the Ferminux AMM on chain 3961, deployed 2026-08-20.
 //
-// These ship EMPTY on purpose. The Ferminux AMM has not been deployed to
-// chain 3961: `dex/contracts` has only ever been deployed to a local anvil
-// devnet. Filling in a guessed address would point real users at a phantom
-// contract, so the app shows a plain "not configured" screen instead.
-//
-// After the mainnet deployment, either edit the four defaults below or build
-// with:
+// The defaults below are the mainnet contracts (dex/contracts/broadcast). A
+// devnet build overrides all four:
 //   VITE_FACTORY_ADDRESS=0x… VITE_ROUTER_ADDRESS=0x… \
 //   VITE_WFMX_ADDRESS=0x…    VITE_LOCKER_ADDRESS=0x… npm run build
+// An override set to an empty string blanks that address, and the app then
+// shows a plain "not configured" screen naming what is missing instead of
+// pointing anyone at a guessed contract.
 // ---------------------------------------------------------------------------
 export const DEX_ADDRESSES: DexAddresses = {
   factory: env.VITE_FACTORY_ADDRESS ?? '0x2034a8366fCdbfFCf4517D297f702aDDdba37040', // Ferminux mainnet, deployed 2026-08-20
@@ -157,14 +155,8 @@ export const PAIRS_PAGE_SIZE = 25;
 /** Poll cadence for reserves/quotes. */
 export const REFRESH_MS = 12_000;
 
-/** Params for wallet_addEthereumChain — always the public endpoints. */
-export const ADD_CHAIN_PARAMS = {
-  chainId: CHAIN_ID_HEX,
-  chainName: 'Ferminux Network',
-  nativeCurrency: { name: NATIVE_NAME, symbol: NATIVE_SYMBOL, decimals: NATIVE_DECIMALS },
-  rpcUrls: ['https://rpc.ferminux.net'],
-  blockExplorerUrls: ['https://explorer.ferminux.net'],
-} as const;
+// wallet_addEthereumChain parameters live in shared/fxwallet/network.ts
+// (FERMINUX_ADD_CHAIN_PARAMS): one definition for every Ferminux dApp.
 
 export function explorerAddressUrl(address: string): string {
   return `${EXPLORER_URL}/address/${address}`;

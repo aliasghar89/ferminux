@@ -1,0 +1,15 @@
+{
+    "items": [
+        {
+            "address_hash": "0x6beE9D8F7f4B701d54dE273138F6994183707DD9",
+            "certified": false,
+            "ens_info": null,
+            "is_smart_contract_verified": false,
+            "name": null,
+            "priority": 0,
+            "type": "address",
+            "url": "/address/0x6beE9D8F7f4B701d54dE273138F6994183707DD9"
+        }
+    ],
+    "next_page_params": null
+}

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /socket/
+Disallow: /search-results
+Sitemap: https://explorer.ferminux.net/sitemap.xml

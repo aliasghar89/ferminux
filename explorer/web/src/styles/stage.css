@@ -1,0 +1,144 @@
+/* The home stage (the block conveyor), ported VERBATIM from agents/web/src/styles.css on 2026-09-24:
+   lines 1081–1187 (hero caption, beams, flow, lanes, tokens, chip) and the phone block around 1466–1482.
+   The explorer variant is scoped as `.beams.xstage` and rescaled through the custom properties at the end
+   of this file (surfaces/explorer.md §7.5). Only the home page uses these classes. */
+
+/* 1. hero: text, then the machine, then the one action (motion.md §2.10) */
+.hero-home{position:relative;padding:56px 0 0;text-align:center;overflow-x:clip}
+.hero-home h1{font-size:var(--fs-display-l);letter-spacing:-.035em;line-height:1.02;max-width:880px;margin:0 auto}
+.hero-home h1 .ln{display:block}
+.hero-home .lead{max-width:44ch;text-wrap:balance;margin:20px auto 0;font-size:var(--fs-lead);line-height:1.55;color:var(--muted);text-wrap:pretty}
+.hero-act{margin-top:12px}
+/* the announcement line under the stage: the live head, who confirmed it, and the way to check it */
+.hero-cap{display:flex;justify-content:center;margin:0}
+.hero-cap a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hero-cap a b{font-weight:500;color:var(--ink)}
+.hero-cap a .mono{font-family:var(--mono);font-size:.92em;color:var(--ink)}
+.hero-cap a svg{width:13px;height:13px;flex:none;color:var(--faint);transition:transform var(--dur-1) var(--ease-std)}
+.hero-cap a:hover{color:var(--ink)}
+.hero-cap a:hover svg{transform:translateX(2px);color:var(--accent)}
+.hero-cta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:10px}
+.hero-alt{min-height:44px;font-size:15px}
+
+/* the signature (§2): registered agents ride the left tube into the live chip; FMX and "confirmed" leave on
+   the right. The beam art is one static SVG, cropped (never squashed) at every width; every moving part is a
+   small HTML layer that animates transform and opacity only. Tokens are static markup: JS only swaps the
+   monogram inside [data-slot]. */
+.beams{--chip:200px;--chip-rw:4px;--r-chip:32px;--d-big:88px;--d-bead:16px;position:relative;height:320px;margin:36px 0 0}
+.beam{position:absolute;top:0;height:100%;width:calc(50% - var(--chip) / 2 + 10px);overflow:hidden;pointer-events:none}
+.beam-l{left:0}
+.beam-r{right:0;transform:scaleX(-1)}
+/* beam flow: the tube's colour travels, always left → right: crests march into the chip on the left and out
+   of it on the right, at the cargo's own pace. Masked to the tube with the same path and the same crop. */
+.flow{position:absolute;top:0;height:100%;width:calc(50% - var(--chip) / 2 + 10px);overflow:hidden;pointer-events:none;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400' preserveAspectRatio='xMaxYMid slice'%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='500' x2='1200'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.5'/%3E%3Cstop offset='1' stop-color='%23fff'/%3E%3C/linearGradient%3E%3Cpath d='M0 58C380 80 760 138 1200 168L1200 232C760 262 380 320 0 342Z' fill='url(%23g)'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400' preserveAspectRatio='xMaxYMid slice'%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='500' x2='1200'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.5'/%3E%3Cstop offset='1' stop-color='%23fff'/%3E%3C/linearGradient%3E%3Cpath d='M0 58C380 80 760 138 1200 168L1200 232C760 262 380 320 0 342Z' fill='url(%23g)'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat}
+.flow.l{left:0}
+.flow.r{right:0;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400' preserveAspectRatio='xMinYMid slice'%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='700' x2='0'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.5'/%3E%3Cstop offset='1' stop-color='%23fff'/%3E%3C/linearGradient%3E%3Cpath d='M1200 58C820 80 440 138 0 168L0 232C440 262 820 320 1200 342Z' fill='url(%23g)'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400' preserveAspectRatio='xMinYMid slice'%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='700' x2='0'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.5'/%3E%3Cstop offset='1' stop-color='%23fff'/%3E%3C/linearGradient%3E%3Cpath d='M1200 58C820 80 440 138 0 168L0 232C440 262 820 320 1200 342Z' fill='url(%23g)'/%3E%3C/svg%3E")}
+.flow i{position:absolute;left:0;top:0;height:100%;width:calc(100% + 560px);animation:flow-d var(--loop-ring) linear infinite;
+  background:linear-gradient(90deg,rgba(3,36,23,.46) 0%,rgba(3,36,23,.16) 18%,rgba(2,213,118,0) 28%,rgba(1,252,201,.32) 44%,rgba(212,255,238,.42) 50%,rgba(1,252,201,.32) 56%,rgba(2,213,118,0) 72%,rgba(3,36,23,.16) 82%,rgba(3,36,23,.46) 100%) 0 0/560px 100% repeat-x}
+@keyframes flow-d{from{transform:translateX(-560px)}to{transform:none}}
+@keyframes flow-t{from{transform:translateX(-240px)}to{transform:none}}
+@keyframes flow-p{from{transform:translateX(-144px)}to{transform:none}}
+/* the confirmation wave: one bright band that runs out of the chip along the whole tube, on a real block only */
+.flow b{position:absolute;left:0;top:0;height:100%;width:45%;opacity:0;will-change:transform,opacity;
+  background:linear-gradient(90deg,rgba(212,255,238,0),rgba(212,255,238,.9) 50%,rgba(212,255,238,0))}
+@supports not ((mask-image:url("#x")) or (-webkit-mask-image:url("#x"))){.flow{display:none}}
+
+/* lanes: 6 tokens, one full trip per 6 s, one token every second. One eased segment per lane, so no token
+   ever changes speed on the same frame as the others: agents decelerate into the chip, FMX accelerates out. */
+.lane{position:absolute;top:50%;height:0;width:calc((50% - var(--chip) / 2) * var(--lane-k));z-index:1;pointer-events:none}
+.lane.l{right:calc(50% + var(--chip) / 2)}
+.lane.r{left:calc(50% + var(--chip) / 2)}
+.tk,.tk>b{animation-duration:var(--loop-lane);animation-iteration-count:infinite;animation-delay:calc(var(--k) * -1s)}
+.tk{position:absolute;left:0;top:0;width:100%;height:0}
+.tk>b{position:absolute;left:0;top:0;width:var(--d);height:var(--d);margin:calc(var(--d) / -2) 0 0 calc(var(--d) / -2);border-radius:50%;display:grid;place-items:center}
+.lane.l .tk{animation-name:lane-l-x;animation-timing-function:cubic-bezier(.25,.5,.5,1)}
+.lane.l .tk>b{animation-name:lane-l-s,lane-o;animation-timing-function:cubic-bezier(.25,.5,.5,1),linear}
+.lane.r .tk{animation-name:lane-r-x;animation-timing-function:cubic-bezier(.5,0,.75,.5)}
+.lane.r .tk>b{animation-name:lane-r-s,lane-o;animation-timing-function:cubic-bezier(.5,0,.75,.5),linear}
+@keyframes lane-l-x{from{transform:translateX(-6%)}to{transform:translateX(100%)}}
+@keyframes lane-l-s{from{transform:scale(1)}to{transform:scale(.24)}}
+@keyframes lane-r-x{from{transform:translateX(0)}to{transform:translateX(106%)}}
+@keyframes lane-r-s{from{transform:scale(.24)}to{transform:scale(1)}}
+@keyframes lane-o{0%{opacity:0}8%{opacity:1}92%{opacity:1}100%{opacity:0}}
+/* every token is a black disc cut out of the bright tube */
+.tk-a,.tk-f{--d:var(--d-big)}.tk-c{--d:calc(var(--d-big) * .82)}.tk-b{--d:var(--d-bead)}
+.tk-a,.tk-f,.tk-c{background:#000;color:#05ee93;box-shadow:0 0 0 2px #000,0 0 0 3px rgba(1,252,201,.42)}
+.tk-a{font:600 calc(var(--d) * .44)/1 var(--display);letter-spacing:-.02em}
+.tk-a svg{width:50%;height:50%;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.tk-f svg{width:54%;height:54%}
+.tk-c svg{width:50%;height:50%;fill:none;stroke:#01fcc9;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}
+.tk-b{background:radial-gradient(circle,#01fcc9 0 1.8px,#000 2.4px);box-shadow:0 0 0 1.5px rgba(1,252,201,.55)}
+
+/* the chip: a lit object, crisp, still. Its border light turns once every 6 s; it flashes only on a real block. */
+.chip{position:absolute;left:50%;top:50%;z-index:2;width:var(--chip);height:var(--chip);margin:calc(var(--chip) / -2) 0 0 calc(var(--chip) / -2);padding:var(--chip-rw);border-radius:var(--r-chip)}
+.chip-ring{position:absolute;inset:0;border-radius:inherit;overflow:hidden;isolation:isolate;box-shadow:0 0 0 3px #000}
+.chip-ring::before{content:"";position:absolute;left:50%;top:50%;width:150%;aspect-ratio:1;margin:-75% 0 0 -75%;transform:rotate(129deg);
+  background:conic-gradient(from 0deg,#0b5a3a 0deg,#0f6e47 40deg,#02d576 100deg,#05ee93 140deg,#01fcc9 170deg,#d4ffee 186deg,#01fcc9 200deg,#02d576 250deg,#0f6e47 310deg,#0b5a3a 360deg);
+  animation:ring-turn var(--loop-chip) linear infinite}
+@keyframes ring-turn{from{transform:rotate(129deg)}to{transform:rotate(489deg)}}
+.chip-glow{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg,#01fcc9,#d4ffee 45%,#05ee93);box-shadow:0 0 22px rgba(1,252,201,.5);opacity:0;pointer-events:none;will-change:opacity}
+.chip-port{position:absolute;top:50%;width:8px;height:56px;margin-top:-28px;border-radius:4px;background:#000;box-shadow:0 0 0 1px rgba(236,242,239,.08)}
+.chip-port.l{left:-4px}.chip-port.r{right:-4px}
+.chip-face{position:relative;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:calc(var(--r-chip) - var(--chip-rw));background-color:#16201b;box-shadow:inset 0 0 0 1px rgba(212,255,238,.2);text-align:center;overflow:hidden}
+.chip-face>:not(.chip-lit):not(.chip-live){position:relative}
+.chip-lit{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 45%,#1f5c40,#10301f);opacity:0;pointer-events:none;will-change:opacity}
+.chip-live{position:absolute;top:14px;right:14px;width:6px;height:6px;border-radius:50%;background:var(--faint)}
+.chip-live.ok{background:var(--ok);box-shadow:0 0 0 3px var(--accent-soft)}
+.chip-live.bad{background:var(--warn)}
+.chip-mark{width:28px;height:28px;margin-bottom:2px}
+.chip-lbl{font:500 10.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.chip-height{font:500 30px/1 var(--mono);letter-spacing:-.03em;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;padding:0 2px .08em}
+.chip-age{font:400 12px/1.2 var(--mono);color:var(--muted);min-height:1.2em}
+/* the text equivalent of the moving tokens: the live agent links and the coin links, one pill row that
+   appears under the stage only while a keyboard user is inside it (moving targets are never links) */
+.beam-links{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.beam-links:focus-within{top:100%;left:0;right:0;z-index:5;width:auto;height:auto;overflow:visible;clip:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:12px 16px;background:var(--bg);white-space:normal}
+.beam-links .badges{display:contents}
+.bl{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid var(--border);border-radius:var(--r-pill);background:var(--surface);font:500 13px/1 var(--mono);color:var(--ink)}
+.bl:hover,.bl:focus-visible{border-color:var(--accent);color:var(--ink)}
+.bl svg{width:16px;height:16px;flex:none}
+.bl .g{font:600 13px/1 var(--display);color:var(--accent)}
+@media(max-width:899px){
+  .beams{--chip:152px;--chip-rw:3px;--r-chip:26px;--d-big:60px;--d-bead:13px;height:248px}
+  .flow i{width:calc(100% + 240px);background-size:240px 100%;animation-name:flow-t}
+}
+@media(max-width:699px){
+  .chip-lbl{display:none}
+  .chip-face{gap:4px}
+  .chip-mark{width:22px;height:22px}
+  .chip-height{font-size:24px}
+  .chip-age{font-size:11px}
+}
+
+/* ---- phone block (agents/web lines 1466–1482, stage rules only) ---- */
+@media(max-width:599px){
+  .beams{--chip:112px;--chip-rw:3px;--r-chip:20px;--d-big:48px;--d-bead:12px;height:232px;margin-top:24px}
+  .flow i{width:calc(100% + 144px);background-size:144px 100%;animation-name:flow-p}
+  .chip-port{display:none}
+  .chip-live{top:9px;right:9px;width:5px;height:5px}
+  .chip-mark{width:18px;height:18px;margin-bottom:0}
+  .chip-height{font-size:21px}
+  .chip-age{font-size:10px}
+  .hero-cap a{font-size:13px}
+}
+
+/* ---- explorer stage scale (§7.5). Heights and sizes per breakpoint; speeds stay in the motion.md band. ---- */
+.beams.xstage{--chip:136px;--chip-rw:3px;--r-chip:24px;--d-big:44px;--d-bead:12px;--lane-k:1;height:208px;margin:0}
+.xstage .chip-height{font-size:24px}
+.xstage .chip-pips{display:flex;gap:4px;margin-top:2px}
+.xstage .chip-pips i{width:6px;height:6px;border-radius:50%;background:rgba(236,242,239,.16)}
+.xstage .chip-pips i.on{background:rgba(5,238,147,.5)}
+.xstage .chip-pips i.head{background:#01fcc9}
+.xstage .flow i{width:calc(100% + 320px);background-size:320px 100%;animation-name:flow-x}
+@keyframes flow-x{from{transform:translateX(-320px)}to{transform:none}}
+@media(max-width:1099px){.beams.xstage{--chip:120px;--r-chip:22px;--d-big:40px;--lane-k:1.1;height:184px}.xstage .chip-height{font-size:22px}
+  .xstage .flow i{width:calc(100% + 240px);background-size:240px 100%;animation-name:flow-t}}
+@media(max-width:599px){.beams.xstage{--chip:96px;--r-chip:18px;--d-big:34px;--d-bead:10px;--lane-k:1.2;height:152px}
+  .xstage .chip-height{font-size:19px}.xstage .chip-lbl{display:block;font-size:11px;letter-spacing:.1em}.xstage .chip-age{display:none}
+  .xstage .chip-pips i{width:5px;height:5px}
+  .xstage .flow i{width:calc(100% + 144px);background-size:144px 100%;animation-name:flow-p}}
+/* tiers (§7.5): lite = no flow, no wave; calm = tokens rest on their stations, ring static, no flow */
+html[data-lite] .xstage .flow{display:none}
+html[data-motion="off"] .xstage .flow,html[data-motion="off"] .xstage .flow b{display:none}
+html[data-motion="off"] .xstage .tk,html[data-motion="off"] .xstage .tk>b,html[data-motion="off"] .xstage .chip-ring::before{animation-play-state:paused}

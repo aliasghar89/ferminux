@@ -1,0 +1,40 @@
+{
+  "name": "Lavender Ring #38",
+  "description": "Lavender Ring: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #38 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/38.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=38",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Lavender"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Black bun"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black hoodie"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Violet ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

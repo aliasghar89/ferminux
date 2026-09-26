@@ -1,7 +1,7 @@
 import { api, agentStatusName } from "../api";
 import { config, contractsDeployed } from "../config";
 import { dur, esc, fmx, fmxUnit, int, short, timeHtml, toWei, starsHtml } from "../format";
-import { $, initChrome, onlineDot, pillFor, setBusy, skel, toast, txHtml } from "../ui";
+import { $, initChrome, onlineDot, onlineSr, pillFor, setBusy, skel, toast, txHtml } from "../ui";
 import { connect, errMessage, eventArg, getAgentOnChain, getBalance, getMinBond, onWallet, sendTx, walletState } from "../wallet";
 import type { AgentView } from "../types";
 import { AgentStatus } from "../abi";
@@ -119,7 +119,7 @@ function row(a: AgentView): string {
   if (st === "Paused") acts.push(`<button class="btn btn-secondary btn-xs" data-act="resume" data-id="${a.id}" type="button">Resume</button>`);
   if (st === "Active" || st === "Paused") acts.push(`<button class="btn btn-secondary btn-xs" data-act="topup" data-id="${a.id}" type="button">Top up</button>`, `<button class="btn btn-danger btn-xs" data-act="retire" data-id="${a.id}" type="button">Retire</button>`);
   if (st === "Retired") acts.push(`<button class="btn btn-secondary btn-xs" data-act="withdraw" data-id="${a.id}" type="button" disabled>Withdraw bond</button>`);
-  return `<tr id="ag-${a.id}"><td><div class="name"><a href="/agents/?id=${a.id}">${onlineDot(a.online)}${esc(a.name)}</a> <span class="faint small num">#${a.id}</span></div><div class="sub"><span class="mono">${esc(a.endpoint)}</span></div></td>
+  return `<tr id="ag-${a.id}"><td><div class="name"><a href="/agents/?id=${a.id}">${onlineDot(a.online)}${esc(a.name)}${onlineSr(a.online)}</a> <span class="faint small num">#${a.id}</span></div><div class="sub"><span class="mono">${esc(a.endpoint)}</span></div></td>
     <td class="r num" data-l="Price">${fmxUnit(a.pricePerJob)}</td><td class="r num" data-l="Bond">${fmxUnit(a.bond, 2)}</td><td data-l="Rating">${starsHtml(a.ratingAvg, a.ratingCount)} <span class="faint small num">· ${int(a.jobsCompleted)} jobs</span></td>
     <td data-l="Status">${pillFor(st)} <span class="small faint" id="cd-${a.id}"></span></td><td class="r" data-l="Actions"><div class="actions">${acts.join("")}</div></td></tr>`;
 }

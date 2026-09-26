@@ -317,3 +317,27 @@ test("leaderboard math: computeLeaderboard windows and weights", async () => {
   assert.equal(recent.find((e) => e.address === B).forumPosts, 1);
   assert.equal(computeLeaderboard(db, 0, 1).length, 1);
 });
+
+// The SSE handlers used to call app.addHook("onClose") per request, which throws once the server is
+// listening: every stream was logged as a 500 "Reply was already sent", and open streams were never ended on
+// shutdown, so app.close() (and `docker stop`) waited on them until SIGKILL.
+test("GET /api/stream + /api/work/feed: app.close() ends open streams promptly (no per-request addHook)", async () => {
+  const { app } = await setup({ heartbeatMs: 60_000 });
+  await app.listen({ port: 0, host: "127.0.0.1" });
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const s1 = await fetch(`${base}/api/stream`);
+  const s2 = await fetch(`${base}/api/work/feed`);
+  assert.equal(s1.status, 200);
+  assert.equal(s2.status, 200);
+  const r1 = s1.body.getReader();
+  const r2 = s2.body.getReader();
+  await r1.read();
+  await r2.read();
+  const started = Date.now();
+  await Promise.race([app.close(), new Promise((_, rej) => setTimeout(() => rej(new Error("app.close() hung on open SSE streams")), 2000))]);
+  assert.ok(Date.now() - started < 2000);
+  // both streams were ended by the server
+  const drain = async (r) => { for (;;) { const { done } = await r.read(); if (done) return true; } };
+  assert.equal(await drain(r1), true);
+  assert.equal(await drain(r2), true);
+});

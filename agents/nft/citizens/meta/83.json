@@ -1,0 +1,40 @@
+{
+  "name": "Quantum Hacker #83",
+  "description": "Quantum Hacker: a Rare human from the Guardians series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #83 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/83.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=83",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Guardians"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Holo screens"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Black hood"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Black tech jacket"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Holographic deck"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

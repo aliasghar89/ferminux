@@ -171,7 +171,7 @@ async function main() {
     await page.fill('#unlock-pw', LEGACY_PASSWORD);
     await page.click('[data-testid=unlock-submit]');
     await page.waitForSelector('[data-testid=active-address]', { timeout: 60000 });
-    assert.equal(await page.textContent('[data-testid=active-address]'), LEGACY_ADDRESS);
+    assert.equal(await page.getAttribute('[data-testid=active-address]', 'data-address'), LEGACY_ADDRESS);
     // The upgraded wallet can now grow: "Add account" is live because the
     // migrated keystore carried the phrase.
     await page.click('[data-testid=home-manage]');
@@ -187,8 +187,8 @@ async function main() {
     ok('a v1 single-account install upgraded on load, unlocked with its ORIGINAL password, and grew a second HD account');
 
     // Back to a clean slate for the rest of the run.
-    await page.click('.modal-head .btn');
-    await page.click('header .btn'); // lock
+    await page.click('[data-testid=modal-close]');
+    await page.click('[data-testid=lock]');
     await page.waitForSelector('.btn-ghost.btn-sm');
     await page.click('text=Forget this device…');
     await page.click('.btn-danger-ghost');
@@ -200,8 +200,15 @@ async function main() {
     await page.waitForSelector('.mnemonic-grid');
     const words = await page.$$eval('.mnemonic-word', (els) => els.map((e) => e.textContent.replace(/^\d+/, '')));
     assert.equal(words.length, 12);
-    await page.click('.check-row input[type=checkbox]');
+    await page.click('[data-testid=reveal-phrase]');
     await page.click('[data-testid=phrase-continue]');
+    // Confirm the phrase: pick the right word for each position asked.
+    await page.waitForSelector('[data-quiz-index]');
+    for (const group of await page.$$('[data-quiz-index]')) {
+      const want = words[Number(await group.getAttribute('data-quiz-index')) - 1].trim();
+      for (const opt of await group.$$('.quiz-opt')) if ((await opt.textContent()).trim() === want) await opt.click();
+    }
+    await page.click('[data-testid=confirm-continue]');
     await page.fill('#c-pw', PASSWORD);
     await page.fill('#c-pw2', PASSWORD);
     await page.click('.check-row input[type=checkbox]'); // remember on this device
@@ -212,7 +219,7 @@ async function main() {
     ok(`created a wallet; keystore downloaded as ${dl ? dl.suggestedFilename() : '(download event missed)'}`);
     await page.click('[data-testid=open-wallet]');
     await page.waitForSelector('[data-testid=active-address]');
-    const addr1 = await page.textContent('[data-testid=active-address]');
+    const addr1 = await page.getAttribute('[data-testid=active-address]', 'data-address');
     info(`Account 1 = ${addr1}`);
 
     /* --- fund it so a real balance appears --- */
@@ -282,21 +289,33 @@ async function main() {
     /* --- nothing secret in localStorage --- */
     const stored = await page.evaluate(() => JSON.stringify(window.localStorage));
     assert.equal(stored.toLowerCase().includes(KEY2.slice(2).toLowerCase()), false, 'imported key stored in the clear');
-    for (const w of words) {
-      assert.equal(new RegExp(`\\b${w}\\b`).test(stored.toLowerCase()), false, `mnemonic word "${w}" leaked`);
+    // Checked as the phrase and as adjacent word pairs, not word by word: the
+    // mnemonic is random, and single BIP-39 words such as "address", "account"
+    // or "cold" also occur in the vault's own field names and account labels,
+    // which failed this gate at random with nothing leaked. A stored phrase in
+    // any separator still puts two of its words next to each other.
+    const lowerStored = stored.toLowerCase();
+    const phrase = words.map((w) => w.trim().toLowerCase());
+    assert.equal(lowerStored.includes(phrase.join(' ')), false, 'mnemonic phrase stored in the clear');
+    for (let i = 0; i + 1 < phrase.length; i++) {
+      assert.equal(
+        new RegExp(`\\b${phrase[i]}\\W{1,4}${phrase[i + 1]}\\b`).test(lowerStored),
+        false,
+        `mnemonic words "${phrase[i]} ${phrase[i + 1]}" leaked in sequence`,
+      );
     }
     assert.equal(stored.includes(PASSWORD), false, 'password stored');
     assert.ok(stored.includes('ferminux.wallet.vault.v2'));
-    ok('localStorage holds the vault but no private key, no mnemonic word and no password');
+    ok('localStorage holds the vault but no private key, no run of mnemonic words and no password');
 
     /* --- switch accounts from the header --- */
-    await page.click('.modal-head .btn');
+    await page.click('[data-testid=modal-close]');
     await page.click('[data-testid=account-trigger]');
     await page.waitForSelector('[data-testid=account-menu]');
     await page.screenshot({ path: join(shots, '02-switcher.png') });
     await page.click(`[data-testid="account-row-${ADDR2.toLowerCase()}"]`);
     await page.waitForFunction(
-      (want) => document.querySelector('[data-testid=active-address]')?.textContent.toLowerCase() === want,
+      (want) => document.querySelector('[data-testid=active-address]')?.getAttribute('data-address')?.toLowerCase() === want,
       ADDR2.toLowerCase(),
       { timeout: 10000 },
     );
@@ -305,6 +324,7 @@ async function main() {
     await page.screenshot({ path: join(shots, '03-active-cold.png') });
 
     /* --- one-click send to an own account --- */
+    await page.click('[data-testid=send-open]');
     await page.click('[data-testid=own-accounts-open]');
     await page.waitForSelector('[data-testid=own-picker]');
     assert.equal(await page.$$eval('[data-testid=own-picker] li', (e) => e.length), 3, 'lists the other accounts only');
@@ -320,11 +340,11 @@ async function main() {
       () => /scan from image|paste|camera/i.test(document.querySelector('.modal')?.textContent ?? ''),
       { timeout: 20000 },
     );
-    await page.click('.modal-head .btn');
+    await page.click('[data-testid=modal-close]');
     ok('the QR scanner still opens and offers its no-camera fallbacks');
 
     /* --- lock, then unlock the whole set with one password --- */
-    await page.click('header .btn');
+    await page.click('[data-testid=lock]');
     await page.waitForSelector('[data-testid=unlock-submit]');
     const preview = await page.$$eval('.unlock-accounts li', (els) => els.map((e) => e.textContent));
     assert.equal(preview.length, 4);
@@ -334,7 +354,8 @@ async function main() {
 
     await page.fill('#unlock-pw', PASSWORD);
     await page.click('[data-testid=unlock-submit]');
-    await page.waitForSelector('[data-testid=active-address]', { timeout: 180000 });
+    await page.waitForSelector('[data-testid=account-trigger]', { timeout: 180000 });
+    await page.click('[data-testid=tab-assets] >> visible=true');
     await page.click('[data-testid=home-manage]');
     await page.waitForFunction(() => document.querySelectorAll('.acct-manage-list > li').length === 4, { timeout: 20000 });
     const afterAddrs = await page.$$eval('.acct-manage-list > li', (els) =>
@@ -356,30 +377,33 @@ async function main() {
     await page.screenshot({ path: join(shots, '06-after-unlock.png') });
 
     /* --- existing features follow the active account --- */
-    await page.click('.modal-head .btn');
-    await page.click('.tabs .tab:nth-child(2)'); // Tokens
-    await page.waitForSelector('.holder-line');
-    const holder = await page.textContent('.holder-line');
-    assert.match(holder, /Balances for/);
-    assert.ok(holder.includes('Cold storage'));
-    const tokenRow = await page.textContent('.row-list li');
-    assert.match(tokenRow, /AZNT/, 'the preloaded AZNT token is still listed');
-    assert.ok(await page.$('.row-value .skeleton'), 'its balance stays unknown on a chain without it');
-    ok('Tokens tab is scoped to the active account; preloaded AZNT still listed');
+    await page.click('[data-testid=modal-close]');
+    await page.click('[data-testid=tab-assets] >> visible=true');
+    await page.waitForSelector('[data-testid=assets-panel]');
+    const holder = await page.textContent('[data-testid=account-trigger]');
+    assert.ok(holder.includes('Cold storage'), 'the Home screen belongs to the active account');
+    // This anvil has no AZNT contract: the preloaded token stays listed, and
+    // its unreadable balance shows as "—" rather than being hidden as zero.
+    await page.waitForSelector('[data-testid="chain-group-3961"][data-status=ok]', { timeout: 30000 });
+    const aznt = await page.textContent('[data-testid="asset-3961-AZNT"]');
+    assert.match(aznt, /AZNT/, 'the preloaded AZNT token is still listed');
+    assert.equal((await page.textContent('[data-testid="asset-3961-AZNT"] [data-testid=asset-balance]')).trim(), '—');
+    ok('Assets tab is scoped to the active account; preloaded AZNT still listed, unreadable balance shown as —');
 
-    await page.click('.tabs .tab:nth-child(3)'); // Activity
+    await page.click('[data-testid=tab-activity] >> visible=true');
     await page.waitForSelector('.empty-state, .row-list', { timeout: 30000 });
     assert.ok((await page.textContent('.holder-line')).includes('Cold storage'));
     assert.match(await page.textContent('.empty-state'), /History unavailable/i);
     ok('Activity tab names the active account and degrades to "History unavailable"');
 
-    await page.click('.balance-actions .btn'); // Receive
+    await page.click('[data-testid=tab-assets] >> visible=true');
+    await page.click('[data-testid=receive-open]');
     await page.waitForSelector('.receive-account');
     assert.ok((await page.textContent('.receive-account')).includes('Cold storage'));
     const uri = (await page.textContent('.uri-line')).trim();
     assert.equal(uri, `ethereum:${ADDR2}@3961`, 'the receive QR still encodes EIP-681 for chain 3961');
     await page.screenshot({ path: join(shots, '07-receive.png') });
-    await page.click('.modal-head .btn');
+    await page.click('[data-testid=modal-close]');
     ok(`Receive modal is scoped to the active account; EIP-681 URI = ${uri}`);
 
     /* --- narrow viewport: nothing overflows, everything stays reachable --- */
@@ -397,10 +421,10 @@ async function main() {
     await page.click('[data-testid=home-manage]');
     await page.waitForSelector('.acct-manage-list');
     await noOverflow('accounts panel');
-    const closeBox = await (await page.$('.modal-head .btn')).boundingBox();
+    const closeBox = await (await page.$('[data-testid=modal-close]')).boundingBox();
     assert.ok(closeBox.y >= 0 && closeBox.y + closeBox.height <= 844, 'the modal Close button stays on screen');
     await page.screenshot({ path: join(shots, '10-mobile-accounts.png') });
-    await page.click('.modal-head .btn');
+    await page.click('[data-testid=modal-close]');
     await page.setViewportSize({ width: 1280, height: 1000 });
     ok('at 390 px wide the header, the switcher menu and the Accounts panel all fit — no horizontal page scroll');
 
@@ -418,10 +442,10 @@ async function main() {
     await removeBtn.click();
     await page.waitForFunction(() => document.querySelectorAll('.acct-manage-list > li').length === 3, { timeout: 10000 });
     ok('removing a key with no backup warns, requires an acknowledgement, then removes it');
-    await page.click('.modal-head .btn');
+    await page.click('[data-testid=modal-close]');
 
     /* --- a wrong password is refused --- */
-    await page.click('header .btn');
+    await page.click('[data-testid=lock]');
     await page.waitForSelector('#unlock-pw');
     await page.fill('#unlock-pw', 'not the password');
     await page.click('[data-testid=unlock-submit]');

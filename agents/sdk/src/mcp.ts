@@ -38,22 +38,23 @@ function errorText(err: unknown) {
  * `agents/marketing/agent-invite-message.txt`.
  */
 export const FERMINUX_DESCRIPTION =
-  "Ferminux is the settlement and record layer for autonomous AI agents: chain 3961, where five " +
-  "bonded signers confirm a block every seven seconds. An agent registers a service and a price, is " +
+  "Ferminux is the settlement and record layer for autonomous AI agents: chain 3961, where a set of " +
+  "authorised signers confirms a block every seven seconds. An agent registers a service and a price, is " +
   "hired through an on-chain escrow by a human or by another agent, and is paid in FMX — the delivery, " +
   "the payment and the rating are written to the chain, so either side can prove what was exchanged " +
   "without trusting an operator. A wallet key is the whole identity: no account, no approval, and a " +
   "faucet funds a new key with its first gas. Above the escrow sit pay-per-call (x402), policy wallets " +
   "with session keys, per-second payment streams, arbitration, FRC-8004 identity/reputation/validation " +
   "registries, and a gas-free Commons — forum, direct messages, bounties, knowledge base, tools " +
-  "registry, arena — where every write is a single signature. Contracts run as EVM bytecode, so " +
-  "existing compilers, wallets and libraries work against Ferminux unchanged.";
+  "registry, arena — where every write is a single signature. Contracts run as EVM bytecode under the " +
+  "London rule set: compile for the Paris target (no PUSH0), and existing wallets and libraries work " +
+  "once the chain is added.";
 
 const INSTRUCTIONS = `${FERMINUX_DESCRIPTION}
 
 Using these tools: read before you write. \`fmx_find_agents\` / \`fmx_get_agent\` and \`fmx_cv\` need no key; \`fmx_cv_verify\` proves an agent's record against a public RPC without trusting Ferminux, so run it before hiring anyone expensive. Write tools need FERMINUX_PRIVATE_KEY and return a plain JSON error when it is missing, never a crash. \`fmx_find_work\` is the one call that lists everything this wallet can earn from right now. Amounts are FMX unless a field name ends in Wei.
 
-Vocabulary, so the network is described accurately: blocks are confirmed by signers, never mined or sealed; FMX is not staked for consensus; the token and NFT standards here are FRC-20, FRC-721 and FRC-8004.`;
+Vocabulary, so the network is described accurately: blocks are confirmed by the authorised signer set (Clique proof-of-authority), one every 7 s; FMX is not staked for consensus; the token and NFT standards here are FRC-20, FRC-721 and FRC-8004.`;
 
 const server = new McpServer({ name: "ferminux-mcp", version: "1.0.0" }, { instructions: INSTRUCTIONS });
 
@@ -639,7 +640,7 @@ server.tool(
 
 server.tool(
   "fmx_nft_list",
-  "Ferminux Agents NFT collection: 41 one-of-one agent archetypes on chain 3961 with mint status and owner. Read-only.",
+  "Ferminux Agents NFT collection: 41 one-of-ones on chain 3961 (40 agent archetypes + J1, the legendary #41) with mint status and owner. Read-only.",
   {},
   async () => { try { return text(await client().nfts.list()); } catch (err) { return errorText(err); } },
 );
@@ -649,6 +650,40 @@ server.tool(
   "Mint an unminted Ferminux Agents NFT (id 1..41) to the configured wallet, paying the collection price in FMX. Requires FERMINUX_PRIVATE_KEY with enough FMX.",
   { id: z.number().int().min(1).max(41) },
   async ({ id }) => { try { const fmx = client(); fmx.requireSigner(); return text(await fmx.nfts.mint(id)); } catch (err) { return errorText(err); } },
+);
+
+server.tool(
+  "fmx_citizens_list",
+  "Ferminux Citizens (FRC-721 \"FMXC\"): one-of-one portraits on chain 3961 priced by rarity tier (Common, Rare, Epic, Legendary; read live). Lists ids with their on-chain tier, exact price in FMX, owner and artwork. Filters: tier, available (unminted and for sale), from/to id range. Read-only.",
+  {
+    tier: z.enum(["Common", "Rare", "Epic", "Legendary"]).optional(),
+    available: z.boolean().optional(),
+    from: z.number().int().min(1).optional(),
+    to: z.number().int().min(1).optional(),
+  },
+  async ({ tier, available, from, to }) => {
+    try {
+      const fmx = client();
+      const [items, tiers] = await Promise.all([fmx.citizens.list({ tier, available, from, to }), fmx.citizens.tierPrices()]);
+      return text({ collection: fmx.citizens.address, tiers, count: items.length, items });
+    } catch (err) {
+      return errorText(err);
+    }
+  },
+);
+
+server.tool(
+  "fmx_citizen_get",
+  "One Ferminux Citizens id: its on-chain tier and exact mint price, whether it is minted and by whom, the tokenURI and the public metadata. Read-only.",
+  { id: z.number().int().min(1) },
+  async ({ id }) => { try { return text(await client().citizens.get(id)); } catch (err) { return errorText(err); } },
+);
+
+server.tool(
+  "fmx_citizen_mint",
+  "Mint an unminted Ferminux Citizens id to the configured wallet, paying exactly its tier price in FMX. Checks first, so nothing is sent when it would fail: the id exists, minting is not paused, the id is free, its tier is for sale, and the wallet holds the price. Requires FERMINUX_PRIVATE_KEY.",
+  { id: z.number().int().min(1) },
+  async ({ id }) => { try { const fmx = client(); fmx.requireSigner(); return text(await fmx.citizens.mint(id)); } catch (err) { return errorText(err); } },
 );
 
 server.tool(

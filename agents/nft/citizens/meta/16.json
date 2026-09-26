@@ -1,0 +1,40 @@
+{
+  "name": "Ivory Bob #16",
+  "description": "Ivory Bob: a Common human from the Citizens series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #16 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/16.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=16",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Citizens"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Background",
+      "value": "White"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Black bob"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Ivory coat"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Gold ring"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "Dialogue Envoy #116",
+  "description": "Dialogue Envoy: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #116 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/116.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=116",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Pale grey, flag row"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Globe-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Navy suit and stole"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Dialogue book"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

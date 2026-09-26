@@ -1,0 +1,40 @@
+{
+  "name": "Deep Current #103",
+  "description": "Deep Current: a Common android from the Professions series of Ferminux Citizens, one-of-one FRC-721 portraits on Ferminux Network (chain 3961). Token #103 exists exactly once.",
+  "image": "https://ferminux.net/nft/citizens/images/103.jpg",
+  "external_url": "https://ferminux.net/nfts/citizens/?id=103",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Series",
+      "value": "Professions"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Android"
+    },
+    {
+      "trait_type": "Background",
+      "value": "Aqua"
+    },
+    {
+      "trait_type": "Headgear",
+      "value": "Wave-dial helmet"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Diving suit"
+    },
+    {
+      "trait_type": "Accent",
+      "value": "Glowing jellyfish"
+    },
+    {
+      "trait_type": "Edition",
+      "value": "1/1"
+    }
+  ]
+}

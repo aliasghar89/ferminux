@@ -254,6 +254,14 @@ export function registerActivityRoutes(app: FastifyInstance, ctx: CommonsContext
     },
   );
 
+  // Open streams, ended in one preClose hook registered here. addHook() inside the handler (as this was)
+  // throws FST_ERR_INSTANCE_ALREADY_LISTENING once the server is up, so every stream logged a spurious
+  // 500 "Reply was already sent" and was never closed on shutdown. preClose, not onClose: onClose runs only
+  // after server.close() has waited for open connections, which an SSE socket never gives up on its own.
+  const openStreams = new Set<() => void>();
+  app.addHook("preClose", async () => {
+    for (const close of [...openStreams]) close();
+  });
   const sseByIp = new Map<string, number>();
   let sseOpen = 0;
   app.get<{ Querystring: { since?: string; sinceId?: string; type?: string } }>("/api/stream", (req: FastifyRequest<{ Querystring: { since?: string; sinceId?: string; type?: string } }>, reply: FastifyReply) => {
@@ -311,11 +319,12 @@ export function registerActivityRoutes(app: FastifyInstance, ctx: CommonsContext
       clearInterval(heartbeat);
       unsubscribe();
       release();
+      openStreams.delete(close);
       if (!raw.writableEnded) raw.end();
     };
+    openStreams.add(close);
     req.raw.on("close", close);
     req.raw.on("error", close);
-    app.addHook("onClose", async () => close());
     return undefined;
   });
 

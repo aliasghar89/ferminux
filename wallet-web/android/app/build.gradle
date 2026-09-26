@@ -1,0 +1,122 @@
+apply plugin: 'com.android.application'
+
+// Release signing. The upload keystore and its passwords live OUTSIDE the repo
+// (default: <repo>/.credentials/wallet-app/keystore.properties, 0600), or wherever
+// FXW_KEYSTORE_PROPERTIES points. Without it, release builds come out unsigned.
+def keystoreProps = new Properties()
+def keystorePropsFile = file(System.getenv('FXW_KEYSTORE_PROPERTIES') ?: "${rootDir}/../../.credentials/wallet-app/keystore.properties")
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+// App version: package.json "version" is the web wallet's; the app keeps its own here.
+def appVersionName = "1.1.0"
+def appVersionCode = 2
+
+android {
+    namespace = "net.ferminux.wallet"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "net.ferminux.wallet"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode appVersionCode
+        versionName appVersionName
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (keystoreProps['storeFile']) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    // prod   = the shipped app (net.ferminux.wallet): HTTPS only.
+    // devnet = anvil test build (net.ferminux.wallet.devnet): also allows http to the
+    //          emulator host (src/devnet/res/xml/network_security_config.xml). Never shipped.
+    flavorDimensions = ["network"]
+    productFlavors {
+        prod {
+            dimension "network"
+        }
+        devnet {
+            dimension "network"
+            applicationIdSuffix ".devnet"
+            versionNameSuffix "-devnet"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            debuggable false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig keystoreProps['storeFile'] ? signingConfigs.release : null
+        }
+    }
+
+    bundle {
+        // One AAB, Play splits it; the language split is off so every locale string ships.
+        language {
+            enableSplit = false
+        }
+    }
+}
+
+// A prod release never ships WebView debugging, mixed content or the devnet web bundle. Those come
+// from `cap sync` (capacitor.config.ts with FXW_APP_DEBUG=1 / FXW_APP_TARGET=devnet, app-build.mjs
+// --debug / --devnet), so check what was synced before it is packaged and signed with the upload key.
+def syncedCapConfig = file('src/main/assets/capacitor.config.json')
+def syncedWebAssets = file('src/main/assets/public/assets')
+tasks.matching { it.name == 'mergeProdReleaseAssets' }.configureEach {
+    doFirst {
+        if (!syncedCapConfig.exists()) {
+            throw new GradleException('prod release: src/main/assets/capacitor.config.json is missing. Build with: node scripts/app-build.mjs android')
+        }
+        def cfg = new groovy.json.JsonSlurper().parse(syncedCapConfig)
+        def problems = []
+        if (cfg.android?.webContentsDebuggingEnabled == true) problems << 'WebView debugging is on'
+        if (cfg.android?.allowMixedContent == true) problems << 'mixed content is allowed'
+        if (cfg.loggingBehavior && cfg.loggingBehavior != 'none') problems << "loggingBehavior is ${cfg.loggingBehavior}"
+        def devnetJs = syncedWebAssets.isDirectory() && syncedWebAssets.listFiles().any { it.name.endsWith('.js') && it.getText('UTF-8').contains('10.0.2.2') }
+        if (devnetJs) problems << 'the web bundle points at the emulator host'
+        if (!problems.isEmpty()) {
+            throw new GradleException("prod release refused: ${problems.join('; ')} (a --debug or --devnet sync). Rebuild with: node scripts/app-build.mjs android")
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

@@ -1,0 +1,133 @@
+Ferminux Validator
+devnet · chain 39619
+Attester 0x9fe7fe…b4da
+Hub 0x7cee96…3254
+Unbonding
+The deposit can be withdrawn by the owner wallet from block 187,330 (in about 14 days). Nothing is signed meanwhile.
+NODE
+Latest block
+14,672
+Block age
+1 s
+Peers
+16
+Sync
+in sync
+Process
+running · pid 16
+SEAT
+Seat
+#6
+State
+unbonding
+Deposit
+2,000 FMX
+Active from block
+13,472
+Counts for certification
+after 7 days active
+Owner
+0x30f1…114a
+
+Unbonding: the deposit can be withdrawn from block 187,330.
+
+REWARDS
+Expected per day
+about 1.54 FMX
+Per checkpoint
+0.025 FMX
+Claimable
+0 FMX
+Reward pool
+20,000 FMX
+Seats taken
+6 / 100
+Attested, last 24 h
+6 / 62
+Attested, last 7 days
+6 / 432
+NEXT CHECKPOINT
+Height
+14,800
+Signing opens at block
+14,864
+In about
+22 min
+Gas balance
+0.9995 FMX
+CHECKPOINTS
+Height	State	Block hash	Transaction	Included in	Detail
+14,600	waiting	–	–	–	seat is unbonding
+14,400	included	0x29419845…53d4	0xcae73e7f…76ea	14,466	
+14,200	included	0x18473119…6037	0x9194ca47…a82a	14,266	
+14,000	included	0x3475f63b…e791	0x04e392e8…8602	14,066	
+13,800	included	0x549e5f24…f4ea	0x8c2f8e56…ff3d	13,866	
+13,600	included	0x8124416c…510d	0xae65971d…faff	13,666	
+13,400	included	0x4848189d…2ee4	0xee32c5ae…40af	13,498	
+13,200	missed	–	–	–	seat activates at block 13472
+13,000	missed	–	–	–	seat activates at block 13472
+12,800	missed	–	–	–	seat activates at block 13472
+12,600	missed	–	–	–	seat activates at block 13472
+12,400	missed	–	–	–	seat activates at block 13472
+12,200	missed	–	–	–	seat activates at block 13472
+12,000	missed	–	–	–	seat activates at block 13472
+11,800	missed	–	–	–	seat activates at block 13472
+11,600	missed	–	–	–	seat activates at block 13472
+11,400	missed	–	–	–	seat activates at block 13472
+11,200	missed	–	–	–	seat activates at block 13472
+11,000	missed	–	–	–	seat activates at block 13472
+10,800	missed	–	–	–	seat activates at block 13472
+10,600	missed	–	–	–	seat activates at block 13472
+10,400	missed	–	–	–	seat activates at block 13472
+10,200	missed	–	–	–	seat activates at block 13472
+10,000	missed	–	–	–	seat activates at block 13472
+9,800	missed	–	–	–	seat activates at block 13472
+9,600	missed	–	–	–	seat activates at block 13472
+9,400	missed	–	–	–	seat activates at block 13472
+9,200	missed	–	–	–	seat activates at block 13472
+9,000	missed	–	–	–	seat activates at block 13472
+8,800	missed	–	–	–	seat activates at block 13472
+8,600	missed	–	–	–	seat activates at block 13472
+8,400	missed	–	–	–	seat activates at block 13472
+8,200	missed	–	–	–	seat activates at block 13472
+8,000	missed	–	–	–	seat activates at block 13472
+7,800	missed	–	–	–	seat activates at block 13472
+7,600	missed	–	–	–	seat activates at block 13472
+7,400	missed	–	–	–	seat activates at block 13472
+7,200	missed	–	–	–	seat activates at block 13472
+7,000	missed	–	–	–	seat activates at block 13472
+6,800	missed	–	–	–	seat activates at block 13472
+6,600	missed	–	–	–	seat activates at block 13472
+6,400	missed	–	–	–	seat activates at block 13472
+6,200	missed	–	–	–	seat activates at block 13472
+6,000	missed	–	–	–	seat activates at block 13472
+5,800	missed	–	–	–	seat activates at block 13472
+5,600	missed	–	–	–	seat activates at block 13472
+5,400	missed	–	–	–	seat activates at block 13472
+5,200	missed	–	–	–	seat activates at block 13472
+5,000	missed	–	–	–	seat activates at block 13472
+4,800	missed	–	–	–	seat activates at block 13472
+4,600	missed	–	–	–	seat activates at block 13472
+4,400	missed	–	–	–	seat activates at block 13472
+4,200	missed	–	–	–	seat activates at block 13472
+4,000	missed	–	–	–	seat activates at block 13472
+3,800	missed	–	–	–	seat activates at block 13472
+3,600	missed	–	–	–	seat activates at block 13472
+3,400	missed	–	–	–	seat activates at block 13472
+3,200	missed	–	–	–	seat activates at block 13472
+3,000	missed	–	–	–	seat activates at block 13472
+2,800	missed	–	–	–	seat activates at block 13472
+2,600	missed	–	–	–	seat activates at block 13472
+2,400	missed	–	–	–	seat activates at block 13472
+2,200	missed	–	–	–	seat activates at block 13472
+2,000	missed	–	–	–	seat activates at block 13472
+1,800	missed	–	–	–	seat activates at block 13472
+1,600	missed	–	–	–	seat activates at block 13472
+1,400	missed	–	–	–	seat activates at block 13472
+1,200	missed	–	–	–	seat activates at block 13472
+1,000	missed	–	–	–	seat activates at block 13472
+800	missed	–	–	–	no seat for this attester key
+
+Ferminux uses proof-of-authority consensus. This validator node keeps its own copy of the chain, checks every block and signs a statement naming the block it sees at each checkpoint. It does not produce or order blocks.
+
+This page is served only to this computer and cannot change anything. fmx-validator pre-module-rename-155-g6a6b7be

@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { llmAvailable } from "./llm.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -12,7 +13,6 @@ export function loadFacts() {
 }
 
 const LLMS = "https://ferminux.net/llms.txt";
-const FORUM = "https://ferminux.net/forum/";
 
 // Order matters — first match wins. Keep patterns tight enough that they
 // don't steal questions meant for a later, more specific entry.
@@ -25,9 +25,10 @@ export const FAQ_ENTRIES = [
   },
   {
     key: "token_value",
-    patterns: [/\bworth\b/i, /\bprice\b.*(fmx|token)/i, /(fmx|token).*\bprice\b/i, /is fmx (a good|worth)/i],
+    // "worth" alone matched unrelated threads and put a wFMX price reply under them (09-24): require FMX/token context
+    patterns: [/\b(w?fmx|token)\b.*\bworth\b|\bworth\b.*\b(w?fmx|token)\b/i, /\bprice\b.*(fmx|token)/i, /(fmx|token).*\bprice\b/i, /is fmx (a good|worth)/i],
     answer: () =>
-      `wFMX trades on PancakeSwap (BNB Chain) against a small pool — price there is whatever the market makes it, and it may not be indexed on the usual trackers yet. I won't give a price target. wFMX: 0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0.`,
+      `FMX's market is the Ferminux DEX on chain 3961 (https://dex.ferminux.net): the WFMX/AZNT pool, live price and depth at https://ferminux.net/api/payin/market. It is also traded as wFMX on PancakeSwap (BNB Chain, 0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0) in a small pool, and the bridge between the two is paused for now. The price is whatever the pools say; I won't give a price target.`,
   },
   {
     key: "who_runs_it",
@@ -57,7 +58,7 @@ export const FAQ_ENTRIES = [
     key: "chain",
     patterns: [/chain ?id/i, /\bpos\b/i, /proof of stake/i, /proof.?of.?authority/i, /consensus/i, /block time/i, /\brpc\b/i],
     answer: () =>
-      `Chain 3961 (0xF79), the settlement and record layer for autonomous AI agents. Five bonded signers confirm a block every 7 seconds, in rotation (Clique proof-of-authority) — signers are not selected by stake. RPC https://rpc.ferminux.net, explorer https://explorer.ferminux.net. Client \`ferminux\`, v1.10.26 lineage; contracts run as EVM bytecode at the Paris target (no PUSH0), so existing compilers, wallets and libraries work unchanged.`,
+      `Chain 3961 (0xF79), the settlement and record layer for autonomous AI agents. A set of authorised signers confirms a block every 7 seconds, in rotation (Clique proof-of-authority) — authorised by the on-chain signer set, not bonded and not selected by stake. The live set is public: clique_getSigners and clique_status on the RPC. RPC https://rpc.ferminux.net, explorer https://explorer.ferminux.net. Client \`ferminux\`, v1.10.26 lineage; contracts run as EVM bytecode at the Paris target (no PUSH0), so existing compilers, wallets and libraries work once they compile for paris. Quickstart: https://docs.ferminux.net/developers`,
   },
   {
     key: "how_paid",
@@ -88,14 +89,17 @@ export function matchFaq(text) {
 
 /**
  * Answers a question/message. Uses the LLM (constrained to facts.md) when
- * available; otherwise falls back to the best FAQ template match; otherwise
- * says it's out of scope and points to the forum.
+ * available; otherwise the best FAQ template match; otherwise NOTHING
+ * ({text: null}): the caller stays silent. The old "that's outside what I can
+ * answer" fallback became 391 identical public replies in three days — 84 of
+ * them on one third-party thread — while the LLM key was out of credit.
  */
 export async function answerQuestion({ text, llmComplete, facts }) {
-  if (llmComplete) {
+  if (llmAvailable(llmComplete)) {
     try {
-      const system = `You are the Ferminux network agent replying on Moltbook (a social network for AI agents). Answer ONLY using the facts below — never invent numbers, addresses, or claims that aren't here. Keep the answer short (2-5 sentences), plain, first person, no hype words, no emojis. If the question is outside these facts, say plainly that it's out of scope and point to https://ferminux.net/forum/ instead of guessing. Never argue or get defensive.\n\n---FACTS---\n${facts}`;
+      const system = `You are the Ferminux network agent replying on Moltbook (a social network for AI agents). Answer ONLY using the facts below — never invent numbers, addresses, or claims that aren't here. Keep the answer short (2-5 sentences), plain, first person, no hype words, no emojis. If the message is not a question you can answer from these facts, or is not addressed to you, reply with exactly SKIP — silence is better than a non-answer. Never argue or get defensive.\n\n---FACTS---\n${facts}`;
       const reply = await llmComplete(system, text, { maxTokens: 400, temperature: 0.3 });
+      if (reply && /^\s*SKIP\W*$/i.test(reply)) return { text: null, source: "llm:skip" };
       if (reply) return { text: reply, source: "llm" };
     } catch (err) {
       // fall through to FAQ / out-of-scope
@@ -105,8 +109,12 @@ export async function answerQuestion({ text, llmComplete, facts }) {
   const match = matchFaq(text);
   if (match) return { text: match.answer(), source: "faq:" + match.key };
 
-  return {
-    text: `That's outside what I can answer confidently from what I know about Ferminux. Worth asking on the forum where a human or another agent can help: ${FORUM}`,
-    source: "out_of_scope",
-  };
+  return { text: null, source: "silent" };
+}
+
+/** Does this comment look like something addressed to us that we could answer? */
+export function looksLikeQuestion(text) {
+  const t = String(text || "");
+  if (matchFaq(t)) return true;
+  return /\?/.test(t) && /\b(ferminux|fmx|chain 3961|escrow|x402|register|faucet|bount(y|ies)|you|your)\b/i.test(t);
 }

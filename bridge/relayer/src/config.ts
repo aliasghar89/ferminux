@@ -57,10 +57,14 @@ export interface ChainLimits {
  *                  without one, because a block COUNT prices nothing: on PoW the
  *                  block time swings with hashrate, and on an authority chain a
  *                  reorg costs zero work however deep it is.
- *   work-and-time  PoW without a finality gadget (Ferminux today). A block is
- *                  settled only when the chain has accumulated `workThreshold`
- *                  of total difficulty on top of it AND `timeFloorMs` of wall
- *                  clock has passed since it was mined. The pace monitor applies.
+ *   work-and-time  work-produced chains without a finality gadget (Ferminux
+ *                  BEFORE block 160,000 only). A block is settled only when the
+ *                  chain has accumulated `workThreshold` of total difficulty on
+ *                  top of it AND `timeFloorMs` of wall clock has passed since
+ *                  it was produced. The pace monitor applies. On authority-
+ *                  signed blocks (difficulty <= 2) it can never be met; the
+ *                  finality monitor says so and pauses (finality.ts).
+ *                  Ferminux today is "checkpoint".
  *   checkpoint     authority chains (Ferminux after the Clique fork, where
  *                  difficulty is 1 or 2 per block and work means nothing). The
  *                  signed checkpoint registry is the SOLE finality source: a
@@ -251,6 +255,10 @@ function int(o: Record<string, unknown>, key: string, path: string, fallback: nu
   const v = o[key];
   if (v === undefined || v === null) return fallback;
   if (typeof v !== 'number' || !Number.isFinite(v)) fail(`${path}.${key}`, 'must be a number');
+  // Integers only. A fraction used to pass here and then throw much later:
+  // priorityFeeGwei 0.05 (BSC's real tip) became BigInt(0.05) inside planFees
+  // and crashed every submission instead of failing at startup.
+  if (!Number.isInteger(v)) fail(`${path}.${key}`, 'must be a whole number');
   if (v < min || v > max) fail(`${path}.${key}`, `must be between ${min} and ${max}`);
   return v;
 }
