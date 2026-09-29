@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!--
+  /bridge/: the bridge between Ferminux and BNB Smart Chain is paused. This page is built here so the rsync
+  replaces the old bridge app shell in www/site/bridge/ with the site's own chrome and logo. The relayer's
+  status.json in that directory is not part of this build and keeps being written beside this page.
+  Facts and wording follow the whitepaper ("The bridge to BNB Smart Chain: not operating"). Dated statements carry
+  their date. Live reads (src/pages/bridge.ts): GET /api/payin/market -> secondary.bridgePaused / bridgeReason and
+  the PancakeSwap pool, plus the collateral on both chains. A read that fails renders "—".
+-->
+<title>The bridge is paused — Ferminux Network</title>
+<meta name="description" content="The bridge between Ferminux and BNB Smart Chain is paused: no transfers move in either direction. What that means, what exists today, the plan for bridge v2, and how to get FMX without the bridge.">
+<link rel="canonical" href="https://ferminux.net/bridge/">
+<meta property="og:title" content="The Ferminux bridge is paused">
+<meta property="og:description" content="No transfers move between Ferminux and BNB Smart Chain right now. Do not send FMX or wFMX to the bridge contracts. Buy FMX or use the Ferminux DEX instead.">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container read">
+    <section class="hero-sm">
+      <p class="kicker">Ferminux ↔ BNB Smart Chain</p>
+      <h1>The bridge is paused</h1>
+      <p class="lede">No transfers move between Ferminux and BNB Smart Chain right now, in either direction. The bridge's validators have not signed since 11 September 2026, and nothing is released without their signatures.</p>
+      <p class="bp-state" aria-live="polite"><span class="pill warn" id="bp-pill">paused</span><span id="bp-reason">Validators not signing since 11 September 2026.</span></p>
+    </section>
+
+    <div class="doc">
+      <div class="callout warn" id="bp-dont" role="note">
+        <p><strong>Do not send FMX or wFMX to the bridge contracts</strong>: not from a wallet, not from an explorer's write tab, not from a script.</p>
+        <p>The contracts are not paused on-chain and still accept a deposit, but nothing releases it without validator signatures. It would stay locked until the bridge runs again, and there is no process for reversing a bridge transfer sent in error.</p>
+      </div>
+
+      <section id="paused" aria-labelledby="paused-h">
+        <h2 id="paused-h">What paused means</h2>
+        <p>The bridge is lock-and-mint. FMX locked in the bridge contract on Ferminux is minted as wFMX on BNB Smart Chain, and wFMX is burned to come back. A transfer is released when 2 of its 3 registered validators sign it, after a wait for confirmations and a signed checkpoint. All three validator keys sit on machines run by one operator, so when the bridge runs you are trusting that operator.</p>
+        <ul>
+          <li><strong>Ferminux to BNB Smart Chain:</strong> FMX sent to the bridge is not minted as wFMX.</li>
+          <li><strong>BNB Smart Chain to Ferminux:</strong> wFMX burned at the bridge is not released as FMX on chain 3961. wFMX cannot be turned into FMX until the bridge attests transfers again.</li>
+          <li><strong>The bridge app is offline.</strong> This page replaces it, and it has no transfer form on purpose.</li>
+        </ul>
+        <p>Why it stopped: the last checkpoint the validators recorded in the bridge's CheckpointRegistry on BNB Smart Chain, for Ferminux block 232,337, is dated 2026-09-11 08:54:45 UTC. Their status report gives the reason as an unreadable checkpoint. The last transfer recorded by the Ferminux bridge contract was in block 22,271, on 21 August 2026.</p>
+      </section>
+
+      <section id="exists" aria-labelledby="exists-h">
+        <h2 id="exists-h">What exists today</h2>
+        <p><strong>wFMX on BNB Smart Chain</strong> (<code>0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0</code>) is the bridge's FMX on that chain. Every wFMX should be matched by FMX locked on Ferminux. Both figures are read live below.</p>
+        <div class="callout">
+          <div class="figs">
+            <div class="fig"><div class="k">FMX locked on Ferminux</div><div class="v num" id="bp-locked">—</div></div>
+            <div class="fig"><div class="k">wFMX outstanding</div><div class="v num" id="bp-minted">—</div></div>
+          </div>
+          <p class="verdict" id="bp-verdict">Reading both chains…</p>
+        </div>
+        <p><strong>The PancakeSwap pool.</strong> wFMX trades against WBNB in a PancakeSwap v2 pool (<code>0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0</code>) that the project funded. It is small: <span id="bp-pool">—</span>. Its liquidity tokens are held by the project's BNB Smart Chain multisig and are not time-locked. Buying wFMX there does not get you FMX on chain 3961 while the bridge is paused. <a class="link-inline" href="/trade/#pancakeswap">The pool, live</a></p>
+
+        <dl class="kv bp-kv" aria-label="Bridge contracts">
+          <div class="kv-row"><dt>Bridge on Ferminux (chain 3961)</dt><dd><a class="mono" href="https://explorer.ferminux.net/address/0xe162eeDa683f067d4Ebf61060Fa322332a779EF4" rel="noopener">0xe162eeDa683f067d4Ebf61060Fa322332a779EF4</a><button class="copy" type="button" data-copy="0xe162eeDa683f067d4Ebf61060Fa322332a779EF4" aria-label="Copy the Ferminux bridge address">copy</button></dd></div>
+          <div class="kv-row"><dt>Bridge on BNB Smart Chain</dt><dd><a class="mono" href="https://bscscan.com/address/0xe43951a0E421A6B3Cb9C6ae66273dc0D3c8a70ff" rel="noopener">0xe43951a0E421A6B3Cb9C6ae66273dc0D3c8a70ff</a><button class="copy" type="button" data-copy="0xe43951a0E421A6B3Cb9C6ae66273dc0D3c8a70ff" aria-label="Copy the BNB Smart Chain bridge address">copy</button></dd></div>
+          <div class="kv-row"><dt>wFMX (BNB Smart Chain)</dt><dd><a class="mono" href="https://bscscan.com/token/0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0" rel="noopener">0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0</a><button class="copy" type="button" data-copy="0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0" aria-label="Copy the wFMX address">copy</button></dd></div>
+          <div class="kv-row"><dt>wFMX/WBNB pool</dt><dd><a class="mono" href="https://bscscan.com/address/0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0" rel="noopener">0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0</a><button class="copy" type="button" data-copy="0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0" aria-label="Copy the pool address">copy</button></dd></div>
+          <div class="kv-row"><dt>CheckpointRegistry</dt><dd><a class="mono" href="https://bscscan.com/address/0xB35bE8a672BDD265a88853Be3b053f1d21dCE816" rel="noopener">0xB35bE8a672BDD265a88853Be3b053f1d21dCE816</a><button class="copy" type="button" data-copy="0xB35bE8a672BDD265a88853Be3b053f1d21dCE816" aria-label="Copy the CheckpointRegistry address">copy</button></dd></div>
+        </dl>
+        <p class="small faint">These addresses are for checking, not for sending. The bridge's controls, caps, timelock and key holders are on the <a class="link-inline" href="/security.html">security page</a>.</p>
+      </section>
+
+      <section id="plan" aria-labelledby="plan-h">
+        <h2 id="plan-h">The plan: bridge v2</h2>
+        <p>A proof-based bridge is planned. It replaces the validators' signatures with proofs: a light client of Ferminux's signer set and a verifier of transfer receipts on BNB Smart Chain. The first part is built and tested against real chain data and is not deployed. Moving to it would go through the bridge's 48-hour timelock.</p>
+        <p><strong>There is no date.</strong> Until transfers are signed again, treat the bridge as closed. The line at the top of this page is read live and will change when the bridge's state does.</p>
+      </section>
+
+      <section id="alternatives" aria-labelledby="alt-h">
+        <h2 id="alt-h">What works today</h2>
+        <p>To get FMX on chain 3961 without the bridge:</p>
+        <ul class="routes bp-routes">
+          <li><a class="route" href="/buy-fmx/"><span class="route-t">Buy FMX</span><span class="route-l">Pay with USDT, USDC, BNB or another chain's own coin on 7 chains, at a price the operator sets. FMX is credited to your chain-3961 address.</span><span class="route-c" id="bp-payin"></span><svg class="route-a" aria-hidden="true"><use href="#i-arrow"/></svg></a></li>
+          <li><a class="route" href="https://dex.ferminux.net" rel="noopener"><span class="route-t">Ferminux DEX</span><span class="route-l">Swap USDF or AZNT for native FMX on chain 3961, settled to your address in one block.</span><span class="route-c"></span><svg class="route-a" aria-hidden="true"><use href="#i-arrow"/></svg></a></li>
+          <li><a class="route" href="/trade/"><span class="route-t">Where FMX trades</span><span class="route-l">Both venues with live prices and depth, and why there are two.</span><span class="route-c"></span><svg class="route-a" aria-hidden="true"><use href="#i-arrow"/></svg></a></li>
+          <li><a class="route" href="/faucet/"><span class="route-t">Faucet</span><span class="route-l">Gas for a brand-new key, free, once a day.</span><span class="route-c"></span><svg class="route-a" aria-hidden="true"><use href="#i-arrow"/></svg></a></li>
+        </ul>
+      </section>
+
+      <section id="verify" aria-labelledby="verify-h">
+        <h2 id="verify-h">Check it yourself</h2>
+        <p>Locked FMX against wFMX outstanding, the validator set, the last checkpoint and the live state, without trusting this page:</p>
+        <div class="code-block"><div class="code-head"><span>The bridge, from both chains</span><button class="copy" type="button" data-copy-block aria-label="Copy the bridge commands">copy</button></div>
+<pre>R=https://rpc.ferminux.net
+cast call 0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "lockedBalance(address)(uint256)" \
+  0x0000000000000000000000000000000000000000 --rpc-url $R
+cast call 0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0 "totalSupply()(uint256)" \
+  --rpc-url https://bsc-dataseed.bnbchain.org
+cast call 0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "getValidators()(address[])" --rpc-url $R
+cast call 0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "threshold()(uint256)" --rpc-url $R
+# the last Ferminux checkpoint the validators recorded: block 232337, 1789116885 = 2026-09-11 08:54:45 UTC
+cast call 0xB35bE8a672BDD265a88853Be3b053f1d21dCE816 "latest()(uint64,bytes32,uint64)" \
+  --rpc-url https://bsc-dataseed.bnbchain.org
+curl -s https://ferminux.net/api/payin/market | jq '.secondary | {bridgePaused, bridgeReason}'
+curl -s https://ferminux.net/bridge/status.json | jq</pre></div>
+      </section>
+    </div>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/bridge.ts"></script>
+</body>
+</html>

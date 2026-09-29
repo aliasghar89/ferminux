@@ -13,7 +13,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 export DOCKER_CONTEXT=${DOCKER_CONTEXT:-colima-fmxdev}
 RUN="$HERE/.run"
 . "$RUN/devnet.env"
-IMG=fmxdev:latest
+IMG=${IMG:-fmxdev:latest}
 NET=fmxdev
 SUB=172.30.39
 NETRESTRICT=$SUB.0/24
@@ -84,6 +84,9 @@ case "${1:-}" in
     host_run h1 11; sleep 20; host_run h2 13
     for i in $(seq -w 1 12); do sleep 20; validator_run "v$i"; done ;;
   v) validator_run "v$2" ;;
+  sig) # replace one signer (graceful stop first), e.g. EXTRA="--cache 256" IMG=fmxdev:cache net.sh sig 3
+    node_run "sig$2" signer -e SIGNER_ADDR="$(eval echo \$SIGNER$2)" -e SIGNER_PK="$(eval echo \$SIGNER${2}_PK)" -e EXTRA_ARGS="${EXTRA:-}" ;;
+  rpc) node_run rpc rpc -p 127.0.0.1:39545:8545 -e EXTRA_ARGS="${EXTRA:-}" ;;
   h) host_run "$2" "$3" ;;
   down) docker ps -a --format '{{.Names}}' | grep '^fmxd-' | xargs -r docker stop -t 30 ;;
   wipe)

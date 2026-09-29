@@ -5,7 +5,8 @@
 import { Contract } from "ethers";
 import { config, citizensDeployed } from "./config";
 import { CITIZENS_ABI } from "./abi";
-import { contractRead, contractWrite } from "./wallet";
+import { contractRead, contractWrite, readProvider } from "./wallet";
+import { multicallValues } from "./multicall";
 import { tierIndex, type TierName } from "./nftView";
 import type { NftMeta, NftStatus } from "./nft";
 
@@ -85,17 +86,24 @@ export async function citizensState(): Promise<CitizensState> {
   }
   if (!citizensDeployed) throw new Error("The Ferminux Citizens contract is not deployed yet.");
   const c = citizensRead();
-  const [paused, ts, ids, ...prices] = await Promise.all([c.paused(), c.totalSupply(), c.totalIds(), ...[0, 1, 2, 3].map((t) => c.priceOfTier(t))]);
+  const read = (fn: string, args: unknown[] = []) => ({ target: config.citizens, iface: c.interface, fn, args });
+  // one Multicall3 eth_call; if it fails, one eth_call each
+  const [paused, ts, ids, ...prices] = await multicallValues(readProvider(), [read("paused"), read("totalSupply"), read("totalIds"), ...[0, 1, 2, 3].map((t) => read("priceOfTier", [t]))])
+    .catch(() => Promise.all([c.paused(), c.totalSupply(), c.totalIds(), ...[0, 1, 2, 3].map((t) => c.priceOfTier(t))]));
   return { paused: Boolean(paused), totalSupply: Number(ts), totalIds: Number(ids), prices: prices.map((p) => BigInt(p)) };
 }
 
-/** Tier and owner of ids fromId..toId in one call (tokensInfo), 500 ids per call. */
+/** Ids per tokensInfo call. */
+export const CITIZENS_PAGE = 500;
+/** Tier and owner of ids fromId..toId (tokensInfo: one eth_call per 500 ids, all in flight at once). The contract
+ *  clamps toId to totalIds(), so ids 1..CITIZENS_PAGE can be read before totalIds is known, alongside citizensState. */
 export async function citizensStatuses(fromId: number, toId: number): Promise<NftStatus[]> {
   const out: NftStatus[] = [];
   if (toId < fromId) return out;
   if (MOCK) {
     await new Promise((r) => setTimeout(r, 300));
     const metas = await loadCitizens();
+    toId = Math.min(toId, metas.length); // the contract's clamp to totalIds
     for (let id = fromId; id <= toId; id++) {
       const m = metas.find((x) => x.id === id);
       const o = mockMinted.get(id) ?? null;
@@ -104,15 +112,14 @@ export async function citizensStatuses(fromId: number, toId: number): Promise<Nf
     return out;
   }
   const c = citizensRead();
-  for (let a = fromId; a <= toId; a += 500) {
-    const b = Math.min(toId, a + 499);
-    const [tiers, owners] = (await c.tokensInfo(a, b)) as [bigint[], string[]];
-    tiers.forEach((t, i) => {
-      const o = owners[i];
-      const minted = !!o && !/^0x0{40}$/i.test(o);
-      out.push({ id: a + i, minted, owner: minted ? o : null, tier: Number(t) });
-    });
-  }
+  const starts: number[] = [];
+  for (let a = fromId; a <= toId; a += CITIZENS_PAGE) starts.push(a);
+  const pages = await Promise.all(starts.map((a) => c.tokensInfo(a, Math.min(toId, a + CITIZENS_PAGE - 1)) as Promise<[bigint[], string[]]>));
+  pages.forEach(([tiers, owners], p) => tiers.forEach((t, i) => {
+    const o = owners[i];
+    const minted = !!o && !/^0x0{40}$/i.test(o);
+    out.push({ id: starts[p] + i, minted, owner: minted ? o : null, tier: Number(t) });
+  }));
   return out;
 }
 export const citizenStatus = async (id: number) => (await citizensStatuses(id, id))[0];

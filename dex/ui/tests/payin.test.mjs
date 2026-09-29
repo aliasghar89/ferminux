@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Interface } from 'ethers';
+import { Interface, Transaction } from 'ethers';
 
 import { PAYIN_DEPOSIT_ADDRESS } from '../src/config.ts';
 import {
@@ -28,11 +28,13 @@ import {
   estimateFmxOut,
   fetchPayAssets,
   fetchPayStatus,
+  feeBudget,
   fmxOutFor,
-  gasReserve,
   isFinished,
+  l1FeeInput,
   markSending,
   markSent,
+  maxFeeTx,
   maxSpendable,
   maybeSent,
   newTrack,
@@ -40,8 +42,11 @@ import {
   parseStore,
   payAsset,
   payChain,
+  OP_GAS_PRICE_ORACLE,
+  payPrecheck,
   quoteRequestBody,
   readPayBalances,
+  readPayFee,
   recentUnits,
   distinctFrom,
   visiblePurchases,
@@ -376,27 +381,281 @@ test('transfer: a quote tampered after validation is refused rather than sent', 
 // Balance and fee checks
 // ---------------------------------------------------------------------------
 
-test('balance: the token, then the fee on that network; a native coin must cover both', () => {
+// A paying network's public endpoints, answering from a script: `answer(method, params, url)` returns
+// a JSON-RPC result, or throws / returns { error } / { http } to fail that endpoint. Every call is logged.
+function rpcNet(answer) {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const body = JSON.parse(init.body);
+    calls.push({ url, method: body.method, params: body.params });
+    let out;
+    try {
+      out = await answer(body.method, body.params, url);
+    } catch (e) {
+      return { ok: true, status: 200, json: async () => ({ error: { message: e.message } }) };
+    }
+    if (out && typeof out === 'object' && 'http' in out) return { ok: false, status: out.http, json: async () => ({}) };
+    if (out && typeof out === 'object' && 'error' in out) return { ok: true, status: 200, json: async () => ({ error: { message: out.error } }) };
+    return { ok: true, status: 200, json: async () => ({ result: out }) };
+  };
+  return { fetchImpl, calls };
+}
+const hex = (v) => '0x' + v.toString(16);
+const word = (v) => '0x' + v.toString(16).padStart(64, '0');
+const ORACLE = new Interface(['function getL1Fee(bytes) view returns (uint256)', 'function getOperatorFee(uint256) view returns (uint256)']);
+const BALANCE_OF = '0x70a08231';
+
+// What a wallet on `chain` holds, and what that network charges, as its endpoints would say.
+function network({ chain, native, tokens = {}, gas, gasPrice, l1Fee = null, operatorFee = 0n, fail = {} }) {
+  const c = payChain(chain);
+  return rpcNet((method, params, url) => {
+    if (fail[method] === 'all' || (fail[method] === 'first' && url === c.rpcUrls[0])) throw new Error(fail.message ?? 'upstream error');
+    switch (method) {
+      case 'eth_getBalance':
+        return hex(native);
+      case 'eth_gasPrice':
+        return hex(gasPrice);
+      case 'eth_estimateGas':
+        return hex(typeof gas === 'function' ? gas(params[0]) : gas);
+      case 'eth_call': {
+        const { to, data } = params[0];
+        if (to.toLowerCase() === OP_GAS_PRICE_ORACLE.toLowerCase()) {
+          if (fail.oracle) throw new Error('execution reverted');
+          if (data.startsWith(ORACLE.getFunction('getOperatorFee').selector)) {
+            if (fail.operatorFee) throw new Error('execution reverted');
+            return word(operatorFee);
+          }
+          assert.ok(data.startsWith(ORACLE.getFunction('getL1Fee').selector), `only getL1Fee and getOperatorFee are read from the oracle, saw ${data.slice(0, 10)}`);
+          return word(l1Fee);
+        }
+        assert.ok(data.startsWith(BALANCE_OF), `only balanceOf and getL1Fee are read, saw ${data.slice(0, 10)}`);
+        const a = c.assets.find((x) => x.token?.toLowerCase() === to.toLowerCase());
+        return word(tokens[a.symbol] ?? 0n);
+      }
+      default:
+        throw new Error(`unexpected ${method}`);
+    }
+  });
+}
+
+const GWEI = 1_000_000_000n;
+const okFee = (budget) => ({ ok: true, fee: { model: 'l1', gas: 21_000n, gasPrice: 1n, l1Fee: 0n, operatorFee: 0n, budget } });
+
+test('fee: each paying network is priced by its own model', () => {
+  const models = Object.fromEntries(PAY_CHAINS.map((c) => [c.key, c.feeModel]));
+  assert.deepEqual(models, { bsc: 'l1', base: 'op-stack', arbitrum: 'arbitrum', polygon: 'l1', optimism: 'op-stack', avalanche: 'l1', eth: 'l1' });
+  // gas + a fifth, at the price + a quarter, plus twice the L1 data fee; rounded up
+  assert.equal(feeBudget(21_000n, GWEI, 0n), 25_200n * 1_250_000_000n);
+  assert.equal(feeBudget(21_001n, 3n, 7n), 25_202n * 4n + 14n);
+});
+
+test('fee: Ethereum, BNB Smart Chain, Polygon, Avalanche: eth_estimateGas for the exact transfer at eth_gasPrice, nothing else', async () => {
+  for (const [chain, asset] of [['bsc', 'USDT'], ['eth', 'USDC'], ['polygon', 'USDT'], ['avalanche', 'AVAX']]) {
+    const a = payAsset(chain, asset);
+    const req = { chain, asset, units: a.kind === 'native' ? E18 : 10n * 10n ** BigInt(a.decimals), to: ME, from: ME };
+    const q = acceptedQuote(req, { dust: 3n, assetUsdE18: a.stable ? E18 : 30n * E18 });
+    const tx = buildPayTx(q);
+    const net = network({ chain, native: 0n, gas: a.kind === 'native' ? 21_000n : 51_234n, gasPrice: 50_000_000n });
+    const r = await readPayFee(payChain(chain), tx, net.fetchImpl);
+    assert.equal(r.ok, true, r.error);
+    const gas = a.kind === 'native' ? 21_000n : 51_234n;
+    assert.deepEqual(r.fee, { model: 'l1', gas, gasPrice: 50_000_000n, l1Fee: 0n, operatorFee: 0n, budget: feeBudget(gas, 50_000_000n, 0n) });
+    const est = net.calls.find((x) => x.method === 'eth_estimateGas');
+    assert.deepEqual(est.params, [tx.data ? { from: tx.from, to: tx.to, value: tx.value, data: tx.data } : { from: tx.from, to: tx.to, value: tx.value }], `${chain}: the quote's own transfer is estimated`);
+    assert.ok(!net.calls.some((x) => x.method === 'eth_call'), `${chain}: no L1 fee read`);
+  }
+});
+
+test('fee: Base and Optimism add the L1 data fee, read from the GasPriceOracle for the unsigned transfer', async () => {
+  for (const [chain, chainId] of [['base', 8453n], ['optimism', 10n]]) {
+    const c = payChain(chain);
+    // Native ETH: 21,000 gas at 0.006 gwei on the L2 is 0.000000126 ETH; the L1 data fee is ten times that.
+    const q = acceptedQuote({ chain, asset: 'ETH', units: 4n * 10n ** 16n, to: ME, from: ME }, { assetUsdE18: 2500n * E18, dust: 1n });
+    const tx = buildPayTx(q);
+    const l1Fee = 1_500_000_000_000n;
+    const net = network({ chain, native: 0n, gas: 21_000n, gasPrice: 6_000_000n, l1Fee });
+    const r = await readPayFee(c, tx, net.fetchImpl);
+    assert.equal(r.ok, true, r.error);
+    assert.equal(r.fee.model, 'op-stack');
+    assert.equal(r.fee.l1Fee, l1Fee);
+    assert.equal(r.fee.budget, 25_200n * 7_500_000n + 2n * l1Fee);
+
+    // The oracle was asked about exactly this transfer, as an unsigned EIP-1559 transaction on this chain.
+    const read = net.calls.find((x) => x.method === 'eth_call' && x.params[0].data.startsWith(ORACLE.getFunction('getL1Fee').selector));
+    assert.equal(read.params[0].to, OP_GAS_PRICE_ORACLE);
+    const [bytes] = ORACLE.decodeFunctionData('getL1Fee', read.params[0].data);
+    assert.equal(bytes, l1FeeInput(c, tx, 21_000n, 6_000_000n));
+    const priced = Transaction.from(bytes);
+    assert.equal(priced.type, 2);
+    assert.equal(priced.chainId, chainId);
+    assert.equal(priced.to, DEPOSIT);
+    assert.equal(priced.value, q.sendExactly);
+    assert.equal(priced.data, '0x');
+    assert.equal(priced.signature, null, 'unsigned: the oracle adds the signature bytes itself');
+    assert.ok(priced.nonce >= 2 ** 16, 'a nonce no real account exceeds, so the bytes are never undercounted');
+
+    // What the old flat budget (21,000 gas × price × 1.25) let through is now refused: the L1 fee was missing.
+    const oldBudget = (21_000n * 6_000_000n * 5n) / 4n;
+    const justOld = { native: q.sendExactly + oldBudget + 1000n, tokens: {}, at: 0 };
+    assert.match(balanceShortfall(q, justOld, r), new RegExp(`not enough left for the ${c.name} network fee`));
+    assert.equal(balanceShortfall(q, { ...justOld, native: q.sendExactly + r.fee.budget }, r), null);
+
+    // A token payment: the ETH beside it must cover the L2 gas and the L1 fee.
+    const uq = acceptedQuote({ chain, asset: 'USDC', units: 25_000_000n, to: ME, from: ME }, { dust: 2n });
+    const unet = network({ chain, native: 0n, gas: 45_000n, gasPrice: 6_000_000n, l1Fee });
+    const ur = await readPayFee(c, buildPayTx(uq), unet.fetchImpl);
+    const [ubytes] = ORACLE.decodeFunctionData('getL1Fee', unet.calls.find((x) => x.method === 'eth_call' && x.params[0].data.startsWith(ORACLE.getFunction('getL1Fee').selector)).params[0].data);
+    assert.equal(Transaction.from(ubytes).data, buildPayTx(uq).data, 'the token transfer’s own calldata is priced');
+    const usd = { tokens: { USDC: 100_000_000n }, at: 0 };
+    assert.match(balanceShortfall(uq, { ...usd, native: 10n ** 12n }, ur), new RegExp(`Not enough ETH on ${c.name} for the network fee`));
+    assert.equal(balanceShortfall(uq, { ...usd, native: ur.fee.budget }, ur), null);
+  }
+});
+
+test('fee: Arbitrum prices the gas eth_estimateGas returns, its L1 part included, with no oracle read', async () => {
+  const c = payChain('arbitrum');
+  const q = acceptedQuote({ chain: 'arbitrum', asset: 'USDC', units: 50_000_000n, to: ME, from: ME });
+  // With L1 busy a USDC transfer estimates at several times the ~60k it uses on L1 chains.
+  const net = network({ chain: 'arbitrum', native: 0n, gas: 400_000n, gasPrice: 10_000_000n });
+  const r = await readPayFee(c, buildPayTx(q), net.fetchImpl);
+  assert.equal(r.ok, true, r.error);
+  assert.deepEqual(r.fee, { model: 'arbitrum', gas: 400_000n, gasPrice: 10_000_000n, l1Fee: 0n, operatorFee: 0n, budget: 480_000n * 12_500_000n });
+  assert.ok(!net.calls.some((x) => x.method === 'eth_call'));
+  // The old flat 90k budget would have passed 0.000002 ETH; the transfer needs about three times that.
+  const oldBudget = (90_000n * 10_000_000n * 5n) / 4n;
+  const b = { native: 2n * 10n ** 12n, tokens: { USDC: 50_000_000n }, at: 0 };
+  assert.ok(b.native > oldBudget);
+  assert.match(balanceShortfall(q, b, r), /Not enough ETH on Arbitrum One for the network fee: about 0\.000006 ETH/);
+  assert.equal(balanceShortfall(q, { ...b, native: 6n * 10n ** 12n }, r), null);
+});
+
+test('fee: Base and Optimism add the operator fee, read from the GasPriceOracle at the padded gas limit', async () => {
+  for (const chain of ['base', 'optimism']) {
+    const c = payChain(chain);
+    const q = acceptedQuote({ chain, asset: 'USDC', units: 25_000_000n, to: ME, from: ME }, { dust: 2n });
+    const l1Fee = 10n ** 12n;
+    const operatorFee = 3n * 10n ** 11n;
+    const net = network({ chain, native: 0n, gas: 50_000n, gasPrice: 6_000_000n, l1Fee, operatorFee });
+    const r = await readPayFee(c, buildPayTx(q), net.fetchImpl);
+    assert.equal(r.ok, true, r.error);
+    assert.equal(r.fee.operatorFee, operatorFee);
+    assert.equal(r.fee.budget, 60_000n * 7_500_000n + 2n * l1Fee + operatorFee);
+    assert.equal(r.fee.budget, feeBudget(50_000n, 6_000_000n, l1Fee, operatorFee));
+    const read = net.calls.find((x) => x.method === 'eth_call' && x.params[0].data.startsWith(ORACLE.getFunction('getOperatorFee').selector));
+    assert.equal(read.params[0].to, OP_GAS_PRICE_ORACLE);
+    assert.equal(ORACLE.decodeFunctionData('getOperatorFee', read.params[0].data)[0], 60_000n, 'priced at the limit the budget allows, not the bare estimate');
+    // Enough for the gas and the L1 fee but not the operator fee: refused.
+    const b = { native: r.fee.budget - operatorFee, tokens: { USDC: 100_000_000n }, at: 0 };
+    assert.match(balanceShortfall(q, b, r), new RegExp(`Not enough ETH on ${c.name} for the network fee`));
+    assert.equal(balanceShortfall(q, { ...b, native: r.fee.budget }, r), null);
+    // Unreadable: nothing is sent.
+    const down = await readPayFee(c, buildPayTx(q), network({ chain, native: 0n, gas: 50_000n, gasPrice: 6_000_000n, l1Fee, fail: { operatorFee: true } }).fetchImpl);
+    assert.equal(down.ok, false);
+    assert.match(down.error, new RegExp(`Could not read the operator fee on ${c.name} .*nothing was sent`));
+  }
+  // The other networks have no operator fee and are not asked.
+  const bsc = network({ chain: 'bsc', native: 0n, gas: 52_000n, gasPrice: 50_000_000n });
+  const bq = acceptedQuote({ chain: 'bsc', asset: 'USDT', units: 10n * E18, to: ME, from: ME });
+  assert.equal((await readPayFee(payChain('bsc'), buildPayTx(bq), bsc.fetchImpl)).fee.operatorFee, 0n);
+});
+
+test('fee: fails safe: a read that fails is a refusal that says what could not be read', async () => {
+  const bq = acceptedQuote({ chain: 'base', asset: 'USDC', units: 25_000_000n, to: ME, from: ME });
+  const tx = buildPayTx(bq);
+  const base = payChain('base');
+  const funded = { native: E18, tokens: { USDC: 100_000_000n }, at: 0 };
+  const gasFail = await readPayFee(base, tx, network({ chain: 'base', native: 0n, gas: 45_000n, gasPrice: 1n, l1Fee: 1n, fail: { eth_estimateGas: 'all' } }).fetchImpl);
+  assert.equal(gasFail.ok, false);
+  assert.match(gasFail.error, /Could not read what the transfer costs on Base just now \(upstream error\), so nothing was sent/);
+  assert.equal(balanceShortfall(bq, funded, gasFail), gasFail.error, 'plenty of balance, but no fee read: not sent');
+
+  const priceFail = await readPayFee(base, tx, network({ chain: 'base', native: 0n, gas: 45_000n, gasPrice: 1n, l1Fee: 1n, fail: { eth_gasPrice: 'all' } }).fetchImpl);
+  assert.match(priceFail.error, /Could not read the network’s gas price on Base/);
+
+  const op = payChain('optimism');
+  const oq = acceptedQuote({ chain: 'optimism', asset: 'USDT', units: 25_000_000n, to: ME, from: ME });
+  const oracleFail = await readPayFee(op, buildPayTx(oq), network({ chain: 'optimism', native: 0n, gas: 45_000n, gasPrice: 1n, fail: { oracle: true } }).fetchImpl);
+  assert.match(oracleFail.error, /Could not read the L1 data fee on Optimism .*execution reverted.*nothing was sent/);
+
+  const nonsense = await readPayFee(base, tx, network({ chain: 'base', native: 0n, gas: 0n, gasPrice: 1n, l1Fee: 1n }).fetchImpl);
+  assert.match(nonsense.error, /an estimate of 0 gas/);
+  const free = await readPayFee(base, tx, network({ chain: 'base', native: 0n, gas: 45_000n, gasPrice: 0n, l1Fee: 1n }).fetchImpl);
+  assert.match(free.error, /a gas price of 0/);
+
+  const arb = payChain('arbitrum');
+  const aq = acceptedQuote({ chain: 'arbitrum', asset: 'ETH', units: 10n ** 16n, to: ME, from: ME }, { assetUsdE18: 2500n * E18 });
+  const broke = await readPayFee(arb, buildPayTx(aq), network({ chain: 'arbitrum', native: 0n, gas: 1n, gasPrice: 1n, fail: { eth_estimateGas: 'all', message: 'insufficient funds for gas * price + value' } }).fetchImpl);
+  assert.equal(broke.error, 'Not enough ETH on Arbitrum One for this transfer and its network fee.');
+
+  // The first endpoint down is not a failure: the second answers.
+  const fallback = network({ chain: 'base', native: 0n, gas: 45_000n, gasPrice: 1n, l1Fee: 1n, fail: { eth_estimateGas: 'first', eth_gasPrice: 'first' } });
+  assert.equal((await readPayFee(base, tx, fallback.fetchImpl)).ok, true);
+  assert.ok(fallback.calls.some((x) => x.url === base.rpcUrls[1] && x.method === 'eth_estimateGas'));
+
+  // Balances that could not be read are a refusal too, not "the wallet will judge".
+  const bsc = acceptedQuote(REQ_BSC, { dust: 3n });
+  const fee = okFee(10n ** 14n);
+  assert.match(balanceShortfall(bsc, null, fee), /Could not read your USDT balance on BNB Smart Chain just now, so nothing was sent/);
+  assert.match(balanceShortfall(bsc, { native: 10n ** 16n, tokens: { USDT: null }, at: 0 }, fee), /Could not read your USDT balance/);
+  assert.match(balanceShortfall(bsc, { native: null, tokens: { USDT: 20n * E18 }, at: 0 }, fee), /Could not read your BNB balance on BNB Smart Chain for the network fee/);
+  assert.match(balanceShortfall(bsc, { native: 10n ** 16n, tokens: { USDT: 20n * E18 }, at: 0 }, null), /Could not read the BNB Smart Chain network fee just now/);
+});
+
+test('balance: the token, then the coin for the fee; a native payment must cover both', () => {
   const q = acceptedQuote(REQ_BSC, { dust: 3n });
-  const gasPrice = 1_000_000_000n; // 1 gwei
-  const ok = { native: 10n ** 16n, tokens: { USDT: 20n * E18, USDC: 0n }, gasPrice, at: 0 };
-  assert.equal(balanceShortfall(q, ok), null);
-  assert.match(balanceShortfall(q, { ...ok, tokens: { USDT: 5n * E18 } }), /You have 5\.0 USDT on BNB Smart Chain; this quote needs exactly 9\.999999999999999997/);
-  assert.match(balanceShortfall(q, { ...ok, native: 1000n }), /Not enough BNB .* network fee/);
-  assert.match(balanceShortfall(q, { ...ok, native: 0n, gasPrice: null }), /No BNB/);
-  assert.equal(balanceShortfall(q, { native: null, tokens: {}, gasPrice: null, at: 0 }), null, 'unread balances: the wallet is the judge');
+  const fee = okFee(3_000_000_000_000n);
+  const ok = { native: 10n ** 16n, tokens: { USDT: 20n * E18, USDC: 0n }, at: 0 };
+  assert.equal(balanceShortfall(q, ok, fee), null);
+  assert.match(balanceShortfall(q, { ...ok, tokens: { USDT: 5n * E18 } }, fee), /You have 5\.0 USDT on BNB Smart Chain; this quote needs exactly 9\.999999999999999997/);
+  assert.match(balanceShortfall(q, { ...ok, native: 1000n }, fee), /Not enough BNB .* network fee: about 0\.000003 BNB/);
+  assert.match(balanceShortfall(q, { ...ok, native: 0n }, null), /No BNB on BNB Smart Chain/);
 
   const nq = acceptedQuote({ chain: 'bsc', asset: 'BNB', units: 5n * 10n ** 16n, to: ME, from: ME }, { assetUsdE18: 600n * E18 });
-  const fee = gasReserve('native', gasPrice);
-  assert.equal(fee, 26_250_000_000_000n);
-  assert.equal(balanceShortfall(nq, { native: 5n * 10n ** 16n + fee, tokens: {}, gasPrice, at: 0 }), null);
-  assert.match(balanceShortfall(nq, { native: 5n * 10n ** 16n + fee - 1n, tokens: {}, gasPrice, at: 0 }), /network fee/);
-  assert.match(balanceShortfall(nq, { native: 10n ** 16n, tokens: {}, gasPrice, at: 0 }), /You have 0\.01 BNB/);
+  const budget = fee.fee.budget;
+  assert.equal(balanceShortfall(nq, { native: 5n * 10n ** 16n + budget, tokens: {}, at: 0 }, fee), null);
+  assert.match(balanceShortfall(nq, { native: 5n * 10n ** 16n + budget - 1n, tokens: {}, at: 0 }, fee), /network fee/);
+  assert.match(balanceShortfall(nq, { native: 10n ** 16n, tokens: {}, at: 0 }, fee), /You have 0\.01 BNB/);
+});
 
-  assert.equal(maxSpendable(payAsset('bsc', 'USDT'), ok), 20n * E18);
-  assert.equal(maxSpendable(payAsset('bsc', 'BNB'), ok), 10n ** 16n - 2n * fee);
-  assert.equal(maxSpendable(payAsset('bsc', 'BNB'), { ...ok, native: 1n }), 0n);
-  assert.equal(maxSpendable(payAsset('bsc', 'USDC'), { ...ok, tokens: {} }), null);
+test('max: a token is its whole balance; a coin leaves two fee budgets priced for a transfer of it, or nothing when unread', async () => {
+  const b = { native: 10n ** 16n, tokens: { USDT: 20n * E18 }, at: 0 };
+  assert.equal(maxSpendable(payAsset('bsc', 'USDT'), b), 20n * E18);
+  assert.equal(maxSpendable(payAsset('bsc', 'USDC'), { ...b, tokens: {} }), null);
+  const fee = okFee(10n ** 13n);
+  assert.equal(maxSpendable(payAsset('bsc', 'BNB'), b, fee), 10n ** 16n - 2n * 10n ** 13n);
+  assert.equal(maxSpendable(payAsset('bsc', 'BNB'), { ...b, native: 1n }, fee), 0n);
+  assert.equal(maxSpendable(payAsset('bsc', 'BNB'), b, null), null, 'no fee read, no Max');
+  assert.equal(maxSpendable(payAsset('bsc', 'BNB'), b, { ok: false, error: 'x' }), null);
+
+  const eth = payAsset('base', 'ETH');
+  const tx = maxFeeTx(eth, ME.toLowerCase(), 10n ** 16n);
+  assert.deepEqual(tx, { from: ME, to: DEPOSIT, value: hex(5n * 10n ** 15n) });
+  const net = network({ chain: 'base', native: 10n ** 16n, gas: 21_000n, gasPrice: 6_000_000n, l1Fee: 10n ** 9n });
+  const r = await readPayFee(payChain('base'), tx, net.fetchImpl);
+  assert.equal(maxSpendable(eth, { native: 10n ** 16n, tokens: {}, at: 0 }, r), 10n ** 16n - 2n * r.fee.budget);
+  const usdc = maxFeeTx(payAsset('base', 'USDC'), ME, 100_000_000n);
+  assert.equal(usdc.to, '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913');
+  assert.equal(new Interface(['function transfer(address,uint256)']).decodeFunctionData('transfer', usdc.data)[1], 50_000_000n);
+});
+
+test('precheck: balances and the fee for exactly the quote’s transfer, read now on its network', async () => {
+  const q = acceptedQuote({ chain: 'base', asset: 'ETH', units: 4n * 10n ** 16n, to: ME, from: ME }, { assetUsdE18: 2500n * E18, dust: 1n });
+  const plenty = network({ chain: 'base', native: 5n * 10n ** 16n, gas: 21_000n, gasPrice: 6_000_000n, l1Fee: 10n ** 12n });
+  assert.equal(await payPrecheck(q, plenty.fetchImpl), null);
+  const est = plenty.calls.find((x) => x.method === 'eth_estimateGas');
+  assert.equal(BigInt(est.params[0].value), q.sendExactly, 'the fee is read for exactly sendExactly');
+  assert.ok(plenty.calls.some((x) => x.method === 'eth_getBalance'));
+
+  const tight = network({ chain: 'base', native: q.sendExactly + 200_000_000_000n, gas: 21_000n, gasPrice: 6_000_000n, l1Fee: 10n ** 12n });
+  assert.match(await payPrecheck(q, tight.fetchImpl), /not enough left for the Base network fee/);
+
+  const down = network({ chain: 'base', native: 5n * 10n ** 16n, gas: 21_000n, gasPrice: 6_000_000n, l1Fee: 10n ** 12n, fail: { eth_getBalance: 'all' } });
+  assert.match(await payPrecheck(q, down.fetchImpl), /Could not read your ETH balance on Base just now, so nothing was sent/);
+
+  const noFee = network({ chain: 'base', native: 5n * 10n ** 16n, gas: 21_000n, gasPrice: 6_000_000n, fail: { oracle: true } });
+  assert.match(await payPrecheck(q, noFee.fetchImpl), /Could not read the L1 data fee on Base/);
+
+  assert.match(await payPrecheck({ ...q, depositAddress: OTHER }), /does not match/, 'a tampered quote is refused before any read');
 });
 
 test('balance: reads each network over its public endpoints, falling back, with unreadable values null', async () => {
@@ -407,7 +666,6 @@ test('balance: reads each network over its public endpoints, falling back, with 
     calls.push([url, body.method]);
     if (url === bsc.rpcUrls[0]) return { ok: false, status: 502, json: async () => ({}) };
     if (body.method === 'eth_getBalance') return { ok: true, status: 200, json: async () => ({ result: '0x2386f26fc10000' }) };
-    if (body.method === 'eth_gasPrice') return { ok: true, status: 200, json: async () => ({ result: '0x3b9aca00' }) };
     if (body.params[0].to === '0x55d398326f99059fF775485246999027B3197955') {
       assert.equal(body.params[0].data, '0x70a08231' + ME.slice(2).toLowerCase().padStart(64, '0'));
       return { ok: true, status: 200, json: async () => ({ result: '0x' + (20n * E18).toString(16).padStart(64, '0') }) };
@@ -416,10 +674,10 @@ test('balance: reads each network over its public endpoints, falling back, with 
   };
   const b = await readPayBalances(bsc, ME, fetchImpl);
   assert.equal(b.native, 10n ** 16n);
-  assert.equal(b.gasPrice, 1_000_000_000n);
   assert.equal(b.tokens.USDT, 20n * E18);
   assert.equal(b.tokens.USDC, null);
   assert.ok(calls.some(([u]) => u === bsc.rpcUrls[1]), 'fell back to the second endpoint');
+  assert.ok(!calls.some(([, m]) => m === 'eth_gasPrice'), 'the fee is read per transfer (readPayFee), not with the balances');
 });
 
 // ---------------------------------------------------------------------------

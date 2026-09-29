@@ -1,0 +1,190 @@
+
+## explorer build pointed at the devnet: /validators, seat pages, the certified checkpoint's block page (2026-09-27T08:43:20Z, block 125670)
+explorer built at 835b297 with VITE_RPC=http://127.0.0.1:39545 VITE_VALIDATOR_HUB=0x7cEE961A2c903CE8A17F690aE966E30e4D973254 VITE_VALIDATOR_HUB_LENS=0x2A79C2ac794D9384aB8643dC34154d2B9DE15C03
+[
+ {
+  "viewport": "desktop",
+  "path": "/validators",
+  "title": "Validators · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 1427,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "desktop",
+  "path": "/validators/7",
+  "title": "Validator seat #7 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 362,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "desktop",
+  "path": "/validators/4",
+  "title": "Validator seat #4 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 359,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "desktop",
+  "path": "/validators/2",
+  "title": "Validator seat #2 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 381,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "desktop",
+  "path": "/validators/27",
+  "title": "Validator seat #27 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 363,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "desktop",
+  "path": "/block/124800",
+  "title": "Block 124,800 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 803,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "phone",
+  "path": "/validators",
+  "title": "Validators · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 1427,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "phone",
+  "path": "/validators/7",
+  "title": "Validator seat #7 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 362,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "phone",
+  "path": "/validators/4",
+  "title": "Validator seat #4 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 359,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "phone",
+  "path": "/validators/2",
+  "title": "Validator seat #2 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 381,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "phone",
+  "path": "/validators/27",
+  "title": "Validator seat #27 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 363,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ },
+ {
+  "viewport": "phone",
+  "path": "/block/124800",
+  "title": "Block 124,800 · Ferminux Explorer",
+  "horizontalOverflowPx": 0,
+  "textChars": 799,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)",
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+ }
+]
+<<< step explorer-cert done (block 125729, fails so far 1)
+
+>>> step halt (2026-09-27T08:44:19Z, block 125729)

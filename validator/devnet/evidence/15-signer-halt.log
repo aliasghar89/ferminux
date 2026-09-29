@@ -1,0 +1,73 @@
+
+## all three signers stopped for 150 s in the middle of checkpoint 125800's window (2026-09-27T08:47:10Z, block 125900)
+  stopped; head 125900
+  after 90 s: head 125900
+  --- v07:
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Not signing: the node is not ready
+                 Latest block is 1m34s old (limit 1m0s).
+      attester   att-v07(0xca103c..)
+      hub        HUB(0x7cEE96..)
+      node       head 125900, 94 s old, 11 peers, not ready
+      process    running=yes pid=16 restarts=0
+      seat       #7 active, counted for certification: yes
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 13.7000 FMX
+      attested   62 of the last 62 checkpoints (24 h), 432 of 432 (7 days)
+      gas        0.9775 FMX
+      next       checkpoint 126000, signing opens at block 126064
+         125800  included  
+         125600  included  
+         125400  included  
+         125200  included  
+         125000  included  
+         124800  included  
+         124600  included  
+         124400  included  
+  --- h1/s1:
+    fmx-validator pre-module-rename-157-gc3a277b  devnet (chain 39619)  dashboard http://127.0.0.1:8571/
+      state      Not signing: the node is not ready
+                 Latest block is 1m34s old (limit 1m0s).
+      attester   att-h1-s1(0x80BefB..)
+      hub        HUB(0x7cEE96..)
+      node       head 125900, 94 s old, 11 peers, not ready
+      seat       #13 active, counted for certification: yes
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 11.1250 FMX
+      attested   62 of the last 62 checkpoints (24 h), 432 of 432 (7 days)
+      gas        0.9520 FMX
+      next       checkpoint 126000, signing opens at block 126064
+         125800  included  
+         125600  included  
+         125400  included  
+         125200  included  
+         125000  included  
+         124800  included  
+         124600  included  
+         124400  included  
+  dashboard of v07: evidence/dashboards/v07-signers-halted-desktop.png, -phone.png, .txt, -api-status.json
+  ok: no block and no certificate while the signers are down
+  signers started at 2026-09-27T08:49:54Z
+cp 125800  count 32 / eligible 32  total 32  certified true  (certifies(count,eligible) = true)  snapshot 125866  0xc57eec8fa538fc7eea73ab972ee06be8afbd20b0054e48db5d36531a17c82060
+cp 126000  count 32 / eligible 32  total 32  certified true  (certifies(count,eligible) = true)  snapshot 126066  0x421f39cd7f92d7779fa0382485e96693bc012585b36f94dfff36bdf73bbc1b24
+    fmx-validator pre-module-rename-155-g6a6b7be  devnet (chain 39619)  dashboard http://127.0.0.1:8570/
+      state      Attesting
+                 Last included checkpoint: 126,400.
+      attester   att-v07(0xca103c..)
+      hub        HUB(0x7cEE96..)
+      node       head 126502, 0 s old, 14 peers, ready to sign
+      process    running=yes pid=16 restarts=0
+      seat       #7 active, counted for certification: yes
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 13.7750 FMX
+      attested   62 of the last 62 checkpoints (24 h), 432 of 432 (7 days)
+      gas        0.9773 FMX
+      next       checkpoint 126600, signing opens at block 126664
+         126400  included  
+         126200  included  
+         126000  included  
+         125800  included  
+         125600  included  
+         125400  included  
+         125200  included  
+         125000  included  
+<<< step halt done (block 126503, fails so far 1)
+
+>>> step withdraw (2026-09-27T08:59:57Z, block 126503)

@@ -189,9 +189,9 @@ export async function launchToken(
 
 // ------------------------------------------------------------- formatting
 
-/** "10 FMX" from 10_000000000000000000n — trims trailing zeros. */
+/** "10,000 FMX" from 10_000_000000000000000000n: grouped, trailing zeros trimmed. */
 export function formatFmx(wei: bigint): string {
-  return `${trimDecimal(formatUnits(wei, 18))} FMX`;
+  return `${formatAmount(wei, 18)} FMX`;
 }
 
 /** Token amount with thousands separators, e.g. 1,000,000. */

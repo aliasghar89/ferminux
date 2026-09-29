@@ -12,24 +12,8 @@ import type { MarketData } from '../state/useMarket.ts';
 import type { PoolsState } from '../state/usePools.ts';
 import type { Page } from '../state/useRoute.ts';
 import { TradesTable } from './TradesTable.tsx';
+import { RANGES, rangeStart, type Range } from '../lib/ranges.ts';
 
-export type Range = '1D' | '7D' | '30D' | 'ALL';
-export const RANGES: ReadonlyArray<readonly [Range, string]> = [
-  ['1D', '24H'],
-  ['7D', '7D'],
-  ['30D', '30D'],
-  ['ALL', 'All'],
-];
-
-export function rangeStart(range: Range, now: number, first: number | null): number {
-  if (range === '1D') return now - DAY;
-  if (range === '7D') return now - 7 * DAY;
-  if (range === '30D') return now - 30 * DAY;
-  // Everything there is, from the first recorded point, never less than an hour.
-  if (first === null) return now - 30 * DAY;
-  const span = Math.max(3600, now - first);
-  return now - Math.ceil(span * 1.04);
-}
 
 /** Every seeded WFMX pool against a pegged token, deepest first, with its FMX-in-USD history. */
 function fmxPoolSeries(market: MarketData, pools: PoolsState) {

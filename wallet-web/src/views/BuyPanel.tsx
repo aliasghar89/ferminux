@@ -10,7 +10,10 @@
 // pipeline (lib/tx.ts prepareTransaction → signPrepared), built from the
 // quote's exact `sendExactly` only and checked against the quote once when
 // prepared and again right before signing, together with the expiry, the
-// network's availability, the quote's own status and fresh balances.
+// network's availability, the quote's own status and fresh balances. Before
+// a quote is even asked for, the transfer's worst-case network fee is
+// estimated the same way (lib/payin.ts checkPayinFunds), so an account short
+// of gas is told so without replacing its open quote with one it cannot pay.
 
 import { useEffect, useRef, useState } from 'react';
 import { isError, keccak256 } from 'ethers';
@@ -29,6 +32,7 @@ import type { LocalTx, LocalTxStatus } from '../lib/localActivity.ts';
 import {
   PayinApiError,
   canStillPay,
+  checkPayinFunds,
   estimateStableFmx,
   expiryProblem,
   fetchPayinStatus,
@@ -202,7 +206,9 @@ export function BuyPanel({
     setMaxBusy(true);
     try {
       const provider = await providerFor(chain);
-      const { feeWei } = await nativeTransferMaxFee(provider, chain.id, net?.depositAddress ?? wallet.address, feePolicyFor(chain, CHAIN_ID), { from: wallet.address, valueWei: bal });
+      const { feeWei, l1FeeUnknown } = await nativeTransferMaxFee(provider, chain.id, net?.depositAddress ?? wallet.address, feePolicyFor(chain, CHAIN_ID), { from: wallet.address, valueWei: bal });
+      // a Max that left out the L1 data fee would only be refused at the quote check: say so here
+      if (l1FeeUnknown) return setFormError(`The ${chain.name} L1 data fee could not be read, so Max cannot tell how much ${nat.symbol} to leave for the network fee. Try again in a moment.`);
       // a little more than the worst case, so the review never finds the balance a few wei short
       const reserve = feeWei + feeWei / 5n;
       if (bal <= reserve) return setFormError(`This ${nat.symbol} balance does not cover the ${chain.name} network fee.`);
@@ -245,6 +251,19 @@ export function BuyPanel({
     }
     const pre = payinFundsProblem({ coin, chain, amount: want, tokenBalance: coin.kind === 'erc20' ? bal : null, nativeBalance: natBal, maxFeeWei: 0n });
     if (pre) return stop(pre);
+    // The network fee too, before any quote is asked for: the exact transfer, estimated on its network and
+    // priced as every send is (the L1 data fee on Base and Optimism, Arbitrum's L1 component inside its gas).
+    // A fee that cannot be read asks for no quote: a quote this account cannot pay only replaces its open one.
+    const deposit = (n ?? networkOf(assets, chain.key))?.depositAddress ?? null;
+    if (!deposit) return stop(`Could not read the Ferminux pay-in's deposit address on ${chain.name}, so the network fee cannot be worked out. Try again. No quote was asked for.`);
+    setPhase({ kind: 'working', label: `Checking the ${chain.name} network fee…` });
+    try {
+      const provider = await providerFor(chain);
+      const check = await checkPayinFunds(provider, { coin, from: wallet.address, depositAddress: deposit, amount: want });
+      if (check.problem) return stop(check.problem);
+    } catch (e) {
+      return stop(`Could not work out the ${chain.name} network fee for this purchase (${msg(e, 'no answer')}). No quote was asked for.`);
+    }
     setPhase({ kind: 'working', label: 'Getting a quote…' });
     let q: PayinQuote;
     try {
@@ -280,7 +299,7 @@ export function BuyPanel({
     }
     const bad = payinTxProblem(prepared, q);
     if (bad) return review(null, funds, `The prepared transfer does not pay this quote exactly (${bad}). Nothing was signed.`, 'requote');
-    const withFee = payinFundsProblem({ coin, chain, amount: q.sendExactly, tokenBalance: funds.token, nativeBalance: funds.native, maxFeeWei: prepared.maxFeeWei });
+    const withFee = payinFundsProblem({ coin, chain, amount: q.sendExactly, tokenBalance: funds.token, nativeBalance: funds.native, maxFeeWei: prepared.maxFeeWei, l1FeeUnknown: prepared.l1FeeUnknown === true });
     review(prepared, funds, withFee);
   }
 
@@ -355,7 +374,7 @@ export function BuyPanel({
     } catch (e) {
       return refuse(`Could not read this account on ${chain.name} (${msg(e, 'no answer')}). Nothing was signed.`);
     }
-    const fp = payinFundsProblem({ coin, chain, amount: q.sendExactly, tokenBalance: funds.token, nativeBalance: funds.native, maxFeeWei: prepared.maxFeeWei });
+    const fp = payinFundsProblem({ coin, chain, amount: q.sendExactly, tokenBalance: funds.token, nativeBalance: funds.native, maxFeeWei: prepared.maxFeeWei, l1FeeUnknown: prepared.l1FeeUnknown === true });
     if (fp) return refuse(`${fp} Nothing was signed.`);
     const bad = payinTxProblem(prepared, q);
     if (bad) return refuse(`The transfer does not pay this quote exactly (${bad}). Nothing was signed.`, 'requote');

@@ -5,7 +5,7 @@ import { $, $$, addrHtml, initChrome, setBusy, skel, toast, txHtml } from "../ui
 import { connect, errMessage, getBalance, hasInjected, nftRead, nftWrite, onWallet, sendCall, walletState } from "../wallet";
 import { allIds, artHasLabel, artHtml, bindArt, category, collectionState, imageUrl, isLegendary, loadCollection, metaUrl, mockMarkMinted, ownerBook, status as readStatus, statuses, type NftMeta, type NftStatus } from "../nft";
 import { citizensQuery, inCitizensFilter, inFilter, ownerLabel, parseCitizensFilter, tierName, TIERS, type CitizensFilter, type NftFilter, type OwnerBook, type OwnerLabel, type TierName } from "../nftView";
-import { citizenStatus, citizensImageUrl, citizensMetaUrl, citizensRead, citizensState, citizensStatuses, citizensWrite, liveTier, loadCitizens, loadExtraMetas, metaSeries, mockCitizenMinted } from "../citizens";
+import { CITIZENS_PAGE, citizenStatus, citizensImageUrl, citizensMetaUrl, citizensRead, citizensState, citizensStatuses, citizensWrite, liveTier, loadCitizens, loadExtraMetas, metaSeries, mockCitizenMinted } from "../citizens";
 import { citizensMeta } from "../deployments.generated";
 
 initChrome();
@@ -549,8 +549,11 @@ async function loadCitizensData(k: Coll) {
   k.metas = await loadCitizens();
   refresh(k);
   if (!k.live) return;
-  let cs;
-  try { cs = await citizensState(); } catch (e) { k.statusErr = `Could not read the contract: ${(e as Error).message}`; refresh(k); return; }
+  // the first 500 ids' tiers and owners go out with the collection facts (the contract clamps the range to
+  // totalIds), so the gallery takes one round trip to the chain
+  const [csR, headR] = await Promise.allSettled([citizensState(), citizensStatuses(1, CITIZENS_PAGE)]);
+  if (csR.status === "rejected") { k.statusErr = `Could not read the contract: ${(csR.reason as Error).message}`; refresh(k); return; }
+  const cs = csR.value;
   k.paused = cs.paused; k.totalSupply = cs.totalSupply; k.totalIds = cs.totalIds; k.prices = cs.prices;
   // a batch appended on chain after this browser cached collection.json: fetch those ids' own metadata files
   const last = k.metas.length ? k.metas[k.metas.length - 1].id : 0;
@@ -562,7 +565,8 @@ async function loadCitizensData(k: Coll) {
   }
   refresh(k);
   try {
-    const st = await citizensStatuses(1, cs.totalIds);
+    if (headR.status === "rejected") throw headR.reason;
+    const st = cs.totalIds > CITIZENS_PAGE ? [...headR.value, ...(await citizensStatuses(CITIZENS_PAGE + 1, cs.totalIds))] : headR.value;
     for (const s of st) { if (!k.minting.has(s.id) && !(k.status.get(s.id)?.minted && !s.minted)) k.status.set(s.id, s); }
   } catch (e) { k.statusErr = `Could not read mint statuses: ${(e as Error).message}`; }
   refresh(k);

@@ -57,38 +57,40 @@ export default function TokenList({ readProvider, refreshKey }: Props) {
     state.kind === "ready" ? Math.max(1, Math.ceil(state.total / PAGE_SIZE)) : 1;
 
   return (
-    <section>
-      <div className="list-toolbar">
-        <div>
-          <h2 style={{ fontSize: 15, fontWeight: 600 }}>Token registry</h2>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>
-            Every coin launched through the official factory, newest first.
-          </span>
+    <section className="card" aria-labelledby="lp-registry-title">
+      <div className="card-head">
+        <div className="card-head-main">
+          <h2 className="card-title" id="lp-registry-title">
+            Token registry
+          </h2>
+          <span className="card-head-sub">Every coin launched through the official factory, newest first.</span>
         </div>
         {state.kind === "ready" && (
-          <span className="count num">
+          <span className="count mono">
             {state.total} token{state.total === 1 ? "" : "s"}
           </span>
         )}
       </div>
 
       {state.kind === "loading" && (
-        <div className="panel state-block">
+        <div className="state-block" role="status">
           <span className="spinner" />
           Reading the on-chain registry…
         </div>
       )}
 
       {state.kind === "error" && (
-        <div className="panel state-block">
+        <div className="state-block" role="alert">
           <div className="headline">Could not reach the network</div>
-          <div>{state.message}</div>
-          <button onClick={() => void load(page)}>Retry</button>
+          <div className="state-detail">{state.message}</div>
+          <button className="btn btn-sm" onClick={() => void load(page)}>
+            Retry
+          </button>
         </div>
       )}
 
       {state.kind === "ready" && state.rows.length === 0 && (
-        <div className="panel state-block">
+        <div className="state-block">
           <div className="headline">No tokens launched yet</div>
           <div>Be the first — launch a coin from the other tab.</div>
         </div>
@@ -97,7 +99,7 @@ export default function TokenList({ readProvider, refreshKey }: Props) {
       {state.kind === "ready" && state.rows.length > 0 && (
         <>
           <div className="table-wrap">
-            <table>
+            <table className="table">
               <thead>
                 <tr>
                   <th>Token</th>
@@ -114,44 +116,28 @@ export default function TokenList({ readProvider, refreshKey }: Props) {
                     <tr key={t.token}>
                       <td>
                         <div className="token-name">
-                          <a
-                            href={explorerAddressUrl(t.token)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
+                          <a href={explorerAddressUrl(t.token)} target="_blank" rel="noreferrer">
                             {t.name}
                           </a>
                         </div>
                         <div className="token-symbol">
-                          {t.symbol} · <span className="addr">{shortAddress(t.token)}</span>
+                          <span className="mono">{t.symbol}</span> · <span className="mono">{shortAddress(t.token)}</span>
                         </div>
                       </td>
                       <td>
                         <div className="badges">
-                          {b.factoryVerified && (
-                            <span className="badge verified">Factory verified</span>
-                          )}
-                          {b.renounced && (
-                            <span className="badge renounced">Ownership renounced</span>
-                          )}
-                          {b.fixedSupply && (
-                            <span className="badge fixed">Fixed supply</span>
-                          )}
+                          {b.factoryVerified && <span className="badge verified">Factory verified</span>}
+                          {b.renounced && <span className="badge renounced">Ownership renounced</span>}
+                          {b.fixedSupply && <span className="badge fixed">Fixed supply</span>}
                         </div>
                       </td>
                       <td>
-                        <a
-                          href={explorerAddressUrl(t.creator)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <span className="addr">{shortAddress(t.creator)}</span>
+                        <a href={explorerAddressUrl(t.creator)} target="_blank" rel="noreferrer">
+                          <span className="mono">{shortAddress(t.creator)}</span>
                         </a>
                       </td>
-                      <td className="num">
-                        {new Date(t.createdAt * 1000).toISOString().slice(0, 10)}
-                      </td>
-                      <td className="num">
+                      <td className="num mono">{new Date(t.createdAt * 1000).toISOString().slice(0, 10)}</td>
+                      <td className="num mono">
                         {formatAmount(t.totalSupply, t.decimals)}
                         <div className="token-symbol">
                           {t.maxSupply === 0n
@@ -169,21 +155,13 @@ export default function TokenList({ readProvider, refreshKey }: Props) {
           </div>
 
           <div className="pager">
-            <button
-              className="subtle"
-              disabled={page === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-            >
+            <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
               ← Newer
             </button>
-            <span className="page-ind">
+            <span className="page-ind mono">
               Page {page + 1} of {totalPages}
             </span>
-            <button
-              className="subtle"
-              disabled={page + 1 >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
+            <button className="btn btn-sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>
               Older →
             </button>
           </div>

@@ -1,0 +1,59 @@
+Blocks / 124,800
+Block 124,800
+Produced by
+—
+proof-of-work era
+15 min ago
+
+The explorer's index hasn't recorded this block yet (it follows the chain by a few seconds). This page shows the chain's own header; rewards and burnt fees appear once the index has it.
+
+Before block 160,000 Ferminux ran proof-of-work. Blocks from 160,000 on are confirmed by authorised signers. How consensus works ↗
+
+BLOCK
+HEIGHT
+124,800
+STATUS
+Confirmed
+·
+925 confirmations
+TIMESTAMP
+2026-09-27 08:28:50 UTC
+(15 min ago)
+TRANSACTIONS
+No transactions
+PRODUCER
+PRODUCER
+—
+DIFFICULTY
+2
+UNCLES
+None
+REWARD
+BLOCK REWARD
+—
+GAS
+GAS USED
+0 of 100,000,000
+(0%)
+BASE FEE
+7 wei
+BURNT FEES
+—
+More details
+Around this block
+All →
+124,798
+—
+15 min ago
+124,799
+—
+15 min ago
+124,800
+—
+15 min ago
+124,801
+—
+15 min ago
+124,802
+—
+15 min ago

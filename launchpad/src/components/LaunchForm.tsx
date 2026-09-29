@@ -8,7 +8,8 @@ import {
   launchToken,
   shortAddress,
 } from "../lib/factory.ts";
-import type { WalletState } from "../lib/wallet.ts";
+import { ferminuxSigner, type WalletState } from "../lib/wallet.ts";
+import { IconCheck, IconExternal } from "./icons.tsx";
 
 interface Props {
   wallet: WalletState | null;
@@ -20,7 +21,28 @@ interface Props {
   onRetryFee: () => void;
   onConnect: () => void;
   onFixNetwork: () => void;
+  /** Offered before a wallet connects when the browser has one: wallet_addEthereumChain. */
+  onAddNetwork: (() => void) | null;
+  /** A wallet request (connect, switch, add) is in flight. */
+  busy: boolean;
   onLaunched: () => void;
+}
+
+/** What a person can act on, from the wallet's or ethers' error. */
+function describeLaunchError(e: unknown): string {
+  const err = e as {
+    code?: unknown;
+    reason?: string | null;
+    shortMessage?: string;
+    info?: { error?: { code?: unknown } };
+  } | null;
+  if (err?.code === "ACTION_REJECTED" || err?.code === 4001 || err?.info?.error?.code === 4001)
+    return "You rejected the launch in your wallet. Nothing was sent.";
+  if (err?.code === "INSUFFICIENT_FUNDS")
+    return "Your wallet does not hold enough FMX for the launch fee plus gas.";
+  if (err?.reason) return `The factory refused the launch: ${err.reason}`;
+  const msg = err?.shortMessage || (e instanceof Error ? e.message : String(e));
+  return msg.length > 300 ? `${msg.slice(0, 300)}…` : msg;
 }
 
 interface LaunchResult {
@@ -89,7 +111,9 @@ export default function LaunchForm(props: Props) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const signer = await wallet.provider.getSigner();
+      // Asks the wallet for its chain right before signing: the fee must never
+      // be sent on another network (see ferminuxSigner).
+      const signer = await ferminuxSigner(wallet);
       const factory = factoryContract(FACTORY_ADDRESS, signer);
       const dec = Number(decimals);
       const { token, txHash } = await launchToken(
@@ -107,8 +131,7 @@ export default function LaunchForm(props: Props) {
       setResult({ token, txHash, name: name.trim(), symbol: symbol.trim() });
       props.onLaunched();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setSubmitError(msg.length > 300 ? `${msg.slice(0, 300)}…` : msg);
+      setSubmitError(describeLaunchError(e));
     } finally {
       setSubmitting(false);
     }
@@ -116,232 +139,248 @@ export default function LaunchForm(props: Props) {
 
   if (result) {
     return (
-      <section className="panel">
-        <div className="success-mark">✓</div>
-        <h2>
-          {result.name} ({result.symbol}) is live on Ferminux
-        </h2>
-        <p className="sub">
-          The token is recorded in the factory registry and carries the
-          “Factory verified” badge.
-        </p>
-        <dl className="kv">
-          <dt>Token address</dt>
-          <dd className="addr">{result.token}</dd>
-          <dt>Explorer</dt>
-          <dd>
-            <a href={explorerAddressUrl(result.token)} target="_blank" rel="noreferrer">
-              {explorerAddressUrl(result.token)}
-            </a>
-          </dd>
-          <dt>Transaction</dt>
-          <dd>
-            <a href={explorerTxUrl(result.txHash)} target="_blank" rel="noreferrer">
-              <span className="addr">{shortAddress(result.txHash)}</span>
-            </a>
-          </dd>
-        </dl>
-        <div className="form-actions">
-          <button
-            className="primary"
-            onClick={() => {
-              setResult(null);
-              setName("");
-              setSymbol("");
-              setInitialSupply("");
-              setMaxSupply("0");
-              setDecimals("18");
-              setMintable(false);
-            }}
-          >
-            Launch another coin
-          </button>
+      <section className="card" aria-labelledby="lp-done-title">
+        <div className="card-pad">
+          <div className="success-mark" aria-hidden="true">
+            <IconCheck />
+          </div>
+          <h2 className="card-title" id="lp-done-title">
+            {result.name} ({result.symbol}) is live on Ferminux
+          </h2>
+          <p className="card-sub">
+            The token is recorded in the factory registry and carries the
+            “Factory verified” badge.
+          </p>
+          <dl className="kv">
+            <dt>Token address</dt>
+            <dd className="mono">{result.token}</dd>
+            <dt>Explorer</dt>
+            <dd>
+              <a className="ext" href={explorerAddressUrl(result.token)} target="_blank" rel="noreferrer">
+                {explorerAddressUrl(result.token)} <IconExternal />
+              </a>
+            </dd>
+            <dt>Transaction</dt>
+            <dd>
+              <a className="ext" href={explorerTxUrl(result.txHash)} target="_blank" rel="noreferrer">
+                <span className="mono">{shortAddress(result.txHash)}</span> <IconExternal />
+              </a>
+            </dd>
+          </dl>
+          <div className="form-actions">
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setResult(null);
+                setName("");
+                setSymbol("");
+                setInitialSupply("");
+                setMaxSupply("0");
+                setDecimals("18");
+                setMintable(false);
+              }}
+            >
+              Launch another coin
+            </button>
+          </div>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="panel">
-      <h2>Launch your coin</h2>
-      <p className="sub">
-        One transaction deploys a standard FRC-20 token through the official
-        TokenFactory and lists it in the on-chain registry.
-      </p>
-
-      <div className="form-grid">
-        <label className="field">
-          <span className="label">Name</span>
-          <input
-            type="text"
-            value={name}
-            maxLength={64}
-            placeholder="e.g. Caspian Credit"
-            className={errors.name ? "invalid" : ""}
-            onChange={(e) => setName(e.target.value)}
-          />
-          {errors.name && <span className="field-error">{errors.name}</span>}
-        </label>
-
-        <label className="field">
-          <span className="label">Symbol</span>
-          <input
-            type="text"
-            value={symbol}
-            maxLength={12}
-            placeholder="e.g. CSP"
-            className={errors.symbol ? "invalid" : ""}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-          />
-          {errors.symbol && <span className="field-error">{errors.symbol}</span>}
-        </label>
-
-        <label className="field">
-          <span className="label">Decimals</span>
-          <input
-            type="number"
-            min={0}
-            max={18}
-            step={1}
-            value={decimals}
-            className={errors.decimals ? "invalid" : ""}
-            onChange={(e) => setDecimals(e.target.value)}
-          />
-          <span className="hint">18 is standard.</span>
-          {errors.decimals && <span className="field-error">{errors.decimals}</span>}
-        </label>
-
-        <label className="field">
-          <span className="label">Initial supply</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={initialSupply}
-            placeholder="1000000"
-            className={errors.initialSupply ? "invalid" : ""}
-            onChange={(e) => setInitialSupply(e.target.value.trim())}
-          />
-          <span className="hint">Minted to your address at launch.</span>
-          {errors.initialSupply && (
-            <span className="field-error">{errors.initialSupply}</span>
-          )}
-        </label>
-
-        <label className="field">
-          <span className="label">Max supply</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={maxSupply}
-            className={errors.maxSupply ? "invalid" : ""}
-            onChange={(e) => setMaxSupply(e.target.value.trim())}
-          />
-          <span className="hint">0 = uncapped (only relevant if mintable).</span>
-          {errors.maxSupply && <span className="field-error">{errors.maxSupply}</span>}
-        </label>
-
-        <div className="field">
-          <span className="label" style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>
-            Minting
-          </span>
-          <label className="toggle-row">
-            <input
-              type="checkbox"
-              checked={mintable}
-              onChange={(e) => setMintable(e.target.checked)}
-            />
-            <span>
-              <span className="t-label">Mintable</span>
-              <br />
-              <span className="t-hint">
-                You can mint more later (up to max supply). Leave off for a
-                fixed supply — buyers see a “Fixed supply” badge.
-              </span>
-            </span>
-          </label>
-        </div>
+    <section className="card" aria-labelledby="lp-launch-title">
+      <div className="card-head">
+        <h2 className="card-title" id="lp-launch-title">
+          Launch your coin
+        </h2>
       </div>
+      <div className="card-pad">
+        <p className="card-sub">
+          One transaction deploys a standard FRC-20 token through the official
+          TokenFactory and lists it in the on-chain registry.
+        </p>
 
-      <div className="fee-row">
-        <span className="fee-label">
-          Launch fee (read live from the factory contract)
-        </span>
-        <span className="fee-value num">
-          {fee !== null ? (
-            formatFmx(fee)
-          ) : feeError ? (
-            <button className="subtle" onClick={props.onRetryFee}>
-              Fee unavailable — retry
+        <div className="form-grid">
+          <label className="field">
+            <span className="field-label">Name</span>
+            <input
+              type="text"
+              className={"input" + (errors.name ? " invalid" : "")}
+              value={name}
+              maxLength={64}
+              placeholder="e.g. Caspian Credit"
+              autoComplete="off"
+              onChange={(e) => setName(e.target.value)}
+            />
+            {errors.name && <span className="field-error">{errors.name}</span>}
+          </label>
+
+          <label className="field">
+            <span className="field-label">Symbol</span>
+            <input
+              type="text"
+              className={"input input-mono" + (errors.symbol ? " invalid" : "")}
+              value={symbol}
+              maxLength={12}
+              placeholder="e.g. CSP"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+            />
+            {errors.symbol && <span className="field-error">{errors.symbol}</span>}
+          </label>
+
+          <label className="field">
+            <span className="field-label">Decimals</span>
+            <input
+              type="number"
+              className={"input input-mono" + (errors.decimals ? " invalid" : "")}
+              min={0}
+              max={18}
+              step={1}
+              value={decimals}
+              onChange={(e) => setDecimals(e.target.value)}
+            />
+            <span className="field-hint">18 is standard.</span>
+            {errors.decimals && <span className="field-error">{errors.decimals}</span>}
+          </label>
+
+          <label className="field">
+            <span className="field-label">Initial supply</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className={"input input-mono" + (errors.initialSupply ? " invalid" : "")}
+              value={initialSupply}
+              placeholder="1000000"
+              autoComplete="off"
+              onChange={(e) => setInitialSupply(e.target.value.trim())}
+            />
+            <span className="field-hint">Minted to your address at launch.</span>
+            {errors.initialSupply && <span className="field-error">{errors.initialSupply}</span>}
+          </label>
+
+          <label className="field">
+            <span className="field-label">Max supply</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className={"input input-mono" + (errors.maxSupply ? " invalid" : "")}
+              value={maxSupply}
+              autoComplete="off"
+              onChange={(e) => setMaxSupply(e.target.value.trim())}
+            />
+            <span className="field-hint">0 = uncapped (only relevant if mintable).</span>
+            {errors.maxSupply && <span className="field-error">{errors.maxSupply}</span>}
+          </label>
+
+          <div className="field">
+            <span className="field-label">Minting</span>
+            <label className="check-row">
+              <input type="checkbox" checked={mintable} onChange={(e) => setMintable(e.target.checked)} />
+              <span>
+                <span className="check-title">Mintable</span>
+                <span className="check-hint">
+                  You can mint more later (up to max supply). Leave off for a
+                  fixed supply — buyers see a “Fixed supply” badge.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div className="fee-row">
+          <span className="fee-label">
+            <span className="label">Launch fee</span>
+            <span className="fee-src">Read live from the factory contract</span>
+          </span>
+          <span className="fee-value mono" data-testid="launch-fee">
+            {fee !== null ? (
+              formatFmx(fee)
+            ) : feeError ? (
+              <button className="btn btn-sm" onClick={props.onRetryFee}>
+                Fee unavailable — retry
+              </button>
+            ) : (
+              "…"
+            )}
+          </span>
+        </div>
+        {feeCollector && (
+          <p className="fee-dest" data-testid="fee-destination">
+            {isBurnAddress(feeCollector) ? (
+              <>
+                <strong>This fee is burned.</strong> The factory sends it to{" "}
+                <a className="mono" href={explorerAddressUrl(feeCollector)} target="_blank" rel="noreferrer">
+                  {shortAddress(feeCollector)}
+                </a>
+                , an address no one holds a key for, so it is gone for good and
+                cannot be refunded.
+              </>
+            ) : (
+              <>
+                Paid to the factory&apos;s fee collector{" "}
+                <a className="mono" href={explorerAddressUrl(feeCollector)} target="_blank" rel="noreferrer">
+                  {shortAddress(feeCollector)}
+                </a>
+                .
+              </>
+            )}
+          </p>
+        )}
+
+        {!wallet && (
+          <div className="notice">
+            Connect a wallet to launch: Ferminux Wallet works in this browser
+            with nothing to install. Browsing the registry works without one.
+            {props.onAddNetwork && (
+              <>
+                {" "}
+                <button className="link-btn" onClick={props.onAddNetwork} disabled={props.busy}>
+                  Add Ferminux Network to your browser wallet
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {wrongChain && (
+          <div className="notice notice-warn">
+            Your wallet is on the wrong network. Switch to Ferminux (chain 3961)
+            to launch.
+          </div>
+        )}
+        {submitError && (
+          <div className="notice notice-warn" role="alert">
+            {submitError}
+          </div>
+        )}
+
+        <div className="form-actions">
+          {!wallet ? (
+            <button className="btn btn-primary btn-lg" onClick={props.onConnect} disabled={props.busy}>
+              Connect wallet
+            </button>
+          ) : wrongChain ? (
+            <button className="btn btn-primary btn-lg" onClick={props.onFixNetwork} disabled={props.busy}>
+              Switch to Ferminux
             </button>
           ) : (
-            "…"
+            <button className="btn btn-primary btn-lg" disabled={!ready} onClick={submit}>
+              {submitting ? (
+                <>
+                  <span className="spinner" />
+                  Waiting for confirmation…
+                </>
+              ) : fee !== null ? (
+                `Launch — pay ${formatFmx(fee)}`
+              ) : (
+                "Launch"
+              )}
+            </button>
           )}
-        </span>
-      </div>
-      {feeCollector && (
-        <p className="fee-dest" data-testid="fee-destination">
-          {isBurnAddress(feeCollector) ? (
-            <>
-              <strong>This fee is burned.</strong> The factory sends it to{" "}
-              <a href={explorerAddressUrl(feeCollector)} target="_blank" rel="noreferrer">
-                {shortAddress(feeCollector)}
-              </a>
-              , an address no one holds a key for, so it is gone for good and
-              cannot be refunded.
-            </>
-          ) : (
-            <>
-              Paid to the factory&apos;s fee collector{" "}
-              <a href={explorerAddressUrl(feeCollector)} target="_blank" rel="noreferrer">
-                {shortAddress(feeCollector)}
-              </a>
-              .
-            </>
-          )}
-        </p>
-      )}
-
-      {!wallet && (
-        <div className="notice" style={{ marginTop: 14 }}>
-          Connect a wallet to launch: Ferminux Wallet works in this browser
-          with nothing to install. Browsing the registry works without one.
         </div>
-      )}
-      {wrongChain && (
-        <div className="notice error" style={{ marginTop: 14 }}>
-          Your wallet is on the wrong network. Switch to Ferminux (chain 3961)
-          to launch.
-        </div>
-      )}
-      {submitError && (
-        <div className="notice error" style={{ marginTop: 14 }}>
-          {submitError}
-        </div>
-      )}
-
-      <div className="form-actions">
-        {!wallet ? (
-          <button className="primary" onClick={props.onConnect}>
-            Connect wallet
-          </button>
-        ) : wrongChain ? (
-          <button className="primary" onClick={props.onFixNetwork}>
-            Switch to Ferminux
-          </button>
-        ) : (
-          <button className="primary" disabled={!ready} onClick={submit}>
-            {submitting ? (
-              <>
-                <span className="spinner" />
-                Waiting for confirmation…
-              </>
-            ) : fee !== null ? (
-              `Launch — pay ${formatFmx(fee)}`
-            ) : (
-              "Launch"
-            )}
-          </button>
-        )}
       </div>
     </section>
   );

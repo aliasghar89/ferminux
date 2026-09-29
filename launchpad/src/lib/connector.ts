@@ -13,7 +13,7 @@ export const connector = createWalletConnector({
   // Override only to test against a local wallet build.
   walletUrl: import.meta.env.VITE_FXWALLET_URL || undefined,
   rpcUrls: { 3961: RPC_URLS },
-  theme: "light",
+  theme: "dark",
   walletConnect: WC_PROJECT_ID
     ? {
         projectId: WC_PROJECT_ID,
@@ -23,7 +23,9 @@ export const connector = createWalletConnector({
           name: "Ferminux Launchpad",
           description: "Launch an FRC-20 token on Ferminux Network",
           url: window.location.origin,
-          icons: [],
+          // The Ferminux F (brand/dist/favicon-192.png, served next to the page),
+          // so the wallet's approval screen shows the logo.
+          icons: [new URL("favicon-192.png", window.location.href).href],
         },
       }
     : null,

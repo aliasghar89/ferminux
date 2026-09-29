@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { DEX_ADDRESSES, isConfigured, missingAddresses } from './config.ts';
-import { MobileHandoff } from './components/MobileHandoff.tsx';
 import { ConnectChooser } from './components/ConnectChooser.tsx';
 import { Shell } from './components/Shell.tsx';
 import { Modal, Notice } from './components/ui.tsx';
@@ -18,12 +17,27 @@ import { useRoute, type Page, type RouteState } from './state/useRoute.ts';
 import { useSettings } from './state/useSettings.ts';
 import { useTokenBalances } from './state/useTokenBalances.ts';
 import { useWallet } from './state/useWallet.ts';
-import { ActivityView } from './views/ActivityView.tsx';
-import { BridgePanel } from './views/BridgePanel.tsx';
-import { ChartsView } from './views/ChartsView.tsx';
-import { LiquidityView } from './views/LiquidityView.tsx';
-import { PoolsView } from './views/PoolsView.tsx';
 import { SwapView } from './views/SwapView.tsx';
+import {
+  LazyPage,
+  LazyPart,
+  lazyNamed,
+  loadActivity,
+  loadBridge,
+  loadCharts,
+  loadHandoff,
+  loadLiquidity,
+  loadPools,
+  usePrefetchViews,
+} from './components/Lazy.tsx';
+
+// Swap is the first screen and ships in the entry chunk; every other page loads on demand.
+const PoolsView = lazyNamed(loadPools, 'PoolsView');
+const LiquidityView = lazyNamed(loadLiquidity, 'LiquidityView');
+const ChartsView = lazyNamed(loadCharts, 'ChartsView');
+const ActivityView = lazyNamed(loadActivity, 'ActivityView');
+const BridgePanel = lazyNamed(loadBridge, 'BridgePanel');
+const MobileHandoff = lazyNamed(loadHandoff, 'MobileHandoff');
 
 export function App() {
   const chain = useChain();
@@ -62,6 +76,7 @@ export function App() {
 
   const fmxBalance = balances.get('native');
   const page: Page = route.page === 'bridge' && !BRIDGE_TAB_ENABLED ? 'swap' : route.page;
+  usePrefetchViews(isConfigured());
 
   let body;
   if (!isConfigured()) body = <NotConfigured />;
@@ -147,7 +162,13 @@ export function App() {
             <Notice role="status">{wallet.status}</Notice>
           </div>
         )}
-        {body}
+        {page === 'swap' || !isConfigured() ? (
+          body
+        ) : (
+          <LazyPage key={page === 'analytics' ? 'charts' : page} what={PAGE_NAMES[page]}>
+            {body}
+          </LazyPage>
+        )}
       </Shell>
 
       {wallet.chooserOpen && (
@@ -161,12 +182,24 @@ export function App() {
       )}
       {phoneOpen && (
         <Modal title="Open on your phone" onClose={() => setPhoneOpen(false)}>
-          <MobileHandoff hasInjected={wallet.hasInjected} variant="modal" />
+          <LazyPart what="phone hand-off" height={260}>
+            <MobileHandoff hasInjected={wallet.hasInjected} variant="modal" />
+          </LazyPart>
         </Modal>
       )}
     </>
   );
 }
+
+const PAGE_NAMES: Record<Page, string> = {
+  swap: 'Swap page',
+  pools: 'Pools page',
+  liquidity: 'Liquidity page',
+  charts: 'Charts page',
+  analytics: 'Analytics page',
+  activity: 'Activity page',
+  bridge: 'Bridge page',
+};
 
 /**
  * Only a build that blanked the addresses lands here (the defaults are the

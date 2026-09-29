@@ -146,8 +146,15 @@ contract; only chain id, address and that metadata are stored).
     needs, the quote validity and the FMX recipient — this account; another
     address only behind a warning and an "I control this address"
     acknowledgement. A stablecoin amount outside the limits, more than the
-    balance, or no native coin for gas on that network is refused before any
-    quote is asked for.
+    balance, or not enough native coin for the network fee is refused before
+    any quote is asked for. The fee is the exact transfer's (`transfer(deposit,
+    amount)` on the token, or the amount to the deposit), estimated by that
+    network's node (`eth_estimateGas`) and priced exactly as Send prices a
+    transaction (`lib/tx.ts` `estimateMaxFee`): on Arbitrum the gas carries the
+    L1 component the node folds into its estimate, and on Base and Optimism
+    the L1 data fee is added. A fee that cannot be read, a transfer that would
+    revert, or an L1 data fee oracle that does not answer asks for no quote.
+    The native coin's Max leaves the same worst-case fee (plus a fifth) behind.
   - **Quote** (`POST /api/payin/quote` with `chain`, `asset`, the exact typed
     `amount`, `to`, and `from` = this account): checked against what was asked
     before anything is shown — network, chain id, coin, token contract and
@@ -165,7 +172,8 @@ contract; only chain id, address and that metadata are stored).
     fee fields and calldata. With under 60 s left (or expired) it cannot be
     signed: *Get a new quote* replaces it.
   - **Sign**: expiry, the network's availability and deposit address, the
-    quote's own status (still `quoted`), fresh balances against the fee, and
+    quote's own status (still `quoted`), fresh balances against the fee (an
+    L1 data fee that could not be read blocks signing: *Check again*), and
     the prepared transaction itself (exactly `transfer(deposit, sendExactly)`
     on the coin's contract, or `sendExactly` of the native coin to the deposit,
     on that chain id) are checked once more; then it is signed offline through
@@ -648,6 +656,7 @@ decoded with `createImageBitmap`, which needs no URL at all; `blob:` in
   node --test tests/chains.test.mjs    # the 8 networks; parity with the gateway's pay-in chains
   node --test tests/portfolio.test.mjs # per-chain reads: Multicall3 / batch, chain-id check, fallback, timeouts
   node --test tests/fees.test.mjs      # tip floor vs zero tips, legacy chains, OP-stack L1 fee
+  node --test tests/payin-fees.test.mjs # pay-in fee per network (RPC mocked): exact transfer, L1 fee, Arbitrum gas, fail safe
   node --test tests/nft.test.mjs       # ownerOf scan, tokenURI metadata, explorer parse, image policy
   node --test tests/storage-lists.test.mjs # added tokens, sent-tx log, text hygiene
   node --test tests/walletconnect.test.mjs # pairing codes, proposals, every request, fake-WalletKit controller
@@ -681,8 +690,8 @@ decoded with `createImageBitmap`, which needs no URL at all; `blob:` in
   and signed — the one transaction received is decoded and must be
   `transfer(deposit, sendExactly)` on chain 56 from the wallet; the tracker
   moves sent → seen, survives a reload and unlock, then confirmed → paid with
-  the explorer link; Avalanche USDT without AVAX is refused before any quote; a
-  quote with 50 s left cannot be signed and is replaced; an unpaid quote is
+  the explorer link; Avalanche USDT without AVAX, and Base USDC with ETH for the
+  gas but not the L1 data fee, are refused before any quote; a quote with 50 s left cannot be signed and is replaced; an unpaid quote is
   listed and can be paid from its tracker. At **1440×900**: a recipient change
   behind its warning and acknowledgement, then Base ETH: the transaction must
   carry exactly `sendExactly` wei to the deposit on chain 8453 with no call

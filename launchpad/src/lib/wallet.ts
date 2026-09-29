@@ -4,7 +4,8 @@
 // window.ethereum stays the default for the one-click "Add Ferminux Network".
 // ---------------------------------------------------------------------------
 
-import { BrowserProvider } from "ethers";
+import { BrowserProvider, type JsonRpcSigner } from "ethers";
+import { CHAIN_ID } from "../config.ts";
 import {
   FERMINUX_ADD_CHAIN_PARAMS,
   ensureFerminuxChain,
@@ -43,9 +44,34 @@ export async function connectWallet(eth: Eip1193Provider | undefined = injected(
   return { provider, address: accounts[0], chainId: Number(network.chainId) };
 }
 
+/**
+ * The signer, but only while the wallet is on chain 3961 right now.
+ *
+ * `wrongChain` is the page's view of the wallet, and a chain switch reaches it
+ * asynchronously (the rebuild after chainChanged lands some time later).
+ * eth_sendTransaction carries no chain id, so a wallet that moved to another
+ * network would sign the launch there and send the fee to whatever lives at
+ * the factory address on that chain. The launch asks the wallet first, as
+ * every DEX transaction does (dex/ui/src/lib/wallet.ts).
+ */
+export async function ferminuxSigner(state: WalletState): Promise<JsonRpcSigner> {
+  let chainId: number;
+  try {
+    chainId = Number(BigInt((await state.provider.send("eth_chainId", [])) as string));
+  } catch {
+    throw new Error("Could not read which network your wallet is on. Try again.");
+  }
+  if (chainId !== CHAIN_ID) {
+    throw new Error(
+      `Your wallet is on chain ${chainId}, not Ferminux (${CHAIN_ID}). Switch to Ferminux, then try again.`,
+    );
+  }
+  return state.provider.getSigner();
+}
+
 /** One-click "Add Ferminux Network" via wallet_addEthereumChain. */
 export async function addFerminuxNetwork(eth: Eip1193Provider | undefined = injected()): Promise<void> {
-  if (!eth) throw new Error("No injected wallet found. Install MetaMask.");
+  if (!eth) throw new Error("No browser wallet found in this browser.");
   await eth.request({
     method: "wallet_addEthereumChain",
     params: [FERMINUX_ADD_CHAIN_PARAMS],

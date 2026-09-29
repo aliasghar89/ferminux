@@ -1,0 +1,156 @@
+Ferminux Validator
+devnet · chain 39619
+Attester 0x0040d6…4844
+Hub 0x7cee96…3254
+Seat closed
+The deposit was withdrawn. This machine signs nothing for it any more.
+NODE
+Latest block
+173,992
+Block age
+0 s
+Peers
+14
+Sync
+in sync
+Process
+running · pid 15
+SEAT
+Seat
+#1
+State
+closed
+Deposit
+0 FMX
+Active from block
+13,452
+Counts for certification
+after 7 days active
+Owner
+0x2b1d…1517
+REWARDS
+Expected per day
+about 1.54 FMX
+Per checkpoint
+0.025 FMX
+Claimable
+0 FMX
+Reward pool
+19,441 FMX
+Seats taken
+32 / 100
+Attested, last 24 h
+0 / 62
+Attested, last 7 days
+0 / 432
+NEXT CHECKPOINT
+Height
+174,000
+Signing opens at block
+174,064
+In about
+8 min
+Gas balance
+1 FMX
+CHECKPOINTS
+Height	State	Block hash	Transaction	Included in	Detail
+173,800	waiting	–	–	–	seat is closed
+173,600	missed	–	–	–	seat is unbonding
+173,400	missed	–	–	–	seat is unbonding
+173,200	missed	–	–	–	seat is unbonding
+173,000	missed	–	–	–	seat is unbonding
+172,800	missed	–	–	–	seat is unbonding
+172,600	missed	–	–	–	seat is unbonding
+172,400	missed	–	–	–	seat is unbonding
+172,200	missed	–	–	–	seat is unbonding
+172,000	missed	–	–	–	seat is unbonding
+171,800	missed	–	–	–	seat is unbonding
+171,600	missed	–	–	–	seat is unbonding
+171,400	missed	–	–	–	seat is unbonding
+171,200	missed	–	–	–	seat is unbonding
+171,000	missed	–	–	–	seat is unbonding
+170,800	missed	–	–	–	seat is unbonding
+170,600	missed	–	–	–	seat is unbonding
+170,400	missed	–	–	–	seat is unbonding
+170,200	missed	–	–	–	seat is unbonding
+170,000	missed	–	–	–	seat is unbonding
+169,800	missed	–	–	–	seat is unbonding
+169,600	missed	–	–	–	seat is unbonding
+169,400	missed	–	–	–	seat is unbonding
+169,200	missed	–	–	–	seat is unbonding
+169,000	missed	–	–	–	seat is unbonding
+168,800	missed	–	–	–	seat is unbonding
+168,600	missed	–	–	–	seat is unbonding
+168,400	missed	–	–	–	seat is unbonding
+168,200	missed	–	–	–	seat is unbonding
+168,000	missed	–	–	–	seat is unbonding
+167,800	missed	–	–	–	seat is unbonding
+167,600	missed	–	–	–	seat is unbonding
+167,400	missed	–	–	–	seat is unbonding
+167,200	missed	–	–	–	seat is unbonding
+167,000	missed	–	–	–	seat is unbonding
+166,800	missed	–	–	–	seat is unbonding
+166,600	missed	–	–	–	seat is unbonding
+166,400	missed	–	–	–	seat is unbonding
+166,200	missed	–	–	–	seat is unbonding
+166,000	missed	–	–	–	seat is unbonding
+165,800	missed	–	–	–	seat is unbonding
+165,600	missed	–	–	–	seat is unbonding
+165,400	missed	–	–	–	seat is unbonding
+165,200	missed	–	–	–	seat is unbonding
+165,000	missed	–	–	–	seat is unbonding
+164,800	missed	–	–	–	seat is unbonding
+164,600	missed	–	–	–	seat is unbonding
+164,400	missed	–	–	–	seat is unbonding
+164,200	missed	–	–	–	seat is unbonding
+164,000	missed	–	–	–	seat is unbonding
+163,800	missed	–	–	–	seat is unbonding
+163,600	missed	–	–	–	seat is unbonding
+163,400	missed	–	–	–	seat is unbonding
+163,200	missed	–	–	–	seat is unbonding
+163,000	missed	–	–	–	seat is unbonding
+162,800	missed	–	–	–	seat is unbonding
+162,600	missed	–	–	–	seat is unbonding
+162,400	missed	–	–	–	seat is unbonding
+162,200	missed	–	–	–	seat is unbonding
+162,000	missed	–	–	–	seat is unbonding
+161,800	missed	–	–	–	seat is unbonding
+161,600	missed	–	–	–	seat is unbonding
+161,400	missed	–	–	–	seat is unbonding
+161,200	missed	–	–	–	seat is unbonding
+161,000	missed	–	–	–	seat is unbonding
+160,800	missed	–	–	–	seat is unbonding
+160,600	missed	–	–	–	seat is unbonding
+160,400	missed	–	–	–	seat is unbonding
+160,200	missed	–	–	–	seat is unbonding
+160,000	missed	–	–	–	seat is unbonding
+159,800	missed	–	–	–	seat is unbonding
+159,600	missed	–	–	–	seat is unbonding
+159,400	missed	–	–	–	seat is unbonding
+159,200	missed	–	–	–	seat is unbonding
+159,000	missed	–	–	–	seat is unbonding
+158,800	missed	–	–	–	seat is unbonding
+158,600	missed	–	–	–	seat is unbonding
+158,400	missed	–	–	–	seat is unbonding
+158,200	missed	–	–	–	seat is unbonding
+158,000	missed	–	–	–	seat is unbonding
+157,800	missed	–	–	–	seat is unbonding
+157,600	missed	–	–	–	seat is unbonding
+157,400	missed	–	–	–	seat is unbonding
+157,200	missed	–	–	–	seat is unbonding
+157,000	missed	–	–	–	seat is unbonding
+156,800	missed	–	–	–	seat is unbonding
+156,600	missed	–	–	–	seat is unbonding
+156,400	missed	–	–	–	seat is unbonding
+156,200	missed	–	–	–	seat is unbonding
+156,000	missed	–	–	–	seat is unbonding
+155,800	missed	–	–	–	seat is unbonding
+155,600	missed	–	–	–	seat is unbonding
+155,400	missed	–	–	–	seat is unbonding
+155,200	missed	–	–	–	seat is unbonding
+155,000	missed	–	–	–	seat is unbonding
+154,800	missed	–	–	–	seat is unbonding
+
+Ferminux uses proof-of-authority consensus. This validator node keeps its own copy of the chain, checks every block and signs a statement naming the block it sees at each checkpoint. It does not produce or order blocks.
+
+This page is served only to this computer and cannot change anything. fmx-validator pre-module-rename-155-g6a6b7be

@@ -702,7 +702,9 @@ input[type="file"].input::file-selector-button{font:inherit;font-size:13px;font-
   }
   .cta-bar-flat{bottom:calc(var(--safe-b) + 8px)}
 }
-.cta-bar .btn{min-height:52px;border-radius:var(--r-cta)}
+/* A working label names the network ("Checking the Avalanche C-Chain network fee…"): on a 320–360 px
+   phone it is wider than the button, and .btn's nowrap pushed the spinner and text past both edges. */
+.cta-bar .btn{min-height:52px;border-radius:var(--r-cta);white-space:normal;text-align:center;line-height:1.25}
 .actions-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .actions-row .push{flex:1}
 .actions-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:10px}

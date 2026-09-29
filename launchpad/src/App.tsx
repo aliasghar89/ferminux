@@ -23,6 +23,9 @@ import { ChainSetupError, type ChainSetupStep } from "../../shared/fxwallet/netw
 import LaunchForm from "./components/LaunchForm.tsx";
 import TokenList from "./components/TokenList.tsx";
 import ConnectChooser from "./components/ConnectChooser.tsx";
+import Account from "./components/Account.tsx";
+import { Brand } from "./components/Brand.tsx";
+import { IconAlert, IconExternal } from "./components/icons.tsx";
 
 function describeWalletError(e: unknown): string {
   if (e instanceof ChainSetupError) return e.message;
@@ -185,46 +188,59 @@ export default function App() {
   }, [wallet, land]);
 
   const wrongChain = wallet !== null && wallet.chainId !== CHAIN_ID;
+  // The read endpoint's state, from the live fee read: it is the first thing
+  // the page asks the chain.
+  const readStatus: "ok" | "error" | "wait" = fee !== null ? "ok" : feeError ? "error" : "wait";
+  const dotClass = readStatus === "ok" ? "dot-ok" : readStatus === "error" ? "dot-bad" : "dot-wait";
+  const walletName = wallet ? (connector.current()?.choice.name ?? null) : null;
 
   return (
-    <>
-      <header className="site-header">
-        <div className="inner">
-          <span className="wordmark">
-            FERMINUX <span className="fx">LAUNCHPAD</span>
+    <div className="app">
+      <a className="skip" href="#main">
+        Skip to content
+      </a>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <a className="topbar-brand" href="./" aria-label="Ferminux Launchpad, home">
+            <Brand sub="Launchpad" />
+          </a>
+          <span className="spacer" />
+          <span className="net-pill" title={rpcUrl} data-testid="net-pill">
+            <span className={"dot " + dotClass} aria-hidden="true" />
+            {readStatus === "ok" ? `Ferminux ${CHAIN_ID}` : readStatus === "error" ? "RPC unreachable" : "Connecting"}
           </span>
-          <span className="header-spacer" />
           {wallet ? (
-            <span className={`net-pill ${wrongChain ? "warn" : "ok"}`}>
-              <span className="dot" />
-              {wrongChain
-                ? `Wrong network (chain ${wallet.chainId})`
-                : "Ferminux · 3961"}
-              <span className="addr">{shortAddress(wallet.address)}</span>
-            </span>
+            <Account
+              address={wallet.address}
+              wrongChain={wrongChain}
+              walletName={walletName}
+              onDisconnect={() => void connector.disconnect()}
+            />
           ) : (
-            <span className="net-pill">
-              <span className="dot" />
-              Not connected
-            </span>
-          )}
-          {((wallet && wrongChain) || (!wallet && injected())) && (
-            <button className="subtle" onClick={handleAddNetwork} disabled={busy}>
-              {wrongChain ? "Switch to Ferminux" : "Add Ferminux Network"}
-            </button>
-          )}
-          {!wallet && (
-            <button className="primary" data-testid="header-connect" onClick={handleConnect} disabled={busy}>
-              Connect wallet
-            </button>
-          )}
-          {wallet && (
-            <button className="subtle" onClick={() => void connector.disconnect()} title="Disconnect this wallet from the launchpad">
-              Disconnect
+            <button
+              className="btn btn-primary btn-sm topbar-connect"
+              data-testid="header-connect"
+              onClick={handleConnect}
+              disabled={busy}
+            >
+              Connect
             </button>
           )}
         </div>
       </header>
+
+      {wallet && wrongChain && (
+        <div className="banner banner-warn" role="status">
+          <IconAlert />
+          <span>
+            Your wallet is on chain {wallet.chainId}, not Ferminux ({CHAIN_ID}).
+            Reading works; launching needs Ferminux.
+          </span>
+          <button className="btn btn-sm" onClick={handleAddNetwork} disabled={busy}>
+            Switch to Ferminux
+          </button>
+        </div>
+      )}
 
       {chooserOpen && (
         <ConnectChooser
@@ -236,65 +252,91 @@ export default function App() {
         />
       )}
 
-      <main className="container">
-        {chainStep && (
-          <div className="notice" role="status" style={{ marginTop: 16 }}>
-            <span className="spinner" /> {chainStep}
+      <main id="main" className="content" tabIndex={-1}>
+        <div className="page">
+          <div className="page-head">
+            <h1>Launchpad</h1>
+            <p className="page-sub">
+              Launch an FRC-20 coin on Ferminux in one transaction. Every coin
+              lands in the on-chain registry with its live supply and trust badges.
+            </p>
           </div>
-        )}
-        {walletError && !chooserOpen && (
-          <div className="notice error" style={{ marginTop: 16 }}>
-            {walletError}
-          </div>
-        )}
 
-        <div className="tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={tab === "launch"}
-            className={tab === "launch" ? "active" : ""}
-            onClick={() => setTab("launch")}
-          >
-            Launch a coin
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === "registry"}
-            className={tab === "registry" ? "active" : ""}
-            onClick={() => setTab("registry")}
-          >
-            Token registry
-          </button>
+          {chainStep && (
+            <div className="notice" role="status">
+              <span className="spinner" /> {chainStep}
+            </div>
+          )}
+          {walletError && !chooserOpen && (
+            <div className="notice notice-warn" role="alert">
+              {walletError}
+            </div>
+          )}
+
+          <div className="seg" role="tablist" aria-label="Launchpad">
+            <button
+              role="tab"
+              id="tab-launch"
+              aria-selected={tab === "launch"}
+              aria-controls="panel-launch"
+              onClick={() => setTab("launch")}
+            >
+              Launch a coin
+            </button>
+            <button
+              role="tab"
+              id="tab-registry"
+              aria-selected={tab === "registry"}
+              aria-controls="panel-registry"
+              onClick={() => setTab("registry")}
+            >
+              Token registry
+            </button>
+          </div>
+
+          {tab === "launch" ? (
+            <div role="tabpanel" id="panel-launch" aria-labelledby="tab-launch">
+              <LaunchForm
+                wallet={wallet}
+                wrongChain={wrongChain}
+                fee={fee}
+                feeCollector={feeCollector}
+                feeError={feeError}
+                onRetryFee={loadFee}
+                onConnect={handleConnect}
+                onFixNetwork={handleAddNetwork}
+                onAddNetwork={!wallet && injected() ? handleAddNetwork : null}
+                busy={busy}
+                onLaunched={() => setListVersion((v) => v + 1)}
+              />
+            </div>
+          ) : (
+            <div role="tabpanel" id="panel-registry" aria-labelledby="tab-registry">
+              <TokenList readProvider={readProvider} refreshKey={listVersion} />
+            </div>
+          )}
         </div>
-
-        {tab === "launch" ? (
-          <LaunchForm
-            wallet={wallet}
-            wrongChain={wrongChain}
-            fee={fee}
-            feeCollector={feeCollector}
-            feeError={feeError}
-            onRetryFee={loadFee}
-            onConnect={handleConnect}
-            onFixNetwork={handleAddNetwork}
-            onLaunched={() => setListVersion((v) => v + 1)}
-          />
-        ) : (
-          <TokenList readProvider={readProvider} refreshKey={listVersion} />
-        )}
       </main>
 
-      <footer className="site-footer">
-        <span>Ferminux Network · chain id 3961</span>
-        <a href={explorerAddressUrl(FACTORY_ADDRESS)} target="_blank" rel="noreferrer">
-          TokenFactory {shortAddress(FACTORY_ADDRESS)}
-        </a>
-        <a href={EXPLORER_URL} target="_blank" rel="noreferrer">
-          Explorer
-        </a>
-        {/* Text, not a link: a JSON-RPC endpoint opened in a browser tab is a blank page. */}
-        <span title={rpcUrl}>RPC {new URL(rpcUrl).host}</span>
+      <footer className="site-foot">
+        <div className="site-foot-inner">
+          <span className="foot-item">
+            <span className={"dot " + dotClass} aria-hidden="true" />
+            <span className="mono">Ferminux Network · chain id {CHAIN_ID}</span>
+          </span>
+          <a className="foot-item" href={explorerAddressUrl(FACTORY_ADDRESS)} target="_blank" rel="noreferrer">
+            TokenFactory <span className="mono">{shortAddress(FACTORY_ADDRESS)}</span>
+            <IconExternal />
+          </a>
+          <a className="foot-item" href={EXPLORER_URL} target="_blank" rel="noreferrer">
+            Explorer <IconExternal />
+          </a>
+          {/* Text, not a link: a JSON-RPC endpoint opened in a browser tab is a blank page. */}
+          <span className="foot-item mono" title={rpcUrl}>
+            RPC {new URL(rpcUrl).host}
+          </span>
+        </div>
       </footer>
-    </>
+    </div>
   );
 }

@@ -17,8 +17,11 @@ services).
   supply (0 = uncapped), mintable toggle. Calls `TokenFactory.launch` with
   `msg.value` = the **live** `launchFee()` read from the contract (the UI shows
   "10 FMX" straight from chain — never hardcoded). Client-side validation
-  mirrors the contract's `require`s. Success screen shows the new token
-  address, tx hash and explorer links.
+  mirrors the contract's `require`s. Just before signing, the launch asks the
+  wallet for its chain (`eth_chainId`) and refuses unless it is 3961
+  (`ferminuxSigner` in `src/lib/wallet.ts`), so the fee can never be sent on
+  another network. Success screen shows the new token address, tx hash and
+  explorer links. The launch sends no token approval of any kind.
 - **Token registry** — paginated via `tokensPage(offset, limit)`, newest
   first, with per-token trust badges:
   - **Factory verified** — the row comes from the on-chain factory registry
@@ -39,7 +42,11 @@ launchpad/
 │   ├── lib/wallet.ts         EIP-1193 helpers (connect / add / switch chain)
 │   ├── lib/connector.ts      the wallet choice (Ferminux Wallet, injected, WalletConnect)
 │   ├── App.tsx               shell: header, tabs, wallet state
-│   └── components/           LaunchForm.tsx, TokenList.tsx
+│   ├── fmx-mark.svg          brand/dist/fmx-mark.svg, unchanged
+│   ├── assets/fonts/         Inter, JetBrains Mono, Sora (the DEX's self-hosted files)
+│   └── components/           Brand.tsx (logo lockup), LaunchForm.tsx, TokenList.tsx,
+│                             ConnectChooser.tsx, Account.tsx, icons.tsx
+├── public/                   favicon.ico/.svg/-16/-32/-192.png, apple-touch-icon.png (brand/dist)
 ├── scripts/e2e.mjs           e2e data-layer test (spawns its own anvil on :8548)
 └── dist/                     static build output (after `npm run build`)
 ```
@@ -51,14 +58,16 @@ launchpad/
 
 | Variable | Default |
 |---|---|
-| `VITE_FACTORY_ADDRESS` | `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0` |
-| `VITE_RPC_URL` | `https://rpc.ferminux.net` |
+| `VITE_FACTORY_ADDRESS` | `0x62BC7d9671EfE1385413434aB8fdfE2fa4aE01D4` (TokenFactory v1, live) |
+| `VITE_RPC_URLS` / `VITE_RPC_URL` | `https://rpc.ferminux.net,https://ferminux.net/rpc` |
 | `VITE_EXPLORER_URL` | `https://explorer.ferminux.net` |
+| `VITE_WC_PROJECT_ID` | unset: no WalletConnect. The production build sets it from `../.credentials/walletconnect.env` |
 
-The default factory address is the canonical `DeployCore.s.sol` address
-(deployer nonce 2). **After the real mainnet deployment, confirm the address
-and set `VITE_FACTORY_ADDRESS` at build time if it differs.** Env vars are
-baked in by Vite at build time — rebuild after changing them.
+The default factory is the live TokenFactory v1 on chain 3961 (its runtime
+code matches `contracts/out/TokenFactory.sol`; fee 10,000 FMX, collector
+`0x…dEaD`, so the fee is burned). Leave `VITE_FACTORY_ADDRESS` unset for
+production. Env vars are baked in by Vite at build time — rebuild after
+changing them.
 
 ## Dev / build (tested on this machine)
 
@@ -71,7 +80,8 @@ ls dist            # index.html + assets/ — the whole deployable site
 npm run preview    # serves dist/ on http://localhost:8548 to verify the build
 ```
 
-Verified: `npm run build` succeeds (vite 5.4, 183 modules, ~148 kB gz JS) and
+Verified: `npm run build` succeeds (vite 6.4; entry chunk ~166 kB gz, the
+WalletConnect chunks load only when that choice is picked) and
 `curl http://localhost:8548/` against `npm run preview` returns the app shell.
 
 **Port note:** this workstation reserves **8548** for the launchpad component,
@@ -82,7 +92,7 @@ don't run two of them at once. The live devnet on 8545/8546 is never touched.
 
 ```sh
 cd <repo>/launchpad
-npm run e2e        # = node scripts/e2e.mjs
+npm test           # = npm run e2e = node scripts/e2e.mjs
 ```
 
 The script (Node 26 runs the app's TypeScript directly):
@@ -100,17 +110,27 @@ The script (Node 26 runs the app's TypeScript directly):
    creator, createdAt); trust-badge logic — factory-verified always,
    fixed-supply for `mintable == false`, and ownership-renounced flips after
    `renounceOwnership()` makes `owner() == 0x0`; underpaying reverts with
-   `FACTORY: fee`.
+   `FACTORY: fee`; the live fee renders grouped ("10,000 FMX");
+   `ferminuxSigner` refuses a wallet that reports chain 1 and returns the
+   signer on 3961.
 
-Last run on this machine: **26 passed, 0 failed**.
+Last run on this machine: **29 passed, 0 failed**.
 
 ## Deploy to nginx
 
-The build is a plain static SPA — any nginx can serve it:
+The build is a plain static SPA — any nginx can serve it. Production is the
+netcup box: `infra/compose/www/launchpad/` there is mounted read-only as
+`/var/www/launchpad` and serves both launchpad.ferminux.net and
+ferminux.net/launchpad/ (the build uses relative URLs, `base: './'`).
 
 ```sh
-npm run build
-rsync -a dist/ user@server:/var/www/launchpad/
+cd launchpad
+set -a; . ../.credentials/walletconnect.env; set +a   # VITE_WC_PROJECT_ID
+npm ci && npm test && npm run build
+# hashed assets first, index.html last, so no page ever names a missing file;
+# no --delete, so a tab still open on the previous build keeps its chunks
+rsync -a --exclude index.html dist/ root@<node-host>:/opt/ferminux/infra/compose/www/launchpad/
+rsync -a dist/index.html root@<node-host>:/opt/ferminux/infra/compose/www/launchpad/index.html
 ```
 
 ```nginx
@@ -138,8 +158,13 @@ launchpad origin there.
 ## Notes
 
 - ethers v6 is a bundled npm dependency; the shipped page loads **no** external
-  scripts, fonts or styles.
+  scripts, fonts or styles (WalletConnect, when built in, talks to its relay
+  only after the person picks it).
 - `src/lib/factory.ts` is deliberately free of browser/Vite globals so the e2e
   test exercises the exact production code paths.
-- Design: institutional dark, system font stack (Inter where installed), 6px
-  radius, tabular numerals.
+- Design: the ferminux.net dark system (`.ui-craft/tokens.md`) as the DEX and
+  the wallet apply it. The header is the official lockup — the F from
+  `brand/dist/fmx-mark.svg` beside the FERMINUX letters from the `#fx-word`
+  symbol in `brand/dist/sprite.html` (`src/components/Brand.tsx`, same file as
+  the DEX's). Never type the name as the logo or redraw the F; regenerate with
+  `brand/build.py` and copy.

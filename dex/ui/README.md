@@ -5,12 +5,24 @@ Network, chain **3961**, native coin **FMX**.
 
 Vite + React 18 + TypeScript + ethers v6, in the ferminux.net dark design
 system (`.ui-craft/brief.md`, `tokens.md`; the Ferminux Wallet is the reference
-for app screens), phone first. One bundle, fonts included, no CDNs, no
+for app screens), phone first. Fonts included, no CDNs, no
 analytics, no backend of its own: every pool number on the page is read from
 the chain over JSON-RPC (`rpc.ferminux.net`), buying with coins on other
 networks goes through the project's pay-in (`ferminux.net/api/payin`), and the
 build fails if an unexpected external URL gets into `dist/`. `base` is `./`, so the same `dist/` serves from
 `https://dex.ferminux.net` and from `https://ferminux.net/dex/`.
+
+**The first screen loads only Swap.** Pools (list and pool page), Liquidity,
+Charts and Analytics, Activity (and `lib/history.ts`), the pay-in card, the
+FMX price chart beside the swap card, the Bridge panel and the phone hand-off
+QR are each their own chunk, imported when first shown
+(`src/components/Lazy.tsx`) and fetched while the browser is idle after the
+first screen, so a tab switch does not wait. WalletConnect's provider loads only
+when WalletConnect is chosen, or a remembered WalletConnect session is resumed
+(`lib/connector.ts`). A chunk that fails to load (offline, or a tab left open
+across a deploy) shows a notice with a reload. `scripts/check-dist.mjs` fails
+the build if any of those parts is reachable from the entry chunk's static
+imports, or if the first screen passes 230 kB gzip.
 
 ## Pages
 
@@ -101,6 +113,12 @@ refuses unless it is 3961: `eth_sendTransaction` carries no chain id, and a
 wallet switched mid-review would otherwise sign the call on another network.
 The review closes when the wallet leaves Ferminux, and a re-quote that pays
 less than the figure reviewed has to be accepted before it can be signed.
+**Every transaction asks for a quarter more gas than the node estimates**
+(`withGasHeadroom`, `src/lib/wallet.ts`): a node estimates on its latest block,
+and a pool that already traded in that block's second skips its
+price-accumulator writes in the estimate but makes them when the transaction
+lands, so a bare estimate can run out of gas inside the pair and revert with
+the fee spent. Unused gas is not charged.
 Tokens off the Ferminux list are named, with their address, in the review.
 **The LOCKED badge** is
 `LiquidityLocker.totalLockedForTokenAt(pair, now)` as a share of LP supply,
@@ -137,7 +155,20 @@ coins is not offered, and the card says so.
 - **Refused before the wallet is asked:** under a minute left on the quote
   (get a new one), a network the pay-in has paused, an amount outside $1 to
   $10,000, not enough of the coin, or not enough of the network's coin for the
-  fee (read from the network's public endpoints).
+  fee. The fee is read from the paying network's public endpoints for
+  **exactly the quote's transfer** (`readPayFee`, `payPrecheck`):
+  `eth_estimateGas` for that transfer from the paying account, at
+  `eth_gasPrice`; on Base and Optimism plus the L1 data fee, which the gas
+  estimate leaves out, from the GasPriceOracle predeploy
+  (`0x4200…000F`, `getL1Fee(bytes)` of the unsigned EIP-1559 transfer, as
+  viem's `estimateL1Fee` does) and the operator fee (`getOperatorFee` at the
+  padded gas limit; 0 on both networks today, read rather than assumed); on
+  Arbitrum the estimate already carries the L1 part as extra gas. The budget
+  is the estimate +20% at the price +25%, plus twice the L1 fee, plus the
+  operator fee. **It fails safe:** a balance, estimate, gas price, L1 fee or
+  operator fee that cannot be read stops the send with a message saying which, and
+  "Max" on a network's own coin (which leaves two fee budgets) is not filled in
+  without a fee read.
 - **The pay-in is asked again right before the wallet is.** A fresh
   `GET /assets` must still show the network taking payments (a payment made
   while its deposit scanner is behind can outlive the quote and land
@@ -165,9 +196,10 @@ coins is not offered, and the card says so.
 
 FMX is the native coin of chain 3961, and this DEX runs on chain 3961. A swap
 here settles native FMX into the buyer's own address in one 7-second block,
-with no bridge and no wrapped IOU in between, against a pool whose LP is locked
-in `LiquidityLocker` until 2027-08-20 (lock #0: all of the WFMX/AZNT LP but
-the 1,000-wei minimum). It has been live since 2026-08-20.
+with no bridge and no wrapped IOU in between, against pools whose LP is locked
+in `LiquidityLocker`: WFMX/AZNT until 2027-08-20 (lock #0) and WFMX/USDF until
+2027-09-26 (lock #1), each holding all of its pool's LP but the 1,000-wei
+minimum. The DEX has been live since 2026-08-20.
 
 PancakeSwap only ever traded **wFMX**, the bridge's IOU on BNB Chain. It is
 thinner, and while the bridge validators are not signing, wFMX cannot become
@@ -176,12 +208,12 @@ and mentions PancakeSwap only as "also traded on BNB Chain". DexScreener and
 CoinGecko read BNB Chain pools and not chain 3961 (see
 `infra/listings/README.md`).
 
-On chain 3961 on 2026-09-26 the factory holds one pool, WFMX/AZNT
-(`0xbab1…6845`: about 138,767 WFMX and 45,100 AZNT, 0.325 AZNT per FMX,
-which is $0.19 per FMX at 1.70 AZN per USD, against the official $0.52). There
-is no WFMX/USDF pool yet; the app lists "FMX / USDF: no pool yet" until one is
-seeded, and shows it, routes through it and charts it from the block it
-appears. The fork tests below build exactly that market at $0.52.
+On chain 3961 on 2026-09-27 the factory holds two pools, both pricing FMX at
+the official $0.52: WFMX/USDF (`0x04B2…86f9`: 480,769 WFMX and 250,000 USDF,
+seeded on 2026-09-26) and WFMX/AZNT (`0xbab1…6845`: about 84,190 WFMX and
+74,424 AZNT, 0.884 AZNT per FMX, which is $0.52 at 1.70 AZN per USD). AZNT and
+USDF trade with each other through FMX. The fork checks below run against
+exactly this market and read every figure they expect from it.
 
 ## Layout
 
@@ -190,7 +222,7 @@ dex/ui/
 ├── index.html
 ├── src/
 │   ├── config.ts             chain-3961 addresses, RPC, explorer, FMX_USD_E18 ($0.52), MAX_HOPS, DEX_START_BLOCK
-│   ├── App.tsx               pages, wallet chooser, phone hand-off
+│   ├── App.tsx               pages (Swap in the entry chunk, the rest on demand), wallet chooser, phone hand-off
 │   ├── styles.css            the ferminux.net dark system: tokens, self-hosted fonts, components
 │   ├── assets/               fonts (from wallet-web), the mark, token logos (byte copies of site/assets/brand)
 │   ├── lib/                  the data layer: NO browser globals except wallet.ts / connector.ts
@@ -202,16 +234,16 @@ dex/ui/
 │   │   ├── history.ts        one account's transactions
 │   │   ├── tokenlist.ts      the picker's list from shared/tokens.ts, logos, search, order
 │   │   ├── math.ts           the AMM math, mirroring FerminuxLibrary exactly
-│   │   ├── pairs.ts, liquidity.ts, locker.ts, tokens.ts, amounts.ts, format.ts, gas.ts
+│   │   ├── pairs.ts, liquidity.ts, locker.ts, tokens.ts, amounts.ts, format.ts, gas.ts, ranges.ts
 │   │   └── rpc.ts, deeplink.ts, handoff.ts, registry.ts, bridge*.ts, wallet.ts, connector.ts
 │   ├── state/                hooks: chain, wallet, pools, market, positions, activity, route, settings
-│   ├── components/           Shell, Chart (SVG line/bar), TradeParts, TokenLogo, icons, ui, ConnectChooser, MobileHandoff
+│   ├── components/           Shell, Lazy (on-demand chunks), Chart (SVG line/bar), TradeParts, TokenLogo, LockBadge, icons, ui, ConnectChooser, MobileHandoff
 │   └── views/                SwapView, PoolsView, LiquidityView, ChartsView, ActivityView, TokenPicker, SettingsModal, …
-├── tests/                    126 unit tests (node:test, no chain)
+├── tests/                    136 unit tests (node:test, no chain)
 └── scripts/
-    ├── check-dist.mjs        build guard: no unexpected external URL in dist/
+    ├── check-dist.mjs        build guard: no unexpected external URL in dist/; the first screen stays Swap only
     ├── e2e.mjs               fresh AMM on a local anvil, driven through src/lib
-    ├── fork.mjs              anvil fork of chain 3961 + the $0.52 market, by impersonation
+    ├── fork.mjs              anvil fork of chain 3961 and its live $0.52 market, by impersonation
     ├── e2e-fork.mjs          the live contracts on a fork, driven through src/lib
     ├── ui-check.mjs          the built page in Chrome against the fork, 320 / 390 / 1440 px
     └── payin-check.mjs       pay with any coin in Chrome, everything mocked
@@ -244,7 +276,7 @@ cd <repo>/dex/ui
 npm install
 npm run dev          # http://127.0.0.1:8602
 npm run build        # tsc --noEmit && vite build && node scripts/check-dist.mjs
-npm test             # 126 unit tests, no chain
+npm test             # 136 unit tests, no chain
 npm run e2e          # fresh AMM on anvil :8602
 npm run e2e:fork     # anvil FORK of chain 3961 on :8602 (reads rpc.ferminux.net)
 npm run ui           # the built page in Chrome against the fork; PLAYWRIGHT_MODULE=…/playwright/index.mjs
@@ -262,22 +294,55 @@ and confirms every transaction locally; the treasury and the AZNT ops wallet are
 **impersonated** (`anvil_impersonateAccount`), so no key is read or needed.
 `scripts/fork.mjs` refuses any RPC that is not `127.0.0.1`.
 
-## Results (2026-09-26)
+**The fork is the live market** (`scripts/fork.mjs`). `npm run ui` changes
+nothing before it starts: it first reads, with the app's own lib, every pool,
+its TVL at the $0.52 basis, its LOCKED share and locks, the router's quote for
+100 FMX and for 500 AZNT (which routes through FMX), and the add-liquidity
+ratio, and expects the page to show exactly those. It also pins what the
+market is: the WFMX/USDF pool is `0x04B2…86f9`, both FMX pools are at least
+99.9% locked by locks #1 and #0, and both price FMX within 2% of $0.52; if the
+live market moves past that, the check says so. `npm run e2e:fork` adds a thin
+AZNT/USDF pool at the peg that chain 3961 does not have, so the router has two
+routes to weigh (small AZNT → USDF direct, larger through FMX). The page's
+transactions carry the quarter of gas headroom described above, and so do
+the fork scripts' own (`forkProvider`): without it an exact estimate ran out
+of gas in the pair whenever the pool had moved in the same second, which was
+the "unexplained fork flake" at "Remove 50%"; `npm run ui` checks that every
+transaction the page sends carries its own limit.
 
-### `npm run build`
+## Results (2026-09-27)
+
+### `npm run build`: the first screen, before and after the split
 
 ```
-dist/assets/index-*.css    48.8 kB │ gzip:  10.0 kB
-dist/assets/index-*.js    757.6 kB │ gzip: 254.4 kB    (670 kB before the redesign)
+before  dist/assets/index-*.js   821.2 kB │ gzip: 275.0 kB   (everything, one chunk)
+after   dist/assets/index-*.js   595.1 kB │ gzip: 205.7 kB   (the first Swap screen: -28% raw, -25% gzip)
+        on demand (gzip): PoolsView 4.7 · LiquidityView 6.5 · ChartsView 3.6 · TradesTable 3.7 (shared)
+                          ActivityView 1.8 + history 1.7 · PayCard 8.8 · MobileHandoff (QR) 11.2 · BridgePanel 8.9
+        dist/assets/index-*.css   55.7 kB │ gzip:  11.1 kB
 fonts: Inter 48 kB, JetBrains Mono 31 kB, Sora 15 kB (woff2, self-hosted)
 check-dist: no unexpected external URLs in dist/.
+check-dist: first screen index-*.js = 595.1 kB (205.5 kB gzip, budget 230); 8 parts load on demand.
 ```
 
-### `npm run ui:payin`: 12 browser checks, all passing (2026-09-26)
+BridgePanel was 35.4 kB gzip while the bridge app's lib pulled in its own copy of
+ethers from `bridge/ui/node_modules`; `resolve.dedupe` (vite.config.ts) and a
+`paths` entry (tsconfig.json) now resolve it from this app's install, so there
+is one ethers, and `npm ci && npm run build` works where only `dex/ui` is
+installed (CI, a deploy box).
+
+What is left in the first screen is mostly ethers (provider, contract, ABI,
+transaction; ENS and secp256k1 come with its provider) and react-dom. With
+`VITE_WC_PROJECT_ID` set the entry grows by 2 kB and WalletConnect's provider
+and modal (about 1.5 MB in several chunks) load only when it is chosen.
+
+### `npm run ui:payin`: 13 browser checks, all passing
 
 Nothing real is touched: the pay-in API is a mock that quotes, supersedes and
-attributes like the gateway; the seven networks answer from fixed balances;
-the wallet is a scripted injected provider that records what it is asked to send.
+attributes like the gateway; the seven networks answer from fixed balances and
+fees (a token transfer estimates at 52,000 gas, 150,000 more on Arbitrum; Base
+and Optimism answer getL1Fee and getOperatorFee); the wallet is a scripted injected provider that
+records what it is asked to send.
 
 ```
   ✓  1. built the production bundle (shipped pay-in URL and network endpoints, local chain 3961)
@@ -286,7 +351,7 @@ the wallet is a scripted injected provider that records what it is asked to send
   ✓  4. review: exactly 9.999999999999999997 USDT (18 decimals, 3 units of dust), deposit address, BNB Smart Chain · 56, recipient, 15-minute clock, exchange warning
   ✓  5. sent: switched the wallet to 56, then transfer(deposit, 9999999999999999997) to BSC USDT from the quoting account, attributed by amount
   ✓  6. tracker: seen → confirmed → paid, BscScan and explorer.ferminux.net links; "Switch back to Ferminux" put the wallet home
-  ✓  7. reload kept the open Base quote; the wallet did not know Base, so it was added (chain 8453, mainnet.base.org), then exactly 24.999997 USDC was sent
+  ✓  7. reload kept the open Base quote; with the L1 fee unreadable the send was refused; then the wallet (which did not know Base) added chain 8453 and sent exactly 24.999997 USDC, fee priced with estimateGas + getL1Fee + getOperatorFee
   ✓  8. native: 0.499999999999999997 AVAX as value straight to the deposit address on 43114, no data
   ✓  9. a quote with under a minute left cannot be sent; "Get a new quote" replaced it, one unit under the old amount so the payment can only match the new one
   ✓ 10. a wallet that reported BNB Smart Chain and then moved to chain 1 before the send was refused: nothing signed
@@ -295,16 +360,24 @@ the wallet is a scripted injected provider that records what it is asked to send
   ✓ 13. back to the pool swap card unchanged; 4 payments, all matched; no horizontal scroll at 320/390/1440 px; no console errors
 ```
 
-### `npm test`: 127 tests, 0 failures
+### `npm test`: 136 tests, 0 failures
 
-Pay with any coin (`payin.test.mjs`, 25): the networks, contracts, decimals and
+Pay with any coin (`payin.test.mjs`, 33): the networks, contracts, decimals and
 confirmations equal the gateway's table; exact units at 6 and 18 decimals;
 FMX out equal to the gateway's to the wei; every field of a quote checked;
-the transfer built from `sendExactly` only; balance and fee checks; the
-tracker never going backwards or paying twice; re-quotes that cannot collide;
-the stored quotes surviving a reload and dropping anything tampered; the
-pay-in's live record of the quote confirmed before the send; the wallet
-switched, added, and checked again before the send.
+the transfer built from `sendExactly` only; the network fee per chain with
+each network's RPC mocked (Ethereum, BNB Smart Chain, Polygon and Avalanche:
+`eth_estimateGas` for the exact transfer at `eth_gasPrice`; Base and
+Optimism: plus `getL1Fee` of the unsigned EIP-1559 transfer, decoded back and
+checked field by field, and `getOperatorFee` at the padded limit; Arbitrum: its larger estimate, no oracle read), the
+cases the old flat 21k/90k budget let through now refused, and every
+unreadable balance, estimate, price, L1 fee or operator fee refusing the send with a message
+saying which; "Max" leaving two fee budgets; the tracker never going backwards
+or paying twice; re-quotes that cannot collide; the stored quotes surviving a
+reload and dropping anything tampered; the pay-in's live record of the quote
+confirmed before the send; the wallet switched, added, and checked again
+before the send. Gas headroom (`wallet.test.mjs`): the page's limit is the
+estimate plus a quarter, a caller's own limit untouched.
 
 Routing (`route.test.mjs`): paths over every pool, not a base list; three-pool
 routes found and chosen when they pay more; no cycles; the candidate cap keeps
@@ -322,39 +395,39 @@ search. Plus the math, amounts, deep link, hand-off and bridge-gate suites.
 
 ```
   ✓  1. anvil forked chain 3961 on 127.0.0.1:8602
-  ✓  2. live WFMX/AZNT pool: LOCKED 99.999% of LP until 2027-08-20 (lock #0)
-  ✓  3. market at $0.52: WFMX/USDF created at $0.5200; WFMX/AZNT moved 0.3250 → 0.8850 AZNT/FMX ($0.5206); AZNT/USDF at 1.70
-  ✓  4. TVL at the $0.52 basis: WFMX/USDF 52,000 USD (both sides valued), WFMX/AZNT 87,558.03 USD
-  ✓  5. 100 FMX → 51.740828 USDF direct (2 paths priced, router-verified), impact 0.49%
-  ✓  6. 2000.0 FMX → 1000.914378 USDF multi-hop FMX → AZNT → USDF (beat direct by 7.693877 USDF)
+  ✓  2. live pools: WFMX/AZNT LOCKED 99.999% until 2027-08-20 (lock #0); WFMX/USDF LOCKED 99.999% until 2027-09-26 (lock #1)
+  ✓  3. market at $0.52: WFMX/USDF live at $0.5200; WFMX/AZNT 0.8840 AZNT/FMX ($0.5200); thin AZNT/USDF at 1.70 (fork only)
+  ✓  4. TVL at the $0.52 basis: WFMX/USDF 499,999.99 USD (both sides valued), WFMX/AZNT 87,557.97 USD
+  ✓  5. 100 FMX → 51.833251 USDF direct (2 paths priced, router-verified), impact 0.32%
+  ✓  6. 20.0 AZNT → 11.68569 USDF multi-hop AZNT → FMX → USDF (beat the direct pool by 0.092263 USDF)
   ✓  7. FMX → SEED via 2 pools executed as quoted; AZNT → SEED candidates up to 3 pools; "direct only" correctly finds none
   ✓  8. 40 random trades over FMX/USDF/AZNT/SEED: 71 paths, local amounts equal getAmountsOut to the wei, best route agreed
   ✓  9. approvals: exact amount, then unlimited, then revoked to 0, each read back
-  ✓ 10. added 1,000 FMX + 512.806442 USDF at the pool ratio: 0.000716 LP, 1.947% of the pool
-  ✓ 11. removed 50% (499.99999995545958334 FMX native + 256.40322 USDF, as quoted), then the rest as WFMX + USDF
-  ✓ 12. market record: 42 logs, 8 live + 6 fork trades; WFMX/USDF 24h volume $180.19, fees $0.54, APR 0.38%; TVL $341,372
+  ✓ 10. added 1,000 FMX + 519.19624 USDF at the pool ratio: 0.00072 LP, 0.207% of the pool
+  ✓ 11. removed 50% (499.999999261218900499 FMX native + 259.598119 USDF, as quoted), then the rest as WFMX + USDF
+  ✓ 12. market record: 42 logs, 9 live + 5 fork trades; WFMX/USDF 24h volume $192.99, fees $0.57, APR 0.04%; TVL $591,337
   ✓ 13. incremental refresh added exactly the one new swap
-  ✓ 14. history: 18 items (4 swap, 1 unwrap, 1 wrap, 2 remove, 8 approve, 2 add); the multi-hop swap reads FMX → AZNT → USDF
+  ✓ 14. history: 19 items (4 swap, 1 unwrap, 1 wrap, 2 remove, 9 approve, 2 add); the multi-hop swap reads AZNT → WFMX → USDF
   ✓ 15. anvil fork stopped; port 8602 free again
 ```
 
 ### `npm run ui`: 19 browser assertions, all passing
 
 ```
-  ✓  1. fork of chain 3961 on :8602 with the $0.52 market (WFMX/USDF, WFMX/AZNT moved to $0.52, AZNT/USDF)
+  ✓  1. fork of chain 3961 on :8602, the live market: FMX / AZNT $0.5200 lock #0 99.9%; FMX / USDF $0.5200 lock #1 99.9%
   ✓  2. built the production bundle against the fork (shipped contract addresses, local RPC)
   ✓  3. shell: one-bar header with the five pages, live block height in the footer
-  ✓  4. Pools: 3 pools, TVL at the $0.52 basis ($52.0K for WFMX/USDF), LOCKED 99.9% on the live pool
-  ✓  5. pool detail: price chart from the pool’s Sync history with the official $0.52 line, reserves, trades, locks
-  ✓  6. Charts: official $0.5200 with 2 pool lines; Analytics: TVL, TVL and volume charts
-  ✓  7. Swap: 100 FMX quoted live → 51.740828 USDF direct; slippage setting moves the minimum received
-  ✓  8. a 3,000 FMX order routes FMX → AZNT → USDF, as the router prices it best
+  ✓  4. Pools: 2 pools as the chain has them: FMX / USDF $499K Locked 99.9%; FMX / AZNT $87.5K Locked 99.9%
+  ✓  5. pool detail: price chart from the pool’s Sync history with the official $0.52 line, reserves, trades, lock #1
+  ✓  6. Charts: official $0.5200 with 2 pool lines; Analytics: TVL $587,557.9722, TVL and volume charts
+  ✓  7. Swap: 100 FMX quoted live → 51.833251 USDF direct; slippage setting moves the minimum received
+  ✓  8. 500 AZNT routes AZNT → FMX → USDF for 290.073433 USDF, as the router prices it best
   ✓  9. token picker: search filters, selection switches the output token
   ✓ 10. connected through the chooser (Ferminux Wallet listed first, the injected wallet used)
-  ✓ 11. swapped 100 FMX in the page: +51.740828 USDF on chain
+  ✓ 11. swapped 100 FMX in the page: +51.833251 USDF on chain
   ✓ 12. a wallet that left Ferminux while the review was open is refused before anything is signed
   ✓ 13. USDF → FMX: approve exactly 20 USDF, then swap; native FMX received, allowance back to 0
-  ✓ 14. Liquidity: 50 FMX + 25.936341 USDF added at the ratio, position listed, 50% removed
+  ✓ 14. Liquidity: 50 FMX + 25.993356 USDF added at the ratio, position listed, 50% removed; each of the 4 transactions carried the page's gas limit
   ✓ 15. Activity: both swaps, the deposit, the withdrawal and the approvals, read from the chain
   ✓ 16. Bridge tab (VITE_ENABLE_BRIDGE=1) mounts and gates on the relayer report
   ✓ 17. no horizontal scroll on 7 pages × 320/390/1440 px
@@ -368,12 +441,6 @@ passes unchanged apart from the routing options.
 
 ## Not done / known limits
 
-- **`npm run ui` predates the live FMX/USDF pool.** Since 2026-09-26 chain
-  3961 has a seeded FMX/USDF pool with 90.5% of its LP locked, so the fork no
-  longer matches the check's fixtures and it stops at step 4 ("the fork pool
-  shows Not locked"). The figures further on (the $52.0K TVL, 100 FMX →
-  51.74 USDF) assume the old market too. The check needs its expectations
-  moved to the new market; `npm run ui:payin` does not use the fork.
 - **Pay with any coin is one way.** FMX cannot be sold into USDT, USDC or
   another network's coin here. A wallet that cannot switch networks from a
   page is pointed to ferminux.net/buy-fmx, where the transfer can be made by
@@ -398,12 +465,6 @@ passes unchanged apart from the routing options.
   flow. `LOCKER_ABI` carries no write methods.
 - Removing liquidity uses `approve` + `removeLiquidity`, not the permit
   variant.
-- **One unexplained fork flake.** In development, 2 of the first 9 `npm run ui`
-  runs failed at the "Remove 50%" step: the transaction passed gas estimation
-  and then reverted on the anvil fork. It did not reproduce in the runs after
-  (including a script replaying the same sequence). The page now replays any
-  reverted transaction to show the contract's reason, and the check prints the
-  trace of every reverted fork transaction when it fails.
 - The token list is the repo registry plus whatever is in a pool; anything
   outside the registry is marked **unlisted**, and imported tokens carry a
   warning.

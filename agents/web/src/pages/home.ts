@@ -5,7 +5,7 @@ import { $, authorHtml, initChrome, onlineDot, onlineSr, pillFor, skel } from ".
 import type { ActivityEvent, AgentView, JobView, PayinAssets } from "../types";
 import { describe, icon } from "../commons";
 import { allIds, artHtml, bindArt, category, collectionState, loadCollection, statuses, type NftMeta, type NftStatus } from "../nft";
-import { citizensState, citizensStatuses, liveTier, loadCitizens, type CitizensState } from "../citizens";
+import { CITIZENS_PAGE, citizensState, citizensStatuses, liveTier, loadCitizens, type CitizensState } from "../citizens";
 import { pickShowcase, tierName } from "../nftView";
 import { citizensMeta } from "../deployments.generated";
 import { config, explorerAddr, explorerTx, nftDeployed } from "../config";
@@ -410,7 +410,8 @@ async function loadNfts() {
       const c = $("#nft-price-cta"); if (c) c.textContent = `· ${price}`;
     }).catch(() => {});
     const metas = await loadCollection();
-    // Shuffle ids 1–40 and probe minted() a few at a time until eight free ones are found (no 41-call burst on the home page).
+    // Shuffle ids 1–40 and read them eight at a time until eight free ones are found: each batch is one small
+    // Multicall3 eth_call, which fits in one round trip where all 40 at once would not.
     const pool = allIds().filter((i) => i !== 41).sort(() => Math.random() - 0.5);
     const picked: number[] = [];
     while (picked.length < STRIP && pool.length) {
@@ -460,7 +461,12 @@ async function loadCitizensHome() {
     const metas = await loadCitizens();
     let st: CitizensState | null = null;
     let status: NftStatus[] = [];
-    try { st = await citizensState(); status = await citizensStatuses(1, st.totalIds); } catch { /* the chain did not answer: metadata tiers, no prices */ }
+    // the facts and the first 500 ids' tiers and owners in one round trip (tokensInfo clamps to totalIds)
+    try {
+      const [s, head] = await Promise.allSettled([citizensState(), citizensStatuses(1, CITIZENS_PAGE)]);
+      if (s.status === "fulfilled") st = s.value;
+      if (st && head.status === "fulfilled") status = st.totalIds > CITIZENS_PAGE ? [...head.value, ...(await citizensStatuses(CITIZENS_PAGE + 1, st.totalIds))] : head.value;
+    } catch { /* the chain did not answer: metadata tiers, no prices */ }
     const byId = new Map(status.map((x) => [x.id, x]));
     const known = st ? metas.filter((m) => m.id <= st!.totalIds) : metas;
     const tierOf = (m: NftMeta) => liveTier(m, byId.get(m.id));

@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { DEX_ADDRESSES } from '../config.ts';
 import { LineChart, Legend } from '../components/Chart.tsx';
+import { LockBadge } from '../components/LockBadge.tsx';
 import { AddressLink, EmptyState, Figure, Notice, Segmented, Skeleton } from '../components/ui.tsx';
 import { PairLogos, TokenLogo } from '../components/TokenLogo.tsx';
-import { IconBack, IconLock, IconSearch, IconUnlock } from '../components/icons.tsx';
+import { IconBack, IconSearch } from '../components/icons.tsx';
 import {
   formatAmount,
   formatPpmPercent,
-  formatRelativeFuture,
   formatTimestamp,
   shortAddress,
 } from '../lib/amounts.ts';
@@ -22,34 +22,13 @@ import type { MarketData } from '../state/useMarket.ts';
 import type { PoolsState } from '../state/usePools.ts';
 import type { PositionsState } from '../state/usePositions.ts';
 import type { Page } from '../state/useRoute.ts';
-import { RANGES, rangeStart, type Range } from './ChartsView.tsx';
+import { RANGES, rangeStart, type Range } from '../lib/ranges.ts';
 import { TradesTable } from './TradesTable.tsx';
 
 type Nav = (to: { page: Page; pool?: string | null; pairA?: string | null; pairB?: string | null }) => void;
 
 function aprText(ppm: bigint | null | undefined): string {
   return ppm === null || ppm === undefined ? '—' : `${(Number(ppm) / 10_000).toFixed(2)}%`;
-}
-
-/** LOCKED (share of LP, unlock date) or NOT LOCKED: the number a buyer checks first. */
-export function LockBadge({ lock, chainTime, full }: { lock: LockSummary | null; chainTime: number | null; full?: boolean }) {
-  if (!lock) return <span className="badge">lock unknown</span>;
-  if (lock.lockedNow > 0n) {
-    return (
-      <span className="badge badge-lock" title={lock.earliestUnlock ? `Earliest unlock ${formatTimestamp(lock.earliestUnlock)}` : undefined} data-testid="lock-badge">
-        <IconLock />
-        Locked {formatPpmPercent(lock.lockedPpm, 1)}
-        {full && lock.earliestUnlock !== null && <span className="badge-sub">until {formatTimestamp(lock.earliestUnlock).replace(/, \d\d:\d\d UTC$/, '').replace(/ \d\d:\d\d UTC$/, '')}</span>}
-        {!full && lock.earliestUnlock !== null && <span className="badge-sub">{formatRelativeFuture(lock.earliestUnlock, chainTime ?? undefined)}</span>}
-      </span>
-    );
-  }
-  return (
-    <span className="badge badge-open" data-testid="unlock-badge">
-      <IconUnlock />
-      Not locked
-    </span>
-  );
 }
 
 type SortKey = 'tvl' | 'vol' | 'apr';

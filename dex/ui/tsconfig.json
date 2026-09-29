@@ -17,7 +17,8 @@
     "useDefineForClassFields": true,
     "types": ["vite/client"],
     "paths": {
-      "@bridge/*": ["../../bridge/ui/src/*"]
+      "@bridge/*": ["../../bridge/ui/src/*"],
+      "ethers": ["./node_modules/ethers"]
     }
   },
   "include": ["src", "../../bridge/ui/src/lib", "../../bridge/ui/src/config.ts", "../../shared"]

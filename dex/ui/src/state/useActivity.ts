@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JsonRpcProvider } from 'ethers';
 import { DEX_ADDRESSES, DEX_START_BLOCK } from '../config.ts';
 import { rpcLogSource } from '../lib/events.ts';
-import { loadAccountActivity, type ActivityItem } from '../lib/history.ts';
+import type { ActivityItem } from '../lib/history.ts';
 import type { TokenInfo } from '../lib/tokens.ts';
 import { persistMarket, type MarketData } from './useMarket.ts';
 import type { PoolsState } from './usePools.ts';
@@ -42,21 +42,25 @@ export function useActivity(
     let alive = true;
     setLoading(true);
     const m = marketRef.current;
-    loadAccountActivity({
-      source: rpcLogSource(provider),
-      rpc: provider,
-      clock: m.clock,
-      account,
-      pools: pools.pairs,
-      tokens,
-      wfmx: DEX_ADDRESSES.wfmx,
-      router: DEX_ADDRESSES.router,
-      locker: DEX_ADDRESSES.locker,
-      market: m.record,
-      fromBlock: DEX_START_BLOCK,
-      head,
-      txCache: m.txCache,
-    })
+    // lib/history.ts is only needed on the Activity page, so it loads with it.
+    import('../lib/history.ts')
+      .then(({ loadAccountActivity }) =>
+        loadAccountActivity({
+          source: rpcLogSource(provider),
+          rpc: provider,
+          clock: m.clock,
+          account,
+          pools: pools.pairs,
+          tokens,
+          wfmx: DEX_ADDRESSES.wfmx,
+          router: DEX_ADDRESSES.router,
+          locker: DEX_ADDRESSES.locker,
+          market: m.record,
+          fromBlock: DEX_START_BLOCK,
+          head,
+          txCache: m.txCache,
+        }),
+      )
       .then((list) => {
         if (!alive) return;
         setItems(list);

@@ -1,0 +1,36 @@
+Validators
+Step 1 · checkpoint attestation, no consensus change
+
+Ferminux confirms blocks every 7 seconds with authorised signers — proof-of-authority consensus, not proof of stake. Validator seats are a separate, additional check: anyone can deposit 2,000 FMX to run a Ferminux validator node, which keeps its own copy of the chain and, about every 23 minutes, signs a statement naming the block it sees at a checkpoint height. When enough eligible seats agree, this page marks that checkpoint certified. Validator seats do not produce or order blocks, and they cannot stop the signers.
+
+Seats
+FROM THE CHAIN
+TOTAL SEATS
+36
+ELIGIBLE NOW
+32
+CHECKPOINT INTERVAL
+200 blocksabout 23 min
+CERTIFICATION THRESHOLD
+≥ 20 of ≥ 30 eligibleor ⌈⅔ × eligible⌉ if higher
+Recent checkpoints
+Recent checkpoints
+HEIGHT	ATTESTATIONS	STATUS
+125,600	32 of 32 eligible	Certified
+125,400	32 of 32 eligible	Certified
+125,200	32 of 32 eligible	Certified
+125,000	32 of 32 eligible	Certified
+124,800	32 of 32 eligible	Certified
+124,600	22 of 22 eligible	Attested by 22
+124,400	22 of 22 eligible	Attested by 22
+124,200	22 of 22 eligible	Attested by 22
+124,000	22 of 22 eligible	Attested by 22
+123,800	22 of 22 eligible	Attested by 22
+123,600	22 of 22 eligible	Attested by 22
+123,400	6 of 6 eligible	Attested by 6
+123,200	6 of 6 eligible	Attested by 6
+123,000	6 of 6 eligible	Attested by 6
+122,800	6 of 6 eligible	Attested by 6
+Look up a seat
+Seat ID
+Open

@@ -2,18 +2,21 @@
 // ---------------------------------------------------------------------------
 // Ferminux DEX UI: end-to-end test on an anvil FORK of chain 3961.
 //
-// The live contracts, the live WFMX/AZNT pool and its live lock, with a USDF
-// market built on top at the official $0.52 (scripts/fork.mjs), driven through
-// THE APP'S OWN lib modules:
+// The live contracts and the live market (scripts/fork.mjs): WFMX/USDF and
+// WFMX/AZNT at the official $0.52, their LP locked, plus a thin fork-only
+// AZNT/USDF pool so the router has routes to weigh. Driven through THE APP'S
+// OWN lib modules:
 //
 //    routing   every path the local search enumerates is priced by the router
 //              too, and the quote always takes the router's best;
-//              FMX → USDF goes direct when small and through AZNT when large;
-//              three-pool routes (AZNT → FMX → USDF → SEED) execute
+//              AZNT → USDF goes through the thin direct pool when small and
+//              through FMX when large; three-pool routes
+//              (AZNT → FMX → USDF → SEED) execute
 //    settle    every swap delivers exactly the quoted amount
 //    LP        add at the pool ratio (LP minted as quoted), remove 50% with
 //              native FMX out, remove the rest
-//    locker    the live pool reads LOCKED, ~100% of LP, until 2027-08-20
+//    locker    both live pools read LOCKED, ~100% of LP: WFMX/AZNT by lock #0
+//              until 2027-08-20, WFMX/USDF by lock #1 until 2027-09-26
 //    market    Swap/Sync logs scanned from the factory's deploy block: the
 //              live trades and ours, volume, fees, APR, TVL at the $0.52 basis
 //    history   the trader's swaps, deposits, withdrawals, wraps and approvals
@@ -42,7 +45,7 @@ import { E18, baseTable, poolFmxUsdE18, poolValue, priceTable, valueUsdE18 } fro
 import { enumeratePaths, priceRoute, rankRoutes } from '../src/lib/route.ts';
 import { executeSwap, planSwap, quoteSwap, unwrapFmx, wrapFmx } from '../src/lib/swap.ts';
 import { MAX_UINT256, approveToken, fetchAllowance, fetchBalance } from '../src/lib/tokens.ts';
-import { AZNT, LIVE_AZNT_PAIR, USDF, chainNow, forkProvider, fundTrader, haveAnvil, confirmed, seedMarket, startFork } from './fork.mjs';
+import { AZNT, ERC20, LIVE_AZNT_PAIR, LIVE_LOCKS, LIVE_USDF_PAIR, USDF, chainNow, forkProvider, fundTrader, haveAnvil, confirmed, seedMarket, startFork } from './fork.mjs';
 
 const PORT = Number(process.env.DEX_TEST_PORT) || 8602;
 // anvil's first dev key: public, and on a fork it is just an empty account we fund.
@@ -74,17 +77,23 @@ async function main() {
     const head0 = await provider.getBlockNumber();
 
     // ---- the live deployment, as the fork sees it -------------------------------
-    const code = await Promise.all([A.factory, A.router, A.wfmx, A.locker, LIVE_AZNT_PAIR].map((a) => provider.getCode(a)));
-    assert.ok(code.every((c) => c.length > 2), 'factory, router, WFMX, locker and the live pool all have code on the fork');
-    const livePool = await loadPair(provider, LIVE_AZNT_PAIR, new TokenMetaCache(A.wfmx));
-    const lock = await loadLockSummary(provider, A, LIVE_AZNT_PAIR, livePool.totalSupply, await chainNow(provider));
-    assert.ok(lock.lockedNow > 0n, 'the live WFMX/AZNT pool must read LOCKED');
-    assert.ok(lock.lockedPpm >= 999_000n, `≥ 99.9% of its LP must be locked, got ${formatPpmPercent(lock.lockedPpm, 3)}`);
-    assert.ok(lock.earliestUnlock >= Date.UTC(2027, 7, 19) / 1000, 'and not before 2027-08-20');
-    ok(`live WFMX/AZNT pool: LOCKED ${formatPpmPercent(lock.lockedPpm, 3)} of LP until ${new Date(lock.earliestUnlock * 1000).toISOString().slice(0, 10)} (lock #${lock.active[0].id})`);
+    const code = await Promise.all([A.factory, A.router, A.wfmx, A.locker, LIVE_AZNT_PAIR, LIVE_USDF_PAIR].map((a) => provider.getCode(a)));
+    assert.ok(code.every((c) => c.length > 2), 'factory, router, WFMX, locker and the two live pools all have code on the fork');
+    const liveLocks = [];
+    for (const [pair, lockId, notBefore] of [[LIVE_AZNT_PAIR, LIVE_LOCKS[LIVE_AZNT_PAIR.toLowerCase()], Date.UTC(2027, 7, 19)], [LIVE_USDF_PAIR, LIVE_LOCKS[LIVE_USDF_PAIR.toLowerCase()], Date.UTC(2027, 8, 25)]]) {
+      const livePool = await loadPair(provider, pair, new TokenMetaCache(A.wfmx));
+      const lock = await loadLockSummary(provider, A, pair, livePool.totalSupply, await chainNow(provider));
+      const name = `WFMX/${livePool.token0.address.toLowerCase() === A.wfmx.toLowerCase() ? livePool.token1.symbol : livePool.token0.symbol}`;
+      assert.ok(lock.lockedNow > 0n, `the live ${name} pool must read LOCKED`);
+      assert.ok(lock.lockedPpm >= 999_000n, `≥ 99.9% of its LP must be locked, got ${formatPpmPercent(lock.lockedPpm, 3)}`);
+      assert.ok(lock.active.some((l) => l.id === lockId), `held by lock #${lockId}`);
+      assert.ok(lock.earliestUnlock >= notBefore / 1000, `and not before ${new Date(notBefore).toISOString().slice(0, 10)}`);
+      liveLocks.push(`${name} LOCKED ${formatPpmPercent(lock.lockedPpm, 3)} until ${new Date(lock.earliestUnlock * 1000).toISOString().slice(0, 10)} (lock #${lockId})`);
+    }
+    ok(`live pools: ${liveLocks.join('; ')}`);
 
-    // ---- the $0.52 market ----------------------------------------------------
-    const m = await seedMarket(provider);
+    // ---- the $0.52 market, and a thin AZNT/USDF pool for the router to weigh ----
+    const m = await seedMarket(provider, { routePool: { aznt: 1700, usdf: 1000 } });
     const { cache, fmx, usdf, aznt, treasury } = m;
     let pairs = await loadAllPairs(provider, A, cache);
     let index = buildPairIndex(pairs);
@@ -97,7 +106,7 @@ async function main() {
     assert.ok(near(usdfFmx, FMX_USD_E18, m.createdUsdfPool ? 1 : 500), `WFMX/USDF must price FMX at $0.52, got ${formatEther(usdfFmx)}`);
     assert.ok(near(azntFmx, FMX_USD_E18, 50), `WFMX/AZNT must price FMX at $0.52 after the rebalance, got ${formatEther(azntFmx)}`);
     ok(
-      `market at $0.52: WFMX/USDF ${m.createdUsdfPool ? 'created' : 'topped up'} at $${Number(formatEther(usdfFmx)).toFixed(4)}; WFMX/AZNT moved ${m.azntPerFmxBefore.toFixed(4)} → ${m.azntPerFmxAfter.toFixed(4)} AZNT/FMX ($${Number(formatEther(azntFmx)).toFixed(4)}); AZNT/USDF at 1.70`,
+      `market at $0.52: WFMX/USDF ${m.createdUsdfPool ? 'created' : 'live'} at $${Number(formatEther(usdfFmx)).toFixed(4)}; WFMX/AZNT ${m.rebalanced ? `moved ${m.azntPerFmxBefore.toFixed(4)} → ` : ''}${m.azntPerFmxAfter.toFixed(4)} AZNT/FMX ($${Number(formatEther(azntFmx)).toFixed(4)}); thin AZNT/USDF at 1.70 (fork only)`,
     );
 
     // TVL at the stated bases: FMX at the official price, the pegs as the gateway defines them.
@@ -112,6 +121,9 @@ async function main() {
     // ---- a trader --------------------------------------------------------------
     const trader = new Wallet(TRADER_KEY, provider);
     await fundTrader(provider, treasury, trader.address, '60000');
+    // USDF for the SEED pool and the deposits, AZNT for the AZNT → USDF routes.
+    await confirmed(new Contract(USDF, ERC20, treasury).transfer(trader.address, parseUnits('3000', 6)));
+    await confirmed(new Contract(AZNT, ERC20, m.ops).transfer(trader.address, parseUnits('20000', 6)));
     const opts = (extra = {}) => ({ slippageBps: 50, maxHops: 3, ...extra });
 
     // Every enumerated path, priced locally and by the router: equal to the wei.
@@ -142,30 +154,33 @@ async function main() {
     assert.ok(Number(formatUnits(got1, 6)) > 100 * 0.52 * 0.99, 'about $0.52 per FMX, less fee and impact');
     ok(`100 FMX → ${formatUnits(got1, 6)} USDF direct (${s.paths.length} paths priced, router-verified), impact ${formatPpmPercent(q1.priceImpactPpm)}`);
 
-    // Large FMX → USDF: find the size where the two-pool route through AZNT pays more, and take it.
+    // AZNT → USDF: a small trade takes the thin direct pool; find the size where the route through FMX pays more, and take it.
     pairs = await loadAllPairs(provider, A, cache);
     index = buildPairIndex(pairs);
+    const tiny = await checkAllPaths(aznt, usdf, parseUnits('1', 6));
+    assert.equal(tiny.best.path.length, 2, 'a small AZNT → USDF trade goes direct');
     let big = null;
-    for (const n of ['2000', '4000', '8000', '12000', '20000']) {
-      const amt = parseEther(n);
-      const { best } = await checkAllPaths(fmx, usdf, amt);
+    for (const n of ['20', '50', '200', '1000', '5000']) {
+      const amt = parseUnits(n, 6);
+      const { best } = await checkAllPaths(aznt, usdf, amt);
       if (best.path.length === 3) {
         big = amt;
         break;
       }
     }
-    assert.ok(big, 'at some size the route through AZNT must beat the direct pool');
-    const q2 = await quoteSwap(provider, A, index, fmx, usdf, big, opts());
+    assert.ok(big, 'at some size the route through FMX must beat the thin direct pool');
+    const q2 = await quoteSwap(provider, A, index, aznt, usdf, big, opts());
     assert.equal(q2.route.path.length, 3);
-    assert.equal(q2.route.path[1].toLowerCase(), AZNT.toLowerCase(), 'through AZNT');
-    assert.equal(planSwap(q2, 20).method, 'swapExactFMXForTokens');
+    assert.equal(q2.route.path[1].toLowerCase(), A.wfmx.toLowerCase(), 'through FMX');
+    assert.equal(planSwap(q2, 20).method, 'swapExactTokensForTokens');
     assert.ok(q2.alternatives.length >= 1 && q2.alternatives[0].amountOut < q2.amountOut, 'the direct route was re-priced by the router and lost');
     assert.equal(q2.totalFeeBps, 60);
+    await confirmed(approveToken(trader, aznt, A.router, big));
     const u1 = await fetchBalance(provider, usdf, trader.address);
     await confirmed(executeSwap(trader, A, q2, trader.address, 20, await chainNow(provider)));
     const got2 = (await fetchBalance(provider, usdf, trader.address)) - u1;
     assert.equal(got2, q2.amountOut);
-    ok(`${formatEther(big)} FMX → ${formatUnits(got2, 6)} USDF multi-hop FMX → AZNT → USDF (beat direct by ${formatUnits(q2.amountOut - q2.alternatives[0].amountOut, 6)} USDF)`);
+    ok(`${formatUnits(big, 6)} AZNT → ${formatUnits(got2, 6)} USDF multi-hop AZNT → FMX → USDF (beat the direct pool by ${formatUnits(q2.amountOut - q2.alternatives[0].amountOut, 6)} USDF)`);
 
     // A token only USDF pairs with: three-pool routes.
     const seedArt = JSON.parse(readFileSync(SEED_OUT, 'utf8'));
@@ -272,7 +287,8 @@ async function main() {
     assert.ok(liveTrades.length >= 8, `the live pool's history has at least its 8 swaps, read ${liveTrades.length}`);
     assert.ok(liveTrades.every((t) => t.time !== null && t.time > 1_780_000_000), 'with block timestamps');
     const mine = trades.filter((t) => t.block > head0);
-    assert.ok(mine.length >= 6, 'and every swap made on the fork');
+    const poolSwaps = [q1, q2, q3].reduce((n, q) => n + q.route.path.length - 1, m.rebalanced ? 1 : 0);
+    assert.equal(mine.length, poolSwaps, 'and every pool swap made on the fork, one per pool a route crossed');
     const usdfStats = poolStats(byAddr.get(m.usdfPair.toLowerCase()), trades, pricesNow, await chainNow(provider));
     const usdfTrades = trades.filter((t) => t.pair === m.usdfPair.toLowerCase() && t.block > head0);
     const expectVol = usdfTrades.reduce((acc, t) => acc + t.usdE18, 0n);
@@ -313,18 +329,41 @@ async function main() {
     const kinds = items.reduce((acc, it) => ((acc[it.kind] = (acc[it.kind] ?? 0) + 1), acc), {});
     const swaps = items.filter((i) => i.kind === 'swap');
     assert.ok(swaps.length >= 4, `the trader's swaps: ${swaps.length}`);
-    const multi = swaps.find((i) => i.amountIn === q2.amountIn);
+    const first = swaps.find((i) => i.amountIn === q1.amountIn && i.amountOut === q1.amountOut);
+    assert.ok(first, 'the 100 FMX swap is in the history');
+    assert.equal(first.tokenIn.symbol, 'FMX', 'native FMX in, recognised from the value sent');
+    const multi = swaps.find((i) => i.amountIn === q2.amountIn && i.amountOut === q2.amountOut);
     assert.ok(multi, 'the multi-hop swap is in the history');
-    assert.equal(multi.tokenIn.symbol, 'FMX', 'native FMX in, recognised from the value sent');
-    assert.equal(multi.amountOut, q2.amountOut);
-    assert.deepEqual(multi.route, ['FMX', 'AZNT', 'USDF']);
+    assert.equal(multi.tokenIn.symbol, 'AZNT');
+    assert.deepEqual(multi.route, ['AZNT', 'WFMX', 'USDF'], 'the tokens the pools held, hop by hop');
     assert.ok((kinds.add ?? 0) >= 2 && (kinds.remove ?? 0) >= 2, 'deposits and withdrawals');
     const nativeRemove = items.find((i) => i.kind === 'remove' && i.native);
     assert.ok(nativeRemove, 'the removal paid out in native FMX is marked so');
     assert.ok((kinds.wrap ?? 0) === 1 && (kinds.unwrap ?? 0) === 1, 'the wrap and the unwrap');
     assert.ok((kinds.approve ?? 0) >= 4, 'the approvals to the router');
     assert.ok(items.every((i) => i.time !== null), 'every item dated');
-    ok(`history: ${items.length} items (${Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(', ')}); the multi-hop swap reads FMX → AZNT → USDF`);
+    ok(`history: ${items.length} items (${Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(', ')}); the multi-hop swap reads AZNT → WFMX → USDF`);
+  } catch (err) {
+    // Any transaction that reverted on the fork, with the call tree the trace gives.
+    if (provider) {
+      const head = await provider.getBlockNumber().catch(() => 0);
+      for (let b = head; b > head - 6 && b > 0; b--) {
+        const block = await provider.getBlock(b).catch(() => null);
+        for (const h of block?.transactions ?? []) {
+          const r = await provider.getTransactionReceipt(h).catch(() => null);
+          if (r && r.status === 0) {
+            const trace = await provider.send('debug_traceTransaction', [h, { tracer: 'callTracer' }]).catch((e) => ({ error: String(e) }));
+            const walk = (c, d = 0) => {
+              console.error(`${'  '.repeat(d)}${c.type ?? ''} ${c.to ?? ''} ${String(c.input ?? '').slice(0, 10)} gas ${c.gasUsed ?? ''} ${c.error ?? ''} ${c.revertReason ?? ''}`);
+              for (const x of c.calls ?? []) walk(x, d + 1);
+            };
+            console.error(`reverted ${h}:`);
+            walk(trace);
+          }
+        }
+      }
+    }
+    throw err;
   } finally {
     provider?.destroy();
     await fork.stop();

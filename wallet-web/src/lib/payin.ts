@@ -22,9 +22,10 @@
 //   • A quote is valid for 15 minutes; the wallet refuses to sign one with less
 //     than PAYIN_MIN_LEFT_S left, so a transfer cannot land after it expired.
 
-import { Interface, getAddress } from 'ethers';
-import { FOREIGN_CHAINS, type ChainDef } from './chains.ts';
-import { encodeTokenTransfer } from './tokens.ts';
+import { Interface, getAddress, type JsonRpcProvider } from 'ethers';
+import { FERMINUX_CHAIN, FOREIGN_CHAINS, type ChainDef } from './chains.ts';
+import { encodeTokenTransfer, fetchTokenBalance } from './tokens.ts';
+import { estimateMaxFee, feePolicyFor, type FeeBudget } from './tx.ts';
 import { formatAmount, formatAmountExact } from './validate.ts';
 
 const E18 = 10n ** 18n;
@@ -248,8 +249,11 @@ export function estimateStableFmx(units: bigint, decimals: number, assets: Payin
 
 /**
  * Whether this account can pay `amount` of the coin plus the network fee, from
- * balances read on that network. `maxFeeWei` is the prepared transaction's
- * worst case; before a transaction exists, pass 0n to test the amount alone.
+ * balances read on that network. `maxFeeWei` is the transfer's worst case
+ * (payinFeeBudget before a quote, the prepared transaction's after); pass 0n
+ * to test the amount alone. `l1FeeUnknown` (Base, Optimism: the L1 data fee
+ * oracle did not answer) is a problem in itself: `maxFeeWei` then leaves that
+ * fee out, and a budget missing part of the fee is never taken as covered.
  */
 export function payinFundsProblem(p: {
   coin: Pick<PayinCoin, 'kind' | 'symbol' | 'decimals'>;
@@ -262,20 +266,94 @@ export function payinFundsProblem(p: {
 }): string | null {
   const nat = p.chain.native;
   const n = (v: bigint) => formatAmount(v, nat.decimals, 8);
+  // a fee and a balance a few wei apart (an L1 data fee of a fraction of a gwei) read the same at 8
+  // decimals, which would say "needs 0.00007594, has 0.00007594": then both are written out in full
+  const pair = (need: bigint, have: bigint): [string, string] =>
+    n(need) === n(have) ? [formatAmountExact(need, nat.decimals), formatAmountExact(have, nat.decimals)] : [n(need), n(have)];
+  const l1Unknown = `The ${p.chain.name} L1 data fee could not be read, so this wallet cannot tell whether the ${nat.symbol} this account holds on ${p.chain.name} covers the network fee. Try again in a moment.`;
   if (p.coin.kind === 'native') {
-    if (p.nativeBalance === null) return null;
+    if (p.nativeBalance === null) return p.l1FeeUnknown ? l1Unknown : null;
     if (p.nativeBalance < p.amount) return `This account has ${formatAmount(p.nativeBalance, nat.decimals, 8)} ${nat.symbol} on ${p.chain.name}; this purchase needs ${formatAmountExact(p.amount, nat.decimals)} ${nat.symbol}.`;
-    if (p.nativeBalance < p.amount + p.maxFeeWei) return `${formatAmountExact(p.amount, nat.decimals)} ${nat.symbol} plus the network fee (up to ${n(p.maxFeeWei)} ${nat.symbol}) is more than the ${n(p.nativeBalance)} ${nat.symbol} this account holds on ${p.chain.name}. Buy for a little less.`;
-    return null;
+    if (p.nativeBalance < p.amount + p.maxFeeWei) {
+      const exact = n(p.amount + p.maxFeeWei) === n(p.nativeBalance);
+      const fee = exact ? formatAmountExact(p.maxFeeWei, nat.decimals) : n(p.maxFeeWei);
+      const has = exact ? formatAmountExact(p.nativeBalance, nat.decimals) : n(p.nativeBalance);
+      return `${formatAmountExact(p.amount, nat.decimals)} ${nat.symbol} plus the network fee (up to ${fee} ${nat.symbol}) is more than the ${has} ${nat.symbol} this account holds on ${p.chain.name}. Buy for a little less.`;
+    }
+    return p.l1FeeUnknown ? l1Unknown : null;
   }
   if (p.tokenBalance !== null && p.tokenBalance < p.amount) {
     return `This account has ${formatAmount(p.tokenBalance, p.coin.decimals, 6)} ${p.coin.symbol} on ${p.chain.name}; this purchase needs ${formatAmountExact(p.amount, p.coin.decimals)} ${p.coin.symbol}.`;
   }
   if (p.nativeBalance !== null) {
     if (p.nativeBalance === 0n) return `This account has no ${nat.symbol} on ${p.chain.name}, so it cannot pay the network fee there. Fees on ${p.chain.name} are paid in ${nat.symbol}.`;
-    if (p.nativeBalance < p.maxFeeWei) return `Not enough ${nat.symbol} on ${p.chain.name} for the network fee: this transfer needs up to ${n(p.maxFeeWei)} ${nat.symbol}, the account has ${n(p.nativeBalance)} ${nat.symbol}.`;
+    if (p.nativeBalance < p.maxFeeWei) {
+      const [need, has] = pair(p.maxFeeWei, p.nativeBalance);
+      return `Not enough ${nat.symbol} on ${p.chain.name} for the network fee: this transfer needs up to ${need} ${nat.symbol}, the account has ${has} ${nat.symbol}.`;
+    }
   }
-  return null;
+  return p.l1FeeUnknown ? l1Unknown : null;
+}
+
+type FeeProvider = Pick<JsonRpcProvider, 'getBlock' | 'send' | 'estimateGas' | 'call'>;
+
+/**
+ * The worst-case network fee of the transfer that pays `amount` of `coin` into
+ * the pay-in's deposit address from `from`, before a quote exists. It is the
+ * exact call Review will prepare (payinCall: transfer(deposit, amount) on the
+ * token, or `amount` of the native coin to the deposit), sized by the network
+ * itself (eth_estimateGas) and priced by tx.ts estimateMaxFee — the same fee
+ * read, gas headroom and L1 data fee as every send in this wallet. So on
+ * Arbitrum the gas includes the L1 component the node folds into its
+ * estimate, and on Base and Optimism the L1 data fee is added (or flagged as
+ * unreadable, never taken as zero). The quote's exact amount differs from
+ * `amount` by a few units of dust, which leaves the fee where it is; Review
+ * prices the quoted transfer again anyway.
+ *
+ * Throws when the fee cannot be read or the transfer would revert: the caller
+ * asks for no quote then.
+ */
+export async function payinFeeBudget(
+  provider: FeeProvider,
+  p: { coin: Pick<PayinCoin, 'chain' | 'kind' | 'address'>; from: string; depositAddress: string; amount: bigint },
+): Promise<FeeBudget> {
+  const call = payinCall({ kind: p.coin.kind, token: p.coin.address, depositAddress: p.depositAddress, sendExactly: p.amount });
+  return estimateMaxFee(
+    provider,
+    p.coin.chain.id,
+    { from: getAddress(p.from), to: call.to, valueWei: call.value, data: call.data },
+    feePolicyFor(p.coin.chain, FERMINUX_CHAIN.id),
+  );
+}
+
+export interface PayinFundsCheck {
+  native: bigint;
+  token: bigint | null;
+  /** Null when the amount alone was already short (nothing to estimate). */
+  budget: FeeBudget | null;
+  problem: string | null;
+}
+
+/**
+ * Before asking for a quote: balances read on the coin's network, the amount
+ * checked first, then the transfer's worst-case fee (payinFeeBudget). A
+ * balance or fee that cannot be read throws — fail safe: no quote is asked
+ * for on a guess.
+ */
+export async function checkPayinFunds(
+  provider: FeeProvider & Pick<JsonRpcProvider, 'getBalance'>,
+  p: { coin: PayinCoin; from: string; depositAddress: string; amount: bigint },
+): Promise<PayinFundsCheck> {
+  const { coin } = p;
+  const [native, token] = await Promise.all([
+    provider.getBalance(p.from),
+    coin.kind === 'erc20' && coin.address ? fetchTokenBalance(provider as JsonRpcProvider, coin.address, p.from) : Promise.resolve(null),
+  ]);
+  const funds = { coin, chain: coin.chain, amount: p.amount, tokenBalance: token, nativeBalance: native };
+  const short = payinFundsProblem({ ...funds, maxFeeWei: 0n });
+  if (short) return { native, token, budget: null, problem: short };
+  const budget = await payinFeeBudget(provider, p);
+  return { native, token, budget, problem: payinFundsProblem({ ...funds, maxFeeWei: budget.maxFeeWei, l1FeeUnknown: budget.l1FeeUnknown === true }) };
 }
 
 /* ------------------------------------------------------------------ */

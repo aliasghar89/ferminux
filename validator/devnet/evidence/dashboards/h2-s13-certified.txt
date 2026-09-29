@@ -1,0 +1,127 @@
+Ferminux Validator
+devnet · chain 39619
+Attester 0x22d883…199c
+Hub 0x7cee96…3254
+Attesting
+Last included checkpoint: 125,400.
+NODE
+Latest block
+125,653
+Block age
+1 s
+Peers
+14
+Sync
+in sync
+Process
+external node
+SEAT
+Seat
+#36
+State
+active
+Deposit
+2,000 FMX
+Active from block
+38,406
+Counts for certification
+yes
+Owner
+0x4fd2…8031
+REWARDS
+Expected per day
+about 1.54 FMX
+Per checkpoint
+0.025 FMX
+Claimable
+10.925 FMX
+Reward pool
+19,635 FMX
+Seats taken
+32 / 100
+Attested, last 24 h
+62 / 62
+Attested, last 7 days
+432 / 432
+NEXT CHECKPOINT
+Height
+125,600
+Signing opens at block
+125,664
+In about
+77 s
+Gas balance
+0.963 FMX
+CHECKPOINTS
+Height	State	Block hash	Transaction	Included in	Detail
+125,400	included	0xe4a2b121…07cc	0x280beb8e…e52a	125,467	
+125,200	included	0x4f7ed40a…653b	0x1c33f999…8d74	125,267	
+125,000	included	0xe459ad4a…f893	0xc2014b5b…05cf	125,067	
+124,800	included	0xb40a60b9…ab3e	0xbab9ee17…132c	124,867	
+124,600	included	0x305f8594…0211	0x6e71bfde…d05e	124,667	
+124,400	included	0x0c6169c9…38c9	0x3b475ec7…8fea	124,467	
+124,200	included	0x0246da09…e2e6	0xaee6ce5a…a3e2	124,267	
+124,000	included	0xc7e6820c…6b8a	0xf90d121b…97d0	124,067	
+123,800	included	0xbeff2bea…9afd	0x21d18548…6a0b	123,867	
+123,600	included	0xea50f787…7a4b	0x7a7b3c09…648b	123,667	
+123,400	included	0x1d5491c8…df55	0x8d4ebc77…d86a	123,467	
+123,200	included	0x4ca02321…c518	0x4d94d2c2…c790	123,267	
+123,000	included	0xa53a4f39…0364	0xfdb5f65f…cba6	123,067	
+122,800	included	0xa34224b6…3063	0x5f927c94…7097	122,867	
+122,600	included	0xeb2aef57…3c4f	0xa2d5df70…d1ae	122,667	
+122,400	included	0xe870eb5e…8fda	0xe752ec0d…51b2	122,467	
+122,200	included	0xc4970e94…a3d3	0x8bc8a341…cdf9	122,267	
+122,000	included	0x11549e32…9b07	0xa645c7f4…6f32	122,067	
+121,800	included	0xd2908901…3a07	0x1a7ceb4e…ac0b	121,867	
+121,600	included	0xe95ff820…34d8	0xbe6831e6…9ba2	121,667	
+121,400	included	0xea118aeb…d2af	0x6293b523…c7e9	121,467	
+121,200	included	0x7d8faf85…0122	0x94f6a029…743c	121,267	
+121,000	included	0x03aeb632…114f	0xa611477a…ab7c	121,067	
+120,800	included	0x0a06c913…d0ed	0xe5a55a6c…e753	120,867	
+120,600	included	0xe2b12a71…49f3	0xded53c8d…45a5	120,667	
+120,400	included	0xd4310313…4e09	0xd2b2fcf3…7a21	120,467	
+120,200	included	0x7fe5c796…a566	0x4554605e…fee6	120,267	
+120,000	included	0xe068f353…15ef	0x251c10d8…d021	120,067	
+119,800	included	0x004512c3…0c49	0x9fa4010d…7625	119,867	
+119,600	included	0x75cf7897…3271	0x05ff97bd…f837	119,667	
+119,400	included	0xcf464ad3…cdc2	0x35d9afed…3b83	119,467	
+119,200	included	0x2e944c0c…5202	0x7e6dbe3d…51c6	119,267	
+119,000	included	0x34bfe330…6cb5	0x879d0385…59f9	119,067	
+118,800	included	0xc78bd062…1b5d	0x9561f080…4aa0	118,867	
+118,600	included	0x80eea3ad…b609	0x0c5b62eb…a254	118,667	
+118,400	included	0xe2427d9c…54ea	0x86e0952f…f4da	118,467	
+118,200	included	0x12f1e79a…e687	0xc5277191…fb9d	118,267	
+118,000	included	0x78891227…d510	0x8107c42b…ebe9	118,067	
+117,800	included	0xa065270a…1cb7	0x24221ebf…291c	117,867	
+117,600	included	0xd3eedd50…3f9c	0xc7d010d0…f946	117,667	
+117,400	included	0x955a9612…80c9	0x10ce94ec…6387	117,467	
+117,200	included	0x5cb63ebf…e142	0xcff5e331…cc22	117,267	
+117,000	included	0x3c593c0c…aae1	0xdd30b68e…9542	117,067	
+116,800	included	0xdef89002…6773	0x0d9fa20b…4f15	116,867	
+116,600	included	0x65b7b32e…aa07	0x84f67070…9b5b	116,667	
+116,400	included	0xe52f7f03…d14a	0x29e60960…ac08	116,467	
+116,200	included	0x55655661…15c6	0x95e3e61f…c536	116,267	
+116,000	included	0x2f6673dd…0c78	0x9c338639…3f1a	116,067	
+115,800	included	0x18a7fb8a…c334	0x348b2b5d…0509	115,867	
+115,600	included	0xc3a962f7…8627	0x611b6b9f…fa90	115,667	
+115,400	included	0x409ecd41…518b	0x3a662f8a…6649	115,467	
+115,200	included	0xc2504045…0976	0x4e4e2cb9…b3b1	115,267	
+115,000	included	0x4823276c…6269	0x6a4b5150…d8e0	115,067	
+114,800	included	0xfebadcd2…9ff5	0xd40bb4a9…6933	114,867	
+114,600	included	0x053fd960…3e26	0xfd639b2f…994c	114,667	
+114,400	included	0xd7243376…4d37	0x8911cae4…ec2a	114,467	
+114,200	included	0xc853a95e…1763	0x976aee84…37c0	114,267	
+114,000	included	0x0bd4e7a7…67c6	0xc8461261…1bcc	114,067	
+113,800	included	0xbd6def74…3386	0x4c27bdeb…b42e	113,867	
+113,600	included	0xdbf47d26…7540	0x6483171f…a313	113,667	
+113,400	included	0x73fcf671…f285	0x3dd0653f…c9cc	113,467	
+113,200	included	0x8ed876dd…c431	0xfdb9df45…cacb	113,267	
+113,000	included	0xb54d42c5…1981	0xb7cced26…82e9	113,067	
+112,800	included	0x54ec2ce9…a556	0xefe668f4…30c1	112,867	
+112,600	included	0xe9560055…23d3	0x1445eb3c…8173	112,667	
+112,400	included	0x051fe881…f087	0x70f067dd…c475	112,467	
+112,200	included	0x5a529895…426e	–	–	already on-chain
+
+Ferminux uses proof-of-authority consensus. This validator node keeps its own copy of the chain, checks every block and signs a statement naming the block it sees at each checkpoint. It does not produce or order blocks.
+
+This page is served only to this computer and cannot change anything. fmx-validator pre-module-rename-157-gc3a277b

@@ -71,7 +71,7 @@
           <li><strong>Tip at least 1 gwei.</strong> A transaction with a smaller tip still gets a hash back, then stays pending for good. <code>eth_maxPriorityFeePerGas</code> answers 1 gwei, so ethers, Hardhat and viem pick it up. <code>eth_feeHistory</code> reports zero tips, so Foundry tips 1 wei unless you pass <code>--gas-price 2gwei --priority-gas-price 1gwei</code>.</li>
           <li><strong>Use block numbers, not <code>finalized</code> or <code>safe</code>.</strong> Both tags return null here. No block can be reorganised more than 64 blocks deep, so a block 64 behind the head is final.</li>
           <li><strong>Recent state only, and no tracing.</strong> The public RPC is a full node: reading state more than about 128 blocks back fails with <code>missing trie node</code>, and <code>debug_trace*</code> and <code>eth_getBlockReceipts</code> are not served. Index from <code>eth_getLogs</code>.</li>
-          <li><strong>No shared singleton contracts yet.</strong> Multicall3, the CREATE2 deployer at <code>0x4e59b44847b379578588920cA78FbF26c0B4956C</code>, Permit2, Safe and the 4337 EntryPoint are not deployed on chain 3961. Deploy with plain <code>CREATE</code>, and leave <code>multicall3</code> out of your chain definition.</li>
+          <li><strong>The standard shared contracts are deployed.</strong> Multicall3 at <code>0xcA11bde05977b3631167028862bE2a173976CA11</code> (block 418,841), the CREATE2 deployer at <code>0x4e59b44847b379578588920cA78FbF26c0B4956C</code>, Permit2, the Safe 1.3.0 set and the 4337 EntryPoints v0.6 and v0.7 sit at their standard addresses on chain 3961, so batched reads and salted deploys work unchanged. Put <code>multicall3</code> in your chain definition. Safe's SDK looks its addresses up by chain id and does not list chain 3961 yet: pass the Safe 1.3.0 addresses to it yourself (protocol-kit: <code>contractNetworks</code>).</li>
           <li><strong><code>block.prevrandao</code> is not random.</strong> It returns the Clique difficulty, 1 or 2. Never use it as a source of randomness.</li>
         </ol>
       </section>
@@ -165,7 +165,10 @@ npx hardhat verify --network ferminux &lt;address&gt;</pre></div>
   blockExplorers: {
     default: { name: <span class="s">"Ferminux Explorer"</span>, url: <span class="s">"https://explorer.ferminux.net"</span>, apiUrl: <span class="s">"https://explorer.ferminux.net/api"</span> },
   },
-  <span class="c">// the signers' floor; no contracts.multicall3: it is not deployed on chain 3961</span>
+  contracts: {
+    multicall3: { address: <span class="s">"0xcA11bde05977b3631167028862bE2a173976CA11"</span>, blockCreated: 418_841 },
+  },
+  <span class="c">// the signers' floor</span>
   fees: { maxPriorityFeePerGas: 1_000_000_000n },
 });
 

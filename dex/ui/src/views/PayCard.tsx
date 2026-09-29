@@ -23,7 +23,6 @@ import {
   allInPriceE18,
   applyStatus,
   balanceOf,
-  balanceShortfall,
   checkPayAmount,
   clearSending,
   confirmOpenQuote,
@@ -33,12 +32,14 @@ import {
   isFinished,
   markSending,
   markSent,
+  maxFeeTx,
   maxSpendable,
   maybeSent,
   newTrack,
   payAsset,
   payChain,
-  readPayBalances,
+  payPrecheck,
+  readPayFee,
   recentUnits,
   requestPayQuote,
   sameAddress,
@@ -230,9 +231,10 @@ export function PayCard({
     try {
       setSendStep('switch');
       await ensurePayChain(provider, chain, { onStep: (s) => setSendStep(s) });
+      // This account's balances there and the fee for exactly this transfer, read now (lib/payin.ts, payPrecheck):
+      // on Base and Optimism that includes the L1 data fee, on Arbitrum its larger gas. A read that fails stops here.
       setSendStep('balance');
-      const b = await readPayBalances(chain, t0.quote.from).catch(() => null);
-      const short = balanceShortfall(t0.quote, b);
+      const short = await payPrecheck(t0.quote);
       if (short) throw new PayWalletError(short, true);
       // The wallet dialogs take time, and this page's copy of the quote may be one a reload brought back or
       // another tab or device has since replaced. So the pay-in is asked, now: the network must still be
@@ -305,9 +307,28 @@ export function PayCard({
   else if (quoting) action = { label: 'Getting a quote', disabled: true };
   else action = { label: 'Get quote', onClick: () => void getQuote(units, recipient), disabled: false };
 
-  const setMax = () => {
-    const m = maxSpendable(asset, bal);
-    if (m !== null) setAmountText(formatUnits(m, asset.decimals).replace(/\.0$/, ''));
+  // "Max" on a network's own coin leaves two fee budgets for a transfer of it, priced on that network now.
+  const [maxing, setMaxing] = useState(false);
+  const setMax = async () => {
+    const fill = (m: bigint) => setAmountText(formatUnits(m, asset.decimals).replace(/\.0$/, ''));
+    if (asset.kind === 'erc20') {
+      const m = maxSpendable(asset, bal);
+      if (m !== null) fill(m);
+      return;
+    }
+    const has = balanceOf(bal, asset);
+    const tx = has !== undefined && wallet.address ? maxFeeTx(asset, wallet.address, has) : null;
+    if (!tx) return;
+    setMaxing(true);
+    setQuoteError(null);
+    try {
+      const fee = await readPayFee(chain, tx);
+      const m = maxSpendable(asset, bal, fee);
+      if (m !== null) fill(m);
+      else setQuoteError(`Could not read the ${chain.name} network fee just now, and Max leaves room for it. Enter an amount, or try Max again.`);
+    } finally {
+      setMaxing(false);
+    }
   };
 
   const fmxToken = nativeToken(DEX_ADDRESSES.wfmx);
@@ -396,7 +417,7 @@ export function PayCard({
                   {balance !== undefined ? payAmount(balance, asset, 4) : bal ? '—' : '…'}
                 </span>
                 {balance !== undefined && balance > 0n && (
-                  <button type="button" className="max-btn" onClick={setMax}>
+                  <button type="button" className="max-btn" onClick={() => void setMax()} disabled={maxing}>
                     Max
                   </button>
                 )}

@@ -18,6 +18,7 @@ Pages (each a Vite HTML entry):
 | `/network/`   | `network/index.html`, `network.ts`  | Who hired whom: inline-SVG bipartite overview plus a per-counterparty table with the transactions behind every edge; searchable, filterable by capability |
 | `/trade/`     | `trade/index.html`, `trade.ts`      | Where FMX trades: the Ferminux DEX pool first (live price, depth, what a $100 / $1,000 / $10,000 buy gets, LP lock), PancakeSwap's wFMX pool on BNB Chain second with why it exists and the bridge's state. `GET /api/payin/market`, falling back to the pool's reserves over the RPC; no PancakeSwap swap link |
 | `/faucet/`    | `faucet/index.html`, `faucet.ts`    | Gas for a new key: POSTs `/api/faucet`, checks balance and nonce on the RPC first, solves the anti-abuse puzzle when advertised, maps every refusal code to a sentence; limits read live from `GET /api/faucet` |
+| `/bridge/`    | `bridge/index.html`, `bridge.ts`    | The bridge to BNB Smart Chain is paused: what that means (no transfers either way; do not send FMX or wFMX to the bridge contracts), what exists (wFMX, the PancakeSwap pool, collateral read live on both chains), the plan (bridge v2) and what works today. Live state from `GET /api/payin/market` → `secondary.bridgePaused` |
 | `/developers/`| `developers/index.html`, `developers.ts` | Deploy quickstart: network facts (live head, gas limit, base fee, signer count), what differs from a default setup, Foundry / Hardhat / viem / ethers snippets with copy buttons, the Blockscout verify command, every address with its live bytecode size |
 
 `src/cv.ts` is the data layer for both. It prefers `GET /api/cv/:agent`, `/api/cv/:agent/credential.json`,
@@ -71,6 +72,8 @@ rsync -av dist/ <user>@<web-host>:<site-root>/
 
 The record pages `consensus.html`, `security.html` and `fork.html` are part of this build (since
 2026-09-24; they used to be hand-copied from `site/`), and so is `404.html`. The build never emits
-`install.sh`, `bridge/` or `downloads/`, so those existing files survive. nginx must serve `/api/`
+`install.sh` or `downloads/`, so those existing files survive. It does emit `bridge/index.html` (since
+2026-09-29, the paused-bridge page), which replaces the old bridge app shell there; the relayer's
+`bridge/status.json` and the old app's `bridge/assets/` are not in the build and survive. nginx must serve `/api/`
 from the gateway (lane B) and fall back to the directory `index.html` for `/agents/`, `/register/`,
 `/jobs/`, `/docs/`; unknown paths should get `error_page 404 /404.html` rather than the homepage.

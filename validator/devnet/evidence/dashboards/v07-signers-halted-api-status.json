@@ -1,0 +1,651 @@
+{
+  "version": "pre-module-rename-155-g6a6b7be",
+  "network": "devnet",
+  "chainId": 39619,
+  "hub": "0x7cee961a2c903ce8a17f690ae966e30e4d973254",
+  "attester": "0xca103c68a99e8c3781a4a46d832b4bdb734f9f97",
+  "started": "2026-09-27T05:01:33.871346686Z",
+  "sync": {
+    "ready": false,
+    "reasons": [
+      "latest block is 1m42s old (limit 1m0s)"
+    ],
+    "chainId": 39619,
+    "head": 125900,
+    "headHash": "0xf9e2a577590f3c8c0e1393752a65dbd648f11e180a49eb617f30513207a05834",
+    "headAgeSeconds": 102.208471003,
+    "peers": 11,
+    "syncing": false,
+    "checked": "2026-09-27T08:48:52.208471003Z"
+  },
+  "seat": {
+    "id": 7,
+    "status": 2,
+    "statusText": "active",
+    "owner": "0x3ceef9714fcd9f067b9640bcc73cb0684b4ec592",
+    "attester": "0xca103c68a99e8c3781a4a46d832b4bdb734f9f97",
+    "pendingAttester": "0x0000000000000000000000000000000000000000",
+    "claimableWei": 13700000000000000000,
+    "depositWei": 2000000000000000000000,
+    "lastAttestedHeight": 125800,
+    "activationBlock": 13476,
+    "countedSince": 100066,
+    "jailed": false,
+    "slashState": 0
+  },
+  "attestationsPaused": false,
+  "watchCheckpointsLeft": 0,
+  "nextCheckpoint": 126000,
+  "nextOpensAt": 126064,
+  "attestations": [
+    {
+      "height": 125800,
+      "blockHash": "0xc57eec8fa538fc7eea73ab972ee06be8afbd20b0054e48db5d36531a17c82060",
+      "state": "included",
+      "tx": "0x6deb31872706a1a8b95dd3cf7c11f8c05d7e9f488fd7f0458869675d8c5b3ea4",
+      "includedIn": 125866,
+      "updated": "2026-09-27T08:46:36.211643056Z"
+    },
+    {
+      "height": 125600,
+      "blockHash": "0xdd075fdcf6121249ed12108bbe3d0f1c4e16fba73f3231ee1a84a552f724a7d3",
+      "state": "included",
+      "tx": "0x1ab02fbb69790c90ab249e25fd177db31be3d1f87f67da80981ea182ca5ef208",
+      "includedIn": 125666,
+      "updated": "2026-09-27T08:43:16.210280479Z"
+    },
+    {
+      "height": 125400,
+      "blockHash": "0xe4a2b12131ba5375e3faab672d8df17ad708f04dda47ce94cc25e692245507cc",
+      "state": "included",
+      "tx": "0x4a5a241ce866230f32d2adaf03374239a589e7c7c87bb10803bbc551f7bcb9a7",
+      "includedIn": 125466,
+      "updated": "2026-09-27T08:39:56.206981176Z"
+    },
+    {
+      "height": 125200,
+      "blockHash": "0x4f7ed40ac36821dd18e0df9fdd7d365db3121cffcde2189c9785001fc7ac653b",
+      "state": "included",
+      "tx": "0xd64b666fd4315bb5f32ba7df7455ae64ed7b8c6e2d8fa2ca8dd36e5a5dc14d63",
+      "includedIn": 125266,
+      "updated": "2026-09-27T08:36:36.212070749Z"
+    },
+    {
+      "height": 125000,
+      "blockHash": "0xe459ad4a774169e3236f0e2a45ac5522e3adb9da55160b14552c66c6a157f893",
+      "state": "included",
+      "tx": "0x0dca8095302ad73969ffd4e2fd6c7e60b6a31b67c3cc2907a73d7775f45cd861",
+      "includedIn": 125066,
+      "updated": "2026-09-27T08:33:16.206237872Z"
+    },
+    {
+      "height": 124800,
+      "blockHash": "0xb40a60b97e4c86c26089eba36460bf5c6fbaeebefda8b5a7018d7905d90bab3e",
+      "state": "included",
+      "tx": "0x12c68c4e9bc4fd1659293403dfee097aea80fe509148a457254eed2cf4b1ff5e",
+      "includedIn": 124866,
+      "updated": "2026-09-27T08:29:56.21208852Z"
+    },
+    {
+      "height": 124600,
+      "blockHash": "0x305f859461b8ff4179829100b58ee338a34e51a18755c03ed3501630da100211",
+      "state": "included",
+      "tx": "0x11034a273ed9ae4622d7f7d749c161139a019fe0f6617b8ccb61b94ead1b73a1",
+      "includedIn": 124666,
+      "updated": "2026-09-27T08:26:36.208118044Z"
+    },
+    {
+      "height": 124400,
+      "blockHash": "0x0c6169c9f647a24dc9726d2e624b4110a53df0ce60bf8d6e4167660e172a38c9",
+      "state": "included",
+      "tx": "0x37fa7ea78ac1b8945d6cfb307b84d4731b536ae5bc4e15b9528fd4ed3d18d26a",
+      "includedIn": 124466,
+      "updated": "2026-09-27T08:23:16.207238317Z"
+    },
+    {
+      "height": 124200,
+      "blockHash": "0x0246da095f7a444bf2cbc2494de7401437df2dc77e330c98d0c475a3b136e2e6",
+      "state": "included",
+      "tx": "0x1a8b8087efefe6e96e5285f20994ac1765565445faaf452c661c8a47759730f5",
+      "includedIn": 124266,
+      "updated": "2026-09-27T08:19:56.207685517Z"
+    },
+    {
+      "height": 124000,
+      "blockHash": "0xc7e6820c0b4becf477242f37c32d16f20d24da74289c24640287be2ab1b16b8a",
+      "state": "included",
+      "tx": "0xaee534aa4508fe4b9978eeae68923f241a5755a5907dc61e2fbcf69b4e236e62",
+      "includedIn": 124066,
+      "updated": "2026-09-27T08:16:38.211231155Z"
+    },
+    {
+      "height": 123800,
+      "blockHash": "0xbeff2bea8513dc91b71599caebeed342b0965b3f2b9ef27cad6d8592a7899afd",
+      "state": "included",
+      "tx": "0x84f82444e2c4578f97adb36d66d1002d6e1f109217b319363cbc73fb351adb3c",
+      "includedIn": 123866,
+      "updated": "2026-09-27T08:13:16.20897694Z"
+    },
+    {
+      "height": 123600,
+      "blockHash": "0xea50f787073f67beb17384f5edffa98aa6cd68281ca72c556af1240566cc7a4b",
+      "state": "included",
+      "tx": "0x1be4ef3f09989e353f8e8f7ec2813173edcecde17979e47c5ae1b66400c252ac",
+      "includedIn": 123666,
+      "updated": "2026-09-27T08:09:56.211948974Z"
+    },
+    {
+      "height": 123400,
+      "blockHash": "0x1d5491c8d56b39d147bdb47b48ed1f8dd547138e99fe62994d6dba228226df55",
+      "state": "included",
+      "tx": "0x8c5a65b8b3defb531cdf57e1e7830d74784e5ea12b58d8b468134638704a382e",
+      "includedIn": 123466,
+      "updated": "2026-09-27T08:06:36.210948861Z"
+    },
+    {
+      "height": 123200,
+      "blockHash": "0x4ca02321e067bf8d93be0201892c715158fb75428b2c93a62c972ae9c688c518",
+      "state": "included",
+      "tx": "0x4c384d56c3b7c62810da2dc6440428a214322101a5167f98a30dee88d97b6adb",
+      "includedIn": 123266,
+      "updated": "2026-09-27T08:03:16.207290124Z"
+    },
+    {
+      "height": 123000,
+      "blockHash": "0xa53a4f39e33c5447f9535228959f35d1b42e0b29beb822628dd280c3fba10364",
+      "state": "included",
+      "tx": "0xe8f20ef592d8635362c55044a950a51960e53e69b5550ecf199296547f36e46f",
+      "includedIn": 123066,
+      "updated": "2026-09-27T07:59:56.206992655Z"
+    },
+    {
+      "height": 122800,
+      "blockHash": "0xa34224b621214e80de00b7bb15e862d207ca7559eaa461e6f246793efaf03063",
+      "state": "included",
+      "tx": "0xc1e239474d2ac2f91c5225fca46c23ee6c86518f8ab01297b1b52578db2d18d6",
+      "includedIn": 122866,
+      "updated": "2026-09-27T07:56:36.210846935Z"
+    },
+    {
+      "height": 122600,
+      "blockHash": "0xeb2aef57cbfacfbc4a87f5854495c40a4d04d69edf516fabba821563b7973c4f",
+      "state": "included",
+      "tx": "0x0c740646cf16f86809564e03c7a57db7d4065f2af1b1a36b8e5f99b0579e903f",
+      "includedIn": 122666,
+      "updated": "2026-09-27T07:53:16.207404233Z"
+    },
+    {
+      "height": 122400,
+      "blockHash": "0xe870eb5e69b9c6c8c455235a2324a98c3e50c94fb61662c2206cbf0bd0d98fda",
+      "state": "included",
+      "tx": "0xed9a7a750486c355d52f2b25748abd08c0f5957fb511da85f84a5e733d374c24",
+      "includedIn": 122466,
+      "updated": "2026-09-27T07:49:56.215833872Z"
+    },
+    {
+      "height": 122200,
+      "blockHash": "0xc4970e94d4cc7ce7a7e08c2f12779775fdddf551b65e9f446275be29e255a3d3",
+      "state": "included",
+      "tx": "0x8b731487612d81be028f200b2529b3eb2fc03e77faf6d2b46d9c0aac01bfd9fc",
+      "includedIn": 122266,
+      "updated": "2026-09-27T07:46:36.20733626Z"
+    },
+    {
+      "height": 122000,
+      "blockHash": "0x11549e3214d8a6cc9ae16489ad0a88b407722043e79fe3ff5b2d71c9c0bc9b07",
+      "state": "included",
+      "tx": "0x975b803f6434b447ec3a99b8958096d3bbe9d552b969ecfbc194a9921baea3fc",
+      "includedIn": 122066,
+      "updated": "2026-09-27T07:43:16.208991905Z"
+    },
+    {
+      "height": 121800,
+      "blockHash": "0xd2908901eee91ad8e630006580a343dbca01022d6a292d1d7f8fe3d6eed83a07",
+      "state": "included",
+      "tx": "0x8a272447eee4494d79be802900417f50ff982d6cfde872897e1dc3b87fa4e9c5",
+      "includedIn": 121866,
+      "updated": "2026-09-27T07:39:56.208175171Z"
+    },
+    {
+      "height": 121600,
+      "blockHash": "0xe95ff8201168c2ed76fc390acbf74517f5f1a09f309774ebf1d0f46c73f234d8",
+      "state": "included",
+      "tx": "0xc81d462c8e6cd514f229d5e6830b6d78e5c41b46d96c5a27f97fcefe237dbc12",
+      "includedIn": 121666,
+      "updated": "2026-09-27T07:36:36.209017721Z"
+    },
+    {
+      "height": 121400,
+      "blockHash": "0xea118aebbc768c2f62264a53752858e68f856a2c959426a852b7d0d43f85d2af",
+      "state": "included",
+      "tx": "0x7a79176fff0d4cee4103d6008e9c306f762f0c1da2aba61efc2e2b12fd91dffa",
+      "includedIn": 121466,
+      "updated": "2026-09-27T07:33:16.207802168Z"
+    },
+    {
+      "height": 121200,
+      "blockHash": "0x7d8faf859391ec3582fde431558a2fc2f7b1d9424ac3ee2a4c7978686d010122",
+      "state": "included",
+      "tx": "0x8463bbd5a32dde32188fbc7ccd01f5ad570f32c1db2b5423679fd58d2ffa7599",
+      "includedIn": 121266,
+      "updated": "2026-09-27T07:29:56.212351712Z"
+    },
+    {
+      "height": 121000,
+      "blockHash": "0x03aeb632ff8b124b91a113db91d4f859ae01b8b258131a6c5177c2a17110114f",
+      "state": "included",
+      "tx": "0x1a1c4b60ab47ccf10757e16025a18edaba80bf8d48ecb0f21954468eeca27fe9",
+      "includedIn": 121066,
+      "updated": "2026-09-27T07:26:36.210658964Z"
+    },
+    {
+      "height": 120800,
+      "blockHash": "0x0a06c9138607589d30e831544b171c67ba00f13e7d0c37de9aec74c05555d0ed",
+      "state": "included",
+      "tx": "0x008a0906fe1aa23726f80bab49d7003985ef56b697a9548d905a158e47940d57",
+      "includedIn": 120866,
+      "updated": "2026-09-27T07:23:16.207801523Z"
+    },
+    {
+      "height": 120600,
+      "blockHash": "0xe2b12a71546298f0d10bc89b5e683a698bf77730eede09def44e6a0c098a49f3",
+      "state": "included",
+      "tx": "0xb7c4321929f3f937007c3384fe0f15e7304cc59b37b4d88d60477a8b80cae689",
+      "includedIn": 120666,
+      "updated": "2026-09-27T07:19:56.208352384Z"
+    },
+    {
+      "height": 120400,
+      "blockHash": "0xd4310313aaa8716cac1ce398f4a803fde7618fc3f031b26dc6d132d1ea364e09",
+      "state": "included",
+      "tx": "0x82bde468ec46b92441fdc524980a2f04a5a57115644157508039fe706e607fd7",
+      "includedIn": 120466,
+      "updated": "2026-09-27T07:16:36.208406774Z"
+    },
+    {
+      "height": 120200,
+      "blockHash": "0x7fe5c79606fd0fe222cd5927670d14017ed3b429596eacc67a65fa90278fa566",
+      "state": "included",
+      "tx": "0x63b68b8b167e9c2a94c4dd03b161a97c2257940b4c60bb435ca92f0f919a42f4",
+      "includedIn": 120266,
+      "updated": "2026-09-27T07:13:18.210276734Z"
+    },
+    {
+      "height": 120000,
+      "blockHash": "0xe068f353313d4d5ed593b713ef833c6669d2bd240b57d689ce514887bf0d15ef",
+      "state": "included",
+      "tx": "0x953ee388436420c3748ca81015b8110c8a2d88507b5c2579cc89469a9951afc3",
+      "includedIn": 120066,
+      "updated": "2026-09-27T07:09:56.215919304Z"
+    },
+    {
+      "height": 119800,
+      "blockHash": "0x004512c3f3c5c9433c6d0c2d7a8af26599e4ece9aa666acf0c22d7fb79340c49",
+      "state": "included",
+      "tx": "0x345d75908cefdb1ff5f3a4174cba59b61d037c16386b08889300f71ed74d3ec5",
+      "includedIn": 119866,
+      "updated": "2026-09-27T07:06:36.212284101Z"
+    },
+    {
+      "height": 119600,
+      "blockHash": "0x75cf7897a735afc181d86837626f9484f2e0566e06b67aa3320d9cf359a33271",
+      "state": "included",
+      "tx": "0x1f81a37bac97946120575b8ce2da88374edde5202016c8c61c55d1ad13dcf315",
+      "includedIn": 119666,
+      "updated": "2026-09-27T07:03:16.210257135Z"
+    },
+    {
+      "height": 119400,
+      "blockHash": "0xcf464ad3f3056202202d359196732e3f4a0c3d520217b16dd30681e7259acdc2",
+      "state": "included",
+      "tx": "0x5db83bd49b48be75eb2acb040971741128c7fa7cfa8c5e5e3cf1c32e32982a37",
+      "includedIn": 119466,
+      "updated": "2026-09-27T06:59:56.210630455Z"
+    },
+    {
+      "height": 119200,
+      "blockHash": "0x2e944c0cc913607bbc4229e47d98bbca525942a10adaf51294fa09db72745202",
+      "state": "included",
+      "tx": "0x6939fe3388b4fb63205982bf691380fdb15400582a93b517ad270c6a7a9d6e88",
+      "includedIn": 119266,
+      "updated": "2026-09-27T06:56:36.212338733Z"
+    },
+    {
+      "height": 119000,
+      "blockHash": "0x34bfe330d54106ef106fbbcb2cfd206ce6492c274f98a88fd342ab8d72196cb5",
+      "state": "included",
+      "tx": "0x7f1fe37bbb656438805f4f2efdf58bc72876587de7e3911189135f119f0a8ca0",
+      "includedIn": 119066,
+      "updated": "2026-09-27T06:53:16.20771136Z"
+    },
+    {
+      "height": 118800,
+      "blockHash": "0xc78bd06280b5ae1ed16d5ff8917d1a6b75be8ec8d0a295c54bc7943d74cc1b5d",
+      "state": "included",
+      "tx": "0xf4e5e7d7b71527e744fc516c68ea35d6573e6efe399d923eaddeff15923c3aba",
+      "includedIn": 118866,
+      "updated": "2026-09-27T06:49:56.207129779Z"
+    },
+    {
+      "height": 118600,
+      "blockHash": "0x80eea3ad5969f2018e289ac5fc9df4601e597c6eb7f0317edec91f4205d8b609",
+      "state": "included",
+      "tx": "0x30abd77c3a872e64652c4bbe1d9652de8a76129537a3432242929cd84366c265",
+      "includedIn": 118666,
+      "updated": "2026-09-27T06:46:36.20982836Z"
+    },
+    {
+      "height": 118400,
+      "blockHash": "0xe2427d9ced271447f0d35dfa9f9706d2a4649da5b8c6371f6119c4ed590954ea",
+      "state": "included",
+      "tx": "0x0e0146c46266af49bbcc9cedf17c05e84208e93a4bd1e420941eef234995c04c",
+      "includedIn": 118466,
+      "updated": "2026-09-27T06:43:16.208901982Z"
+    },
+    {
+      "height": 118200,
+      "blockHash": "0x12f1e79a4abdb8b254d1c2f890e84486ec76e34e051fda3378acc30907f5e687",
+      "state": "included",
+      "tx": "0xfbe3e235945dc514f202e2ed2d3ac93132f7fb3e45bdd645b52da060f8cd0d59",
+      "includedIn": 118266,
+      "updated": "2026-09-27T06:39:56.210223087Z"
+    },
+    {
+      "height": 118000,
+      "blockHash": "0x78891227baa35a3620e934bd0190b191f22b166713b5b4d2dfdf26535696d510",
+      "state": "included",
+      "tx": "0x69a5d26491e34de4f6b2d173f8bb3246bda620d4e680ad0931cc7fc5c8b196ce",
+      "includedIn": 118066,
+      "updated": "2026-09-27T06:36:36.210930332Z"
+    },
+    {
+      "height": 117800,
+      "blockHash": "0xa065270a0efc41b6b210df0b5f6ead6a53f0e41fce3df24efbf45590be991cb7",
+      "state": "included",
+      "tx": "0x2435a202ec011e3f0b3c9d9d5764ddc4228fceb9843b26f5f575383da2f125cd",
+      "includedIn": 117866,
+      "updated": "2026-09-27T06:33:16.206697702Z"
+    },
+    {
+      "height": 117600,
+      "blockHash": "0xd3eedd50beb6d7d9fed96bb1fc79a1ef971deb37dbc70184c31af3f261803f9c",
+      "state": "included",
+      "tx": "0xc23129bae6ee9d831afabb758335cc1813c347c3199e1369981fd8ba611256cb",
+      "includedIn": 117666,
+      "updated": "2026-09-27T06:29:56.208108675Z"
+    },
+    {
+      "height": 117400,
+      "blockHash": "0x955a961248b98081e2d96e0930c32366c67030250042c659d8c13108f61e80c9",
+      "state": "included",
+      "tx": "0x8d483c063be429a4c1f69b521e21cb892069d446a04dcf18a49998c0c402df3f",
+      "includedIn": 117466,
+      "updated": "2026-09-27T06:26:36.210623464Z"
+    },
+    {
+      "height": 117200,
+      "blockHash": "0x5cb63ebff89442615bc8386800500e660fc5359b85ec3060e3245cf67ef3e142",
+      "state": "included",
+      "tx": "0x2a7ebc233e0294f9ff26419f6b5b0abc0a430161ad1bdd7cee6dbb9a15feb431",
+      "includedIn": 117266,
+      "updated": "2026-09-27T06:23:16.208660333Z"
+    },
+    {
+      "height": 117000,
+      "blockHash": "0x3c593c0c6d11ab8264ae26e8b2eb8404bab91ed0d96cc057ed429dceda39aae1",
+      "state": "included",
+      "tx": "0x245a60de0a3388f01c452ed0a8f5c8ba51ccdf506b3fe2ba57ce1cefac6e2f0f",
+      "includedIn": 117066,
+      "updated": "2026-09-27T06:19:56.214456893Z"
+    },
+    {
+      "height": 116800,
+      "blockHash": "0xdef89002222f72eb8cf64f421fb14311fe9a7a3056533db7a27670b1efb36773",
+      "state": "included",
+      "tx": "0x82e2581bd054dc7140718dca7b64a51ab21a871068b3fb29a7111362a29dbdff",
+      "includedIn": 116866,
+      "updated": "2026-09-27T06:16:36.207457554Z"
+    },
+    {
+      "height": 116600,
+      "blockHash": "0x65b7b32e54d7846bc63b2a5e7e09bec0e6e8be40db57c472e2b47815e71aaa07",
+      "state": "included",
+      "tx": "0xa5a12bb46f5902d9da087601fa1ac8d3e560f444c619783ac09d5880b04c7f5d",
+      "includedIn": 116666,
+      "updated": "2026-09-27T06:13:16.210599551Z"
+    },
+    {
+      "height": 116400,
+      "blockHash": "0xe52f7f0389ffde56809383833b401a974bb8ae3c5f0d636c1823a1438552d14a",
+      "state": "included",
+      "tx": "0x121457ee87bb6c0acfcc7caf2473c0031ce9998ede8de3881a1d04b33df6da96",
+      "includedIn": 116466,
+      "updated": "2026-09-27T06:09:56.211001272Z"
+    },
+    {
+      "height": 116200,
+      "blockHash": "0x55655661a2758b1dbfdf4873fe3d924ede4161e9200fc32b7fb542d65f3215c6",
+      "state": "included",
+      "tx": "0x861ed64701e40c0bbd9c194f93624f1046352ae07665030cea0d31bf8d2e872c",
+      "includedIn": 116266,
+      "updated": "2026-09-27T06:06:36.211002813Z"
+    },
+    {
+      "height": 116000,
+      "blockHash": "0x2f6673dd17152138f714a04d40d596502566fcf166e1e86122cd9d61ca300c78",
+      "state": "included",
+      "tx": "0x2d3412e0e4bb30a2a4c3a4977471e7ea34471cc4c51118eb29abc5a1a3dad92c",
+      "includedIn": 116066,
+      "updated": "2026-09-27T06:03:16.207715263Z"
+    },
+    {
+      "height": 115800,
+      "blockHash": "0x18a7fb8add6e1c019c46088e228082cd225018a82328ce3e37fd2d988572c334",
+      "state": "included",
+      "tx": "0xfd591b526627b3c076f1a3ee3088900f5875044a7f02d67c7855939f2ebbdee9",
+      "includedIn": 115866,
+      "updated": "2026-09-27T05:59:56.206866767Z"
+    },
+    {
+      "height": 115600,
+      "blockHash": "0xc3a962f72be04a31fe81c50324feec6ead1c44b00de87e11cf50ca594f858627",
+      "state": "included",
+      "tx": "0x5c8c50bec18e46a2117fb3df8c096c357ea516506d64202a779da44d4d4577fc",
+      "includedIn": 115666,
+      "updated": "2026-09-27T05:56:36.207193918Z"
+    },
+    {
+      "height": 115400,
+      "blockHash": "0x409ecd41e296c8888f95a8fa283cdf15eeba0526dbc9c19d90d40d478fd4518b",
+      "state": "included",
+      "tx": "0x2df5fce7cb4099eed5a07ec4d4a07d58b0950c7f71afc2735003b3066d718621",
+      "includedIn": 115466,
+      "updated": "2026-09-27T05:53:16.211476412Z"
+    },
+    {
+      "height": 115200,
+      "blockHash": "0xc25040451e0eb7f8bf17d5348c02755ba12995916c425e66250912d1c79e0976",
+      "state": "included",
+      "tx": "0x585349f6aa38206ae521af2d9c77a73b7f228d9e97d3f7e29abcd3fe9a4853fe",
+      "includedIn": 115266,
+      "updated": "2026-09-27T05:49:56.20736628Z"
+    },
+    {
+      "height": 115000,
+      "blockHash": "0x4823276c143c356eee01b646996304646b2864f0c07ca2d1d09a47b0aaf96269",
+      "state": "included",
+      "tx": "0x9ce17a98646f5a956b312a912f000b917acea4a6f88507018048e78d384cb07b",
+      "includedIn": 115066,
+      "updated": "2026-09-27T05:46:36.208304485Z"
+    },
+    {
+      "height": 114800,
+      "blockHash": "0xfebadcd23ee336cd0ae00aaa1b201fe5a668a2b06d32c6b7c951d43a5c7e9ff5",
+      "state": "included",
+      "tx": "0xeb38bc04d84963294b0d7489dc6a94077497f9d398951c09466b80ecbe265adc",
+      "includedIn": 114866,
+      "updated": "2026-09-27T05:43:16.209990121Z"
+    },
+    {
+      "height": 114600,
+      "blockHash": "0x053fd9605d1775f1ec01c2a5766c5b0c382fc5c92d0ead6adfd53b0b4ed53e26",
+      "state": "included",
+      "tx": "0x7f86a2d8c5ca0f93413e958a05f8e59567ccc74cb4699b8df56a3ec885505ed4",
+      "includedIn": 114666,
+      "updated": "2026-09-27T05:39:56.205973959Z"
+    },
+    {
+      "height": 114400,
+      "blockHash": "0xd7243376462234e23315ad404c66d9764af16dcac8e194ca47ea4a5570164d37",
+      "state": "included",
+      "tx": "0xd4c46b0485e1c763c4a7829051502b6bed843a06227dc9f18a23acc72b4e6b90",
+      "includedIn": 114466,
+      "updated": "2026-09-27T05:36:36.207400195Z"
+    },
+    {
+      "height": 114200,
+      "blockHash": "0xc853a95ed66ceb46cd75898235b9e5d0ae1cbbda6c46ecbe5656fbbc973e1763",
+      "state": "included",
+      "tx": "0x554e9db7b4b80c26c49fa994d8adea418f6c8de8fb77757c0b6a308f735cf9cd",
+      "includedIn": 114266,
+      "updated": "2026-09-27T05:33:16.206551609Z"
+    },
+    {
+      "height": 114000,
+      "blockHash": "0x0bd4e7a70e7b85cc9a66e748b0d38aa45b06d2f70cdbbb0eb182516b569467c6",
+      "state": "included",
+      "tx": "0xb80096641bed631d4b1543b07f8affc4be227f3c076a30e96c3fe9bdb2114a6b",
+      "includedIn": 114066,
+      "updated": "2026-09-27T05:29:56.20677199Z"
+    },
+    {
+      "height": 113800,
+      "blockHash": "0xbd6def74ac43e3207060c04fe06c04fd77eb179d0bd5fa85c7fa844949753386",
+      "state": "included",
+      "tx": "0x99c1aadab25509390157fd42137a8f4f7bdc8c21799a24246caf8e800c2bb19b",
+      "includedIn": 113866,
+      "updated": "2026-09-27T05:26:36.209348675Z"
+    },
+    {
+      "height": 113600,
+      "blockHash": "0xdbf47d26345deeb0be0c81f3c15c8596a8d6446c76c9fc08b5c032a8fea87540",
+      "state": "included",
+      "tx": "0x7294208d77c60ecbbc7a8a8e5be46845d15e497d40854ce0aaea88a2bab88cff",
+      "includedIn": 113666,
+      "updated": "2026-09-27T05:23:16.209252709Z"
+    },
+    {
+      "height": 113400,
+      "blockHash": "0x73fcf671067b9718ece8044293b0a36f3203be9b233fb0687ea386434498f285",
+      "state": "included",
+      "tx": "0xc728d0637adedca625e0b40cc0c748f33d2c45ead79eb8ffaf25515a67e04286",
+      "includedIn": 113466,
+      "updated": "2026-09-27T05:19:56.207298604Z"
+    },
+    {
+      "height": 113200,
+      "blockHash": "0x8ed876ddc664d526b9d13ac2116643fb41b5ff45cdf9de4fa8d181659a58c431",
+      "state": "included",
+      "tx": "0xf30283885c8e98ca394e46f627454c998c0c253e1ccef79acb5338e650fdb625",
+      "includedIn": 113266,
+      "updated": "2026-09-27T05:16:36.208057268Z"
+    },
+    {
+      "height": 113000,
+      "blockHash": "0xb54d42c5c93b0d2f2243d4479e98fe58d8686af654bec82c460e9da037d21981",
+      "state": "included",
+      "tx": "0x0001479d74449f643c4dceac5193ee10680e21463263c0ec240ba530d9359819",
+      "includedIn": 113066,
+      "updated": "2026-09-27T05:13:16.208720512Z"
+    },
+    {
+      "height": 112800,
+      "blockHash": "0x54ec2ce92498afd4dbaaee971275616d28727a3fe8cd82d0c4a26b17fd21a556",
+      "state": "included",
+      "tx": "0x4efc07b12936a23acf76fb81e8c0b89eb8218cbb534875e0c0b3f2b3cf62296b",
+      "includedIn": 112866,
+      "updated": "2026-09-27T05:09:56.206731116Z"
+    },
+    {
+      "height": 112600,
+      "blockHash": "0xe9560055448499686067e632f2334e6a16692e1952738802c19b7ef3a49423d3",
+      "state": "included",
+      "tx": "0x8266908679b24bf6fc4c0b0a78931d5f55069b54e7e52bcd587baf97e7079d3d",
+      "includedIn": 112666,
+      "updated": "2026-09-27T05:06:36.208192925Z"
+    },
+    {
+      "height": 112400,
+      "blockHash": "0x051fe881c75e25c38198160958e09e29dc9d711640b72790ff97cdcd7022f087",
+      "state": "included",
+      "tx": "0x26b85e2050f2f9def29dded811dc79ed9f0ab3e87420636f504d2d537f253709",
+      "includedIn": 112466,
+      "updated": "2026-09-27T05:03:16.206985148Z"
+    },
+    {
+      "height": 112200,
+      "blockHash": "0x5a529895c9d9210d13c1d8daaa7e454e8f1e7bd77a3bf66a50726dd96563426e",
+      "state": "included",
+      "reason": "already on-chain",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-27T05:01:38.208171515Z"
+    },
+    {
+      "height": 112000,
+      "blockHash": "0xf26bcda06ef74c0eed9e6940923e0a2e4979aafdbd7c415f64626db61477b848",
+      "state": "included",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-27T05:01:36.20739195Z"
+    },
+    {
+      "height": 111800,
+      "blockHash": "0xbdf6b5dda7ab8146396b5823090e65ceae3ab9c526b78353e1a5754ac0a14e70",
+      "state": "included",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-27T05:01:36.207827208Z"
+    },
+    {
+      "height": 108600,
+      "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "missed",
+      "reason": "node not ready: node is still syncing; latest block is 1h3m6s old (limit 1m0s)",
+      "tx": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "updated": "2026-09-27T05:01:36.206693213Z"
+    }
+  ],
+  "rewards": {
+    "rewardPerAttestWei": 25000000000000000,
+    "expectedPerDayWei": 1542857142857142857,
+    "rewardPoolWei": 19632985000000000000000,
+    "poolEmpty": false,
+    "occupiedSeats": 32,
+    "eligibleSeats": 32,
+    "maxSeats": 100,
+    "claimableWei": 13700000000000000000
+  },
+  "gas": {
+    "balanceWei": 977510325667572282,
+    "low": false
+  },
+  "node": {
+    "supervised": true,
+    "running": true,
+    "pid": 16,
+    "restarts": 0,
+    "since": "2026-09-27T05:01:33.873441884Z"
+  },
+  "participation24h": {
+    "window": 62,
+    "included": 62
+  },
+  "participation7d": {
+    "window": 432,
+    "included": 432
+  },
+  "phase": {
+    "state": "not-ready",
+    "tone": "wait",
+    "title": "Not signing: the node is not ready",
+    "detail": "Latest block is 1m42s old (limit 1m0s)."
+  }
+}

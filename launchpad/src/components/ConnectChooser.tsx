@@ -4,6 +4,7 @@
 
 import { useEffect } from "react";
 import type { WalletChoice } from "../../../shared/fxwallet/connector.ts";
+import { IconClose } from "./icons.tsx";
 
 function ChoiceIcon({ choice }: { choice: WalletChoice }) {
   if (choice.icon) return <img className="wallet-choice-icon" src={choice.icon} alt="" width={28} height={28} />;
@@ -32,7 +33,12 @@ export default function ConnectChooser({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // The page behind the sheet does not scroll while it is open.
+    document.documentElement.classList.add("modal-open");
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.documentElement.classList.remove("modal-open");
+    };
   }, [onClose]);
 
   return (
@@ -44,9 +50,9 @@ export default function ConnectChooser({
     >
       <div className="lp-dialog" role="dialog" aria-modal="true" aria-labelledby="lp-connect-title">
         <div className="lp-dialog-head">
-          <h3 id="lp-connect-title">Connect a wallet</h3>
-          <button className="subtle" onClick={onClose}>
-            Close
+          <h2 id="lp-connect-title">Connect a wallet</h2>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <IconClose />
           </button>
         </div>
         <ul className="wallet-choices" data-testid="wallet-choices">
@@ -77,7 +83,7 @@ export default function ConnectChooser({
           </p>
         )}
         {error && (
-          <div className="notice error" role="alert" style={{ marginTop: 12 }}>
+          <div className="notice notice-warn" role="alert">
             {error}
           </div>
         )}

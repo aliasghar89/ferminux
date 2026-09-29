@@ -49,10 +49,32 @@ export async function connectWallet(eth: Eip1193Provider | undefined = injected(
   if (!eth) throw new Error('No wallet connected.');
   const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as string[];
   if (!accounts?.length) throw new Error('The wallet returned no accounts.');
-  const provider = new BrowserProvider(eth as never);
+  const provider = withGasHeadroom(new BrowserProvider(eth as never));
   const network = await provider.getNetwork();
   const signer = await provider.getSigner();
   return { provider, signer, address: await signer.getAddress(), chainId: Number(network.chainId) };
+}
+
+/** How much gas every transaction from this page carries over the node's estimate, in percent. */
+export const GAS_HEADROOM_PCT = 25n;
+
+/**
+ * Every transaction this page sends asks for a quarter more gas than the node
+ * estimates. A node estimates on its latest block, and a pool that already
+ * traded in that block's second skips its price-accumulator writes in the
+ * estimate but makes them when the transaction lands in a later block (about
+ * 10,000 gas per pool on the route). With the limit set to the bare estimate,
+ * and wallets that keep the page's limit, the transaction then runs out of
+ * gas inside the pair: it reverts and the fee is spent. Unused gas is not
+ * charged, so the headroom costs nothing when it is not needed.
+ */
+export function withGasHeadroom<P extends { estimateGas(tx: never): Promise<bigint> }>(provider: P): P {
+  const estimate = provider.estimateGas.bind(provider) as (tx: never) => Promise<bigint>;
+  provider.estimateGas = (async (tx: never) => {
+    const gas = await estimate(tx);
+    return gas + (gas * GAS_HEADROOM_PCT) / 100n;
+  }) as P['estimateGas'];
+  return provider;
 }
 
 /**

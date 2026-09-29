@@ -47,10 +47,15 @@ import type { Page } from '../state/useRoute.ts';
 import { TokenPicker } from './TokenPicker.tsx';
 import { PAY_CHAINS, isFinished, type PayChainKey, type PaySelection } from '../lib/payin.ts';
 import { usePayAssets, usePayBalances, usePayTracks, type PayTracksState } from '../state/usePayin.ts';
-import { PayCard, PayPurchases } from './PayCard.tsx';
 import { SettingsModal } from './SettingsModal.tsx';
-import { FmxPriceCard } from './ChartsView.tsx';
 import { MarketsList } from './MarketsList.tsx';
+import { LazyPart, lazyNamed, loadCharts, loadPayCard } from '../components/Lazy.tsx';
+
+// Loaded on demand: the pay-in card (only in "Buy FMX with <coin>" mode, and the purchases list only when
+// there are purchases) and the FMX price chart beside the card, so the swap card itself draws first.
+const PayCard = lazyNamed(loadPayCard, 'PayCard');
+const PayPurchases = lazyNamed(loadPayCard, 'PayPurchases');
+const FmxPriceCard = lazyNamed(loadCharts, 'FmxPriceCard');
 
 function usdText(prices: PriceTable, token: TokenInfo | null, amount: bigint): string | null {
   if (!token || amount <= 0n) return null;
@@ -85,18 +90,22 @@ export function SwapView(props: {
         <div className="swap-main">
           <SwapCard {...props} pay={pay} setPay={setPay} payTracks={payTracks} />
           {PAYIN_ENABLED && payTracks.tracks.length > 0 && (
-            <PayPurchases
-              tracks={payTracks}
-              onOpen={(t) => {
-                payTracks.setActive(t.quote.quoteId);
-                setPay({ chain: t.quote.chain, asset: t.quote.asset });
-                if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
-              }}
-            />
+            <LazyPart what="purchases list">
+              <PayPurchases
+                tracks={payTracks}
+                onOpen={(t) => {
+                  payTracks.setActive(t.quote.quoteId);
+                  setPay({ chain: t.quote.chain, asset: t.quote.asset });
+                  if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+                }}
+              />
+            </LazyPart>
           )}
         </div>
         <div className="swap-side">
-          <FmxPriceCard market={props.market} pools={props.pools} compact />
+          <LazyPart what="FMX price chart" height={288}>
+            <FmxPriceCard market={props.market} pools={props.pools} compact />
+          </LazyPart>
           <MarketsList pools={props.pools} market={props.market} navigate={props.navigate} />
         </div>
       </div>
@@ -429,14 +438,16 @@ function SwapCard({
   if (PAYIN_ENABLED && pay) {
     return (
       <>
-        <PayCard
-          selection={pay}
-          wallet={wallet}
-          tracks={payTracks}
-          assets={payAssets}
-          onPickToken={() => setPicking('in')}
-          onExit={() => setPay(null)}
-        />
+        <LazyPart what="pay-in card" height={420}>
+          <PayCard
+            selection={pay}
+            wallet={wallet}
+            tracks={payTracks}
+            assets={payAssets}
+            onPickToken={() => setPicking('in')}
+            onExit={() => setPay(null)}
+          />
+        </LazyPart>
         {picker}
       </>
     );

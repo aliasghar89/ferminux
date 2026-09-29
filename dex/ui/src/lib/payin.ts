@@ -25,7 +25,7 @@
 // unit tests drive every function here without a browser.
 // ---------------------------------------------------------------------------
 
-import { Interface, formatUnits, getAddress } from 'ethers';
+import { Interface, Transaction, formatUnits, getAddress } from 'ethers';
 import { CHAIN_RPC_URLS } from '../../../../shared/fxwallet/chains.ts';
 import { PAYIN_DEPOSIT_ADDRESS } from '../config.ts';
 
@@ -59,7 +59,22 @@ export interface PayChain {
   assets: PayAsset[];
   /** Public read endpoints, in order (shared/fxwallet/chains.ts). */
   rpcUrls: readonly string[];
+  /** How the network charges for a transaction (see PayFeeModel). */
+  feeModel: PayFeeModel;
 }
+
+/**
+ * How a paying network charges for the transfer:
+ *   'l1'        gas used × gas price. Ethereum, BNB Smart Chain, Polygon, Avalanche.
+ *   'op-stack'  the same on the L2, PLUS an L1 data fee for the transaction's
+ *               bytes and the operator fee (Isthmus), neither of which
+ *               eth_estimateGas includes. Base, Optimism.
+ *   'arbitrum'  gas × price, where eth_estimateGas already counts the L1 part
+ *               as extra gas (its calldata cost over the L2 base fee), so a
+ *               transfer there estimates above the 21k / ~60k it uses elsewhere.
+ */
+export type PayFeeModel = 'l1' | 'op-stack' | 'arbitrum';
+const FEE_MODEL: Partial<Record<PayChainKey, PayFeeModel>> = { base: 'op-stack', optimism: 'op-stack', arbitrum: 'arbitrum' };
 
 export interface PaySelection {
   chain: PayChainKey;
@@ -99,6 +114,7 @@ function chain(
     native: { symbol: nativeSym, name: nativeName, decimals: 18 },
     assets: [stable('USDT', usdt[0], usdt[1]), stable('USDC', usdc[0], usdc[1]), nativeAsset(nativeSym, nativeName)],
     rpcUrls: CHAIN_RPC_URLS[chainId] ?? [],
+    feeModel: FEE_MODEL[key] ?? 'l1',
   };
 }
 
@@ -518,20 +534,11 @@ export function buildPayTx(q: PayQuote): PayTx {
   };
 }
 
-/** Gas each kind of transfer is budgeted, with room: a coin send, and a token transfer (USDT on Ethereum is the costliest, ~63k). */
-export const PAY_GAS_LIMIT = { native: 21_000n, erc20: 90_000n } as const;
-
-/** The fee a transfer may cost at `gasPrice`, with a quarter on top for a price that moves while the wallet is open. */
-export function gasReserve(kind: 'erc20' | 'native', gasPrice: bigint): bigint {
-  return (PAY_GAS_LIMIT[kind] * gasPrice * 5n) / 4n;
-}
-
 export interface PayBalances {
   /** The network's own coin, in wei; null when it could not be read. */
   native: bigint | null;
   /** Token balances by symbol; null when unread. */
   tokens: Partial<Record<PayAssetSymbol, bigint | null>>;
-  gasPrice: bigint | null;
   at: number;
 }
 
@@ -542,40 +549,192 @@ export function balanceOf(b: PayBalances | null | undefined, asset: PayAsset): b
   return v === null || v === undefined ? undefined : v;
 }
 
+// ---------------------------------------------------------------------------
+// The network fee for one transfer, read from the paying network
+// ---------------------------------------------------------------------------
+
+/** The OP Stack's GasPriceOracle predeploy (same address on Base and Optimism). */
+export const OP_GAS_PRICE_ORACLE = '0x420000000000000000000000000000000000000F';
+const GAS_PRICE_ORACLE = new Interface([
+  'function getL1Fee(bytes _data) view returns (uint256)',
+  // Isthmus and later (Base and Optimism both run it): a fee per unit of gas plus a constant, set by the
+  // chain operator and charged beside the L2 gas and the L1 data fee. 0 on both today (read 2026-09-27),
+  // but it is part of what the node checks the balance against, so it is read, not assumed.
+  'function getOperatorFee(uint256 _gasUsed) view returns (uint256)',
+]);
+
 /**
- * Why this wallet cannot make the payment, or null when it can (or when the
- * balances could not be read, in which case the wallet itself is the judge).
+ * The nonce written into the unsigned transaction the L1 fee is priced on: the
+ * account's real nonce is never larger, so its bytes are never more.
  */
-export function balanceShortfall(q: Pick<PayQuote, 'kind' | 'asset' | 'sendExactly' | 'decimals' | 'chain'>, b: PayBalances | null): string | null {
+const NONCE_BOUND = 0xffffff;
+
+export interface PayFee {
+  model: PayFeeModel;
+  /** eth_estimateGas for exactly this transfer, from the paying account. */
+  gas: bigint;
+  /** eth_gasPrice on the paying network. */
+  gasPrice: bigint;
+  /** The OP Stack's L1 data fee for this transfer (GasPriceOracle.getL1Fee); 0 on the other models. */
+  l1Fee: bigint;
+  /** The OP Stack's operator fee at the budgeted gas limit (GasPriceOracle.getOperatorFee); 0 on the other models. */
+  operatorFee: bigint;
+  /** What the checks set aside, headroom included (feeBudget). */
+  budget: bigint;
+}
+
+export type PayFeeRead = { ok: true; fee: PayFee } | { ok: false; error: string };
+
+/** ceil(v × num / den) */
+const mulCeil = (v: bigint, num: bigint, den: bigint) => (v * num + den - 1n) / den;
+
+/**
+ * The fee set aside for a transfer: the gas estimate plus a fifth (a wallet
+ * adds its own margin to the limit), at the gas price plus a quarter (it can
+ * move while the wallet is open), plus twice the L1 data fee (it follows L1's
+ * fee market, which moves faster than the L2's), plus the operator fee, which
+ * is already priced at that padded limit.
+ */
+export function feeBudget(gas: bigint, gasPrice: bigint, l1Fee: bigint, operatorFee = 0n): bigint {
+  return mulCeil(gas, 6n, 5n) * mulCeil(gasPrice, 5n, 4n) + l1Fee * 2n + operatorFee;
+}
+
+/**
+ * The unsigned EIP-1559 transaction the OP Stack's L1 fee is priced on: the
+ * transfer itself, at the budgeted limit and price, as viem's estimateL1Fee
+ * serialises it. Only its size and bytes matter to getL1Fee.
+ */
+export function l1FeeInput(c: PayChain, tx: PayTx, gas: bigint, gasPrice: bigint): string {
+  const limit = mulCeil(gas, 6n, 5n);
+  const price = mulCeil(gasPrice, 5n, 4n);
+  return Transaction.from({
+    type: 2,
+    chainId: c.chainId,
+    nonce: NONCE_BOUND,
+    gasLimit: limit,
+    maxFeePerGas: price,
+    maxPriorityFeePerGas: price,
+    to: tx.to,
+    value: BigInt(tx.value),
+    data: tx.data ?? '0x',
+  }).unsignedSerialized;
+}
+
+function rpcReason(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.replace(/\s+/g, ' ').trim().slice(0, 160) || 'no answer';
+}
+
+/**
+ * What exactly this transfer would cost on `c`, read now from its public
+ * endpoints: eth_estimateGas for the transfer itself (from the paying account,
+ * to the token contract or the deposit address), eth_gasPrice, and on the OP
+ * Stack the L1 data fee and the operator fee from the GasPriceOracle. Any read
+ * that fails makes the whole answer unreadable, and the caller does not send.
+ */
+export async function readPayFee(c: PayChain, tx: PayTx, fetchImpl: FetchLike = defaultFetch): Promise<PayFeeRead> {
+  const unreadable = (what: string, err: unknown): PayFeeRead => {
+    const why = rpcReason(err);
+    if (/insufficient funds/i.test(why)) {
+      return { ok: false, error: `Not enough ${c.native.symbol} on ${c.name} for this transfer and its network fee.` };
+    }
+    return { ok: false, error: `Could not read ${what} on ${c.name} just now (${why}), so nothing was sent. Try again in a moment.` };
+  };
+  const call: Record<string, string> = { from: tx.from, to: tx.to, value: tx.value };
+  if (tx.data) call.data = tx.data;
+  const uint = async (method: string, params: unknown[]) => {
+    const v = hexUint(await payRpc(c.rpcUrls, method, params, fetchImpl));
+    if (v === null) throw new Error(`${method} answered with something that is not a number`);
+    return v;
+  };
+  const [g, p] = await Promise.allSettled([uint('eth_estimateGas', [call]), uint('eth_gasPrice', [])]);
+  if (g.status === 'rejected') return unreadable('what the transfer costs', g.reason);
+  if (p.status === 'rejected') return unreadable('the network’s gas price', p.reason);
+  const gas = g.value;
+  const gasPrice = p.value;
+  if (gas < 21_000n || gas > 30_000_000n) return unreadable('what the transfer costs', new Error(`an estimate of ${gas} gas`));
+  if (gasPrice <= 0n) return unreadable('the network’s gas price', new Error('a gas price of 0'));
+  let l1Fee = 0n;
+  let operatorFee = 0n;
+  if (c.feeModel === 'op-stack') {
+    const oracle = (data: string) => uint('eth_call', [{ to: OP_GAS_PRICE_ORACLE, data }, 'latest']);
+    const [l1, op] = await Promise.allSettled([
+      Promise.resolve().then(() => oracle(GAS_PRICE_ORACLE.encodeFunctionData('getL1Fee', [l1FeeInput(c, tx, gas, gasPrice)]))),
+      oracle(GAS_PRICE_ORACLE.encodeFunctionData('getOperatorFee', [mulCeil(gas, 6n, 5n)])),
+    ]);
+    if (l1.status === 'rejected') return unreadable('the L1 data fee', l1.reason);
+    if (op.status === 'rejected') return unreadable('the operator fee', op.reason);
+    l1Fee = l1.value;
+    operatorFee = op.value;
+  }
+  return { ok: true, fee: { model: c.feeModel, gas, gasPrice, l1Fee, operatorFee, budget: feeBudget(gas, gasPrice, l1Fee, operatorFee) } };
+}
+
+/**
+ * Why this wallet cannot make the payment, or null when it can. Fails safe:
+ * a balance or fee that could not be read is a reason not to send, never a
+ * pass, and the message says what could not be read.
+ */
+export function balanceShortfall(
+  q: Pick<PayQuote, 'kind' | 'asset' | 'sendExactly' | 'decimals' | 'chain'>,
+  b: PayBalances | null,
+  fee: PayFeeRead | null,
+): string | null {
   const c = payChain(q.chain);
   const a = payAsset(q.chain, q.asset);
-  if (!b || !c || !a) return null;
+  if (!c || !a) return 'That network is not offered.';
   const nativeSym = c.native.symbol;
-  const fee = b.gasPrice !== null ? gasReserve(q.kind, b.gasPrice) : null;
+  const retry = 'so nothing was sent. Try again in a moment.';
   const has = balanceOf(b, a);
-  if (has !== undefined && has < q.sendExactly) {
+  if (has === undefined) return `Could not read your ${q.asset} balance on ${c.name} just now, ${retry}`;
+  if (has < q.sendExactly) {
     return `You have ${formatUnits(has, q.decimals)} ${q.asset} on ${c.name}; this quote needs exactly ${formatUnits(q.sendExactly, q.decimals)}.`;
   }
+  const coin = b?.native ?? null;
+  if (q.kind === 'erc20') {
+    if (coin === null) return `Could not read your ${nativeSym} balance on ${c.name} for the network fee just now, ${retry}`;
+    if (coin === 0n) return `No ${nativeSym} on ${c.name} for the network fee: a little is needed beside your ${q.asset}.`;
+  }
+  if (!fee) return `Could not read the ${c.name} network fee just now, ${retry}`;
+  if (!fee.ok) return fee.error;
+  const need = fee.fee.budget;
   if (q.kind === 'native') {
-    if (has !== undefined && fee !== null && has < q.sendExactly + fee) {
-      return `After sending ${formatUnits(q.sendExactly, q.decimals)} ${q.asset} there is not enough left for the ${c.name} network fee (about ${formatUnits(fee, 18)} ${nativeSym}). Get a quote for a little less.`;
+    if (has < q.sendExactly + need) {
+      return `After sending ${formatUnits(q.sendExactly, q.decimals)} ${q.asset} there is not enough left for the ${c.name} network fee (about ${formatUnits(need, 18)} ${nativeSym}). Get a quote for a little less.`;
     }
     return null;
   }
-  if (b.native !== null && fee !== null && b.native < fee) {
-    return `Not enough ${nativeSym} on ${c.name} for the network fee: about ${formatUnits(fee, 18)} ${nativeSym} is needed beside your ${q.asset}.`;
+  if (coin! < need) {
+    return `Not enough ${nativeSym} on ${c.name} for the network fee: about ${formatUnits(need, 18)} ${nativeSym} is needed beside your ${q.asset}.`;
   }
-  if (b.native !== null && b.native === 0n) return `No ${nativeSym} on ${c.name} for the network fee: a little is needed beside your ${q.asset}.`;
   return null;
 }
 
-/** The most of `asset` a "Max" may fill in: the whole token balance, or the coin balance less two fee budgets. */
-export function maxSpendable(asset: PayAsset, b: PayBalances | null): bigint | null {
+/**
+ * The most of `asset` a "Max" may fill in: the whole token balance, or the
+ * coin balance less two fee budgets for a transfer of it (`fee`, read with
+ * maxFeeTx). Null when the balance, or for the coin the fee, is unreadable.
+ */
+export function maxSpendable(asset: PayAsset, b: PayBalances | null, fee: PayFeeRead | null = null): bigint | null {
   const has = balanceOf(b, asset);
   if (has === undefined) return null;
   if (asset.kind === 'erc20') return has;
-  const fee = b?.gasPrice !== null && b?.gasPrice !== undefined ? gasReserve('native', b.gasPrice) * 2n : 0n;
-  return has > fee ? has - fee : 0n;
+  if (!fee || !fee.ok) return null;
+  const reserve = fee.fee.budget * 2n;
+  return has > reserve ? has - reserve : 0n;
+}
+
+/**
+ * The transfer "Max" prices the fee on: `asset` from `from` to the deposit
+ * address, for half the balance (the fee does not depend on the amount, and a
+ * node may refuse to estimate a send of every last unit).
+ */
+export function maxFeeTx(asset: PayAsset, from: string, balance: bigint): PayTx | null {
+  const deposit = depositAddress();
+  if (!deposit) return null;
+  const units = balance / 2n;
+  if (asset.kind === 'native') return { from: getAddress(from), to: deposit, value: '0x' + units.toString(16) };
+  return { from: getAddress(from), to: getAddress(asset.token!), value: '0x0', data: TRANSFER.encodeFunctionData('transfer', [deposit, units]) };
 }
 
 // ---------------------------------------------------------------------------
@@ -616,22 +775,39 @@ function hexUint(v: unknown): bigint | null {
   return typeof v === 'string' && /^0x[0-9a-fA-F]{1,64}$/.test(v) ? BigInt(v) : null;
 }
 
-/** Balances of `owner` on one paying network: its coin, USDT, USDC and the gas price. Unreadable values are null. */
+/** Balances of `owner` on one paying network: its coin, USDT and USDC. Unreadable values are null. */
 export async function readPayBalances(c: PayChain, owner: string, fetchImpl: FetchLike = defaultFetch): Promise<PayBalances> {
   const who = getAddress(owner);
   const call = (method: string, params: unknown[]) => payRpc(c.rpcUrls, method, params, fetchImpl).then(hexUint, () => null);
   const balanceData = '0x70a08231' + who.slice(2).toLowerCase().padStart(64, '0');
   const tokens = c.assets.filter((a) => a.kind === 'erc20');
-  const [native, gasPrice, ...tokenBalances] = await Promise.all([
+  const [native, ...tokenBalances] = await Promise.all([
     call('eth_getBalance', [who, 'latest']),
-    call('eth_gasPrice', []),
     ...tokens.map((a) => call('eth_call', [{ to: a.token, data: balanceData }, 'latest'])),
   ]);
-  const out: PayBalances = { native, gasPrice, tokens: {}, at: Date.now() };
+  const out: PayBalances = { native, tokens: {}, at: Date.now() };
   tokens.forEach((a, i) => {
     out.tokens[a.symbol] = tokenBalances[i] ?? null;
   });
   return out;
+}
+
+/**
+ * The check right before the wallet is asked: this account's balances on the
+ * quote's network and the fee for exactly the quote's transfer, both read now.
+ * Null means go; anything else is why not, and nothing is sent.
+ */
+export async function payPrecheck(q: PayQuote, fetchImpl: FetchLike = defaultFetch): Promise<string | null> {
+  const c = payChain(q.chain);
+  if (!c) return 'That network is not offered.';
+  let tx: PayTx;
+  try {
+    tx = buildPayTx(q);
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+  const [b, fee] = await Promise.all([readPayBalances(c, q.from, fetchImpl).catch(() => null), readPayFee(c, tx, fetchImpl)]);
+  return balanceShortfall(q, b, fee);
 }
 
 // ---------------------------------------------------------------------------

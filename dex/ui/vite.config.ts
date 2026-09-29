@@ -25,6 +25,9 @@ export default defineConfig({
       // src/lib/bridgeChains.ts, where check-dist can see the hosts.
       '@bridge': fileURLToPath(new URL('../../bridge/ui/src', import.meta.url)),
     },
+    // That lib imports ethers, which would otherwise resolve from bridge/ui/node_modules: a second copy
+    // of ethers in the bundle, and a build that fails wherever only dex/ui is installed (CI, a deploy box).
+    dedupe: ['ethers'],
   },
   server: { port: 8602, strictPort: true },
   preview: { port: 8602, strictPort: true },

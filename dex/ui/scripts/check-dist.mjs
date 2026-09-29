@@ -8,8 +8,9 @@
 // pulling a font, an icon set or a price feed from someone else's server, the
 // build stops here instead of shipping a page that phones home.
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 const DIST = new URL('../dist', import.meta.url).pathname;
 
@@ -114,3 +115,48 @@ if (bad > 0) {
   process.exit(1);
 }
 console.log('check-dist: no unexpected external URLs in dist/.');
+
+// ---- The first screen ---------------------------------------------------------
+// Swap is what a visitor lands on, so it downloads only the entry chunk and what
+// that imports statically. The other pages, the pay-in card, the FMX price chart
+// beside the swap card, the bridge panel, the phone hand-off QR and the
+// WalletConnect provider are import()ed when first shown (src/components/Lazy.tsx,
+// lib/connector.ts). This fails the build if one of them slides back into the
+// entry, or if the first screen grows past its budget.
+const LAZY_CHUNKS = ['PoolsView', 'LiquidityView', 'ChartsView', 'ActivityView', 'PayCard', 'BridgePanel', 'MobileHandoff', 'history'];
+const FIRST_SCREEN_GZIP_BUDGET = 230_000; // bytes, as Vite reports kB
+const assets = join(DIST, 'assets');
+const entry = /<script type="module"[^>]*\ssrc="\.\/assets\/([^"]+\.js)"/.exec(readFileSync(join(DIST, 'index.html'), 'utf8'))?.[1];
+const problems = [];
+if (!entry || !existsSync(join(assets, entry))) problems.push('no entry script in dist/index.html');
+const firstScreen = new Set();
+for (const stack = entry ? [entry] : []; stack.length > 0; ) {
+  const file = stack.pop();
+  if (firstScreen.has(file)) continue;
+  firstScreen.add(file);
+  const code = readFileSync(join(assets, file), 'utf8');
+  // static imports only: `import"./x.js"` and `import{…}from"./x.js"`, never `import("./x.js")`
+  for (const m of code.matchAll(/\bimport\s*(?:[^'"()]*?\bfrom\s*)?["']\.\/([^"']+\.js)["']/g)) stack.push(m[1]);
+}
+const files = readdirSync(assets);
+for (const name of LAZY_CHUNKS) {
+  const chunk = files.find((f) => f.startsWith(`${name}-`) && f.endsWith('.js'));
+  if (!chunk) problems.push(`${name} is not a chunk of its own`);
+  else if (firstScreen.has(chunk)) problems.push(`${name} is loaded by the first screen`);
+}
+let raw = 0;
+let gz = 0;
+for (const f of firstScreen) {
+  const buf = readFileSync(join(assets, f));
+  raw += buf.length;
+  gz += gzipSync(buf, { level: 9 }).length;
+  if (/walletconnect\.(?:org|com)/.test(buf.toString('utf8'))) problems.push(`${f} carries WalletConnect, which loads only when it is chosen`);
+}
+if (gz > FIRST_SCREEN_GZIP_BUDGET) problems.push(`the first screen is ${(gz / 1000).toFixed(1)} kB gzip, over its ${FIRST_SCREEN_GZIP_BUDGET / 1000} kB budget`);
+if (problems.length > 0) {
+  console.error(`\ncheck-dist: first screen:\n  ${problems.join('\n  ')}\nbuild rejected.`);
+  process.exit(1);
+}
+console.log(
+  `check-dist: first screen ${[...firstScreen].join(' + ')} = ${(raw / 1000).toFixed(1)} kB (${(gz / 1000).toFixed(1)} kB gzip, budget ${FIRST_SCREEN_GZIP_BUDGET / 1000}); ${LAZY_CHUNKS.length} parts load on demand.`,
+);

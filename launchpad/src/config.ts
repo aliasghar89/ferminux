@@ -10,9 +10,10 @@
 const env: Record<string, string | undefined> =
   (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 
-/** TokenFactory registry address on Ferminux mainnet (chain 3961).
- *  Default = the canonical DeployCore address (deployer nonce 2). Override
- *  with VITE_FACTORY_ADDRESS once/if the production deployment differs. */
+/** TokenFactory registry address on Ferminux mainnet (chain 3961): the live
+ *  TokenFactory v1 (runtime code = contracts/out/TokenFactory.sol; listed in
+ *  docs/developers.md and the explorer's contracts.3961.json). Override with
+ *  VITE_FACTORY_ADDRESS only for a devnet build. */
 export const FACTORY_ADDRESS: string =
   env.VITE_FACTORY_ADDRESS ?? "0x62BC7d9671EfE1385413434aB8fdfE2fa4aE01D4";
 

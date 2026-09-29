@@ -1,0 +1,88 @@
+
+## bucket 1 eligible (7 days after activation): eligibleCount 6 (2026-09-27T01:32:13Z, block 100517)
+99866 SeatEligible seatId=4 eligibleCount=1
+100066 SeatEligible seatId=5 eligibleCount=2
+100066 SeatEligible seatId=7 eligibleCount=3
+100066 SeatEligible seatId=8 eligibleCount=4
+100066 SeatEligible seatId=9 eligibleCount=5
+100066 SeatEligible seatId=10 eligibleCount=6
+cp 100000  count  6 / eligible  6  total 32  certified false  (certifies(count,eligible) = false)  snapshot 100066  0x219e77f7c77702427d1d15b7009a0efa4cd6b85041cc4137bf8ec21ea84e7ba0
+cp 100200  count  6 / eligible  6  total 32  certified false  (certifies(count,eligible) = false)  snapshot 100266  0x8e19dba407e15367011da3a22cb98159c4478e4447a0f869bbf377c4965612ed
+<<< step elig1 done (block 100517, fails so far 1)
+
+>>> step elig-a (2026-09-27T01:32:14Z, block 100518)
+
+## batch A eligible from 123502, batch B from 124770: checkpoints in between have eligible = 22 (< 30) (2026-09-27T08:28:15Z, block 124765)
+123666 SeatEligible seatId=11 eligibleCount=7
+123666 SeatEligible seatId=12 eligibleCount=8
+123666 SeatEligible seatId=13 eligibleCount=9
+123666 SeatEligible seatId=14 eligibleCount=10
+123666 SeatEligible seatId=15 eligibleCount=11
+123666 SeatEligible seatId=16 eligibleCount=12
+123666 SeatEligible seatId=17 eligibleCount=13
+123666 SeatEligible seatId=18 eligibleCount=14
+123666 SeatEligible seatId=19 eligibleCount=15
+123666 SeatEligible seatId=20 eligibleCount=16
+123666 SeatEligible seatId=21 eligibleCount=17
+123666 SeatEligible seatId=22 eligibleCount=18
+123666 SeatEligible seatId=23 eligibleCount=19
+123666 SeatEligible seatId=24 eligibleCount=20
+123666 SeatEligible seatId=25 eligibleCount=21
+123666 SeatEligible seatId=26 eligibleCount=22
+cp 123600  count 22 / eligible 22  total 32  certified false  (certifies(count,eligible) = false)  snapshot 123666  0xea50f787073f67beb17384f5edffa98aa6cd68281ca72c556af1240566cc7a4b
+cp 123800  count 22 / eligible 22  total 32  certified false  (certifies(count,eligible) = false)  snapshot 123866  0xbeff2bea8513dc91b71599caebeed342b0965b3f2b9ef27cad6d8592a7899afd
+cp 124000  count 22 / eligible 22  total 32  certified false  (certifies(count,eligible) = false)  snapshot 124066  0xc7e6820c0b4becf477242f37c32d16f20d24da74289c24640287be2ab1b16b8a
+cp 124200  count 22 / eligible 22  total 32  certified false  (certifies(count,eligible) = false)  snapshot 124266  0x0246da095f7a444bf2cbc2494de7401437df2dc77e330c98d0c475a3b136e2e6
+cp 124400  count 22 / eligible 22  total 32  certified false  (certifies(count,eligible) = false)  snapshot 124466  0x0c6169c9f647a24dc9726d2e624b4110a53df0ce60bf8d6e4167660e172a38c9
+  ok: no checkpoint certified while eligible < 30, even with count >= 20
+  ok: at least one of those checkpoints had count >= 20
+<<< step elig-a done (block 124766, fails so far 1)
+
+>>> step cert (2026-09-27T08:28:16Z, block 124766)
+
+## batch B eligible: eligibleCount 32; checkpoints from 124800 (2026-09-27T08:43:02Z, block 125652)
+124866 SeatEligible seatId=27 eligibleCount=23
+124866 SeatEligible seatId=28 eligibleCount=24
+124866 SeatEligible seatId=29 eligibleCount=25
+124866 SeatEligible seatId=30 eligibleCount=26
+124866 SeatEligible seatId=31 eligibleCount=27
+124866 SeatEligible seatId=32 eligibleCount=28
+124866 SeatEligible seatId=33 eligibleCount=29
+124866 SeatEligible seatId=34 eligibleCount=30
+124866 SeatEligible seatId=35 eligibleCount=31
+124866 SeatEligible seatId=36 eligibleCount=32
+cp 124800  count 32 / eligible 32  total 32  certified true  (certifies(count,eligible) = true)  snapshot 124866  0xb40a60b97e4c86c26089eba36460bf5c6fbaeebefda8b5a7018d7905d90bab3e
+cp 125000  count 32 / eligible 32  total 32  certified true  (certifies(count,eligible) = true)  snapshot 125066  0xe459ad4a774169e3236f0e2a45ac5522e3adb9da55160b14552c66c6a157f893
+cp 125200  count 32 / eligible 32  total 32  certified true  (certifies(count,eligible) = true)  snapshot 125266  0x4f7ed40ac36821dd18e0df9fdd7d365db3121cffcde2189c9785001fc7ac653b
+cp 125400  count 32 / eligible 32  total 32  certified true  (certifies(count,eligible) = true)  snapshot 125466  0xe4a2b12131ba5375e3faab672d8df17ad708f04dda47ce94cc25e692245507cc
+124867 CheckpointCertified height=124800 blockHash=0xb40a60b97e4c86c26089eba36460bf5c6fbaeebefda8b5a7018d7905d90bab3e count=22 eligible=32
+125067 CheckpointCertified height=125000 blockHash=0xe459ad4a774169e3236f0e2a45ac5522e3adb9da55160b14552c66c6a157f893 count=22 eligible=32
+125267 CheckpointCertified height=125200 blockHash=0x4f7ed40ac36821dd18e0df9fdd7d365db3121cffcde2189c9785001fc7ac653b count=22 eligible=32
+125467 CheckpointCertified height=125400 blockHash=0xe4a2b12131ba5375e3faab672d8df17ad708f04dda47ce94cc25e692245507cc count=22 eligible=32
+  ok: checkpoint 124800 certified
+  ok: isCertified with any other hash is false
+  --- a sidecar's view (h2/s13):
+    fmx-validator pre-module-rename-157-gc3a277b  devnet (chain 39619)  dashboard http://127.0.0.1:8583/
+      state      Attesting
+                 Last included checkpoint: 125,400.
+      attester   att-h2-s13(0x22D883..)
+      hub        HUB(0x7cEE96..)
+      node       head 125653, 1 s old, 14 peers, ready to sign
+      seat       #36 active, counted for certification: yes
+      rewards    about 1.54 FMX a day at 0.0250 FMX per checkpoint; claimable 10.9250 FMX
+      attested   62 of the last 62 checkpoints (24 h), 432 of 432 (7 days)
+      gas        0.9630 FMX
+      next       checkpoint 125600, signing opens at block 125664
+         125400  included  
+         125200  included  
+         125000  included  
+         124800  included  
+         124600  included  
+         124400  included  
+         124200  included  
+         124000  included  
+  dashboard of h2/s13: evidence/dashboards/h2-s13-certified-desktop.png, -phone.png, .txt, -api-status.json
+  dashboard of v07: evidence/dashboards/v07-certified-desktop.png, -phone.png, .txt, -api-status.json
+<<< step cert done (block 125670, fails so far 1)
+
+>>> step explorer-cert (2026-09-27T08:43:20Z, block 125670)

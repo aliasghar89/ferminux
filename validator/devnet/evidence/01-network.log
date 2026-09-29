@@ -179,3 +179,19 @@ fmxd-v12 102.5MiB / 7.737GiB
   sidecar was back to "Attesting" (or "Unbonding" for v01) by block 60,956. The windows are counted
   in blocks, and no block was made while the VM was down, so nothing was missed: checkpoints
   60,200 to 60,800 each carry all 32 bonded seats' attestations (node hub.mjs cps 60200 60800).
+
+## stopped from outside again (2026-09-27T03:44:39Z, block about 108,470)
+  Same signature as before: both colima VMs (default, started again by someone at 15:33Z, and
+  fmxdev) got SIGINT two seconds apart. fmxdev was started again at 03:53Z the same way (single-seat
+  machines stopped and started 20 s apart). The signers came back at block 108,477 with one hash on
+  sig1-3 and rpc, and the chain resumed.
+
+## signers and rpc node replaced one at a time with --cache 256 (2026-09-27T04:28:16Z, block about 110,400)
+  After the second restart the signers' memory (default --cache 1024) stood at 460-575 MB and rising
+  in a 7.7 GiB VM. Each of sig3, sig2, sig1 and then rpc was stopped cleanly (docker stop -t 60) and
+  started again on the same data volume with --cache 256 (the mainnet signer unit itself uses
+  --cache 64 on small hosts), from image fmxdev:cache = fmxdev:latest plus a node.sh that takes
+  EXTRA_ARGS. With one signer out at a time the other two kept confirming blocks; every node was at
+  one head and hash after each swap (net.sh heads).
+
+## stopped from outside again (first seen stopped 2026-09-27T04:59:18Z); fmxdev started again by vm-watchdog.sh at 2026-09-27T05:03:54Z, head 112504

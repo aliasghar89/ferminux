@@ -106,6 +106,12 @@ export default defineConfig({
         fork: resolve(root, "fork.html"),
         // The validator programme (in development): what a seat is, the planned terms and the waitlist.
         validators: resolve(root, "validators/index.html"),
+        // The whitepaper (v1.0, 2026-09-27): long-form, dated figures; its PDF is printed from this page into
+        // public/whitepaper/ and ships beside it.
+        whitepaper: resolve(root, "whitepaper/index.html"),
+        // The bridge to BNB Smart Chain is paused: an honest status page in the site's chrome. It publishes at
+        // /bridge/index.html over the old bridge app shell; the relayer's /bridge/status.json beside it is untouched.
+        bridge: resolve(root, "bridge/index.html"),
         // nginx error_page target for unknown paths (see README "Deploy").
         notFound: resolve(root, "404.html"),
       },

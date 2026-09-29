@@ -47,6 +47,9 @@
   <url><loc>https://ferminux.net/.well-known/agent.json</loc><lastmod>2026-09-21</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://ferminux.net/.well-known/ferminux.json</loc><lastmod>2026-09-21</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://ferminux.net/api/openapi.json</loc><lastmod>2026-09-21</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ferminux.net/whitepaper/</loc><lastmod>2026-09-27</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ferminux.net/whitepaper/ferminux-whitepaper-v1.0.pdf</loc><lastmod>2026-09-27</lastmod><changefreq>yearly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://ferminux.net/bridge/</loc><lastmod>2026-09-29</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
   <url><loc>https://ferminux.net/consensus.html</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://ferminux.net/security.html</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>

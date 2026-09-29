@@ -2130,3 +2130,17 @@ a.tab{display:inline-flex;align-items:center;text-decoration:none}
   .dv-addr .dv-group,.dv-addr .dv-group th{display:block}
   .dv-addr tr.dv-group{padding:0;border:0}
 }
+
+/* /bridge/: the record-page column. The live state sits under the lede; the contract rows keep full addresses
+   (for checking, never for sending) and wrap on phones; the alternatives stay one column inside the reading width. */
+.bp-state{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;margin-top:16px;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.bp-state .pill{flex:none}
+.bp-kv .kv-row{grid-template-columns:220px minmax(0,1fr)}
+.bp-kv dd .mono{font-size:13px}
+.bp-kv dd{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.bp-kv dd .copy{margin-left:0}
+@media(max-width:560px){.bp-kv .kv-row{grid-template-columns:minmax(0,1fr)}.bp-kv dd .mono{font-size:12px}}
+.doc .bp-routes{padding-left:0;gap:0;grid-template-columns:minmax(0,1fr)}
+.doc .bp-routes li:nth-last-child(-n+2){border-bottom:0}
+.doc .bp-routes li:last-child{border-bottom:1px solid var(--hairline)}
+.doc .bp-routes .route-l{color:var(--muted)}

@@ -19,7 +19,8 @@
 //   • the tracker follows seen → confirmed → paid with explorer links, and
 //     survives a reload; "Switch back to Ferminux" puts the wallet home
 //   • guards: <60 s left, a wallet that drifts off the network before sending,
-//     amounts outside $1–$10,000, not enough balance, a paused network
+//     amounts outside $1–$10,000, not enough balance, a paused network, a
+//     network fee that cannot be read (Base's L1 data fee)
 //   • 320 / 390 / 1440 px: no horizontal scroll in any of these states
 //   • no console errors
 //
@@ -97,8 +98,22 @@ function payRpc(chainId, body) {
         return { id, result: hex(1_000_000_000n) };
       case 'eth_getBalance':
         return { id, result: hex(params[0].toLowerCase() === ME.toLowerCase() ? h.native : 0n) };
+      // The fee for the exact transfer (lib/payin.ts readPayFee): a coin send is 21,000 gas, a token
+      // transfer ~52,000, and on Arbitrum the estimate carries the L1 part as extra gas.
+      case 'eth_estimateGas': {
+        payin.feeReads.push(`${chainId}:estimateGas`);
+        const gas = (params[0].data ? 52_000n : 21_000n) + (chainId === 42161 ? 150_000n : 0n);
+        return { id, result: hex(gas) };
+      }
       case 'eth_call': {
         const to = String(params[0].to).toLowerCase();
+        // Base and Optimism: the GasPriceOracle's L1 data fee for the transfer, and the operator fee (0 on both).
+        if (to === '0x420000000000000000000000000000000000000f') {
+          const operator = String(params[0].data).startsWith('0x275aedd2'); // getOperatorFee(uint256), else getL1Fee(bytes)
+          payin.feeReads.push(`${chainId}:${operator ? 'getOperatorFee' : 'getL1Fee'}`);
+          if ((chainId !== 8453 && chainId !== 10) || payin.oracleDown) return { id, error: { code: -32000, message: 'execution reverted' } };
+          return { id, result: '0x' + (operator ? 0n : 20_000_000_000_000n).toString(16).padStart(64, '0') };
+        }
         const who = '0x' + String(params[0].data).slice(-40);
         const bal = who.toLowerCase() === ME.toLowerCase() ? (h.tokens[to] ?? 0n) : 0n;
         return { id, result: '0x' + bal.toString(16).padStart(64, '0') };
@@ -146,6 +161,8 @@ const payin = {
   others: new Set(),
   unattributed: [],
   expiresNext: null,
+  feeReads: [],
+  oracleDown: false,
   assets: (() => {
     const a = JSON.parse(JSON.stringify(ASSETS));
     const polygon = a.chains.find((c) => c.chain === 'polygon');
@@ -542,9 +559,17 @@ async function main() {
     assert.match(await text('[data-testid=pay-purchases]'), /FMX delivered/, 'the finished purchase is listed too');
     await page.waitForSelector('[data-testid=acct-trigger]', { timeout: 20000 });
     await page.click('[data-testid=pay-open-review]');
+    // Base charges an L1 data fee beside the gas: when the GasPriceOracle cannot be read, nothing is sent.
+    payin.oracleDown = true;
+    await page.click('[data-testid=pay-send]');
+    await page.waitForFunction(() => /Could not read the L1 data fee on Base .*nothing was sent/.test(document.querySelector('.modal')?.textContent ?? ''), null, { timeout: 20000 });
+    assert.equal(sent.length, 1, 'no fee read, no send');
+    payin.oracleDown = false;
+    payin.feeReads.length = 0;
     await page.click('[data-testid=pay-send]');
     await page.waitForSelector('[data-testid=pay-review]', { state: 'detached', timeout: 20000 });
     await page.waitForSelector('[data-testid=pay-tracker] a[href^="https://basescan.org/tx/"]', { timeout: 20000 });
+    assert.deepEqual(payin.feeReads.sort(), ['8453:estimateGas', '8453:getL1Fee', '8453:getOperatorFee'], 'the fee was the transfer’s own estimate plus the L1 data fee and the operator fee');
     const t2 = sent.at(-1);
     assert.equal(sent.length, 2);
     assert.equal(t2.chainId, 8453);
@@ -554,7 +579,7 @@ async function main() {
     assert.equal(addBase?.chainName, 'Base');
     assert.deepEqual(addBase?.rpcUrls, ['https://mainnet.base.org']);
     assert.ok(t2.quoteId);
-    ok('reload kept the open Base quote; the wallet did not know Base, so it was added (chain 8453, mainnet.base.org), then exactly 24.999997 USDC was sent');
+    ok('reload kept the open Base quote; with the L1 fee unreadable the send was refused; then the wallet (which did not know Base) added chain 8453 and sent exactly 24.999997 USDC, fee priced with estimateGas + getL1Fee + getOperatorFee');
 
     // ---- native AVAX ---------------------------------------------------------------
     await page.waitForFunction(() => document.querySelector('[data-testid=pay-tracker]')?.getAttribute('data-status') === 'paid', null, { timeout: 20000 });

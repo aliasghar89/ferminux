@@ -49,7 +49,7 @@ export function feePolicyFor(chain: { id: number; opStackL1Fee: boolean; minTipW
 }
 
 /** Read current fee conditions: base fee from the head block, tip from the node. */
-export async function getFeeInfo(provider: JsonRpcProvider, policy: FeePolicy = HOME_FEE_POLICY): Promise<FeeInfo> {
+export async function getFeeInfo(provider: Pick<JsonRpcProvider, 'getBlock' | 'send'>, policy: FeePolicy = HOME_FEE_POLICY): Promise<FeeInfo> {
   const block = await provider.getBlock('latest');
   const baseFee = block?.baseFeePerGas ?? null;
 
@@ -159,6 +159,88 @@ function unsignedFor(p: UnsignedParts): string {
 }
 
 /**
+ * Nonce used to size a transaction that has none yet (a fee estimate, not a
+ * signature): three RLP bytes, more than any real account's nonce takes, so
+ * the L1 data fee sized with it is never below the one Review sizes.
+ */
+const SIZING_NONCE = 1 << 20;
+
+/** What one transaction may cost at worst, in the chain's native coin. */
+export interface FeeBudget {
+  gasLimit: bigint;
+  fees: FeeInfo;
+  /**
+   * gasLimit × maxFeePerGas (× gasPrice on a legacy chain), plus the L1 data
+   * fee upper bound on an OP-stack chain.
+   */
+  maxFeeWei: bigint;
+  /** OP-stack L1 data fee upper bound, already included in maxFeeWei. */
+  l1FeeWei?: bigint;
+  /** OP-stack chain whose L1 fee oracle could not be read: maxFeeWei excludes that fee. */
+  l1FeeUnknown?: boolean;
+}
+
+/**
+ * The worst-case fee of a fully sized transaction. Send, Max, WalletConnect
+ * requests and the pay-in (its check before a quote and the transfer that
+ * pays it) all budget through here, so none can leave out the L1 data fee
+ * another one counts.
+ */
+async function worstCaseFee(
+  provider: Pick<JsonRpcProvider, 'call'>,
+  p: UnsignedParts,
+  policy: FeePolicy,
+): Promise<Pick<FeeBudget, 'maxFeeWei' | 'l1FeeWei' | 'l1FeeUnknown'>> {
+  const maxFeeWei = txMaxFeeWei(p.gasLimit, p.fees.gasPrice ?? p.fees.maxFeePerGas);
+  if (!policy.opStackL1Fee) return { maxFeeWei };
+  const l1 = await estimateOpL1Fee(provider, unsignedFor(p));
+  if (l1 === null) return { maxFeeWei, l1FeeUnknown: true };
+  return { maxFeeWei: maxFeeWei + l1, l1FeeWei: l1 };
+}
+
+/**
+ * The gas limit signed for an exact call, from the node's own estimate.
+ * ALWAYS estimated. "No calldata" does not mean "plain account": a contract
+ * with receive() takes a bare value transfer and needs more than 21000 gas to
+ * run it. Hardcoding 21000 for data === '0x' sent every deposit to the
+ * FoundationLock out of gas — two reverted on mainnet before this was found.
+ * On Arbitrum the estimate also carries the transaction's L1 component, which
+ * no fixed per-call figure would. If the estimate itself fails, the call would
+ * revert: that is surfaced instead of signing a transaction already known to fail.
+ */
+async function estimatedGasLimit(
+  provider: Pick<JsonRpcProvider, 'estimateGas'>,
+  call: { from: string; to: string; valueWei: bigint; data: string },
+): Promise<bigint> {
+  let estimate: bigint;
+  try {
+    estimate = await provider.estimateGas({ from: call.from, to: call.to, value: call.valueWei, data: call.data });
+  } catch (e) {
+    throw new Error(`This transaction would fail: ${revertReason(e)}`);
+  }
+  return gasLimitFor(estimate);
+}
+
+/**
+ * The worst-case fee of one exact call before anything is signed, computed
+ * exactly as prepareTransaction computes it (same fee read, same gas estimate
+ * and headroom, same L1 data fee) with a sizing nonce in place of the
+ * account's. Throws "This transaction would fail: …" when the node cannot
+ * estimate the call: there is no fee to budget for a call that reverts.
+ */
+export async function estimateMaxFee(
+  provider: Pick<JsonRpcProvider, 'getBlock' | 'send' | 'estimateGas' | 'call'>,
+  chainId: number,
+  call: { from: string; to: string; valueWei: bigint; data: string },
+  policy: FeePolicy = HOME_FEE_POLICY,
+): Promise<FeeBudget> {
+  const fees = await getFeeInfo(provider, policy);
+  const gasLimit = await estimatedGasLimit(provider, call);
+  const fee = await worstCaseFee(provider, { chainId, to: call.to, valueWei: call.valueWei, data: call.data, nonce: SIZING_NONCE, gasLimit, fees }, policy);
+  return { gasLimit, fees, ...fee };
+}
+
+/**
  * The gas limit prepareTransaction signs for a given estimate. Exactly 21000 is
  * the signature of a plain-account transfer: deterministic, nothing to run, no
  * headroom needed. Anything else ran code (or, on Arbitrum, carries its L1
@@ -204,17 +286,9 @@ export async function nativeTransferMaxFee(
     gasLimit = gasLimitFor(estimate);
     if (gasLimit !== NATIVE_TRANSFER_GAS) gasLimit = (gasLimit * 11n) / 10n;
   }
-  let feeWei = txMaxFeeWei(gasLimit, fees.gasPrice ?? fees.maxFeePerGas);
-  let l1FeeUnknown = false;
-  if (policy.opStackL1Fee) {
-    const l1 = await estimateOpL1Fee(
-      provider,
-      unsignedFor({ chainId, to, valueWei: 10n ** 24n, data: '0x', nonce: 1 << 20, gasLimit, fees }),
-    );
-    if (l1 === null) l1FeeUnknown = true;
-    else feeWei += l1;
-  }
-  return { feeWei, l1FeeUnknown };
+  // valueWei 10^24 and the sizing nonce: the largest a Max transfer can serialize to
+  const fee = await worstCaseFee(provider, { chainId, to, valueWei: 10n ** 24n, data: '0x', nonce: SIZING_NONCE, gasLimit, fees }, policy);
+  return { feeWei: fee.maxFeeWei, l1FeeUnknown: fee.l1FeeUnknown === true };
 }
 
 export interface PreparedTx {
@@ -264,26 +338,12 @@ export async function prepareTransaction(
   policy: FeePolicy = HOME_FEE_POLICY,
 ): Promise<PreparedTx> {
   const fees = await getFeeInfo(provider, policy);
-  // ALWAYS estimate. "No calldata" does not mean "plain account": a contract
-  // with receive() takes a bare value transfer and needs more than 21000 gas
-  // to run it. Hardcoding 21000 for data === '0x' sent every deposit to the
-  // FoundationLock out of gas — two reverted on mainnet before this was found.
-  // An EOA estimates to exactly 21000, so the floor below is the only case the
-  // estimate can ever come in under, and a contract estimates to what it needs.
-  // If the estimate itself fails, the call would revert: surface that instead
-  // of signing a transaction we already know will fail.
-  let estimate: bigint;
-  try {
-    estimate = await provider.estimateGas({ from, to, value: valueWei, data });
-  } catch (e) {
-    throw new Error(`This transaction would fail: ${revertReason(e)}`);
-  }
-  // Exactly 21000 is the signature of a plain-account transfer: deterministic,
-  // nothing to run, no headroom needed — keep it so the common case is
-  // unchanged and "Max" math stays exact. Anything else ran code, gets +20%.
-  const gasLimit = gasLimitFor(estimate);
+  // Exactly 21000 (a plain-account transfer) is kept as it is, so the common
+  // case and "Max" math stay exact; anything that ran code gets +20%.
+  const gasLimit = await estimatedGasLimit(provider, { from, to, valueWei, data });
   const nonce = await provider.getTransactionCount(from, 'pending');
   const legacy = fees.gasPrice != null;
+  const fee = await worstCaseFee(provider, { chainId, to, valueWei, data, nonce, gasLimit, fees }, policy);
   const prepared: PreparedTx = {
     chainId,
     from,
@@ -295,21 +355,14 @@ export async function prepareTransaction(
     maxFeePerGas: fees.maxFeePerGas,
     maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
     baseFee: fees.baseFee,
-    maxFeeWei: txMaxFeeWei(gasLimit, legacy ? (fees.gasPrice as bigint) : fees.maxFeePerGas),
+    maxFeeWei: fee.maxFeeWei,
   };
   if (legacy) {
     prepared.type = 0;
     prepared.gasPrice = fees.gasPrice as bigint;
   }
-  if (policy.opStackL1Fee) {
-    const l1 = await estimateOpL1Fee(provider, unsignedFor({ chainId, to, valueWei, data, nonce, gasLimit, fees }));
-    if (l1 === null) {
-      prepared.l1FeeUnknown = true;
-    } else {
-      prepared.l1FeeWei = l1;
-      prepared.maxFeeWei += l1;
-    }
-  }
+  if (fee.l1FeeWei !== undefined) prepared.l1FeeWei = fee.l1FeeWei;
+  if (fee.l1FeeUnknown) prepared.l1FeeUnknown = true;
   return prepared;
 }
 

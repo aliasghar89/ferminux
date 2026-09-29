@@ -21,7 +21,8 @@
 // network's rows disabled), the buy form (FMX locked on the output side with
 // its one-line note, rate incl. the spread, USD limits, confirmations,
 // recipient), the guards (under $1, more than the balance, no gas on the
-// network, a quote with under a minute left → re-quote, a recipient change
+// network, gas but not Base's L1 data fee, a quote with under a minute
+// left → re-quote, a recipient change
 // only behind a warning and an acknowledgement), the review screen (exact
 // amount, deposit address, token contract, recipient, expiry, fee), and that
 // the ONE transaction signed pays exactly `sendExactly` to the deposit address
@@ -48,6 +49,7 @@ import { Interface, Transaction, Wallet, getAddress, keccak256, parseUnits, form
 import { DEX } from '../src/lib/swap.ts';
 import { FOREIGN_CHAINS, MULTICALL3_ADDRESS } from '../src/lib/chains.ts';
 import { payinCoin } from '../src/lib/payin.ts';
+import { gasLimitFor } from '../src/lib/tx.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PORT = Number(process.env.SMOKE_PORT ?? 28611);
@@ -620,6 +622,19 @@ async function phonePass(browser, shots) {
   assert.match(await txt(page, '[data-testid=payin-form-error]'), /no AVAX on Avalanche C-Chain/);
   assert.equal(payin.bodies.length, 1, 'no quote was asked for');
   ok('[phone] Avalanche USDT with no AVAX for gas: refused before any quote');
+
+  // ETH for the gas of the exact transfer but not for Base's L1 data fee: the check before a quote prices
+  // the transfer as Send does (estimate + 20 %, 2 × base fee + tip, the oracle's L1 fee), so no quote
+  const baseGasOnly = gasLimitFor(52_000n) * (2n * 1_000_000_000n + 100_000_000n) + 1_000_000_000_000n;
+  state.chains[8453].native = baseGasOnly;
+  await pickPayin(page, tap, 'base', 'USDC');
+  await page.fill('[data-testid=payin-amount]', '10');
+  await tap('[data-testid=payin-quote]');
+  await page.waitForFunction(() => /network fee/.test(document.querySelector('[data-testid=payin-form-error]')?.textContent ?? ''), null, { timeout: 30_000 });
+  assert.match(await txt(page, '[data-testid=payin-form-error]'), /Not enough ETH on Base for the network fee: this transfer needs up to 0\.000134\d* ETH/);
+  assert.equal(payin.bodies.length, 1, 'no quote was asked for');
+  state.chains[8453].native = parseUnits('0.2', 18);
+  ok('[phone] Base USDC with ETH for the gas but not the L1 data fee: refused before any quote');
 
   await pickPayin(page, tap, 'base', 'USDC');
   await page.fill('[data-testid=payin-amount]', '10');

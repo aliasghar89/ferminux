@@ -92,3 +92,29 @@
 <<< step exit-x2-check done (block 14681, fails so far 0)
 
 >>> step restart (2026-09-26T01:31:04Z, block 14681)
+
+## seat 1: the 14-day unbond ended at 173948 (2026-09-27T22:44:45Z, block 173949)
+  withdraw: tx=0xb1dd3b0e80736a4315aff73f1ecfd48bcc0952123ca23f485720a035730c937a block=173951 status=1 gas=73324
+  owner balance change: 1999.999926675999486732 FMX (2,000 minus gas)
+{
+ "id": 1,
+ "state": "WITHDRAWN",
+ "owner": "owner-v01",
+ "attester": "att-v01",
+ "deposit": "0.0",
+ "claimable": "0.0",
+ "activationBlock": 13452,
+ "eligibleFrom": 99852,
+ "countedSince": 0,
+ "lastAttestedHeight": 0,
+ "dutyStartCp": 68,
+ "unjailBlock": 0,
+ "unbondEndBlock": 173948,
+ "slash": "NONE"
+}
+  ok: seat 1 WITHDRAWN with deposit 0
+  dashboard of v01: evidence/dashboards/v01-seat-closed-desktop.png, -phone.png, .txt, -api-status.json
+  ok: withdraw twice refused: REVERTED: BadStatus()
+<<< step withdraw done (block 174000, fails so far 1)
+
+>>> step final (2026-09-27T22:45:36Z, block 174000)

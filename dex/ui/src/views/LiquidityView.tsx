@@ -45,7 +45,7 @@ import type { PoolsState } from '../state/usePools.ts';
 import type { PositionsState } from '../state/usePositions.ts';
 import type { TradeSettings } from '../state/useSettings.ts';
 import type { WalletSession } from '../state/useWallet.ts';
-import { LockBadge } from './PoolsView.tsx';
+import { LockBadge } from '../components/LockBadge.tsx';
 import { SettingsModal } from './SettingsModal.tsx';
 import { TokenPicker } from './TokenPicker.tsx';
 

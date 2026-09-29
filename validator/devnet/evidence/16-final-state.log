@@ -1,0 +1,136 @@
+
+## every attestation of the run: inclusion window and duplicates (2026-09-27T22:45:36Z, block 174000)
+{
+ "head": 174000,
+ "attestations": 21751,
+ "checkpoints": 783,
+ "inclusionDelay": {
+  "min": 65,
+  "max": 232
+ },
+ "outsideWindow": 0,
+ "duplicateSeatHeight": 0,
+ "paid": 21721,
+ "unpaid": 30,
+ "paidRates": [
+  "0.025"
+ ]
+}
+
+## reward and deposit conservation (10.1 item 11) (2026-09-27T22:45:38Z, block 174002)
+{
+ "head": 174002,
+ "totalDeposited": "72000.0",
+ "totalWithdrawn": "2000.0",
+ "totalSlashed": "200.0",
+ "totalBurned": "180.0",
+ "pendingBurn": "0.0",
+ "totalCredits": "0.0",
+ "totalFunded": "20000.11",
+ "totalAllocated": "559.025",
+ "totalClaimable": "558.7",
+ "totalClaimed": "0.325",
+ "totalReturned": "0.0",
+ "rewardPool": "19441.085",
+ "bondedTotal": "69800.0",
+ "hubBalance": "89799.785",
+ "burnAddressBalance": "180.0",
+ "checks": {
+  "balance == bonded + pool + claimable + credits + pendingBurn": true,
+  "funded == pool + claimable + claimed + returned": true,
+  "deposited == bonded + withdrawn + slashed": true,
+  "allocated <= funded": true,
+  "allocated == claimable + claimed": true
+ }
+}
+
+## seats (2026-09-27T22:45:38Z, block 174002)
+head 174003  seats 36  occupied 32  eligible 32  pool 19441.085 FMX  rate 0.025 FMX
+id  state      owner         attester      activation  eligibleFrom counted  lastAttested  claimable   deposit  unjail  unbondEnd slash
+1   WITHDRAWN  owner-v01     att-v01       13452       99852        0        0             0.0         0.0      0       173948    NONE
+2   EXITING    owner-v02     att-v02       13456       99856        0        14200         0.05        1800.0   0       187255    EXECUTED
+3   EXITING    owner-v03     att-v03       13460       99860        0        14200         0.05        2000.0   0       187260    NONE
+4   ACTIVE     owner-v04     att-v04       13464       99864        99866    173800        15.325      2000.0   0       0         NONE
+5   ACTIVE     owner-v05     att-v05       13468       99868        100066   173800        19.95       2000.0   0       0         NONE
+6   EXITING    owner-v06     att-v06       13472       99872        0        14400         0.0         2000.0   0       187330    NONE
+7   ACTIVE     owner-v07     att-v07       13476       99876        100066   173800        19.675      2000.0   0       0         NONE
+8   ACTIVE     owner-v08     att-v08       13480       99880        100066   173800        19.95       2000.0   0       0         NONE
+9   ACTIVE     owner-v09     att-v09       13484       99884        100066   173800        19.975      2000.0   0       0         NONE
+10  ACTIVE     owner-v10     att-v10       13488       99888        100066   173800        20.0        2000.0   0       0         NONE
+11  ACTIVE     owner-v11     att-v11       37102       123502       123666   173800        17.125      2000.0   0       0         NONE
+12  ACTIVE     owner-v12     att-v12       37107       123507       123666   173800        17.1        2000.0   0       0         NONE
+13  ACTIVE     owner-h1-s1   att-h1-s1     37111       123511       123666   173800        17.125      2000.0   0       0         NONE
+14  ACTIVE     owner-h1-s2   att-h1-s2     37115       123515       123666   173800        17.125      2000.0   0       0         NONE
+15  ACTIVE     owner-h1-s3   att-h1-s3     37119       123519       123666   173800        17.125      2000.0   0       0         NONE
+16  ACTIVE     owner-h1-s4   att-h1-s4     37123       123523       123666   173800        17.125      2000.0   0       0         NONE
+17  ACTIVE     owner-h1-s5   att-h1-s5     37127       123527       123666   173800        17.125      2000.0   0       0         NONE
+18  ACTIVE     owner-h1-s6   att-h1-s6     37132       123532       123666   173800        17.125      2000.0   0       0         NONE
+19  ACTIVE     owner-h1-s7   att-h1-s7     37136       123536       123666   173800        17.125      2000.0   0       0         NONE
+20  ACTIVE     owner-h1-s8   att-h1-s8     37140       123540       123666   173800        17.125      2000.0   0       0         NONE
+21  ACTIVE     owner-h1-s9   att-h1-s9     37144       123544       123666   173800        17.125      2000.0   0       0         NONE
+22  ACTIVE     owner-h1-s10  att-h1-s10    37148       123548       123666   173800        17.125      2000.0   0       0         NONE
+23  ACTIVE     owner-h1-s11  att-h1-s11    37152       123552       123666   173800        17.125      2000.0   0       0         NONE
+24  ACTIVE     owner-h2-s1   att-h2-s1     37156       123556       123666   173800        17.125      2000.0   0       0         NONE
+25  ACTIVE     owner-h2-s2   att-h2-s2     37160       123560       123666   173800        17.125      2000.0   0       0         NONE
+26  ACTIVE     owner-h2-s3   att-h2-s3     37164       123564       123666   173800        17.125      2000.0   0       0         NONE
+27  ACTIVE     owner-h2-s4   att-h2-s4     38370       124770       124866   173800        16.975      2000.0   0       0         NONE
+28  ACTIVE     owner-h2-s5   att-h2-s5     38374       124774       124866   173800        16.975      2000.0   0       0         NONE
+29  ACTIVE     owner-h2-s6   att-h2-s6     38378       124778       124866   173800        16.975      2000.0   0       0         NONE
+30  ACTIVE     owner-h2-s7   att-h2-s7     38382       124782       124866   173800        16.975      2000.0   0       0         NONE
+31  ACTIVE     owner-h2-s8   att-h2-s8     38386       124786       124866   173800        16.975      2000.0   0       0         NONE
+32  ACTIVE     owner-h2-s9   att-h2-s9     38390       124790       124866   173800        16.975      2000.0   0       0         NONE
+33  ACTIVE     owner-h2-s10  att-h2-s10    38394       124794       124866   173800        16.975      2000.0   0       0         NONE
+34  ACTIVE     owner-h2-s11  att-h2-s11    38398       124798       124866   173800        16.975      2000.0   0       0         NONE
+35  ACTIVE     owner-h2-s12  att-h2-s12    38402       124802       124866   173800        16.975      2000.0   0       0         NONE
+36  ACTIVE     owner-h2-s13  att-h2-s13    38406       124806       124866   173800        16.975      2000.0   0       0         NONE
+
+## protection databases vs the chain: one record per (seat, height), matching the on-chain hash (2026-09-27T22:45:39Z, block 174003)
+{
+ "head": 174015,
+ "machines": 35,
+ "records": 22397,
+ "recordsPerMachine": {
+  "h1/s1": 685,
+  "h1/s10": 685,
+  "h1/s11": 685,
+  "h1/s2": 685,
+  "h1/s3": 685,
+  "h1/s4": 685,
+  "h1/s5": 685,
+  "h1/s6": 685,
+  "h1/s7": 685,
+  "h1/s8": 685,
+  "h1/s9": 685,
+  "h2/s1": 685,
+  "h2/s10": 679,
+  "h2/s11": 679,
+  "h2/s12": 679,
+  "h2/s13": 679,
+  "h2/s2": 685,
+  "h2/s3": 685,
+  "h2/s4": 679,
+  "h2/s5": 679,
+  "h2/s6": 679,
+  "h2/s7": 679,
+  "h2/s8": 679,
+  "h2/s9": 679,
+  "v02": 6,
+  "v03": 6,
+  "v04": 615,
+  "v05": 803,
+  "v06": 6,
+  "v07": 803,
+  "v08": 803,
+  "v09": 803,
+  "v10": 803,
+  "v11": 685,
+  "v12": 684
+ },
+ "conflictingRecords": 0,
+ "recordsNotCanonical": 0,
+ "acceptedAttestations": 21751,
+ "acceptedWithoutLocalRecord": 0
+}
+  ok: every signature on record is the canonical hash, once per height, and every accepted attestation is on record
+<<< step final done (block 174698, fails so far 1)
+ALL STEPS DONE at block 174698 (2026-09-27T22:57:14Z); checks failed: 1

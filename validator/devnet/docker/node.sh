@@ -14,6 +14,8 @@ fi
 COMMON=(--datadir "$D" --networkid 39619 --syncmode full --port 30303 --nat none
         --netrestrict "$NETRESTRICT" --bootnodes "$BOOTNODES" --nodekeyhex "$NODEKEY"
         --maxpeers 60 --ipcpath "$D/ferminux.ipc" --verbosity 3)
+# optional extra flags, e.g. EXTRA_ARGS="--cache 256" (the mainnet signer unit uses --cache 64 on small hosts)
+[ -n "${EXTRA_ARGS:-}" ] && COMMON+=($EXTRA_ARGS)
 case "$ROLE" in
   signer)
     if ! ls "$D/keystore"/UTC--* >/dev/null 2>&1; then

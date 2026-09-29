@@ -1,6 +1,7 @@
 // Ferminux Agents (FRC-721, FMXA) — collection metadata + on-chain status reads shared by /nfts/ and the home strip.
 import { config, nftDeployed } from "./config";
-import { nftRead } from "./wallet";
+import { nftRead, readProvider } from "./wallet";
+import { mintStatuses, multicallValues } from "./multicall";
 import { api } from "./api";
 import { esc } from "./format";
 import { artSources, type OwnerBook } from "./nftView";
@@ -108,15 +109,19 @@ export async function collectionState(): Promise<{ price: bigint; paused: boolea
   if (MOCK) { await new Promise((r) => setTimeout(r, 200)); return { price: 50n * 10n ** 18n, paused: false, totalSupply: mockMinted.size }; }
   if (!nftDeployed) throw new Error("The Ferminux Agents collection is not deployed yet.");
   const c = nftRead();
-  const [price, paused, ts] = await Promise.all([c.price() as Promise<bigint>, c.paused() as Promise<boolean>, c.totalSupply() as Promise<bigint>]);
+  // one Multicall3 eth_call; if it fails, one eth_call each
+  const [price, paused, ts] = (await multicallValues(readProvider(), ["price", "paused", "totalSupply"].map((fn) => ({ target: config.nft, iface: c.interface, fn })))
+    .catch(() => Promise.all([c.price(), c.paused(), c.totalSupply()]))) as [bigint, boolean, bigint];
   return { price: BigInt(price), paused: Boolean(paused), totalSupply: Number(ts) };
 }
 
-/** minted(id) for each id (no multicall on this chain: one eth_call per id, all in flight at once), then ownerOf for the minted ones. */
+/** minted(id) and ownerOf(id) for every id in one Multicall3 eth_call. If that read fails, the per-id path: minted(id)
+ *  for each id (one eth_call per id, all in flight at once), then ownerOf for the minted ones. */
 export async function statuses(ids: number[]): Promise<NftStatus[]> {
   if (MOCK) { await new Promise((r) => setTimeout(r, 300)); return ids.map(mockStatus); }
   if (!nftDeployed) return ids.map((id) => ({ id, minted: false, owner: null }));
   const c = nftRead();
+  try { return await mintStatuses(readProvider(), config.nft, c.interface, ids); } catch { /* per id below */ }
   const minted = await Promise.all(ids.map((id) => (c.minted(id) as Promise<boolean>).then(Boolean)));
   const owners = await Promise.all(ids.map((id, i) => minted[i] ? (c.ownerOf(id) as Promise<string>).catch(() => null) : Promise.resolve(null)));
   return ids.map((id, i) => ({ id, minted: minted[i], owner: owners[i] }));

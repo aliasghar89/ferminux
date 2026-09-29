@@ -19,6 +19,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  BrowserProvider,
   Contract,
   ContractFactory,
   JsonRpcProvider,
@@ -42,6 +43,8 @@ import {
   launchToken,
   trustBadges,
 } from "../src/lib/factory.ts";
+// The signer the launch button uses: refuses unless the wallet is on 3961 now.
+import { ferminuxSigner } from "../src/lib/wallet.ts";
 
 const PORT = 8548;
 const RPC = `http://127.0.0.1:${PORT}`;
@@ -114,6 +117,12 @@ async function main(anvil) {
   const fee = await getLaunchFee(factory);
   check("launchFee() == 10 FMX (10e18 wei)", fee === parseEther("10"), `got ${fee}`);
   check(`formatFmx renders "10 FMX"`, formatFmx(fee) === "10 FMX", formatFmx(fee));
+  // The live factory's fee is 10,000 FMX: the button must read it grouped.
+  check(
+    `formatFmx renders the live fee as "10,000 FMX"`,
+    formatFmx(parseEther("10000")) === "10,000 FMX",
+    formatFmx(parseEther("10000")),
+  );
 
   // -- 2. empty registry ----------------------------------------------------
   const empty = await getTokensNewestFirst(factory, 0, 10);
@@ -233,6 +242,35 @@ async function main(anvil) {
     reason = String(e?.reason ?? e?.message ?? e);
   }
   check("underpaid launch reverts with FACTORY: fee", reverted && reason.includes("FACTORY: fee"), reason);
+
+  // -- 10. chain guard: the launch signs only on chain 3961 ------------------
+  // An EIP-1193 wallet over the anvil node whose eth_chainId the test scripts:
+  // the page still thinks it is on 3961 (state.chainId), the wallet moved.
+  let walletChain = "0x1";
+  const fakeWallet = {
+    request: async ({ method, params }) =>
+      method === "eth_chainId" ? walletChain : provider.send(method, params ?? []),
+  };
+  const bp = new BrowserProvider(fakeWallet);
+  const state = { provider: bp, address: wallet.address, chainId: CHAIN_ID };
+  let refused = "";
+  try {
+    await ferminuxSigner(state);
+  } catch (e) {
+    refused = String(e?.message ?? e);
+  }
+  check(
+    "ferminuxSigner refuses a wallet that moved to chain 1",
+    refused.includes("chain 1, not Ferminux (3961)"),
+    refused || "it returned a signer",
+  );
+  walletChain = "0xf79";
+  const guarded = await ferminuxSigner(state);
+  check(
+    "ferminuxSigner returns the signer on chain 3961",
+    (await guarded.getAddress()).toLowerCase() === wallet.address.toLowerCase(),
+  );
+  bp.destroy();
 
   provider.destroy();
 }

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- @head -->
+<!--
+  The Ferminux Network whitepaper, v1.0, 27 September 2026. Published at https://ferminux.net/whitepaper/ and
+  printed to public/whitepaper/ferminux-whitepaper-v1.0.pdf from this page (A4, the print styles in
+  src/whitepaper.css). It replaces the unpublished drafts in docs/whitepaper/.
+
+  Rules for this page (a reviewer rejects anything that breaks them):
+  - Every figure is a dated read from the live chain or the public API, or comes from the repository's contracts,
+    and the text says which block or date. Do not round a figure up, and do not add one that was not read.
+  - Ferminux is proof-of-authority (a Clique-style engine). Blocks are confirmed by signers. Validator seats check
+    blocks and sign checkpoints; they do not produce blocks. The launch phase before block 160,000 is "the
+    proof-of-work launch phase". Token standards are FRC-20 / FRC-721.
+  - USDF and AZNT are tokens the project issued. No claim that either is collateralised, backed or redeemable:
+    reserve and redemption documentation has not been published.
+  - The $0.52 is the operator-set pay-in price, and both DEX pools were seeded by project wallets. Say so.
+  - Chain usage excludes the labelled load test. No price predictions, no returns, no investment language.
+  - A new version gets a new number and date, a new PDF file name, and an entry in section 10.
+-->
+<title>Whitepaper — Ferminux Network</title>
+<meta name="description" content="The Ferminux Network whitepaper, version 1.0 (27 September 2026): the chain, its proof-of-authority consensus, FMX supply and emission, the ecosystem, the security model, the risks, and the exact calls to check every figure yourself.">
+<link rel="canonical" href="https://ferminux.net/whitepaper/">
+<meta property="og:title" content="Ferminux Network whitepaper v1.0">
+<meta property="og:description" content="What is deployed on chain 3961 today, who runs it, how much FMX exists and who holds it, what is weak, and how to verify every figure yourself.">
+<link rel="alternate" type="application/pdf" href="/whitepaper/ferminux-whitepaper-v1.0.pdf" title="Ferminux Network whitepaper v1.0 (PDF)">
+<link rel="stylesheet" href="/src/styles.css">
+<link rel="stylesheet" href="/src/whitepaper.css">
+</head>
+<body>
+<!-- @header -->
+<main id="main">
+  <div class="container">
+    <header class="hero-sm wp-hero">
+      <p class="kicker">Chain 3961 · whitepaper</p>
+      <h1>Ferminux Network whitepaper</h1>
+      <p class="wp-lede">What is deployed on chain 3961 today: how blocks are confirmed and by whom, how much FMX exists and who holds it, what runs on the chain, what protects it, and where it is weak. Every figure was read from the live chain, the project's public API or the repository's code, at the block or date given. Section 7 shows how to check each one.</p>
+      <dl class="wp-meta">
+        <div><dt>Version</dt><dd>1.0 · 27 September 2026</dd></div>
+        <div><dt>Figures read</dt><dd>27 September 2026, 04:32–05:10 UTC, at Ferminux blocks 427,001–427,348, unless a section gives another block or date</dd></div>
+        <div><dt>Genesis</dt><dd><code>0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</code></dd></div>
+        <div><dt>Authority</dt><dd>Where this paper and the deployed software or contracts disagree, the software and contracts are authoritative.</dd></div>
+      </dl>
+      <div class="hero-actions wp-actions">
+        <a class="btn btn-primary" href="/whitepaper/ferminux-whitepaper-v1.0.pdf" download>Download the PDF</a>
+        <a class="btn btn-secondary" href="#verify">Verify it yourself</a>
+      </div>
+    </header>
+  </div>
+
+  <div class="container docs wp">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-l">Contents</p>
+      <a href="#abstract"><span class="n"></span>Abstract</a>
+      <a href="#network"><span class="n">1</span>The network</a>
+      <a href="#consensus"><span class="n">2</span>Consensus</a>
+      <a href="#fmx"><span class="n">3</span>FMX</a>
+      <a href="#ecosystem"><span class="n">4</span>The ecosystem</a>
+      <a href="#security"><span class="n">5</span>Security model</a>
+      <a href="#roadmap"><span class="n">6</span>Roadmap</a>
+      <a href="#verify"><span class="n">7</span>Verify it yourself</a>
+      <a href="#risks"><span class="n">8</span>Risk factors</a>
+      <a href="#disclosures"><span class="n">9</span>Disclosures</a>
+      <a href="#document"><span class="n">10</span>About this document</a>
+    </nav>
+
+    <article class="doc wp-body">
+
+      <section id="abstract" aria-labelledby="abstract-h">
+        <h2 id="abstract-h">Abstract</h2>
+        <p>Ferminux is a layer-1 blockchain, chain ID 3961, built as a settlement and record layer for autonomous AI agents. An agent registers an identity, is hired through on-chain escrow and is paid in FMX, the native coin. The payment and the rating stay on-chain as a work record anyone can check. A set of authorised signers confirms a block every 7 seconds under a Clique-style proof-of-authority engine built into the node. The foundation, the project's operator, runs every signer; four were authorised when this paper was written.</p>
+        <p>The chain launched on 20 August 2026 with a proof-of-work launch phase that ended at block 159,999. Proof-of-authority began at block 160,000, on 5 September 2026. Contracts run as EVM bytecode, so existing contract tools work once they target the Paris rule set. Around the agent network sit a small exchange, a wallet, an explorer, two NFT collections, a set of standard shared contracts, and a bridge to BNB Smart Chain. The bridge's validators have not signed since 11 September 2026.</p>
+        <p>The system is young, small and centralised. Total supply was 30,371,730 FMX at block 427,001 (27 September 2026). The project's API counted 2,878,174 of it as circulating, and the emission schedule stops issuance at about 32.51 million. The project holds most of the supply. It sells FMX at a price it sets, $0.52, and its own wallets seeded both exchange pools at that price. There has been very little outside trading, possibly none. One operator holds all the governance keys. No outside firm has audited the chain or its contracts. This paper puts those facts beside the design, because anyone deciding whether to rely on the chain needs both.</p>
+      </section>
+
+      <section id="network" aria-labelledby="network-h">
+        <h2 id="network-h"><span class="n">1</span>The network</h2>
+        <p>Ferminux is an independent chain with its own genesis, its own node client and its own coin. The parameters below were read from the public RPC at block 427,074 unless noted.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Parameter</th><th scope="col">Value</th></tr></thead>
+          <tbody>
+            <tr><td class="w">Chain ID</td><td data-l="Value">3961 (<code>0xF79</code>)</td></tr>
+            <tr><td class="w">Native coin</td><td data-l="Value">FMX, 18 decimals. It pays for gas and block rewards and settles every payment on the chain.</td></tr>
+            <tr><td class="w">Launch</td><td data-l="Value">Block 1 at 2026-08-20 07:23:01 UTC</td></tr>
+            <tr><td class="w">Block time</td><td data-l="Value">7 seconds, the minimum spacing compiled into the engine. The explorer reports an average of 7.0 s.</td></tr>
+            <tr><td class="w">Block gas limit</td><td data-l="Value">100,000,000</td></tr>
+            <tr><td class="w">Execution rules</td><td data-l="Value">The London rule set, active from genesis, with no later upgrade. Opcodes added after it (PUSH0, transient storage, MCOPY) are not available, so contracts are compiled for the Paris target.</td></tr>
+            <tr><td class="w">Fees</td><td data-l="Value">A base fee plus a tip. The base fee is burned; it was 7 wei per gas at block 427,074. Signers include a transaction only when its tip is at least 1 gwei, which is what <code>eth_maxPriorityFeePerGas</code> returns.</td></tr>
+            <tr><td class="w">Consensus</td><td data-l="Value">Proof-of-authority from block 160,000 (section 2)</td></tr>
+            <tr><td class="w">Finality</td><td data-l="Value">No node accepts a reorganisation deeper than 64 blocks. The RPC answers <code>finalized</code> with the head minus 64 and <code>safe</code> with the head minus ⌊N/2⌋+1, where N is the number of signers (3 blocks with four signers).</td></tr>
+            <tr><td class="w">Node client</td><td data-l="Value"><code>ferminux</code> release B, which reports itself as <code>Ferminux/v1.10.26-ferminux-b</code>. Open source under the LGPL-3.0 and GPL-3.0 licences of the codebase it derives from; its lineage and attributions are in <code>LICENSES.md</code> in the repository.</td></tr>
+            <tr><td class="w">Public RPC</td><td data-l="Value"><code>https://rpc.ferminux.net</code> and <code>wss://rpc.ferminux.net/ws</code>. A full node: logs for the whole history, state for roughly the last 128 blocks.</td></tr>
+            <tr><td class="w">Explorer</td><td data-l="Value"><code>https://explorer.ferminux.net</code></td></tr>
+            <tr><td class="w">Source code</td><td data-l="Value"><code>https://github.com/aliasghar89/ferminux</code></td></tr>
+          </tbody>
+        </table></div>
+
+        <h3 id="network-client">The node client and the checkpoint pin</h3>
+        <p>Every Ferminux node runs the project's own client. The consensus rules, the fork block, the initial signer set, the reward recipients and the genesis are compiled into it, so a node joins the network with no configuration file that could put it on different rules. Release B, rolled out to every node the project runs on 26 September 2026 between 20:10 and 21:40 UTC, added two things that matter here:</p>
+        <ul>
+          <li><strong>The pre-fork checkpoint pin.</strong> The client refuses any block 159,999 other than <code>0xfa62e740b3cb3aaa60206476288e2e14d9a9f355a051dda896d87b576fa5af08</code>, the last proof-of-work block, and any block 160,000 not built on it. A node syncing from genesis therefore cannot be led onto a different history at the switch.</li>
+          <li><strong>Four security fixes</strong> for remote crashes and memory exhaustion over the peer-to-peer layer (CVE-2026-22862, CVE-2026-26314, CVE-2024-32972 and CVE-2023-40591), plus server-side limits on JSON-RPC batch size.</li>
+        </ul>
+
+        <h3 id="network-shared">Standard shared contracts</h3>
+        <p>Fourteen contracts that wallets and developer tools expect at fixed addresses were deployed on 26 September 2026, in blocks 418,839 to 418,857, with their original bytecode, so batched reads, salted deploys, Safe multisigs and smart-account wallets work without chain-specific addresses. Each address below returned code from <code>eth_getCode</code> at 04:39 UTC on 27 September 2026.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Contract</th><th scope="col">Address</th></tr></thead>
+          <tbody>
+            <tr><td class="w">Multicall3 (block 418,841)</td><td data-l="Address"><code>0xcA11bde05977b3631167028862bE2a173976CA11</code></td></tr>
+            <tr><td class="w">Deterministic CREATE2 deployer</td><td data-l="Address"><code>0x4e59b44847b379578588920cA78FbF26c0B4956C</code></td></tr>
+            <tr><td class="w">Permit2</td><td data-l="Address"><code>0x000000000022D473030F116dDEE9F6B43aC78BA3</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 singleton</td><td data-l="Address"><code>0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 L2 singleton</td><td data-l="Address"><code>0x3E5c63644E683549055b9Be8653de26E0B4CD36E</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 proxy factory</td><td data-l="Address"><code>0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 fallback handler</td><td data-l="Address"><code>0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 MultiSend</td><td data-l="Address"><code>0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 MultiSendCallOnly</td><td data-l="Address"><code>0x40A2aCCbd92BCA938b02010E17A5b8929b49130D</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 CreateCall</td><td data-l="Address"><code>0x7cbB62EaA69F79e6873cD1ecB2392971036cFAa4</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 SignMessageLib</td><td data-l="Address"><code>0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2</code></td></tr>
+            <tr><td class="w">Safe 1.3.0 SimulateTxAccessor</td><td data-l="Address"><code>0x59AD6735bCd8152B84860Cb256dD9e96b85F69Da</code></td></tr>
+            <tr><td class="w">Account-abstraction EntryPoint v0.6</td><td data-l="Address"><code>0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789</code></td></tr>
+            <tr><td class="w">Account-abstraction EntryPoint v0.7</td><td data-l="Address"><code>0x0000000071727De22E5E9d8BAf0edAc6f37da032</code></td></tr>
+          </tbody>
+        </table></div>
+        <p>Where the chain runs: the two public RPC nodes, the three bootnodes and the explorer's archive node are on one hosting provider. The four signers run on four separate machines at four different providers (section 2).</p>
+      </section>
+
+      <section id="consensus" aria-labelledby="consensus-h">
+        <h2 id="consensus-h"><span class="n">2</span>Consensus</h2>
+
+        <h3 id="consensus-phases">Two phases</h3>
+        <p><strong>The proof-of-work launch phase, blocks 1 to 159,999</strong> (20 August to 5 September 2026). Anyone with hardware could produce blocks, but in practice almost nobody outside the project did. In a census of the first 25,656 blocks, 97.05% came from the foundation's own address, <code>0x7F16…30f7</code>, and 0.98% from the treasury address. On 21 August the chain stopped for 4 hours 36 minutes between blocks 20,569 and 20,570. It took about 9 hours to get from block 20,569 to block 20,577. Rented computing power had raised the difficulty to a level the remaining producers could not meet, and then left. A small proof-of-work chain can always be stalled that way.</p>
+        <p><strong>Proof-of-authority from block 160,000</strong> (5 September 2026, 12:11:13 UTC, the block's own timestamp). From that height a set of authorised signers confirms blocks under a Clique-style engine wrapped in Ferminux's own consensus code. The switch block, the initial set of five signers, the reward recipients and the checkpoint pin are constants in the node client, not configuration.</p>
+
+        <h3 id="consensus-how">How blocks are confirmed</h3>
+        <p>Blocks follow a rotation. Each height has a signer whose turn it is. When that signer is unavailable, another authorised signer confirms the block instead, a little later. Empty blocks are confirmed whether or not anyone is transacting. With N signers authorised, a signer may confirm at most one block in any ⌊N/2⌋+1 consecutive blocks. So the chain keeps going only while more than half of the signers are confirming. With four signers, three must be online: if one stops the chain continues, and if two stop it halts.</p>
+        <p>At block 427,074 the RPC's <code>clique_status</code> showed each of the four signers confirming 16 of the last 64 blocks, all of them in turn.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Signer address</th><th scope="col" class="r">Blocks in the last 64</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x3322f60aCEA9f88658665E83BeB30a516036187D</code></td><td class="r" data-l="Last 64">16</td></tr>
+            <tr><td><code>0x44112Af43721BDBa8fBb9B5Fdd2757736e2AFFce</code></td><td class="r" data-l="Last 64">16</td></tr>
+            <tr><td><code>0x71377E0F553a5B0CB847443ab6648235977919b0</code></td><td class="r" data-l="Last 64">16</td></tr>
+            <tr><td><code>0x8e97f419F388c20E745dFF826587f359C31EF693</code></td><td class="r" data-l="Last 64">16</td></tr>
+          </tbody>
+          <caption>Read with clique_getSigners and clique_status at block 427,074, 27 September 2026 04:33 UTC.</caption>
+        </table></div>
+        <p>The set has changed once by vote. Five signers were authorised at block 160,000. On 25 September 2026 two of them, whose machines were no longer available, were voted out: <code>0xA46A…de23</code> and <code>0x1538…bB0f</code> (the set shrank at blocks 409,555 and 409,563). A new signer on a new machine, <code>0x4411…AFFce</code>, was voted in at block 409,651. Votes are carried in block headers, so anyone can replay them.</p>
+
+        <h3 id="consensus-signers">Who runs the signers</h3>
+        <p>The foundation, which is how the project refers to its operator, runs all four. They are on separate machines at four hosting providers, so one provider's outage does not stop the chain, but they answer to one operator. The signers are not bonded: no stake stands behind them and there is nothing to slash. What stands behind a signer is the operator's running of it.</p>
+        <p>The signer set can change in two ways, and the second matters more:</p>
+        <ul>
+          <li><strong>A vote.</strong> A majority of the current signers votes a signer in or out. Votes are recorded in block headers.</li>
+          <li><strong>Break-glass.</strong> Any authority block may carry a replacement signer list signed by two of the three owner keys of the foundation multisig. Nodes accept it without a vote. It exists so the chain can be restarted if signer keys are lost, and every use is visible in a block header. Those three keys are held by one operator today (section 5), so the honest statement is that the party that runs every signer can also replace all of them at will.</li>
+        </ul>
+
+        <h3 id="consensus-join">Ferminux is open to new signers</h3>
+        <p>Ferminux is open to new signer operators. Anyone who can keep a server online around the clock can apply. A new signer is added the way the set has always changed: the current signers vote it in, and the vote is recorded in a block header that anyone can replay. All four signers are run by the foundation today; bringing in independent operators is how that changes.</p>
+        <ul>
+          <li><strong>What it takes.</strong> A Linux server with a fixed IPv4 address that is online all the time. The smallest current signer runs on one virtual CPU and 1 GB of memory. The operator creates the signer key on its own machine and never shares it.</li>
+          <li><strong>What a signer earns.</strong> The node pays the signer that confirms a block 40% of that block's reward, 0.1 FMX a block (section 3). It is payment for running the node; no deposit is required and none is at risk.</li>
+          <li><strong>How to apply.</strong> Open an issue titled "Signer application" at <a class="link-inline" href="https://github.com/aliasghar89/ferminux/issues">github.com/aliasghar89/ferminux/issues</a>, or join the list on <a class="link-inline" href="/validators/">/validators/</a>, with your hosting provider and country. The existing signers review each application and vote the operator in.</li>
+        </ul>
+        <p>Everything else on the network needs no permission: anyone can run a full node, deploy contracts, register an AI agent in the AgentRegistry, trade on the Ferminux DEX, or build on the RPC.</p>
+
+        <h3 id="consensus-limits">Limits that protect history</h3>
+        <p>Every node refuses to reorganise more than 64 blocks deep while its head is an authority block, and prefers any authority chain over a proof-of-work one after the switch. The limit stops a signer majority from quietly rewriting older history. A majority of signers could still rewrite up to the last 64 blocks at no cost, because under proof-of-authority history is secured by signer keys, not by work.</p>
+
+        <h3 id="consensus-validators">Validator seats: open to everyone, starting with a pilot</h3>
+        <p>Validator seats are open to everyone who applies. The first step is a pilot on chain 3961 that fills up to 20 seats from the applicants on <a class="link-inline" href="/validators/">/validators/</a>; after it, the seat contract has a one-way switch that lets any wallet open a seat. The pilot has not started yet: the contract that will hold seat deposits, the ValidatorHub, is not deployed on mainnet, so no FMX can be deposited for a seat today. The list had one entry when this paper was written.</p>
+        <p>What a seat would do in the pilot, as planned in the repository and on <a class="link-inline" href="/validators/">/validators/</a>:</p>
+        <ul>
+          <li>run a full node on a Windows 10/11 PC or a Linux server, and check every block as it arrives;</li>
+          <li>every 200 blocks (about every 23 minutes), once the block is 64 deep, sign a checkpoint statement naming the block hash it sees at that height, recorded on-chain in the ValidatorHub;</li>
+          <li>be opened by an applicant's wallet with a deposit of exactly 2,000 FMX, up to 20 seats in the pilot.</li>
+        </ul>
+        <p>What a seat would not do: produce, order or confirm blocks, stop the signers, or change consensus. Ferminux stays proof-of-authority with validator seats in place. The deposit makes a seat accountable for what its key signs; it gives the seat no say over who confirms blocks. The plan pays seat operators for running a node out of the reward sink, which is FMX that already exists, not newly issued FMX. That would be payment for work, not a return on the deposit, and nothing is paid today. The plan calls for an external audit of the seat contract before the switch that opens seats to every wallet. Community seats that confirm blocks would be a later, separately announced network upgrade. That is an idea in the plan, not a commitment.</p>
+      </section>
+
+      <section id="fmx" aria-labelledby="fmx-h">
+        <h2 id="fmx-h"><span class="n">3</span>FMX</h2>
+        <p>FMX is the chain's native coin. It pays for gas and block rewards and settles payments between agents. It is not an FRC-20 token; FRC-20 contracts can hold it in wrapped form (WFMX).</p>
+
+        <h3 id="fmx-supply">Supply today</h3>
+        <div class="callout">
+          <div class="figs wp-figs">
+            <div class="fig"><div class="k">Total supply</div><div class="v">30,371,730</div><div class="s">FMX at block 427,001</div></div>
+            <div class="fig"><div class="k">Circulating (API)</div><div class="v">2,878,174</div><div class="s">FMX; see below for what it counts</div></div>
+            <div class="fig"><div class="k">Emission limit</div><div class="v">32,514,980</div><div class="s">FMX, rounded; exact figure below</div></div>
+          </div>
+          <p class="verdict">Read from <code>https://ferminux.net/api/supply</code> at 04:32 UTC on 27 September 2026. The API computes every figure at one block, the head minus 64, so it can no longer change.</p>
+        </div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Component of total supply</th><th scope="col" class="r">FMX</th></tr></thead>
+          <tbody>
+            <tr><td>Genesis allocations, block 0</td><td class="r" data-l="FMX">30,000,000</td></tr>
+            <tr><td>Block rewards in the proof-of-work launch phase, blocks 1–159,999: 259,994 base, 42,792 uncle and 2,193.875 nephew rewards</td><td class="r" data-l="FMX">304,979.875</td></tr>
+            <tr><td>Block rewards under proof-of-authority, blocks 160,000–427,001, at 0.25 FMX</td><td class="r" data-l="FMX">66,750.5</td></tr>
+            <tr><td>Base fees burned through block 427,001</td><td class="r" data-l="FMX">−0.0026</td></tr>
+          </tbody>
+          <tfoot><tr><td>Total supply at block 427,001</td><td class="r" data-l="FMX">30,371,730.37</td></tr></tfoot>
+        </table></div>
+
+        <h3 id="fmx-emission">The emission schedule and its limit</h3>
+        <p>Issuance is set by two functions in the node client, <code>FerminuxBlockReward</code> (<code>chain/consensus/powhash/ferminux.go</code>) and <code>BlockReward</code> (<code>chain/consensus/posa/posa.go</code>):</p>
+        <ul>
+          <li>6 FMX per block below block 20,000, then 1 FMX per block, halving every 4,500,000 blocks counted from block 0 (the first halving is at block 4,500,000);</li>
+          <li>from block 160,000 the authority reward is that schedule divided by four: 0.25 FMX per block until block 4,499,999, then 0.125, then 0.0625, and so on, until it rounds down to zero.</li>
+        </ul>
+        <p>Nothing else creates FMX. Adding up every reward the schedule will ever pay gives the limit:</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Part</th><th scope="col" class="r">FMX</th></tr></thead>
+          <tbody>
+            <tr><td>Genesis allocations</td><td class="r" data-l="FMX">30,000,000</td></tr>
+            <tr><td>Proof-of-work launch phase, blocks 1–159,999 (final)</td><td class="r" data-l="FMX">304,979.875</td></tr>
+            <tr><td>Blocks 160,000–4,499,999 at 0.25 FMX</td><td class="r" data-l="FMX">1,085,000</td></tr>
+            <tr><td>Every later halving period, 4,500,000 blocks each: 562,500 + 281,250 + …</td><td class="r" data-l="FMX">1,125,000</td></tr>
+          </tbody>
+          <tfoot><tr><td>Emission limit</td><td class="r" data-l="FMX">32,514,979.875</td></tr></tfoot>
+        </table></div>
+        <p>Summed in wei, as the node computes each reward, the schedule comes to 32,514,979.874999999892 FMX, which is the <code>maxSupply</code> that <code>/api/supply</code> reports (the plain-text <code>/api/supply/max</code> shortens it to 32514979.87499999). The difference from 32,514,979.875 is wei-level rounding in the halving arithmetic. Burned base fees make the real figure a little lower. At 7-second blocks the chain issues about 3,086 FMX a day today, and the next halving, at block 4,500,000, falls around late August 2027 at the current pace.</p>
+        <div class="callout warn">
+          <p><strong>About the 100,000,000 figure.</strong> Earlier drafts of this paper, and a comment in the node's source, speak of a 100,000,000 FMX "hard cap". No code checks that number: there is no supply counter that would refuse a block for exceeding it. The only limit is the schedule above. It is enforced by the node software, so changing it would take a new node release adopted by the signers, and one operator runs every signer. The limit is therefore as firm as that operator's commitment not to ship such a release, and every node operator's willingness to refuse one.</p>
+        </div>
+
+        <h3 id="fmx-split">Where each block reward goes</h3>
+        <p>Since block 160,000 each block's reward is split three ways by the engine (<code>SplitReward</code> in <code>posa.go</code>). The recipients are consensus constants.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Recipient</th><th scope="col" class="r">Share</th><th scope="col" class="r">FMX per block</th></tr></thead>
+          <tbody>
+            <tr><td>The signer that confirmed the block, recovered from the block header's signature</td><td class="r" data-l="Share">40%</td><td class="r" data-l="Per block">0.1</td></tr>
+            <tr><td>FMXRewardSink <code>0x691E5275BF346FfFa0B30174dDBeDfCC078dd8D6</code>, a contract only the multisig can withdraw from. It held 33,418.626 FMX at block 427,348.</td><td class="r" data-l="Share">50%</td><td class="r" data-l="Per block">0.125</td></tr>
+            <tr><td>Treasury <code>0xc0A5Eb613f859f072554F29f1Ab7400265af15aB</code></td><td class="r" data-l="Share">10%</td><td class="r" data-l="Per block">0.025</td></tr>
+          </tbody>
+        </table></div>
+        <p>Because the foundation runs every signer, all three shares currently go to the project.</p>
+
+        <h3 id="fmx-allocation">Genesis allocation and what those wallets hold now</h3>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Allocation and address</th><th scope="col" class="r">At genesis</th><th scope="col" class="r">Now</th></tr></thead>
+          <tbody>
+            <tr><td>Treasury <code>0xc0A5Eb613f859f072554F29f1Ab7400265af15aB</code>. Also receives 10% of every block reward.</td><td class="r" data-l="Genesis">12,000,000</td><td class="r" data-l="Now">10,539,718.36</td></tr>
+            <tr><td>Ecosystem and listings <code>0xEeDd7368290a17aB2Aa3F298Ff24BB99D581E787</code></td><td class="r" data-l="Genesis">6,000,000</td><td class="r" data-l="Now">6,000,000.00</td></tr>
+            <tr><td>Team, allocated at genesis to <code>0x86e286684Ae5899A941142D143949C444F9Fe831</code> and moved in block 22 into the FMXVesting contract <code>0x6F488FB1f382Bc96Fef8bBfCa28A9647E5Fe430B</code>, which holds it</td><td class="r" data-l="Genesis">5,000,000</td><td class="r" data-l="Now">5,000,000.00</td></tr>
+            <tr><td>AZNT liquidity and market operations <code>0x040F1E90EF72b364141D91c3C0314ac3b5eCD0AE</code></td><td class="r" data-l="Genesis">4,000,000</td><td class="r" data-l="Now">3,800,076.80</td></tr>
+            <tr><td>Community, faucet and airdrops <code>0x34f5366014EF292fd5ff9FFDE81d47819EF65cFC</code></td><td class="r" data-l="Genesis">3,000,000</td><td class="r" data-l="Now">1,960,102.94</td></tr>
+          </tbody>
+          <tfoot><tr><td>Total</td><td class="r" data-l="Genesis">30,000,000</td><td class="r"></td></tr></tfoot>
+          <caption>"Now" is the address's FMX balance at block 427,348 (27 September 2026, 05:05 UTC); for the team row it is the FMXVesting contract's balance. The genesis figures are from genesis/genesis.json.</caption>
+        </table></div>
+        <p>The treasury, ecosystem, AZNT market-operations and community wallets are ordinary single-key accounts with no contract code: the project holds their keys, and no multisig or time lock constrains them. Together they held about 22.3 million FMX at block 427,348. There was no public sale at genesis. Since then the project has offered FMX for sale only through the pay-in described below, which had completed no purchase when this paper was written.</p>
+
+        <h3 id="fmx-vesting">Team vesting</h3>
+        <p>FMXVesting (<code>0x6F48…430B</code>) holds the 5,000,000 FMX team allocation and releases it only to one beneficiary, <code>0x86e2…F831</code>, a single-key account. Its terms are immutable and readable on-chain. Vesting started at 2026-08-20 07:25:27 UTC. Nothing can be released before a 180-day cliff that ends at 2027-02-16 07:25:27 UTC; at that point one sixth vests at once. The rest vests in a straight line until 2029-08-04 07:25:27 UTC (1,080 days in total). Nothing had been released at block 427,348. The project has not published who the beneficiary is.</p>
+
+        <h3 id="fmx-lock">The FoundationLock</h3>
+        <p>FoundationLock (<code>0xC0E01D9F49eE0967F34e1CB045B74D3Aefac189d</code>) is an immutable vault: nothing can leave it before its <code>unlockAt</code>, 2027-08-21 19:26:36 UTC, and after that only its owner, the foundation multisig, can withdraw. It held 150,292.0009 FMX at block 427,348, deposited in blocks 21,668 and 22,110 (21 August 2026); nothing has been added since. The contract's <code>Locked</code> events name the senders: 0.001 FMX came from the AZNT market-operations wallet, and 150,291.9999 FMX from <code>0x1eF5…edc8</code>, an address the project has not yet classified (see below). It is a public commitment not to sell those coins before the date. It is not a stake and secures nothing.</p>
+
+        <h3 id="fmx-circulating">What the circulating figure counts</h3>
+        <p>The API's circulating supply is total supply minus nine excluded addresses: the FoundationLock, the unvested part of FMXVesting, the treasury, the reward sink, the multisig, the three other genesis reserve wallets and the faucet contract. At block 427,001 that excluded 27,493,556.67 FMX and left 2,878,173.70.</p>
+        <p>The figure still counts wallets that belong to the project or its operator and have not yet been moved into the exclusion list:</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Held by the project or its operator, counted as circulating</th><th scope="col" class="r">FMX</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x7F16433359E4eF704E90cE08460c6238E45130f7</code>, the foundation's own address in the launch phase</td><td class="r" data-l="FMX">1,643,210</td></tr>
+            <tr><td>FMX wrapped as WFMX in the two exchange pools the project seeded, whose liquidity tokens are locked to project wallets (section 4)</td><td class="r" data-l="FMX">564,960</td></tr>
+            <tr><td>Pay-in hot wallet <code>0xc2a7B343a8a9ef2eC5D15c31225A64AC9FDC05Fa</code></td><td class="r" data-l="FMX">50,000</td></tr>
+            <tr><td>Project deployer key <code>0xAB90b05F633b1f9C2aC64aCa06cebb6d2128D4f2</code></td><td class="r" data-l="FMX">50,000</td></tr>
+            <tr><td>The four signers' reward addresses</td><td class="r" data-l="FMX">23,008</td></tr>
+            <tr><td>The two former signers voted out on 25 September 2026, <code>0xA46A…de23</code> and <code>0x1538…bB0f</code></td><td class="r" data-l="FMX">3,731</td></tr>
+            <tr><td>The owner wallets of agents 1 to 12, which the project operates (section 4)</td><td class="r" data-l="FMX">7,330</td></tr>
+          </tbody>
+          <tfoot><tr><td>Known project and operator holdings</td><td class="r" data-l="FMX">about 2,342,239</td></tr></tfoot>
+          <caption>Balances read at block 427,348 (27 September 2026, 05:05 UTC), rounded to whole FMX. The WFMX row is the two pools' WFMX reserves.</caption>
+        </table></div>
+        <p>So about 2.34 million of the 2.88 million counted as circulating is held by the project or its operator. Five further addresses, holding between about 25,000 and 115,000 FMX each at block 427,348, have not been classified yet. Two of them are tied to the project on-chain. <code>0x1eF5…edc8</code> made the 150,291.9999 FMX deposit into the FoundationLock and paid for two of the six agent jobs. <code>0xF61d…2847</code> made 8 of the 9 swaps on the Ferminux DEX with AZNT it received from the project's AZNT market-operations wallet (section 4). Read the API's circulating figure as an upper bound on what outside holders can move, not as a measure of it.</p>
+
+        <h3 id="fmx-obtain">How FMX is obtained</h3>
+        <p><strong>Pay-in: the project sells FMX at a price it sets.</strong> The gateway sells FMX from its hot wallet for USDC, USDT or the native coin of seven networks: <span data-payin-networks>Ethereum, BNB Smart Chain, Base, Arbitrum One, Polygon, Optimism and Avalanche C-Chain</span>. The price is $0.52 per FMX. The operator sets that figure in the gateway's configuration (<code>PAYIN_PRICE_USD</code>). A 2% spread comes off the FMX the buyer receives. Each quote is worth between $1 and $10,000 and is valid for 15 minutes, and FMX is sent after 6 to 60 confirmations, depending on the network. This is the project selling its own coins at its own price. It is not a market price. The pay-in only sells: the project does not buy FMX back through it. The gateway's public statistics reported no completed pay-in purchase when this paper was written.</p>
+        <p><strong>The Ferminux DEX.</strong> Two pools trade WFMX, both seeded by project wallets and both priced at $0.52 by those wallets. Section 4 gives their reserves, their locks and the very small amount of trading they have seen.</p>
+        <p><strong>PancakeSwap on BNB Smart Chain.</strong> Wrapped FMX (wFMX) trades in a wFMX/WBNB pool (<code>0x2bff929A81a73E9Ff9FbE476975A36BFf189F5E0</code>) that the project funded. At BNB Smart Chain block 124,270,108 it held 123.55 wFMX and 0.0639 BNB. The gateway valued that at about $99 in total, or $0.40 per wFMX. Its last trade was on 23 September 2026. Its liquidity tokens are held by the project's BNB Smart Chain multisig and are not time-locked. wFMX cannot be turned into FMX on chain 3961 while the bridge is not attesting transfers.</p>
+        <p><strong>The faucet.</strong> A new, never-used address can receive 0.5 FMX for gas: one drip per address per 24 hours, ten per IP address a day, 100 a day in total. It is for gas, not a distribution.</p>
+
+        <h3 id="fmx-exit">Selling FMX</h3>
+        <p>Buying FMX is easier than selling it. When this paper was written:</p>
+        <ul>
+          <li>the Ferminux DEX had two pools, and both pay out in USDF or AZNT, tokens the project issued with no published redemption terms (section 4);</li>
+          <li>the only pool against an asset the project does not issue, on PancakeSwap, held about $99 and can only be reached through the bridge, which is not operating;</li>
+          <li>the pay-in does not buy FMX.</li>
+        </ul>
+        <p>So there was no working on-chain route from FMX on chain 3961 to a currency the project does not issue.</p>
+      </section>
+
+      <section id="ecosystem" aria-labelledby="ecosystem-h">
+        <h2 id="ecosystem-h"><span class="n">4</span>The ecosystem</h2>
+
+        <h3 id="eco-agents">The AI-agent network</h3>
+        <p>The AgentRegistry and ServiceEscrow were deployed in blocks 349,184 and 349,185 (20 September 2026), and the other contracts below in blocks 360,113 to 360,120 (21 September 2026). An agent registers an identity and a price, a client hires it through escrow, the agent delivers, and the payment and the rating stay on-chain as the agent's record.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Contract</th><th scope="col">Address and what it does</th></tr></thead>
+          <tbody>
+            <tr><td class="w">AgentRegistry</td><td data-l="Contract"><code>0xa94f27F18267d09349809f3e2AeF8e7767033e8F</code>. Agent identities, prices and status. Registration needs no bond (<code>minBond</code> is 0). Governed by the multisig.</td></tr>
+            <tr><td class="w">ServiceEscrow</td><td data-l="Contract"><code>0x99b331495951dB91857902de91EAe9Ff54d8a719</code>. Holds a client's payment until delivery and review; a 2.5% fee goes to the treasury; one-day delivery and review windows. Disputes are governed by the ArbiterPool.</td></tr>
+            <tr><td class="w">X402Vault</td><td data-l="Contract"><code>0x8751Cf7e29Fe588c61FDc53323438247198eaa57</code>. Pay-per-request payments in the x402 style, settled in batches.</td></tr>
+            <tr><td class="w">StreamPay</td><td data-l="Contract"><code>0x59404F738A90E5CF725F5837EF40461d1EA2EC35</code>. Payment streams and subscriptions.</td></tr>
+            <tr><td class="w">AgentAccountFactory</td><td data-l="Contract"><code>0x82e7C593785f726A0A0BB4D37AbCaF2bA4a72dcb</code>. Smart-account wallets for agents, with session keys.</td></tr>
+            <tr><td class="w">ArbiterPool</td><td data-l="Contract"><code>0x367312B28f78dE97462905519337841e4d4cB2df</code>. Dispute resolution for escrowed jobs.</td></tr>
+            <tr><td class="w">FRC-8004 registries</td><td data-l="Contract">Identity <code>0xf3e8c83a0472602d04Cd774e3887cBAA76c62147</code>, reputation <code>0xd5984C5a187cD6EcF2698eb218988F73FBF08884</code> and validation <code>0x37feB1B3Fb6505d4D584dB0a632F3C20d9eAab97</code>.</td></tr>
+            <tr><td class="w">AgentTokenFactory</td><td data-l="Contract"><code>0xf9fcCF337a7930D146227601C1da7Be85bB50188</code>. Lets an agent launch its own FRC-20 token.</td></tr>
+          </tbody>
+        </table></div>
+        <p>How much it is used, from <code>/api/stats</code> and <code>/api/agents</code> at 05:00 UTC on 27 September 2026, checked against the contracts at block 427,348:</p>
+        <ul>
+          <li><strong>13 agents registered.</strong> Six were marked active and seven paused; five were online at the time of reading. Agents 1 to 12 are operated by the project. Agent 13 was registered by another address; it was offline and had completed no jobs.</li>
+          <li><strong>6 escrowed jobs</strong>, all completed, for 0.6 FMX in total and 0.015 FMX in fees. All six hired project-operated agents. They were paid for by a project wallet and by two addresses whose owners the project has not yet identified. None of them is evidence of outside demand.</li>
+          <li><strong>9 settlements through the X402Vault</strong>, for 0.161 FMX in total; no open payment streams or active subscriptions; 3 agent smart accounts; 1 agent token launched.</li>
+        </ul>
+
+        <h3 id="eco-dex">The Ferminux DEX and its liquidity locks</h3>
+        <p>The Ferminux DEX is a constant-product exchange on chain 3961: factory <code>0x2034a8366fCdbfFCf4517D297f702aDDdba37040</code>, router <code>0x018C0Efca293F7a74D2f53ce738BA5e2f412BA9f</code> and WFMX, wrapped FMX, <code>0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae</code>. Liquidity tokens can be time-locked in the LiquidityLocker (<code>0xe588c594388B978E64B69E2Dd91CC7E302763951</code>), which pays a lock out once, to its owner, on or after its unlock time.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Pool</th><th scope="col">Reserves at block 427,348</th><th scope="col">Seeded by, and its lock</th></tr></thead>
+          <tbody>
+            <tr><td class="w">WFMX/USDF<br><code>0x04B2D76a04ED9b53a0d8fF9ee375eafeF04886f9</code></td><td data-l="Reserves">480,769.23 WFMX and 250,000 USDF</td><td data-l="Seeded by">The treasury, on 26 September 2026. Lock id 1, owner the treasury, locked 2026-09-26 04:34:10 UTC, unlocks 2027-09-26 04:34:03 UTC.</td></tr>
+            <tr><td class="w">WFMX/AZNT<br><code>0xbab12e7B817F0686e11949eC06697235DC146845</code></td><td data-l="Reserves">84,190.36 WFMX and 74,424.28 AZNT</td><td data-l="Seeded by">The AZNT market-operations wallet, on 20 August 2026. Lock id 0, owner that wallet, locked 2026-08-20 16:43:02 UTC, unlocks 2027-08-20 16:42:38 UTC.</td></tr>
+          </tbody>
+        </table></div>
+        <p>Each lock holds all of its pool's liquidity tokens except the 1,000-unit minimum every pool burns when it is created, so neither pool's liquidity can be withdrawn before its date. When the locks open, the project can withdraw it.</p>
+        <p>The pools have seen very little outside trading, and possibly none. Across both, <code>eth_getLogs</code> finds 9 swaps since launch, from 2 addresses. One swap came from the AZNT market-operations wallet, a project wallet. The other 8 came from <code>0xF61d…2847</code>. The project has not confirmed who owns that address; an earlier internal review counted it as a project wallet, and it also paid for two of the six agent jobs above. Every AZNT it traded came from the project: the AZNT market-operations wallet sent it 20,100 AZNT in blocks 13,782 to 13,823, and its swaps put a net 20,100 AZNT into the pool.</p>
+        <p>The market-operations wallet's swap, in block 414,730 on 26 September 2026, moved the WFMX/AZNT pool to $0.52. The WFMX/USDF pool was created at $0.52 the same morning. Neither pool has been traded since. The $0.52 on both pools is the price the project's own wallets set, and it matches the pay-in price because the project made it match. When the project's software shows these prices in dollars, it counts 1 USDF as 1 dollar and 1 AZNT as 1 manat (1.70 manat to the dollar). That is a display convention, not a claim about either token. It is also why the gateway reports the WFMX/USDF pool as $500,000 of liquidity: half of that is 250,000 USDF, counted at one dollar each.</p>
+
+        <h3 id="eco-tokens">USDF and AZNT</h3>
+        <p>Both are FRC-20 tokens the project issued, with 6 decimals and the same contract design: an admin that grants roles, and separate roles to mint, burn, pause every transfer, and block an address. The admin of both is the foundation multisig.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col"></th><th scope="col">USDF, "Ferminux Dollar"</th><th scope="col">AZNT, "Ferminux Manat"</th></tr></thead>
+          <tbody>
+            <tr><td class="w">Address</td><td data-l="USDF"><code>0xCd032A609e34121D1881E8DE7355b2c2c7092363</code></td><td data-l="AZNT"><code>0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178</code></td></tr>
+            <tr><td class="w">Denomination</td><td data-l="USDF">Dollar-denominated</td><td data-l="AZNT">Manat-denominated</td></tr>
+            <tr><td class="w">Supply</td><td data-l="USDF">500,000, all minted in block 20,589 (21 August 2026) to the treasury</td><td data-l="AZNT">600,000, minted in blocks 13,529 and 13,820 (20 August 2026) to the AZNT market-operations wallet</td></tr>
+            <tr><td class="w">Minter role</td><td data-l="USDF">Granted to the multisig in block 20,585 and revoked in block 20,592</td><td data-l="AZNT">Granted to the AZNT market-operations wallet in block 13,526 and revoked in block 20,604</td></tr>
+            <tr><td class="w">Where it is</td><td data-l="USDF">250,000 in the WFMX/USDF pool, 250,000 in the treasury</td><td data-l="AZNT">74,424.28 in the WFMX/AZNT pool, 525,475.72 in the market-operations wallet, 100 at <code>0x7F16…30f7</code></td></tr>
+          </tbody>
+          <caption>Supplies, balances and the admin read at block 427,348 (27 September 2026, 05:05 UTC); role, mint and transfer events read with eth_getLogs on each contract.</caption>
+        </table></div>
+        <p>No minter, pauser or blocklist role is assigned today. But the multisig, as admin of both contracts, can grant any of them again at any time: it can mint more of either token, freeze every transfer, or block an address and destroy the tokens it holds.</p>
+        <div class="callout warn">
+          <p><strong>This paper makes no claim that USDF or AZNT is collateralised, backed or redeemable.</strong> The project has not published reserve or redemption documentation for either token: no reserve attestation, no redemption process, no named party that redeems. The comments in both contracts' source code describe them as reserve-backed; that description has not been substantiated, and this paper does not repeat it. Treat both as tokens whose value rests on the project alone.</p>
+        </div>
+
+        <h3 id="eco-wallet">The wallet</h3>
+        <p>The Ferminux wallet runs in the browser at <code>wallet.ferminux.net</code> and <code>ferminux.net/wallet/</code>. An Android version has been built, but when this paper was written it was not in an app store and the project's sites did not offer it for download. The wallet holds FMX, FRC-20 tokens and NFTs on chain 3961 and on the seven pay-in networks. It connects to other apps through WalletConnect, and can swap on the Ferminux DEX or buy through the pay-in. It is a single-key hot wallet: the key is encrypted on the device, and there is no multisig or hardware-key option. It has not been externally audited.</p>
+
+        <h3 id="eco-explorer">The explorer</h3>
+        <p><code>explorer.ferminux.net</code> is the project's own front end over a Blockscout index, with contract source verification. Since 26 September 2026 it indexes from an archive node with call tracing, so FMX moved by contracts, such as WFMX unwraps and escrow payouts, is visible as internal transactions.</p>
+
+        <h3 id="eco-nfts">NFT collections</h3>
+        <ul>
+          <li><strong>Ferminux Citizens</strong> (FRC-721, symbol %CITIZENS_SYMBOL%), <code>0x5672AF1a567a46BAaFeb66959b7A95666E7f4252</code>, deployed in block 404,087 on 25 September 2026. 136 ids in four tiers priced at 50, 100, 250 and 500 FMX; 3 had been minted at block 427,348. The owner is the multisig, and a curator key (<code>0xEa70…2eD7</code>) can append new ids: the supply is not locked.</li>
+          <li><strong>Ferminux Agents</strong> (FRC-721, symbol FMXA), <code>0x84FE97C49Ffe4227d9ea139B5998C097D9C06ddd</code>. A fixed 41 ids at 50 FMX each; 3 had been minted at block 427,348.</li>
+        </ul>
+
+        <h3 id="eco-launchpad">The launchpad</h3>
+        <p>The TokenFactory (<code>0x62BC7d9671EfE1385413434aB8fdfE2fa4aE01D4</code>) deploys a standard FRC-20 token for a 10,000 FMX fee, which it sends to <code>0x…dEaD</code>, where it can never be spent. No token had been launched through it at block 427,348.</p>
+
+        <h3 id="eco-bridge">The bridge to BNB Smart Chain: not operating</h3>
+        <p>The bridge is lock-and-mint: FMX locked in the Ferminux bridge contract (<code>0xe162eeDa683f067d4Ebf61060Fa322332a779EF4</code>) is minted as wFMX on BNB Smart Chain (<code>0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0</code>) and burned to come back. A transfer is released when 2 of its 3 registered validators sign it, after a wait for confirmations and a signed checkpoint, and within per-transfer and daily caps. Every change to its parameters waits 48 hours. Its owner on each chain is the foundation multisig.</p>
+        <p><strong>It is not operating.</strong> Its validators have not been signing for Ferminux since 11 September 2026: the last checkpoint they recorded in the bridge's CheckpointRegistry on BNB Smart Chain (<code>0xB35bE8a672BDD265a88853Be3b053f1d21dCE816</code>), for Ferminux block 232,337, is dated 2026-09-11 08:54:45 UTC. Their status report at 05:00 UTC on 27 September 2026 gave the reason as an unreadable checkpoint, and the bridge app is offline. The last transfer recorded by the Ferminux bridge contract was in block 22,271, on 21 August 2026. The contracts are not paused on-chain, but nothing moves without validator signatures. At Ferminux block 427,348 and BNB Smart Chain block 124,274,295 (27 September 2026, about 05:09 UTC), 499.510989 FMX was locked on Ferminux and 499.510989 wFMX was outstanding on BNB Smart Chain: every wFMX is matched by locked FMX. When it runs, the bridge is secured by validator keys that one operator controls; it is not trustless. A proof-based replacement is planned (section 6).</p>
+
+        <h3 id="eco-usage">How much the chain is used</h3>
+        <p>On 25 September 2026 the project ran a labelled load test. Its own agent Wizrd (agent 12) sent 169,325 transactions across 42,322 wallets it generated. Each transaction carries the marker <code>FXLT</code> (<code>0x46584c54</code>) in its data, so anyone can filter it out. The test is switched off. It was the project testing its own chain, not use by anyone else, and <strong>every usage figure in this paper excludes it</strong>. The explorer's raw totals include it: they read 180,135 transactions and 42,914 addresses.</p>
+        <p>Without the load test, the chain had carried 10,808 transactions since launch, through block 427,292, and 22 in the 24 hours before that read (<code>/api/loadtest/stats</code>, field <code>organic</code>, at 05:00 UTC on 27 September 2026). About 590 addresses have appeared outside the load test: the explorer's 42,914 less the load test's 42,322. These are small numbers, and much of the activity behind them is the project's own.</p>
+      </section>
+
+      <section id="security" aria-labelledby="security-h">
+        <h2 id="security-h"><span class="n">5</span>Security model</h2>
+
+        <h3 id="sec-blocks">What protects block production</h3>
+        <ul>
+          <li><strong>Signers cut off from strangers.</strong> Since 26 September 2026 every signer host accepts and makes peer-to-peer connections only to a fixed list of the network's own nodes, in both directions, enforced by the host's packet filter and restored at boot.</li>
+          <li><strong>Release B</strong> on every node the project runs: the checkpoint pin and the four peer-to-peer fixes (section 1). One known upstream issue, CVE-2026-26313, is not fixed in release B, because its fix exists only in a much later upstream version. On the signers the packet filter mitigates it. The public RPC, boot and witness nodes must accept connections from anyone, so they stay exposed to it.</li>
+          <li><strong>The 64-block reorganisation limit</strong> in every node, and fork choice that prefers an authority chain (section 2).</li>
+          <li><strong>Monitoring</strong> that alerts the operator on a stalled chain, a silent signer or a shrinking margin.</li>
+        </ul>
+        <p>The signer machines are not dedicated to Ferminux: at least some of them also run other services for the same operator.</p>
+
+        <h3 id="sec-keys">Keys and custody</h3>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th scope="col">Key</th><th scope="col">What it controls</th><th scope="col">Who holds it</th></tr></thead>
+          <tbody>
+            <tr><td class="w">Foundation multisig <code>0x910BD467D8576277f8f96DF47428377FFD94fEfe</code>, 2 of 3; owners <code>0x1a14…19EA</code>, <code>0x0fBB…ce15</code>, <code>0x11B5…41db</code></td><td data-l="Controls">The reward sink; the FoundationLock after it opens; the bridge on Ferminux; USDF and AZNT (admin); AgentRegistry governance; both NFT collections; the planned ValidatorHub</td><td data-l="Held by">All three owner keys are held by one operator</td></tr>
+            <tr><td class="w">The same three keys, compiled into the node as break-glass owners, 2 of 3</td><td data-l="Controls">Replacing the whole signer set without a vote</td><td data-l="Held by">The same operator</td></tr>
+            <tr><td class="w">BNB Smart Chain multisig <code>0x15D0791d49A089863243BE2C2050e5d26E1bBA9c</code>, 2 of 3, the same three owners</td><td data-l="Controls">The bridge on BNB Smart Chain; the PancakeSwap liquidity tokens</td><td data-l="Held by">The same operator</td></tr>
+            <tr><td class="w">Four signer keys</td><td data-l="Controls">Confirming blocks</td><td data-l="Held by">One per signer machine, all run by the foundation</td></tr>
+            <tr><td class="w">Treasury, ecosystem, AZNT market-operations and community wallets</td><td data-l="Controls">About 22.3 million FMX and the project's USDF and AZNT</td><td data-l="Held by">Single keys held by the project</td></tr>
+            <tr><td class="w">Pay-in hot wallet <code>0xc2a7…05Fa</code></td><td data-l="Controls">The FMX sold through the pay-in (50,000 FMX, rounded, at block 427,348)</td><td data-l="Held by">A key on the project's gateway server</td></tr>
+            <tr><td class="w">Three bridge validator keys</td><td data-l="Controls">Attesting bridge transfers</td><td data-l="Held by">Machines run by the operator</td></tr>
+          </tbody>
+        </table></div>
+        <p>In plain terms: a multisig whose keys all sit with one operator is, in practice, a single key. Anyone who controlled that operator's keys could withdraw the reward sink, take over USDF and AZNT, change the bridge after its 48-hour delay, and replace the signer set. Moving the owner keys to separate holders is planned (section 6) and has not happened.</p>
+
+        <h3 id="sec-contracts">What the contracts constrain</h3>
+        <ul>
+          <li>The FoundationLock cannot release anything before 2027-08-21 19:26:36 UTC, and nobody can shorten that.</li>
+          <li>FMXVesting is irrevocable and pays only its beneficiary, on its fixed schedule.</li>
+          <li>The two DEX liquidity locks cannot be withdrawn before 2027-08-20 and 2027-09-26.</li>
+          <li>The bridge's owner must wait 48 hours for any change that increases what the bridge can do; pausing and tightening caps take effect at once.</li>
+          <li>USDF and AZNT constrain their admin in nothing: new roles, and therefore new supply, freezes and blocks, take effect immediately.</li>
+        </ul>
+
+        <h3 id="sec-audit">Audits</h3>
+        <p><strong>No outside firm has audited the node client, the contracts, the bridge or the wallet.</strong> The code has been through the project's own repeated adversarial reviews, and the contracts and node carry their own test suites; that is not an independent professional audit and should not be read as one.</p>
+
+        <h3 id="sec-report">Reporting a vulnerability</h3>
+        <p>The repository's <code>SECURITY.md</code> and <code>/.well-known/security.txt</code> give <code>security@ferminux.com</code> as the contact. That address cannot receive mail today: ferminux.com had no mail (MX) record when this paper was written, and the repository's private vulnerability reporting on GitHub is turned off. Until that is fixed, open an issue at <a class="link-inline" href="https://github.com/aliasghar89/ferminux/issues" rel="noopener">github.com/aliasghar89/ferminux/issues</a> titled "Security contact request" that says only that you have a report and how to reach you. Do not describe an unfixed flaw in a public issue, a forum thread or a bounty.</p>
+      </section>
+
+      <section id="roadmap" aria-labelledby="roadmap-h">
+        <h2 id="roadmap-h"><span class="n">6</span>Roadmap</h2>
+        <p>These are plans recorded in the repository. None has a committed date, and any of them may change or not happen.</p>
+        <ul>
+          <li><strong>The validator pilot.</strong> Deploy the ValidatorHub with the multisig as owner, rebuild the pilot package on the release B node, and fill the first 20 seats from applicants (section 2). Then open seats to every wallet with the contract's one-way switch, after an external audit of the seat contract.</li>
+          <li><strong>An external audit</strong> of the contracts that hold funds, which the plan sets before opening validator seats to every wallet. None has been published.</li>
+          <li><strong>More signers and separate key holders.</strong> Independent signer operators voted in from applicants (section 2), a fifth signer on an independent hosting provider, so that two signers can stop without halting the chain; three new multisig owner keys on separate devices or with separate people; a node release that rotates the break-glass owners to match; and bootnodes spread beyond one hosting provider.</li>
+          <li><strong>A proof-based bridge (bridge v2).</strong> Replace the validators' signatures with proofs: a light client of Ferminux's signer set and a verifier of transfer receipts on BNB Smart Chain. The first part is built and tested against real chain data and is not deployed; moving to it would go through the bridge's 48-hour timelock.</li>
+          <li><strong>A later EVM upgrade.</strong> Moving from the London rule set to a newer one is planned as a separate hard fork with its own fork block, rehearsed in the lab first.</li>
+        </ul>
+      </section>
+
+      <section id="verify" aria-labelledby="verify-h">
+        <h2 id="verify-h"><span class="n">7</span>Verify it yourself</h2>
+        <p>Nothing in this paper needs to be taken on trust. The calls below read each figure from the public RPC, the gateway API or BNB Smart Chain. <code>cast</code> is Foundry's command-line tool; any client that speaks JSON-RPC works the same way.</p>
+
+        <div class="callout accent wp-live" aria-live="polite">
+          <div class="figs wp-figs">
+            <div class="fig"><div class="k">Head now</div><div class="v" id="wl-head">—</div></div>
+            <div class="fig"><div class="k">Signers now</div><div class="v" id="wl-signers">—</div></div>
+            <div class="fig"><div class="k">Total supply now</div><div class="v" id="wl-total">—</div></div>
+            <div class="fig"><div class="k">Circulating now (API)</div><div class="v" id="wl-circ">—</div></div>
+          </div>
+          <p class="verdict" id="wl-asof">This paper read blocks 427,001–427,348. The figures above are read as you open the page.</p>
+        </div>
+
+        <h3 id="verify-chain">The chain and its signers</h3>
+        <div class="code-block"><div class="code-head"><span>Chain id, client, head, fees and signers</span><button class="copy" type="button" data-copy-block aria-label="Copy the chain commands">copy</button></div>
+<pre>R=https://rpc.ferminux.net
+cast chain-id --rpc-url $R                          # 3961
+cast rpc web3_clientVersion --rpc-url $R            # Ferminux/v1.10.26-ferminux-b/...
+cast block latest --rpc-url $R --field gasLimit     # 100000000
+cast base-fee --rpc-url $R
+cast rpc eth_maxPriorityFeePerGas --rpc-url $R      # 0x3b9aca00 = 1 gwei
+cast rpc clique_getSigners --rpc-url $R
+cast rpc clique_status --rpc-url $R                 # blocks per signer, last 64
+cast block finalized --rpc-url $R --field number    # the head minus 64</pre></div>
+        <div class="code-block"><div class="code-head"><span>Genesis, the switch and the signer-set votes</span><button class="copy" type="button" data-copy-block aria-label="Copy the history commands">copy</button></div>
+<pre>cast block 0 --rpc-url $R --field hash        # 0x1b62e052…d92fadf
+cast block 159999 --rpc-url $R --field hash   # 0xfa62e740…5af08, the pinned checkpoint
+cast block 160000 --rpc-url $R                # difficulty 2, parent = the checkpoint
+cast rpc clique_getSigners 0x63fd2 --rpc-url $R   # block 409,554: five signers
+cast rpc clique_getSigners 0x63fdb --rpc-url $R   # block 409,563: three
+cast rpc clique_getSigners 0x64033 --rpc-url $R   # block 409,651: four</pre></div>
+
+        <h3 id="verify-supply">Supply</h3>
+        <div class="code-block"><div class="code-head"><span>The supply API: every component and every excluded address</span><button class="copy" type="button" data-copy-block aria-label="Copy the supply commands">copy</button></div>
+<pre>curl -s https://ferminux.net/api/supply | jq
+curl -s https://ferminux.net/api/supply/total
+curl -s https://ferminux.net/api/supply/circulating
+curl -s https://ferminux.net/api/supply/max</pre></div>
+        <p>The emission schedule itself is in <code>chain/consensus/powhash/ferminux.go</code> (<code>FerminuxBlockReward</code>) and <code>chain/consensus/posa/posa.go</code> (<code>BlockReward</code>, <code>SplitReward</code>) in the repository.</p>
+        <div class="code-block"><div class="code-head"><span>Vesting, the FoundationLock, the reward sink and the multisig</span><button class="copy" type="button" data-copy-block aria-label="Copy the treasury contract commands">copy</button></div>
+<pre>V=0x6F488FB1f382Bc96Fef8bBfCa28A9647E5Fe430B
+cast call $V "beneficiary()(address)" --rpc-url $R
+cast call $V "start()(uint64)" --rpc-url $R       # 1787210727 = 2026-08-20 07:25:27 UTC
+cast call $V "cliff()(uint64)" --rpc-url $R       # 15552000 s = 180 days
+cast call $V "duration()(uint64)" --rpc-url $R    # 93312000 s = 1,080 days
+cast call $V "released()(uint256)" --rpc-url $R
+
+L=0xC0E01D9F49eE0967F34e1CB045B74D3Aefac189d
+cast call $L "locked()(uint256)" --rpc-url $R
+cast call $L "unlockAt()(uint64)" --rpc-url $R    # 1818876396 = 2027-08-21 19:26:36 UTC
+cast logs --address $L "Locked(address indexed,uint256,uint256)" \
+  --from-block 0 --to-block latest --rpc-url $R      # blocks 21668 and 22110, and who sent each
+
+cast balance 0x691E5275BF346FfFa0B30174dDBeDfCC078dd8D6 --ether --rpc-url $R   # reward sink
+
+M=0x910BD467D8576277f8f96DF47428377FFD94fEfe
+cast call $M "getOwners()(address[])" --rpc-url $R
+cast call $M "threshold()(uint256)" --rpc-url $R  # 2</pre></div>
+
+        <h3 id="verify-market">USDF, AZNT, the pools and the price</h3>
+        <div class="code-block"><div class="code-head"><span>Tokens, roles, pools and locks</span><button class="copy" type="button" data-copy-block aria-label="Copy the market commands">copy</button></div>
+<pre>U=0xCd032A609e34121D1881E8DE7355b2c2c7092363   # USDF
+cast call $U "totalSupply()(uint256)" --rpc-url $R   # 500000000000 = 500,000 (6 decimals)
+cast call $U "admin()(address)" --rpc-url $R         # the multisig
+cast call $U "hasRole(bytes32,address)(bool)" $(cast keccak MINTER) $M --rpc-url $R   # false
+cast logs --address $U "RoleRevoked(bytes32 indexed,address indexed)" \
+  --from-block 0 --to-block latest --rpc-url $R      # block 20592
+
+A=0xFc81ad7c145B868ef0CEC8D7Ec881Ac93f724178   # AZNT
+cast call $A "totalSupply()(uint256)" --rpc-url $R   # 600000000000 = 600,000
+# AZNT from the market-operations wallet to 0xF61d…2847: blocks 13782, 13820, 13823
+cast logs --address $A "Transfer(address indexed,address indexed,uint256)" \
+  0x040F1E90EF72b364141D91c3C0314ac3b5eCD0AE 0xF61d31FeC999af448C06fFaBB5EC28FbEE482847 \
+  --from-block 0 --to-block latest --rpc-url $R
+
+cast call 0x04B2D76a04ED9b53a0d8fF9ee375eafeF04886f9 "getReserves()(uint112,uint112,uint32)" --rpc-url $R
+cast call 0xbab12e7B817F0686e11949eC06697235DC146845 "getReserves()(uint112,uint112,uint32)" --rpc-url $R
+
+K=0xe588c594388B978E64B69E2Dd91CC7E302763951   # LiquidityLocker
+cast call $K "getLock(uint256)((uint256,address,address,uint256,uint64,uint64,bool))" 0 --rpc-url $R
+cast call $K "getLock(uint256)((uint256,address,address,uint256,uint64,uint64,bool))" 1 --rpc-url $R
+
+# every swap on the two pools, since launch
+cast logs --address 0xbab12e7B817F0686e11949eC06697235DC146845 \
+  "Swap(address indexed,uint256,uint256,uint256,uint256,address indexed)" \
+  --from-block 0 --to-block latest --rpc-url $R
+cast logs --address 0x04B2D76a04ED9b53a0d8fF9ee375eafeF04886f9 \
+  "Swap(address indexed,uint256,uint256,uint256,uint256,address indexed)" \
+  --from-block 0 --to-block latest --rpc-url $R
+
+curl -s https://ferminux.net/api/payin/assets | jq '{priceUsdPerFmx, spreadBps, minUsd, maxUsd}'
+curl -s https://ferminux.net/api/payin/market | jq</pre></div>
+
+        <h3 id="verify-bridge">The bridge</h3>
+        <div class="code-block"><div class="code-head"><span>Locked FMX against wFMX outstanding, and whether the validators are signing</span><button class="copy" type="button" data-copy-block aria-label="Copy the bridge commands">copy</button></div>
+<pre>cast call 0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "lockedBalance(address)(uint256)" \
+  0x0000000000000000000000000000000000000000 --rpc-url $R
+cast call 0x73e64635E2a7b393F2aa3924dcf91fE3cFF51BD0 "totalSupply()(uint256)" \
+  --rpc-url https://bsc-dataseed.bnbchain.org
+cast call 0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "getValidators()(address[])" --rpc-url $R
+cast call 0xe162eeDa683f067d4Ebf61060Fa322332a779EF4 "threshold()(uint256)" --rpc-url $R
+# the last Ferminux checkpoint the validators recorded: block 232337, 1789116885 = 2026-09-11 08:54:45 UTC
+cast call 0xB35bE8a672BDD265a88853Be3b053f1d21dCE816 "latest()(uint64,bytes32,uint64)" \
+  --rpc-url https://bsc-dataseed.bnbchain.org
+curl -s https://ferminux.net/bridge/status.json | jq</pre></div>
+
+        <h3 id="verify-usage">Usage, agents and the shared contracts</h3>
+        <div class="code-block"><div class="code-head"><span>Usage without the load test, the agent network, and code at the standard addresses</span><button class="copy" type="button" data-copy-block aria-label="Copy the usage commands">copy</button></div>
+<pre>curl -s https://ferminux.net/api/loadtest/stats | jq '{organic, counters, marker}'
+curl -s https://explorer.ferminux.net/api/v2/stats | jq '{total_transactions, total_addresses}'
+curl -s https://ferminux.net/api/stats | jq
+curl -s https://ferminux.net/api/status | jq '.services.chain'
+cast call 0xa94f27F18267d09349809f3e2AeF8e7767033e8F "nextId()(uint256)" --rpc-url $R      # agents registered
+cast call 0x99b331495951dB91857902de91EAe9Ff54d8a719 "nextJobId()(uint256)" --rpc-url $R   # escrowed jobs
+for a in 0xcA11bde05977b3631167028862bE2a173976CA11 0x000000000022D473030F116dDEE9F6B43aC78BA3 \
+         0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552 0x0000000071727De22E5E9d8BAf0edAc6f37da032; do
+  cast codesize $a --rpc-url $R
+done</pre></div>
+        <p class="wp-src">Figures read from explorer or API endpoints depend on the project's servers; the <code>cast</code> calls depend only on a node. For a check that trusts nothing the project runs, sync your own node with the one-line installer on <a class="link-inline" href="/docs/#network">the docs page</a> and point <code>R</code> at it.</p>
+      </section>
+
+      <section id="risks" aria-labelledby="risks-h">
+        <h2 id="risks-h"><span class="n">8</span>Risk factors</h2>
+        <p>These are the risks the project knows of. There may be others.</p>
+        <ol class="wp-risks">
+          <li><strong>One operator runs the chain.</strong> All four signers are the foundation's. Three of them together could censor transactions or rewrite up to the last 64 blocks. The same operator can replace the whole signer set through break-glass, without a vote. If the operator stops running the signers, the chain stops.</li>
+          <li><strong>A thin liveness margin.</strong> Blocks need three of the four signers. If two stop at once, the chain stops until the operator restores them. The chain has stopped before: for 4 hours 36 minutes in its launch phase, and it took about 9 hours to recover.</li>
+          <li><strong>Governance keys in one hand.</strong> Both multisigs are 2-of-3, but one operator holds all three owner keys. In practice that is one key. It controls the reward sink, the bridge, USDF, AZNT, the agent registry and the NFT collections, and losing it or having it stolen would put all of them at risk.</li>
+          <li><strong>Supply concentration.</strong> The project holds most of the FMX that exists: 27.49 million excluded from circulating supply, and about 2.34 million more that the API still counts as circulating. Transfers or sales by the project can move any market in FMX.</li>
+          <li><strong>The price is set, not discovered.</strong> $0.52 is the operator's pay-in price. The exchange pools sit at $0.52 because project wallets put them there. There have been 9 swaps on the Ferminux DEX since launch, all from a project wallet or an address that may be the project's, and none since the pools were set to $0.52. Figures that multiply supply by $0.52, such as the market capitalisation the explorer shows, multiply two numbers the project chose.</li>
+          <li><strong>Very low liquidity, and no working exit.</strong> The Ferminux DEX pays out only in USDF or AZNT. The only pool against an outside asset, on PancakeSwap, held about $99 and is cut off while the bridge is down. The project does not buy FMX back. You may be unable to sell FMX at any price.</li>
+          <li><strong>USDF and AZNT rest on the project alone.</strong> The project issued both. No reserve or redemption documentation has been published. Their admin, the multisig, can mint more, freeze all transfers, or block an address and destroy its tokens.</li>
+          <li><strong>The bridge is not operating</strong> and wFMX on BNB Smart Chain cannot be redeemed for FMX until it is. When it runs it is secured by validator keys one operator controls, and the PancakeSwap liquidity tokens are not time-locked.</li>
+          <li><strong>No external audit</strong> of the node client, the contracts, the bridge or the wallet.</li>
+          <li><strong>Software risk.</strong> The node client is built on an older codebase and kept current by backporting fixes by hand. At least one known upstream vulnerability is unfixed and mitigated only on the signer hosts.</li>
+          <li><strong>Infrastructure concentration.</strong> Both public RPC nodes, all three bootnodes and the explorer's archive node are on one hosting provider, and signer machines also run other services for the same operator.</li>
+          <li><strong>The emission limit is a software rule.</strong> A node release could change it, and the operator that would ship the release also runs every signer.</li>
+          <li><strong>Little real usage.</strong> Excluding the load test, the chain had carried 10,808 transactions since launch, and most agent-network activity is the project's own.</li>
+          <li><strong>Wallet risk.</strong> The Ferminux wallet is a single-key hot wallet with no hardware-key or multisig option, and it has not been externally audited.</li>
+          <li><strong>No working security contact.</strong> The published security address does not receive mail yet (section 5).</li>
+          <li><strong>Unknown operator.</strong> The project has not published who runs it, a legal entity or a jurisdiction. If something goes wrong, there may be nobody you can hold responsible.</li>
+          <li><strong>Regulatory risk.</strong> The project sells FMX directly to the public, and it issues tokens denominated in dollars and manat. Rules on token sales, on tokens that track a currency, and on electronic money differ by country, and may apply to any of these. The project has not published a legal opinion, a licence or a registration anywhere. A regulator could restrict the pay-in, the tokens, the sites or your access to them.</li>
+          <li><strong>Transfers are final.</strong> There is no process for reversing a transaction or a bridge transfer sent in error, or for recovering a lost key.</li>
+        </ol>
+      </section>
+
+      <section id="disclosures" aria-labelledby="disclosures-h">
+        <h2 id="disclosures-h"><span class="n">9</span>Disclosures</h2>
+        <ul>
+          <li><strong>Not an offer.</strong> This paper describes software and contracts. It is not an offer to sell, a solicitation, or investment, financial, legal or tax advice. FMX is the coin used to pay for gas and settle payments on chain 3961. It carries no promise of value, return, redemption, dividend or any right against anyone.</li>
+          <li><strong>The project is a seller.</strong> The project sells its own FMX through the pay-in at a price it sets, and holds most of the supply. Read anything it publishes about FMX, including this paper, with that interest in mind.</li>
+          <li><strong>Team.</strong> The project has not published information about its team, the people who hold its keys, or a legal entity. It refers to its operator as "the foundation"; no legal foundation has been published. The source code is public at <code>github.com/aliasghar89/ferminux</code>.</li>
+          <li><strong>An open commitment from the switch.</strong> Before block 160,000 the project announced a one-time credit, from the community allocation, for every address outside the foundation that had produced blocks in the launch phase. On its census that was one address, <code>0x4adbea699af36ede04b71a8c8656b376742669bd</code>, and 3,030 FMX. It has not been paid: at block 427,348 that address held 3,136.875 FMX, its own launch-phase rewards, and had received no transfer.</li>
+          <li><strong>Plans are plans.</strong> Everything in section 6, and every description of the validator programme, is an intention that may change or not happen.</li>
+          <li><strong>Figures are dated.</strong> Every figure is a read at the block or date given, and it will be out of date when you read it. Use section 7.</li>
+          <li><strong>The code wins.</strong> Where this paper and the deployed software or contracts disagree, the software and contracts are authoritative.</li>
+        </ul>
+      </section>
+
+      <section id="document" aria-labelledby="document-h">
+        <h2 id="document-h"><span class="n">10</span>About this document</h2>
+        <p>Version 1.0, 27 September 2026, published at <code>https://ferminux.net/whitepaper/</code>, with a PDF printed from the same page at <a class="link-inline" href="/whitepaper/ferminux-whitepaper-v1.0.pdf">/whitepaper/ferminux-whitepaper-v1.0.pdf</a>. A later version will carry a new number and date and say what changed.</p>
+        <p>This version replaces unpublished drafts dated 22 August and 26 September 2026. They contained claims that were wrong or had gone out of date, corrected here:</p>
+        <ul class="wp-fix">
+          <li>They called USDF "fully-collateralised" and said it was "minted only against a confirmed fiat deposit". No reserve or redemption documentation has been published, and this paper makes no such claim (section 4).</li>
+          <li>They gave FMX a "100,000,000 hard cap" beside a 32.5 million supply limit. No code enforces 100 million; the emission schedule's limit, 32,514,979.875 FMX, is the only one (section 3).</li>
+          <li>They said the exchange had one pool and that no price was published. There are two pools, and the project's sites publish the $0.52 pay-in price (sections 3 and 4).</li>
+          <li>They showed the team allocation at its beneficiary's address rather than at the FMXVesting contract, <code>0x6F48…430B</code>, which holds it (section 3).</li>
+        </ul>
+        <p>Sources: the public RPC (<code>https://rpc.ferminux.net</code>), the gateway API (<code>https://ferminux.net/api/</code>), the explorer API (<code>https://explorer.ferminux.net/api/v2/stats</code>), a public BNB Smart Chain RPC, and the repository's node client, contracts and <code>genesis/genesis.json</code>. Every read was made on 27 September 2026 between 04:32 and 05:10 UTC unless the text gives another date.</p>
+      </section>
+    </article>
+  </div>
+</main>
+<!-- @footer -->
+<script type="module" src="/src/pages/whitepaper.ts"></script>
+</body>
+</html>
