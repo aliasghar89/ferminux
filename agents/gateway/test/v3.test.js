@@ -286,6 +286,20 @@ test("memory: put/get/list/delete, limits, over-quota 402 paid with a voucher", 
   assert.equal((await inject("DELETE", "/api/memory/notes", undefined, await headers(alice, "memory.delete"))).statusCode, 404);
 });
 
+test("memory: a paid over-quota write the flood limit refuses keeps neither the payment nor the credit", async (t) => {
+  const { app, db, clock, signed, inject, voucher } = await setup();
+  t.after(() => app.close());
+  assert.equal((await inject("PUT", "/api/memory/first", await signed(alice, "memory.put", { value: 1 }))).statusCode, 201);
+  db.prepare("INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, 'blob', 'x', ?, 1, 1)").run(alice.address, 5 * 1024 * 1024);
+  const body = await signed(alice, "memory.put", { value: "y".repeat(1000) });
+  const acc = (await inject("PUT", "/api/memory/extra", body)).json().accepts[0];
+  const pay = await voucher(alice, { payee: acc.payTo, amount: acc.maxAmountRequired, nonce: acc.extra.nonceHint, expiry: clock.s() + 300 });
+  const res = await inject("PUT", "/api/memory/extra", body, { PAYMENT: b64(pay) }); // same second as the first write
+  assert.equal(res.statusCode, 429, res.body);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM memory_credits").get().c, 0);
+  assert.equal(db.prepare("SELECT status FROM x402_vouchers WHERE nonce = ?").get(String(acc.extra.nonceHint)).status, "voided");
+});
+
 test("compute listings via tools kind=compute", async (t) => {
   const { app, signed, inject } = await setup();
   t.after(() => app.close());
@@ -522,4 +536,29 @@ test("A2A/invoke routing: internal only for the canonical hosted agent; self-poi
   assert.equal(hop.statusCode, 508);
   const hopRpc = await inject("POST", "/a/12/a2a", { jsonrpc: "2.0", id: 1, method: "tasks/send", params: { message: { parts: [{ type: "text", text: "x" }] } } }, { "x-ferminux-hop": "1" });
   assert.equal(hopRpc.statusCode, 508);
+});
+
+test("x402: parallel vouchers from one payer cannot together spend more than the vault deposit", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const tick = () => new Promise((r) => setTimeout(r, 5));
+  const vault = {
+    verify: async () => (await tick(), [true, ""]),
+    balance: async () => (await tick(), 10n ** 18n), // 1 FMX deposited
+    unlockAt: async () => (await tick(), 0n),
+  };
+  const ctx = { db, cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" }, address: (k) => (k === "x402Vault" ? vaultAddr : undefined), contract: (k) => (k === "x402Vault" ? vault : undefined), facilitator: null, now: () => nowS * 1000, nowS: () => nowS };
+  const fac = new X402Facilitator(ctx);
+  const pay = async (nonce) => {
+    const v = { payer: bob.address, payee: alice.address, amount: String(10n ** 18n), nonce: String(nonce), expiry: nowS + 300, ref: "0x" + "00".repeat(32) };
+    const signature = await bob.signTypedData({ name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr }, X402_VOUCHER_TYPES, { ...v, amount: BigInt(v.amount), nonce: BigInt(v.nonce) });
+    return { scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: v, signature } };
+  };
+  const payments = await Promise.all([1, 2, 3].map(pay));
+  const res = await Promise.all(payments.map((p) => fac.settle(p, "https://ferminux.net/x")));
+  assert.deepEqual(res.map((r) => r.success), [true, false, false]);
+  assert.match(res[1].errorReason, /insufficient vault balance/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM x402_vouchers").get().c, 1);
 });

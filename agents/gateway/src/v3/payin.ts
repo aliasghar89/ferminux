@@ -594,7 +594,7 @@ export interface PayinProviderLike {
   getBlockNumber(): Promise<number>;
   getLogs(filter: { address: string[]; topics: (string | null)[]; fromBlock: number; toBlock: number }): Promise<Array<{ address: string; topics: readonly string[]; data: string; transactionHash: string; index: number; blockNumber: number }>>;
   getBlock(n: number, prefetchTxs: true): Promise<{ number: number; prefetchedTransactions: Array<{ hash: string; from: string; to: string | null; value: bigint }> } | null>;
-  getTransactionReceipt(hash: string): Promise<{ status: number | null } | null>;
+  getTransactionReceipt(hash: string): Promise<{ status: number | null; blockNumber?: number } | null>;
   destroy(): void;
 }
 
@@ -873,9 +873,35 @@ export class PayinWatcher {
     }
 
     // ---- confirmations for seen rows on this chain (confirmation depth is chain-specific) ----
-    const seen = db.prepare("SELECT quoteId, blockIn FROM payins WHERE chain = ? AND status = 'seen'").all(chain) as Array<{ quoteId: string; blockIn: number }>;
+    // A deposit is attributed from the chain tip, so before it may pay out its transaction is looked up again: a
+    // log or block reorged out after it was seen would otherwise count confirmations on a height alone and be
+    // paid in FMX for a transfer that no longer exists (or moved to another block, or reverted on re-inclusion).
+    const seen = db.prepare("SELECT quoteId, blockIn, txHashIn FROM payins WHERE chain = ? AND status = 'seen'").all(chain) as Array<{ quoteId: string; blockIn: number; txHashIn: string | null }>;
     for (const r of seen) {
-      const conf = Math.max(0, head - r.blockIn + 1);
+      let blockIn = r.blockIn;
+      let conf = Math.max(0, head - blockIn + 1);
+      if (conf >= info.confirmations && r.txHashIn) {
+        let receipt: Awaited<ReturnType<PayinProviderLike["getTransactionReceipt"]>> | undefined;
+        try {
+          receipt = await provider.getTransactionReceipt(r.txHashIn);
+        } catch (err) {
+          firstErr ??= err;
+          continue; // RPC hiccup: decide next tick
+        }
+        if (!receipt) {
+          db.prepare("UPDATE payins SET confirmations = 0, error = ? WHERE quoteId = ?").run(`deposit ${r.txHashIn} is no longer on ${info.name} (reorged out) — waiting for it to be re-included`, r.quoteId);
+          continue;
+        }
+        if (receipt.status === 0) {
+          db.prepare("UPDATE payins SET status = 'failed', error = ? WHERE quoteId = ?").run(`deposit ${r.txHashIn} reverted on ${info.name}`, r.quoteId);
+          continue;
+        }
+        if (typeof receipt.blockNumber === "number" && receipt.blockNumber !== blockIn) {
+          blockIn = receipt.blockNumber;
+          conf = Math.max(0, head - blockIn + 1);
+          db.prepare("UPDATE payins SET blockIn = ? WHERE quoteId = ?").run(blockIn, r.quoteId);
+        }
+      }
       db.prepare("UPDATE payins SET confirmations = ?, status = CASE WHEN ? >= ? THEN 'confirmed' ELSE status END WHERE quoteId = ?").run(conf, conf, info.confirmations, r.quoteId);
     }
     if (firstErr) throw firstErr;

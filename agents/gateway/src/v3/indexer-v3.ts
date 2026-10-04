@@ -59,6 +59,26 @@ function addStreamWei(db: Db, id: number, column: "deposit" | "claimed", delta: 
   db.prepare(`UPDATE streams SET ${column} = ?, updatedAtBlock = ? WHERE id = ?`).run((cur + delta).toString(), block, id);
 }
 
+/** agent_tokens wei counters += delta, in BigInt — the same 64-bit clamp as addStreamWei: once a total passed
+ * ≈ 9.22 FMX the SQL sum went REAL, was stored as "1.2e+19", and the next CAST read that back as 1 wei. */
+function addTokenWei(db: Db, token: string, column: "fmxIn" | "fmxOut" | "distributed", counter: "buys" | "sells" | null, delta: unknown): void {
+  const row = db.prepare(`SELECT ${column} AS v FROM agent_tokens WHERE token = ?`).get(token) as { v: string | null } | undefined;
+  if (!row) return;
+  let cur = 0n;
+  let add = 0n;
+  try {
+    cur = BigInt(row.v || "0");
+  } catch {
+    cur = 0n;
+  }
+  try {
+    add = BigInt(str(delta) || "0");
+  } catch {
+    add = 0n;
+  }
+  db.prepare(`UPDATE agent_tokens SET ${counter ? `${counter} = ${counter} + 1, ` : ""}${column} = ? WHERE token = ?`).run((cur + add).toString(), token);
+}
+
 /** What a StreamCancelled log paid out to the payee side (payeeAmount + fee), per the as-built event. */
 function cancelPaid(args: Record<string, unknown>): bigint {
   try {
@@ -237,11 +257,11 @@ export function applyV3Event(deps: V3IndexerDeps, ev: V3LogEvent): void {
         // counters are increments, so the 12-block reorg rescan must not re-apply a log we already counted
         const fresh = counted();
         if (fresh && name === "Bought") {
-          db.prepare("UPDATE agent_tokens SET buys = buys + 1, fmxIn = CAST(CAST(fmxIn AS INTEGER) + ? AS TEXT) WHERE token = ?").run(str(args.fmxIn ?? "0"), addr(args.token));
+          addTokenWei(db, addr(args.token), "fmxIn", "buys", args.fmxIn);
         } else if (fresh && name === "Sold") {
-          db.prepare("UPDATE agent_tokens SET sells = sells + 1, fmxOut = CAST(CAST(fmxOut AS INTEGER) + ? AS TEXT) WHERE token = ?").run(str(args.fmxOut ?? "0"), addr(args.token));
+          addTokenWei(db, addr(args.token), "fmxOut", "sells", args.fmxOut);
         } else if (fresh && name === "Distributed") {
-          db.prepare("UPDATE agent_tokens SET distributed = CAST(CAST(distributed AS INTEGER) + ? AS TEXT) WHERE token = ?").run(str(args.amount ?? "0"), addr(args.token));
+          addTokenWei(db, addr(args.token), "distributed", null, args.amount);
         }
       }
       break;

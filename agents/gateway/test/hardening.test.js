@@ -52,6 +52,23 @@ test("Commons writes share one per-IP budget across routes (a fresh key per writ
   assert.equal((await app.inject({ method: "GET", url: "/api/forum/threads" })).statusCode, 200);
 });
 
+test("a client-written X-Forwarded-For entry does not buy a fresh per-IP bucket (only the proxy's hop is trusted)", async (t) => {
+  const { app } = await setup();
+  t.after(() => app.close());
+  const codes = [];
+  for (let i = 0; i < 31; i++) {
+    // what nginx's $proxy_add_x_forwarded_for forwards: the client's forged value, then the real peer
+    const res = await app.inject({ method: "POST", url: "/api/forum/threads", headers: { "content-type": "application/json", "x-forwarded-for": `198.51.100.${i}, 203.0.113.77` }, payload: "{}" });
+    codes.push(res.statusCode);
+  }
+  assert.equal(codes[30], 429, codes.join(","));
+  const ip = await new Promise((resolve) => {
+    app.get("/__ip", async (req) => req.ip);
+    resolve(null);
+  }).catch(() => null);
+  void ip;
+});
+
 test("payloads: per-IP daily byte budget (duplicates are free) and a global cap", async (t) => {
   process.env.PAYLOADS_MAX_BYTES_PER_IP_PER_DAY = "600";
   process.env.PAYLOADS_MAX_TOTAL_BYTES = "1000";
@@ -153,6 +170,44 @@ test("faucet: stops at the relayer reserve so gasless relays keep their gas; def
   relayerBal = 10n ** 18n * 197n;
   const ok = await app.inject({ method: "POST", url: "/api/faucet", headers: { "content-type": "application/json" }, payload: JSON.stringify({ address: fresh }) });
   assert.equal(ok.statusCode, 202, ok.body);
+});
+
+test("faucet: parallel requests for one fresh address send one drip, and parallel ones from one IP respect its daily cap", async (t) => {
+  const db = openMemoryDb();
+  const { app, v3 } = await buildServer({ db, cfg: { ...cfg, relayerKey: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba" }, workers: false, logger: false, commons: { forward: async () => {}, toolProbeFetch: async () => new Response(null, { status: 200 }) } });
+  await app.ready();
+  t.after(() => app.close());
+  const slow = () => new Promise((r) => setTimeout(r, 20));
+  v3.provider.getBalance = async (a) => (await slow(), a === v3.relayer.address ? 10n ** 18n * 1000n : 0n);
+  v3.provider.getTransactionCount = async () => (await slow(), 0);
+  v3.provider.getFeeData = async () => ({ maxFeePerGas: 2_000_000_000n });
+  let sent = 0;
+  v3.relayer.sendTransaction = async () => ({ hash: "0x" + (++sent).toString(16).padStart(64, "0") });
+  const drip = (address, ip) => app.inject({ method: "POST", url: "/api/faucet", headers: { "content-type": "application/json", "x-forwarded-for": ip }, payload: JSON.stringify({ address }) });
+  const same = await Promise.all(Array.from({ length: 5 }, (_, i) => drip("0x000000000000000000000000000000000000bEEF", `203.0.113.${i + 1}`)));
+  assert.deepEqual(same.map((r) => r.statusCode).sort(), [202, 429, 429, 429, 429]);
+  assert.equal(sent, 1);
+  // 7 of this IP's 10 daily drips already used: of 6 parallel requests (the route's per-minute burst) only 3 may pass
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 0; i < 7; i++) db.prepare("INSERT INTO relays (kind, subject, target, txHash, ok, gasLimit, createdAt) VALUES ('faucet', ?, '198.51.100.7', '0x', 1, 21000, ?)").run(`0x${String(i).padStart(40, "a")}`, now);
+  const addrs = Array.from({ length: 6 }, (_, i) => "0x" + (0xc0de00 + i).toString(16).padStart(40, "0"));
+  const oneIp = await Promise.all(addrs.map((a) => drip(a, "198.51.100.7")));
+  assert.deepEqual(oneIp.map((r) => r.statusCode).sort(), [202, 202, 202, 429, 429, 429]);
+  assert.equal(sent, 4);
+});
+
+test("GET /api/jobs?client= / ?agentOwner= match an address in any letter case", async (t) => {
+  const { app, db } = await setup();
+  t.after(() => app.close());
+  const owner = "0x4660E707371db34E8229A66b1e141053F61b2AD4";
+  const client = "0x38A358681199a42B11085A46cEF390D7C26FF68d";
+  db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (21, ?, 'Case Bot', 'https://case.example', 1, 1)").run(owner);
+  db.prepare("INSERT INTO jobs (id, agentId, client, amount, inputHash, inputURI, createdAt, status) VALUES (31, 21, ?, '1', '0x11', '', 1790000000, 1)").run(client);
+  for (const q of [`client=${client}`, `client=${client.toLowerCase()}`, `agentOwner=${owner.toLowerCase()}`, `agentOwner=${owner.toUpperCase().replace("0X", "0x")}`]) {
+    const res = (await app.inject({ method: "GET", url: `/api/jobs?${q}` })).json();
+    assert.deepEqual(res.items.map((j) => j.id), [31], q);
+  }
+  assert.deepEqual((await app.inject({ method: "GET", url: "/api/jobs?client=not-an-address" })).json().items, []);
 });
 
 test("job views carry reviewDeadline / claimableAt for Delivered jobs", async (t) => {
