@@ -1,5 +1,8 @@
-# Seeds miner rewards (6 FMX >> era + tip fees) into the explorer DB every
-# minute — Blockscout's geth variant cannot fetch PoW beneficiaries over RPC.
+# Seeds block rewards into the explorer DB every minute, as the compose
+# rewards-sidecar does (explorer/seeder/run.sh): Blockscout's geth variant
+# cannot fetch them over RPC, and from the authority fork it would credit
+# every block to header.Coinbase (zero, or a vote's subject) rather than the
+# signer that confirmed it. The scripts are the explorer-seeder-sql ConfigMap.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -30,9 +33,17 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  psql -q -v ON_ERROR_STOP=0 -f /seeder/emission-ranges.sql 2>/dev/null || true
+                  psql -q -v ON_ERROR_STOP=1 -f /seeder/emission-ranges.sql
                   psql -q -v ON_ERROR_STOP=1 -f /seeder/seed-rewards.sql
+                  sh /seeder/seed-signers.sh
               env:
+                # seed-signers.sh asks this node who sealed each authority block
+                # (clique_getSigner): the node the backend indexes from.
+                - name: FMX_RPC
+                  valueFrom:
+                    configMapKeyRef:
+                      name: explorer-backend-env
+                      key: ETHEREUM_JSONRPC_HTTP_URL
                 - name: PGHOST
                   value: explorer-db
                 - name: PGPORT
