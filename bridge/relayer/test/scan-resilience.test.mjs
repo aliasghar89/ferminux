@@ -30,7 +30,8 @@ import { ChainClient, LOGS_RETRY_MS, isRangeRefusal } from '../src/chain.ts';
 import { INSECURE_ACKNOWLEDGEMENT, parseConfig } from '../src/config.ts';
 import { openStore } from '../src/db.ts';
 import { createLogger } from '../src/logger.ts';
-import { withScanVerdict } from '../src/service.ts';
+import { RelayerService, serialQueue, withScanVerdict } from '../src/service.ts';
+import { Metrics } from '../src/metrics.ts';
 import { transferIdOf } from '../src/transfer.ts';
 import { Watcher, scanHealth } from '../src/watcher.ts';
 
@@ -361,4 +362,73 @@ test('scan health: the UI fixture carries exactly the keys scanHealth() emits', 
   const fixture = JSON.parse(readFileSync(new URL('../../ui/tests/fixtures/relayer-status.json', import.meta.url), 'utf8'));
   const emitted = Object.keys(scanHealth({ head: 1, cursor: 1, lastPollAt: 1, lastSuccessAt: 1 }, { name: 'x', confirmations: 1, maxBlockRange: 1, pollIntervalMs: 1 }, 1)).sort();
   for (const c of fixture.chains) assert.deepEqual(Object.keys(c.scan).sort(), emitted, `${c.name}.scan`);
+});
+
+// ------------------------------------------------------------------ role work is serial
+
+test('serialQueue: one call at a time, in order, and a throw does not wedge the queue', async () => {
+  const q = serialQueue();
+  const order = [];
+  let active = 0;
+  let peak = 0;
+  const job = (name, ms, fail = false) => q(async () => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((r) => setTimeout(r, ms));
+    order.push(name);
+    active--;
+    if (fail) throw new Error(name);
+    return name;
+  });
+  const results = await Promise.allSettled([job('a', 30), job('b', 5, true), job('c', 1)]);
+  assert.equal(peak, 1);
+  assert.deepEqual(order, ['a', 'b', 'c']);
+  assert.deepEqual(results.map((r) => r.status), ['fulfilled', 'rejected', 'fulfilled']);
+});
+
+test('service: a watcher\'s onConfirmed never runs concurrently with the role tick', async () => {
+  // Both used to run free: the validator verified the same transfer twice and
+  // consumed its 24h capacity twice for one signature, and the submitter's two
+  // allocateNonce() calls could hand two transfers the same account nonce.
+  const doc = JSON.stringify({
+    network: 'test',
+    chains: [CHAIN_A, CHAIN_B].map((chainId, i) => ({
+      name: `c${i}`,
+      chainId,
+      rpcUrls: [`http://n${i}a.example:8545`, `http://n${i}b.example:8545`, `http://n${i}c.example:8545`],
+      bridgeAddress: BRIDGE,
+      confirmations: 3,
+      limits: { default: { maxPerTransfer: '1', dailyCap: '2' }, tokens: {} },
+    })),
+    insecure: { acknowledgement: INSECURE_ACKNOWLEDGEMENT, allowCountFinalityWithoutGadget: true },
+  });
+  const dir = mkdtempSync(join(tmpdir(), 'svc-serial-'));
+  const store = await openStore(join(dir, 'r.db'), 'journal');
+  let active = 0;
+  let peak = 0;
+  const busy = async () => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((r) => setTimeout(r, 20));
+    active--;
+  };
+  const service = new RelayerService({
+    cfg: parseConfig(doc, 'x'),
+    role: 'validator',
+    log: silent(),
+    alerts: alerter(),
+    store,
+    metrics: new Metrics(),
+    tickIntervalMs: 1_000,
+    hooks: { onConfirmed: busy, tick: busy },
+  });
+  try {
+    const onConfirmed = service.watchers[0].onConfirmed;
+    await Promise.all([onConfirmed({}), service.runTick(), onConfirmed({}), service.runTick()]);
+    assert.equal(peak, 1, 'role work overlapped');
+  } finally {
+    for (const c of service.chains.values()) dispose(c);
+    store.close?.();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

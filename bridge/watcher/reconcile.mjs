@@ -122,15 +122,34 @@ export class Reconciler {
     return r;
   }
 
-  /** Record an outbound lock/burn. Returns nothing; `Sent` is never itself an alarm. */
+  /**
+   * Record an outbound lock/burn. A `Sent` is never itself an alarm, but one that
+   * explains an execution seen earlier gets the same amount check as one seen
+   * first: Ferminux confirms far deeper than BSC, so for Ferminux -> BSC the
+   * `Executed` routinely lands first, and this is the only place that direction
+   * is ever compared.
+   * @returns {null | {kind:'amount-mismatch', ...}}
+   */
   recordSent({ transferId, chainId, block, amount, recipient, sender }) {
     this.sent.set(transferId, { chainId, block, amount, recipient, sender });
     // An execution we could not explain a moment ago may be explainable now.
-    if (this.pending.has(transferId)) {
-      this.pending.delete(transferId);
-      this.reported.delete(transferId);
-      this._markMatched(transferId);
+    const p = this.pending.get(transferId);
+    if (!p) return null;
+    this.pending.delete(transferId);
+    this.reported.delete(transferId);
+    this._markMatched(transferId);
+    if (p.amount !== amount) {
+      return {
+        kind: 'amount-mismatch',
+        transferId,
+        chainId: p.chainId,
+        srcChainId: p.srcChainId,
+        sentAmount: amount,
+        executedAmount: p.amount,
+        recipient: p.recipient,
+      };
     }
+    return null;
   }
 
   /**

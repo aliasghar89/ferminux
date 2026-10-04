@@ -302,7 +302,7 @@ function handleEvent(chain, parsed, log, rec, knownLimits, cursors) {
 
   switch (name) {
     case 'Sent': {
-      rec.recordSent({
+      const late = rec.recordSent({
         transferId: a.transferId,
         chainId: chain.chainId,
         block: log.blockNumber,
@@ -310,11 +310,24 @@ function handleEvent(chain, parsed, log, rec, knownLimits, cursors) {
         recipient: a.recipient,
         sender: a.sender,
       });
+      if (late?.kind === 'amount-mismatch') {
+        emit('critical', chain.name, 'AMOUNT-MISMATCH',
+          `transferId=${a.transferId} Sent ${fmtAmount(late.sentAmount)} but chain ${late.chainId} Executed ${fmtAmount(late.executedAmount)} — pause() now. ${at}`);
+      }
       emit('info', chain.name, 'Sent',
         `${fmtAmount(a.amount)} -> chain ${a.dstChainId} recipient=${a.recipient} fee=${fmtAmount(a.fee)} id=${a.transferId.slice(0, 18)}… ${at}`);
       return;
     }
     case 'Executed': {
+      // overdue() stays silent while it has no head for the source chain, which
+      // is right for a chain whose RPC is down and wrong for one this watcher
+      // does not scan at all: that execution could never be reconciled, so a
+      // forged one would never be reported. Say so now, once, at full volume.
+      if (!cursors.has(Number(a.srcChainId))) {
+        emit('critical', chain.name, 'UNVERIFIABLE-EXECUTION',
+          `transferId=${a.transferId} claims source chain ${a.srcChainId}, which this watcher does not scan, so no Sent can ever be matched. ` +
+          `amount=${fmtAmount(a.amount)} recipient=${a.recipient}. Add that chain to the watcher config, and pause() if no such route exists. ${at}`);
+      }
       const srcHead = cursors.get(Number(a.srcChainId)) ?? 0;
       const finding = rec.recordExecuted({
         transferId: a.transferId,

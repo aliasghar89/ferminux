@@ -163,6 +163,15 @@ export interface QuoteInput {
   gasReserveWei?: bigint;
   bridgePaused?: boolean;
   tokenPaused?: boolean;
+  /**
+   * The DESTINATION registry's maxPerTransfer for the mirrored asset, or null
+   * while unknown. execute() checks the NET amount against it, and a validator
+   * that sees it exceeded rejects the transfer for good (over_contract_cap is
+   * not retryable) — after send() has already locked or burned the funds here.
+   */
+  dstMaxPerTransfer?: bigint | null;
+  /** The destination bridge, or the mirrored asset on it, is paused. */
+  dstPaused?: boolean;
 }
 
 export interface Quote {
@@ -196,6 +205,8 @@ export function quoteTransfer(input: QuoteInput): Quote {
     gasReserveWei = 0n,
     bridgePaused = false,
     tokenPaused = false,
+    dstMaxPerTransfer = null,
+    dstPaused = false,
   } = input;
 
   const remaining = remainingCapacity(dailyCap, usage);
@@ -205,6 +216,7 @@ export function quoteTransfer(input: QuoteInput): Quote {
 
   if (bridgePaused) problems.push('The bridge is paused. No transfer can be sent right now.');
   if (tokenPaused) problems.push(`${symbol} is paused on this bridge. No transfer of this asset can be sent.`);
+  if (dstPaused) problems.push('The destination bridge is paused for this asset. A transfer sent now would wait there until it reopens.');
 
   if (amountWei <= 0n) {
     problems.push('Enter an amount greater than zero.');
@@ -221,6 +233,11 @@ export function quoteTransfer(input: QuoteInput): Quote {
     }
     if (netWei <= 0n) {
       problems.push('Too small — the bridge fee would consume the whole amount.');
+    }
+    if (dstMaxPerTransfer !== null && netWei > dstMaxPerTransfer) {
+      problems.push(
+        `Above the destination's per-transfer cap of ${formatAmount(dstMaxPerTransfer, decimals)} ${symbol}. Split it into smaller transfers.`,
+      );
     }
     if (balance !== null) {
       if (amountWei > balance) {

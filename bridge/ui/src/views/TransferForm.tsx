@@ -146,8 +146,10 @@ export function TransferForm({
         gasReserveWei: gasReserve,
         bridgePaused: data.srcConfig?.paused ?? false,
         tokenPaused: rail.state?.paused ?? entry?.paused ?? false,
+        dstMaxPerTransfer: remoteEntry?.maxPerTransfer ?? null,
+        dstPaused: (data.dstConfig?.paused ?? false) || (remoteEntry?.paused ?? false),
       }),
-    [amountWei, feeBps, rail.state, entry, usage, decimals, symbol, gasReserve, data.srcConfig],
+    [amountWei, feeBps, rail.state, entry, usage, decimals, symbol, gasReserve, data.srcConfig, data.dstConfig, remoteEntry],
   );
 
   // Arrival estimate at the MEASURED source pace when the relayer reports one;
