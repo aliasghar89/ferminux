@@ -334,6 +334,35 @@ contract LiquidityRewardsTest is Test {
         assertApproxEqRel(fmx.balanceOf(alice), owed, 0.01e18);
     }
 
+    /// A sweep is not a payout to a participant. If it counted as one, the
+    /// outstanding figure would shrink by the swept amount and every further
+    /// sweep would take that much again out of what stakers are owed.
+    function test_RepeatedSweepsCannotDrainEarnedRewards() public {
+        _fund();
+        vm.warp(block.timestamp + 15 days);
+        _stake(alice, 100 ether);
+        vm.warp(block.timestamp + 15 days + 1);
+
+        vm.prank(owner);
+        lr.sweepUnallocated(owner);
+        uint256 firstSweep = fmx.balanceOf(owner);
+        uint256 owed = lr.earned(alice);
+        assertGe(fmx.balanceOf(address(lr)), owed, "alice is covered after one sweep");
+
+        vm.prank(owner);
+        vm.expectRevert(bytes("LR: nothing unallocated"));
+        lr.sweepUnallocated(owner);
+        assertEq(fmx.balanceOf(owner), firstSweep, "a second sweep took nothing");
+        assertGe(lr.outstandingRewards(), owed, "the sweep did not count as a payout");
+
+        vm.prank(alice);
+        lr.claim();
+        vm.warp(block.timestamp + VEST);
+        vm.prank(alice);
+        lr.release();
+        assertEq(fmx.balanceOf(alice), owed, "alice collects everything she earned");
+    }
+
     function test_StakeAndRewardTokenCannotBeTheSame() public {
         vm.expectRevert(bytes("LR: same token"));
         new LiquidityRewards(address(lp), address(lp), VEST, owner);
