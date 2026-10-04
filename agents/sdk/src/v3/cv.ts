@@ -557,6 +557,13 @@ interface ClaimRule {
    * rather than partly checked.
    */
   forbidden?: string[];
+  /**
+   * The `outcome` the cited event proves. `cvMoneyFromClaims` counts `payoutWei` for every verified EscrowJob
+   * whose outcome is Completed or Resolved, so an outcome the log does not prove is money the chain never paid:
+   * a JobRequested (or JobRefunded) log with `outcome: "Completed", payoutWei: <anything>` verified, because
+   * those rules check no payout field. `null` = the event proves no settlement, so a settled outcome is refused.
+   */
+  outcome?: string | null;
 }
 
 /** `"<ClaimType>|<event sighash>"` → the rule. Unlisted pairs are never verified. */
@@ -583,21 +590,25 @@ const CLAIM_RULES: Record<string, ClaimRule> = {
     subject: [{ call: { role: "escrow", fn: "getJob(uint256)", args: ["claim.jobId"], field: "agentId" }, equals: "subject.agentId" }],
     fields: { jobId: "jobId", payoutWei: "agentPayout", feeWei: "fee", rating: "rating" },
     nullMeansZero: ["rating"],
+    outcome: "Completed",
   },
   "EscrowJob|JobResolved(uint256,uint256,uint256,uint256)": {
     role: "escrow",
     subject: [{ call: { role: "escrow", fn: "getJob(uint256)", args: ["claim.jobId"], field: "agentId" }, equals: "subject.agentId" }],
     fields: { jobId: "jobId", payoutWei: "agentPayout", feeWei: "fee" },
+    outcome: "Resolved",
   },
   "EscrowJob|JobRefunded(uint256,uint256,bool)": {
     role: "escrow",
     subject: [{ call: { role: "escrow", fn: "getJob(uint256)", args: ["claim.jobId"], field: "agentId" }, equals: "subject.agentId" }],
     fields: { jobId: "jobId" },
+    outcome: null,
   },
   "EscrowJob|JobRequested(uint256,uint256,address,uint256,bytes32,string)": {
     role: "escrow",
     subject: [{ log: "agentId", equals: "subject.agentId" }],
     fields: { jobId: "jobId", client: "client", amountWei: "amount", inputHash: "inputHash" },
+    outcome: null,
   },
   "X402Receipt|Settled(address,address,uint256,uint256,uint256,bytes32)": {
     role: "x402Vault",
@@ -1343,6 +1354,7 @@ export async function verifyCv(doc: CvDocument, opts: CvVerifyOptions = {}): Pro
     // of its own choosing.
     const subjectAddress = owner ? getAddress(owner) : getAddress(String(message.subject));
     let anyClaimFailed = false;
+    const provedBy = new Map<string, string>();
     for (const claim of record) {
       const trust: CvTrust = (claim.evidence?.trust as CvTrust) ?? "selfAttested";
       if (tierIndex(trust) > tierIndex(floor)) {
@@ -1356,6 +1368,18 @@ export async function verifyCv(doc: CvDocument, opts: CvVerifyOptions = {}): Pro
         continue;
       }
       const verdict = await verifyChainClaim(provider, claim, { subjectAddress, subjectAgentId: Number(message.agentId), claim, pinned, chainId });
+      // One log proves one claim of a type. Every claim verified on its own, so a document could repeat its
+      // largest JobCompleted (or one x402 Settled, which no registry counter bounds) N times and have
+      // verifiedEarned — recomputed from the verified claims — count that payment N times.
+      const dupKey = verdict.ok && verdict.logKey ? `${String(claim.type)}|${verdict.logKey}` : null;
+      const firstOnLog = dupKey ? provedBy.get(dupKey) : undefined;
+      if (dupKey && firstOnLog !== undefined) {
+        claimResults.push({ id: claim.id, type: String(claim.type), trust, status: "rejected", reason: `cites the same log as ${firstOnLog}: one log proves one ${String(claim.type)} claim`, tx: claim.evidence.tx });
+        result.rejected++;
+        anyClaimFailed = true;
+        continue;
+      }
+      if (dupKey) provedBy.set(dupKey, claim.id);
       if (verdict.ok) {
         claimResults.push({ id: claim.id, type: String(claim.type), trust, status: "verified", tx: claim.evidence.tx });
         result.verified++;
@@ -1540,7 +1564,7 @@ async function readCvAnchor(provider: CvRpc, identityRegistry: string, agentId: 
  * looked up by (claim type, event) before any bind is read, and the document's
  * own `evidence.bind` is evaluated last, as an extra, never as the gate.
  */
-async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindContext): Promise<{ ok: boolean; reason?: string; unrecognised?: boolean }> {
+async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindContext): Promise<{ ok: boolean; reason?: string; unrecognised?: boolean; logKey?: string }> {
   const ev = claim.evidence;
   const pinned = bindCtx.pinned;
   const claimType = String(claim.type);
@@ -1650,6 +1674,13 @@ async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindCo
   if (rule.role !== emitterRole) {
     return { ok: false, reason: `a ${claimType} claim must cite ${rule.role} (${pinned.get(rule.role) ?? "not deployed"}); this log came from ${emitterRole}` };
   }
+  if (rule.outcome !== undefined) {
+    const stated = (claim as Record<string, unknown>).outcome;
+    const settled = stated === "Completed" || stated === "Resolved";
+    if (rule.outcome === null ? settled : stated !== undefined && stated !== rule.outcome) {
+      return { ok: false, reason: `the claim states outcome ${String(stated)}, but ${signature} proves ${rule.outcome === null ? "no completed or resolved settlement" : `outcome ${rule.outcome}`}` };
+    }
+  }
   for (const banned of rule.forbidden ?? []) {
     if ((claim as Record<string, unknown>)[banned] !== undefined) {
       return {
@@ -1726,7 +1757,8 @@ async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindCo
     }
     return { ok: false, reason: "a bind rule must carry either `log` or `call`" };
   }
-  return { ok: true };
+  // which log this claim resolved to, whatever index it addressed it by (step 7 refuses a second claim on it)
+  return { ok: true, logKey: `${String(ev.tx).toLowerCase()}:${receipt.logs.indexOf(log)}` };
 }
 
 /** One `eth_call` into a PINNED contract, decoded with the verifier's own ABI. */
