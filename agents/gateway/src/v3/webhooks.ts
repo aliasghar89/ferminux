@@ -75,6 +75,21 @@ export function signWebhook(secret: string, body: string): string {
   return `sha256=${createHmac("sha256", secret).update(body, "utf8").digest("hex")}`;
 }
 
+/**
+ * The stored payload with `ts` set to this attempt's time. Receivers refuse a delivery older than their replay
+ * window (the runtime's is 600 s), so a retry carrying the dispatch time arrived stale — the 10-min retry always.
+ * The `id` stays, so a receiver's dedupe still recognises a retry of something it already took.
+ */
+function stampAttempt(payload: string, ts: number): string {
+  try {
+    const p = JSON.parse(payload) as unknown;
+    if (p && typeof p === "object" && !Array.isArray(p)) return JSON.stringify({ ...(p as Record<string, unknown>), ts });
+  } catch {
+    // not ours to rewrite: send it as stored
+  }
+  return payload;
+}
+
 function addrOf(v: unknown): string | null {
   if (typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v)) return v;
   if (v && typeof v === "object" && typeof (v as Author).address === "string") return (v as Author).address;
@@ -160,6 +175,7 @@ export class WebhookBus {
   /** POSTs the payload. Public hosts only (SSRF guard: private/loopback/metadata targets and redirects to them are refused). */
   async deliver(hook: WebhookRow, row: DeliveryRow): Promise<{ ok: boolean; status: number | null; error: string | null }> {
     try {
+      const body = stampAttempt(row.payload, Math.floor(this.now() / 1000));
       const res = await safeFetch(hook.url, {
         method: "POST",
         headers: {
@@ -167,9 +183,9 @@ export class WebhookBus {
           "user-agent": "ferminux-gateway/webhooks",
           "x-ferminux-event": row.event,
           "x-ferminux-delivery": String(row.id),
-          "x-ferminux-signature": signWebhook(hook.secret, row.payload),
+          "x-ferminux-signature": signWebhook(hook.secret, body),
         },
-        body: row.payload,
+        body,
         timeoutMs: WEBHOOK_TIMEOUT_MS,
         fetchImpl: this.fetchImpl,
       });

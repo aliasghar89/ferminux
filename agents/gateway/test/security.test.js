@@ -263,6 +263,38 @@ test("SSE: per-IP and global connection caps answer 503", async (t) => {
   void other;
 });
 
+// Receivers refuse a delivery whose `ts` is older than their replay window (the runtime's is 600 s). The payload was
+// stamped once at dispatch, so the 10-min retry (and anything after a backlog) always arrived stale and was refused.
+test("webhooks: every attempt carries its own ts, signed over exactly the body sent", async () => {
+  const { signWebhook } = await import("../dist/v3/webhooks.js");
+  const db = openMemoryDb();
+  let nowMs = 1_758_400_000_000;
+  const sent = [];
+  const bus = new WebhookBus(db, () => nowMs, async (_url, init) => {
+    sent.push({ at: Math.floor(nowMs / 1000), body: String(init.body), sig: init.headers["x-ferminux-signature"] });
+    return new Response("busy", { status: 503 });
+  });
+  const secret = "s3cret-s3cret-s3cret";
+  db.prepare("INSERT INTO webhooks (owner, url, secret, events, active, createdAt, updatedAt) VALUES (?, 'https://hook.example/in', ?, '[\"job.requested\"]', 1, 1, 1)").run(alice.address, secret);
+  assert.equal(bus.dispatch("job.requested", [alice.address], { jobId: 1 }, "job.requested:0xabc"), 1);
+  for (const waitS of [0, 11, 61, 601]) {
+    nowMs += waitS * 1000;
+    await bus.tick();
+  }
+  assert.equal(sent.length, 4);
+  const ids = new Set();
+  for (const a of sent) {
+    const p = JSON.parse(a.body);
+    assert.equal(p.ts, a.at, "ts is the attempt's own time");
+    assert.equal(a.sig, signWebhook(secret, a.body));
+    assert.equal(p.event, "job.requested");
+    assert.deepEqual(p.data, { jobId: 1 });
+    ids.add(p.id);
+  }
+  assert.equal(ids.size, 1, "the delivery id stays stable across attempts (receivers dedupe on it)");
+  assert.ok(sent.at(-1).at - sent[0].at > 600, "the last retry lands past a 600 s window from the first attempt");
+});
+
 test("v3 indexer: increment handlers apply a replayed log exactly once (reorg re-scan / resumed backfill)", () => {
   const db = openMemoryDb();
   const activity = new ActivityBus(db, () => 1_758_400_000_000);
