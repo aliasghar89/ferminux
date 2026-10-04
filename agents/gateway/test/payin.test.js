@@ -392,6 +392,44 @@ test("watcher: ERC-20 logs for both stables + native block scan → seen → con
   assert.equal(bsc.blockCalls.length, calls);
 });
 
+test("watcher: a deposit reorged out after it was seen is not confirmed on height alone; re-included it counts from its new block; reverted it fails", async (t) => {
+  const { app, inject, chains, watcher } = await setup();
+  t.after(() => app.close());
+  const { st: bsc, provider } = chains.bsc;
+  const gone = new Set();
+  provider.getTransactionReceipt = async (h) => (gone.has(h) ? null : (bsc.receipts.get(h) ?? { status: 1 }));
+  const q = (await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "USDC", amount: "4", to: bob.address })).json();
+  const r = (await inject("POST", "/api/payin/quote", { chain: "bsc", asset: "USDT", amount: "5", to: alice.address })).json();
+  await watcher.tick();
+  const log = (token, units, i) => ({ address: token, topics: [TRANSFER, zeroPadValue(bob.address, 32), zeroPadValue(HOT.address, 32)], data: "0x" + BigInt(units).toString(16).padStart(64, "0"), transactionHash: "0x" + (i + 0x70).toString(16).padStart(64, "0"), index: 0, blockNumber: 1001 });
+  bsc.head = 1001;
+  bsc.logs.push(log(PAYIN_CHAINS.bsc.assets.USDC.address, q.sendExactly, 1), log(PAYIN_CHAINS.bsc.assets.USDT.address, r.sendExactly, 2));
+  await watcher.tick();
+  const st = async (id) => (await inject("GET", `/api/payin/${id}`)).json();
+  assert.equal((await st(q.quoteId)).status, "seen");
+  const hq = (await st(q.quoteId)).txHashIn;
+  const hr = (await st(r.quoteId)).txHashIn;
+  // block 1001 is reorged away: the USDC transfer is gone, the USDT one reverts where it is re-included
+  gone.add(hq);
+  bsc.receipts.set(hr, { status: 0, blockNumber: 1003 });
+  bsc.head = 1012;
+  await watcher.tick();
+  const sq = await st(q.quoteId);
+  assert.equal(sq.status, "seen", "12 blocks above a block that no longer holds the deposit is not 12 confirmations");
+  assert.equal(sq.confirmations, 0);
+  assert.match(sq.error, /no longer on BNB Smart Chain/);
+  assert.equal((await st(r.quoteId)).status, "failed");
+  // re-included at block 1005: confirmations count from there
+  gone.delete(hq);
+  bsc.receipts.set(hq, { status: 1, blockNumber: 1005 });
+  await watcher.tick();
+  assert.equal((await st(q.quoteId)).status, "seen");
+  assert.equal((await st(q.quoteId)).blockIn, 1005);
+  bsc.head = 1016;
+  await watcher.tick();
+  assert.equal((await st(q.quoteId)).status, "confirmed");
+});
+
 test("payout: crash-safe hot-wallet nonce reservation (mirrors ReferralPayout.transfer) — reserved before sending, recovered from chain on restart, never double-paid", async (t) => {
   const { app, db, v3, watcher } = await setup();
   t.after(() => app.close());
