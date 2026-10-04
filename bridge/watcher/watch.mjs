@@ -302,7 +302,7 @@ function handleEvent(chain, parsed, log, rec, knownLimits, cursors) {
 
   switch (name) {
     case 'Sent': {
-      rec.recordSent({
+      const late = rec.recordSent({
         transferId: a.transferId,
         chainId: chain.chainId,
         block: log.blockNumber,
@@ -310,6 +310,10 @@ function handleEvent(chain, parsed, log, rec, knownLimits, cursors) {
         recipient: a.recipient,
         sender: a.sender,
       });
+      if (late?.kind === 'amount-mismatch') {
+        emit('critical', chain.name, 'AMOUNT-MISMATCH',
+          `transferId=${a.transferId} Sent ${fmtAmount(late.sentAmount)} but chain ${late.chainId} Executed ${fmtAmount(late.executedAmount)} — pause() now. ${at}`);
+      }
       emit('info', chain.name, 'Sent',
         `${fmtAmount(a.amount)} -> chain ${a.dstChainId} recipient=${a.recipient} fee=${fmtAmount(a.fee)} id=${a.transferId.slice(0, 18)}… ${at}`);
       return;

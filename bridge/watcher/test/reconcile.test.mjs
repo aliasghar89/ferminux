@@ -70,6 +70,22 @@ test('an amount that differs between Sent and Executed is caught immediately', (
   assert.equal(f.executedAmount, 101n);
 });
 
+test('an amount mismatch is caught when the Sent arrives AFTER the Executed too', () => {
+  // Ferminux -> BSC: BSC's 20 confirmations land long before Ferminux's 64, so
+  // this ordering is the normal one for that direction.
+  const r = mk();
+  assert.equal(r.recordExecuted({ transferId: ID(8), chainId: BSC, srcChainId: FMX, block: 2, amount: 101n, recipient: '0xr', srcHead: 1 }), null);
+  const f = r.recordSent({ transferId: ID(8), chainId: FMX, block: 1, amount: 100n, recipient: '0xr', sender: '0xs' });
+  assert.equal(f?.kind, 'amount-mismatch');
+  assert.equal(f.sentAmount, 100n);
+  assert.equal(f.executedAmount, 101n);
+  assert.equal(f.chainId, BSC);
+
+  const ok = mk();
+  ok.recordExecuted({ transferId: ID(9), chainId: BSC, srcChainId: FMX, block: 2, amount: 100n, recipient: '0xr', srcHead: 1 });
+  assert.equal(ok.recordSent({ transferId: ID(9), chainId: FMX, block: 1, amount: 100n, recipient: '0xr', sender: '0xs' }), null);
+});
+
 test('state survives a JSON round trip, amounts included', () => {
   const r = mk(100);
   r.recordSent({ transferId: ID(6), chainId: FMX, block: 1, amount: 12345n, recipient: '0xr', sender: '0xs' });
