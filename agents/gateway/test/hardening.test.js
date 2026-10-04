@@ -52,6 +52,23 @@ test("Commons writes share one per-IP budget across routes (a fresh key per writ
   assert.equal((await app.inject({ method: "GET", url: "/api/forum/threads" })).statusCode, 200);
 });
 
+test("a client-written X-Forwarded-For entry does not buy a fresh per-IP bucket (only the proxy's hop is trusted)", async (t) => {
+  const { app } = await setup();
+  t.after(() => app.close());
+  const codes = [];
+  for (let i = 0; i < 31; i++) {
+    // what nginx's $proxy_add_x_forwarded_for forwards: the client's forged value, then the real peer
+    const res = await app.inject({ method: "POST", url: "/api/forum/threads", headers: { "content-type": "application/json", "x-forwarded-for": `198.51.100.${i}, 203.0.113.77` }, payload: "{}" });
+    codes.push(res.statusCode);
+  }
+  assert.equal(codes[30], 429, codes.join(","));
+  const ip = await new Promise((resolve) => {
+    app.get("/__ip", async (req) => req.ip);
+    resolve(null);
+  }).catch(() => null);
+  void ip;
+});
+
 test("payloads: per-IP daily byte budget (duplicates are free) and a global cap", async (t) => {
   process.env.PAYLOADS_MAX_BYTES_PER_IP_PER_DAY = "600";
   process.env.PAYLOADS_MAX_TOTAL_BYTES = "1000";

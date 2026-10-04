@@ -93,6 +93,12 @@ class GatewayLogController extends LogController {
   }
 }
 
+/** Proxy hops in front of the gateway whose X-Forwarded-For entries are trusted (TRUST_PROXY_HOPS, default 1: the edge nginx). */
+export function trustProxyHops(): number {
+  const n = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+  return Number.isInteger(n) && n >= 0 ? n : 1;
+}
+
 /** unbounded job listings were a full-table dump; page them (the web UI and SDK read the newest first) */
 const JOBS_DEFAULT_LIMIT = 500;
 const JOBS_MAX_LIMIT = 2000;
@@ -117,8 +123,11 @@ export async function buildServer(opts: BuildOptions = {}) {
   const registry = new Contract(cfg.registry, REGISTRY_ABI, provider);
   const escrow = new Contract(cfg.escrow, ESCROW_ABI, provider);
 
-  // trustProxy: nginx fronts us and sets X-Forwarded-For; without it every external client shares one rate-limit bucket (nginx's IP)
-  const app = Fastify({ logger: opts.logger ?? true, bodyLimit: MAX_PAYLOAD_BYTES, trustProxy: true, logController: new GatewayLogController() });
+  // trustProxy: nginx fronts us and sets X-Forwarded-For; without it every external client shares one rate-limit bucket (nginx's IP).
+  // A hop count, never `true`: trusting every hop makes req.ip the LEFTMOST X-Forwarded-For entry, which the client
+  // writes itself (nginx's $proxy_add_x_forwarded_for appends to it), so one forged header per request reset every
+  // per-IP limit — the faucet's 10/IP/day, relay caps, payload quotas, the Commons write budget, the rate limiter.
+  const app = Fastify({ logger: opts.logger ?? true, bodyLimit: MAX_PAYLOAD_BYTES, trustProxy: ((hops) => (_addr: string, hop: number) => hop < hops)(trustProxyHops()), logController: new GatewayLogController() });
 
   await app.register(cors, { origin: "*" });
 
