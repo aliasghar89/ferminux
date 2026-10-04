@@ -277,9 +277,10 @@ export class X402Facilitator {
         let pending = 0n;
         for (const r of this.pendingSum.all(v.payer) as Array<{ amount: string }>) pending += BigInt(r.amount);
         if (balance < pending + BigInt(v.amount)) return fail(`insufficient vault balance: ${balance} < ${pending + BigInt(v.amount)} (incl. ${pending} pending)`);
-        // withdraw-before-settle: a deposit that unlocks inside the settlement horizon could be pulled before the batch lands
+        // withdraw-before-settle: a deposit that unlocks inside the settlement horizon could be pulled before the batch lands.
+        // The deployed vault re-locks only in withdraw() (unlockAt = 0); deposit() leaves unlockAt as it is.
         const unlockAt = Number((await this.vault.unlockAt(v.payer)) as bigint);
-        if (unlockAt !== 0 && unlockAt <= nowS + X402_MIN_EXPIRY_S) return fail(`payer's vault deposit unlocks at ${unlockAt} — re-lock (deposit) or wait for withdrawal before paying`);
+        if (unlockAt !== 0 && unlockAt <= nowS + X402_MIN_EXPIRY_S) return fail(`payer's vault deposit unlocks at ${unlockAt} — a deposit does not re-lock it: call withdraw() once that time has passed (it re-locks the vault), or requestUnlock() again to move the unlock 1 h out, before paying`);
       } catch (err) {
         if (err instanceof Error && /insufficient|rejected|expired|used/i.test(err.message)) return fail(err.message);
         return fail(`vault check failed: ${(err as Error).message.slice(0, 120)}`);
