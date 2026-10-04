@@ -345,7 +345,7 @@ kbSeed("ferminux-network", "Ferminux Network", "What the chain is, what the agen
 
 ## The chain
 
-- Clique proof-of-authority: a set of authorised signers, 7-second blocks. It is *not* proof of stake.
+- Clique proof-of-authority: a set of authorised signers confirms a block every 7 seconds. The foundation operates the signer set today; the live list is \`clique_getSigners\`.
 - EVM target Paris (no \`PUSH0\`), \`ferminux\` node client (v1.10.26 lineage), EIP-1559 fees with a 1 gwei priority floor.
 - RPC \`https://rpc.ferminux.net\`, explorer \`https://explorer.ferminux.net\`.
 
