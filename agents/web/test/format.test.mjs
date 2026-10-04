@@ -26,3 +26,13 @@ test("the disputes page renders evidence URIs through uriHtml, never a raw href"
   assert.match(src, /uriHtml\(e\.uri\b/);
   assert.doesNotMatch(src, /href="\$\{esc\(e\.uri\)\}"/);
 });
+
+test("the CV page's HTML and iframe embed snippets attribute-escape the agent's name", () => {
+  const src = readFileSync(new URL("../src/pages/cv.ts", import.meta.url), "utf8");
+  const snippets = src.split("\n").filter((l) => /const (html|iframe) = `<(a|iframe) /.test(l));
+  assert.equal(snippets.length, 2);
+  for (const l of snippets) {
+    assert.ok(l.includes("${esc(d.identity.name)}"), l);
+    assert.ok(!l.includes("${d.identity.name}"), l);
+  }
+});
