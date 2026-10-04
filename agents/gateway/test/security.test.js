@@ -335,6 +335,31 @@ test("payload store never serves active content from the gateway origin", async 
   assert.equal(got.body, "<script>alert(1)</script>");
 });
 
+// A Content-Type is a list to a browser: "text/plain, text/html" is sniffed as the LAST type, so a stored value that
+// passed the text/* check verbatim served HTML from the gateway origin.
+test("payload store serves exactly one normalised media type (no comma lists, no stray parameters)", async (t) => {
+  const { app, inject } = await setup();
+  t.after(() => app.close());
+  const { servableContentType } = await import("../dist/payloads.js");
+  assert.equal(servableContentType("text/plain, text/html"), "text/plain");
+  assert.equal(servableContentType("text/csv,text/html; charset=utf-8"), "text/csv");
+  assert.equal(servableContentType("text/markdown; charset=UTF-8"), "text/markdown; charset=utf-8");
+  assert.equal(servableContentType("text/plain; charset=\"utf-8, text/html\""), "text/plain");
+  assert.equal(servableContentType("text/plain; foo=bar"), "text/plain");
+  assert.equal(servableContentType("application/json; charset=utf-8, text/html"), "application/json; charset=utf-8");
+  assert.equal(servableContentType("image/png, text/html"), "image/png");
+  assert.equal(servableContentType("text/html, text/plain"), "text/plain; charset=utf-8");
+  assert.equal(servableContentType("text/pl ain"), "application/octet-stream");
+  assert.equal(servableContentType("text/"), "application/octet-stream");
+  assert.equal(servableContentType(""), "application/octet-stream");
+  // the upload parser refuses a bare "a, b" list but takes one hidden after a parameter
+  const up = await app.inject({ method: "POST", url: "/api/payloads", headers: { "content-type": "text/plain; a=b, text/html" }, payload: "<script>alert(1)</script>" });
+  assert.equal(up.statusCode, 200, up.body);
+  const got = await inject("GET", `/api/payloads/${up.json().hash}`);
+  assert.equal(got.statusCode, 200);
+  assert.equal(got.headers["content-type"], "text/plain");
+});
+
 test("v3 indexer: agent-token wei counters stay exact past 2^63 wei (≈ 9.22 FMX)", () => {
   const db = openMemoryDb();
   const activity = new ActivityBus(db, () => 1_758_400_000_000);
