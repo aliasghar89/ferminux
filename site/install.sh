@@ -13,6 +13,10 @@
 # https://ferminux.net/install.sh and people have piped it into cron.
 set -euo pipefail
 
+# Everything runs from main(), called on the last line: bash reads a piped script
+# as it arrives, so a download cut off mid-way must define a function and stop,
+# never run the first half of an install.
+main() {
 BASE="https://ferminux.net/downloads"
 
 os="$(uname -s)"; arch="$(uname -m)"
@@ -70,13 +74,15 @@ done
 # install_node <dir> [sudo]
 install_node() {
   local d="$1" sudo_cmd="${2:-}"
+  # A fresh Apple Silicon Mac has no /usr/local/bin (Homebrew lives in /opt).
+  $sudo_cmd mkdir -p "$d"
   $sudo_cmd install -m 0755 "$bin" "$d/ferminux"
   # Compatibility name — kept indefinitely, not for one release.
   $sudo_cmd ln -sf "$d/ferminux" "$d/ferminux-geth"
 }
 
 dest="/usr/local/bin"
-if [ -w "$dest" ]; then
+if [ -w "$dest" ] || { [ ! -e "$dest" ] && [ -w "$(dirname "$dest")" ]; }; then
   install_node "$dest"
 elif command -v sudo >/dev/null 2>&1; then
   echo "Installing to $dest (sudo) ..."
@@ -101,3 +107,6 @@ echo "Blocks are confirmed by the Ferminux signer set. Running a node does not"
 echo "make you a signer; signer authorisation is granted on-chain."
 echo
 echo "Headless server (systemd) setup: https://ferminux.net  ·  docs in the repo /docs"
+}
+
+main "$@"
