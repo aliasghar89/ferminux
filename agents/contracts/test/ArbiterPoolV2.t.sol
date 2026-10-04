@@ -68,6 +68,7 @@ contract ArbiterPoolV2Test is BaseTest {
         assertEq(pool.votingWindow(), 3 days);
         assertEq(pool.quorum(), 3);
         assertEq(pool.minVotingPeriod(), 1 days);
+        assertEq(pool.disputeTimeout(), 7 days);
         assertEq(pool.CASE_FEE(), 1 ether);
         assertEq(escrow.governance(), address(pool));
     }
@@ -980,5 +981,138 @@ contract ArbiterPoolV2Test is BaseTest {
         pool.close(caseId);
         assertTrue(pool.voided(caseId));
         assertEq(pool.pendingVotes(arbs[0]), 0);
+    }
+
+    // ═════════════════════════════ V2 fix 3: dispute timeout (ServiceEscrow) ═════════════════════════════
+
+    /// @notice The live escrow + pool: a disputed job nobody takes to a case is locked for good — no
+    ///         party and no pool function can ever move its FMX.
+    function test_attack_v1_disputedJobLocksForever() public {
+        ArbiterPool v1 = new ArbiterPool(escrow, multisig);
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(v1))));
+        uint256 jobId = _disputedJob();
+        uint256 locked = address(escrow).balance;
+        vm.warp(block.timestamp + 365 days);
+
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ServiceEscrow.WrongStatus.selector, ServiceEscrow.JobStatus.Disputed));
+        escrow.refund(jobId);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(ServiceEscrow.WrongStatus.selector, ServiceEscrow.JobStatus.Disputed));
+        escrow.claim(jobId);
+        vm.expectRevert(ArbiterPool.UnknownCase.selector);
+        v1.close(1);
+        assertEq(uint8(escrow.getJob(jobId).status), uint8(ServiceEscrow.JobStatus.Disputed));
+        assertEq(escrow.credits(bob) + escrow.credits(alice), 0);
+        assertEq(address(escrow).balance, locked);
+    }
+
+    function test_v2_resolveUnarbitrated_refundsClientAfterTimeout() public {
+        uint256 jobId = _disputedJob();
+        uint256 deadline = uint256(escrow.getJob(jobId).deliveredAt) + 1 days + 7 days;
+        assertEq(pool.disputeDeadline(jobId), deadline);
+
+        vm.warp(deadline - 1);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.TooEarly.selector, deadline));
+        pool.resolveUnarbitrated(jobId);
+
+        vm.warp(deadline);
+        vm.prank(carol); // anyone
+        vm.expectEmit(true, true, true, true);
+        emit ArbiterPoolV2.DisputeTimedOut(jobId, carol);
+        vm.expectEmit(true, true, true, true);
+        emit ServiceEscrow.JobResolved(jobId, 10 ether, 0, 0);
+        pool.resolveUnarbitrated(jobId);
+
+        assertEq(uint8(escrow.getJob(jobId).status), uint8(ServiceEscrow.JobStatus.Resolved));
+        assertEq(escrow.credits(bob), 10 ether); // full refund, no fee
+        assertEq(escrow.credits(alice), 0);
+        assertEq(escrow.credits(treasury), 0);
+        assertEq(registry.getAgent(agentId).jobsFailed, 1);
+        vm.prank(bob);
+        escrow.withdraw();
+
+        vm.expectRevert(ArbiterPoolV2.JobNotDisputed.selector);
+        pool.resolveUnarbitrated(jobId);
+    }
+
+    function test_v2_resolveUnarbitrated_notWhileACaseIsOpen() public {
+        _joinAll();
+        uint256 jobId = _disputedJob();
+        uint256 caseId = _openCase(jobId, alice); // the agent owner defends in time
+        _vote(caseId, 0, 1000);
+        vm.warp(pool.disputeDeadline(jobId) + 30 days);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.CaseExists.selector, caseId));
+        pool.resolveUnarbitrated(jobId);
+        pool.close(caseId); // the case decides, not the timeout
+        assertEq(escrow.credits(bob), 1 ether);
+    }
+
+    function test_v2_resolveUnarbitrated_afterVoidedCase() public {
+        uint256 jobId = _disputedJob();
+        uint256 caseId = _openCase(jobId, bob);
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (gov)));
+        vm.warp(block.timestamp + 3 days);
+        pool.close(caseId); // voided: governance was elsewhere
+        // still not the pool's to resolve
+        vm.warp(pool.disputeDeadline(jobId));
+        vm.expectRevert(ServiceEscrow.NotGovernance.selector);
+        pool.resolveUnarbitrated(jobId);
+        // governance back: the voided case does not block the timeout
+        vm.prank(gov);
+        escrow.setGovernance(address(pool));
+        pool.resolveUnarbitrated(jobId);
+        assertEq(escrow.credits(bob), 10 ether);
+    }
+
+    function test_v2_resolveUnarbitrated_validation() public {
+        vm.expectRevert(ArbiterPoolV2.JobNotDisputed.selector);
+        pool.resolveUnarbitrated(42); // unknown job
+        uint256 jobId = _request(agentId, bob, 1 ether);
+        vm.warp(block.timestamp + 30 days);
+        vm.expectRevert(ArbiterPoolV2.JobNotDisputed.selector);
+        pool.resolveUnarbitrated(jobId); // Open: the client has refund() for that
+    }
+
+    function test_v2_disputeDeadline_followsReviewWindowAndTimeout() public {
+        uint256 jobId = _disputedJob();
+        uint256 deliveredAt = escrow.getJob(jobId).deliveredAt;
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setWindows, (1 days, 2 days)));
+        vm.prank(multisig);
+        pool.setDisputeTimeout(14 days);
+        assertEq(pool.disputeDeadline(jobId), deliveredAt + 2 days + 14 days);
+    }
+
+    function test_v2_setDisputeTimeout() public {
+        vm.prank(carol);
+        vm.expectRevert(ArbiterPoolV2.NotOwner.selector);
+        pool.setDisputeTimeout(10 days);
+        vm.startPrank(multisig);
+        vm.expectRevert(ArbiterPoolV2.InvalidParams.selector);
+        pool.setDisputeTimeout(1 days - 1);
+        vm.expectRevert(ArbiterPoolV2.InvalidParams.selector);
+        pool.setDisputeTimeout(90 days + 1);
+        vm.expectEmit(true, true, true, true);
+        emit ArbiterPoolV2.DisputeTimeoutChanged(1 days);
+        pool.setDisputeTimeout(1 days);
+        pool.setDisputeTimeout(90 days);
+        vm.stopPrank();
+        assertEq(pool.disputeTimeout(), 90 days);
+    }
+
+    function testFuzz_v2_resolveUnarbitrated_onlyAfterDeadline(uint32 dt) public {
+        uint256 jobId = _disputedJob();
+        uint256 deadline = pool.disputeDeadline(jobId);
+        vm.warp(block.timestamp + bound(dt, 0, 20 days));
+        if (block.timestamp < deadline) {
+            vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.TooEarly.selector, deadline));
+            pool.resolveUnarbitrated(jobId);
+        } else {
+            pool.resolveUnarbitrated(jobId);
+            assertEq(escrow.credits(bob), 10 ether);
+        }
     }
 }

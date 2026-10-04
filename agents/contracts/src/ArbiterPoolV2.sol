@@ -17,6 +17,16 @@ import {ServiceEscrow} from "./ServiceEscrow.sol";
 ///           `close` voids the case: its voters' `pendingVotes` are released, the opener gets the case fee
 ///           back and the job may get a new case. ArbiterPool reverted there for ever, so those voters
 ///           could never leave the pool.
+///         - Dispute timeout: ServiceEscrow gives a Disputed job no way out but governance. When nobody
+///           brings the job to a case within `disputeTimeout` after its review window ends, anyone may
+///           call `resolveUnarbitrated`, which refunds the client in full (escrow.resolve(jobId, 10000)).
+///           Refund is the conservative default: the client gets back FMX for a delivery it contested
+///           and the agent owner did not defend. The escrow records it as a failed job for the agent
+///           (its rule: success = clientBps < 5000); an agent owner who disagrees opens a case in time.
+///           Done here rather than in a new escrow: AgentRegistry.setEscrow is one-shot, so a second
+///           escrow could never record outcomes in the live registry, and every client, gateway and
+///           FRC-8004 adapter reads the live escrow. This pool is escrow governance, so no escrow change
+///           is needed.
 ///
 /// MIGRATION — replaces the live `arbiterPool` (agents/deployments-v3.3961.json). Nothing here is deployed:
 ///   1. Deploy `ArbiterPoolV2(escrow, multisig)` against the live `escrow`.
@@ -32,6 +42,8 @@ import {ServiceEscrow} from "./ServiceEscrow.sol";
 ///      its job stays Disputed and v2 takes it.
 ///      Never resolve a job through `v1.forward(escrow.resolve)` while a v1 case on it is open — v1 has
 ///      no way to release that case's voters.
+///      From the hand-over on, any Disputed job with no open v2 case and a passed `disputeDeadline` —
+///      including jobs stuck since before v2 — can be refunded to its client through `resolveUnarbitrated`.
 ///   4. Point the gateway / SDK / web `arbiterPool` key at v2 and export its ABI then
 ///      (`forge inspect ArbiterPoolV2 abi --json > abi/ArbiterPoolV2.json`).
 ///   v2's own successor needs no drain: once governance has moved, each open v2 case voids at its close
@@ -80,6 +92,9 @@ contract ArbiterPoolV2 {
     uint8 public quorum = 3;
     /// @notice Earliest close after a case opens, even with `quorum + 2` votes in.
     uint64 public minVotingPeriod = 1 days;
+    /// @notice How long after a disputed job's review window a case can still be opened before
+    ///         `resolveUnarbitrated` refunds the client.
+    uint64 public disputeTimeout = 7 days;
 
     mapping(address => uint256) public stake;
     address[] public arbiters;
@@ -114,6 +129,8 @@ contract ArbiterPoolV2 {
     event Rewarded(uint256 indexed caseId, address indexed arbiter, uint256 amount);
     event ParamsChanged(uint256 minStake, uint64 votingWindow, uint8 quorum);
     event MinVotingPeriodChanged(uint64 minVotingPeriod);
+    event DisputeTimedOut(uint256 indexed jobId, address indexed by);
+    event DisputeTimeoutChanged(uint64 disputeTimeout);
     event OwnershipTransferred(address indexed previous, address indexed current);
     event Withdrawn(address indexed to, uint256 amount);
 
@@ -145,6 +162,7 @@ contract ArbiterPoolV2 {
     error TransferFailed();
     error Reentrancy();
     error JoinedAfterCaseOpened(uint64 activeSince, uint64 openedAt);
+    error TooEarly(uint256 availableAt);
 
     // ───────────────────────────── modifiers ─────────────────────────────
 
@@ -357,6 +375,28 @@ contract ArbiterPoolV2 {
         return _evidence[caseId];
     }
 
+    // ───────────────────────────── dispute timeout ─────────────────────────────
+
+    /// @notice When `resolveUnarbitrated` becomes available for `jobId`: its review window's end plus
+    ///         `disputeTimeout`. The dispute itself fell inside that review window, so a party always
+    ///         has at least `disputeTimeout` after it. Reads escrow.reviewWindow live.
+    function disputeDeadline(uint256 jobId) public view returns (uint256) {
+        return uint256(escrow.getJob(jobId).deliveredAt) + escrow.reviewWindow() + disputeTimeout;
+    }
+
+    /// @notice Settle a Disputed job that nobody brought to arbitration in time: full refund to the
+    ///         client. Anyone may call once `disputeDeadline(jobId)` has passed and no case on the job is
+    ///         open (a voided case does not count).
+    function resolveUnarbitrated(uint256 jobId) external {
+        uint256 caseId = caseOf[jobId];
+        if (caseId != 0 && !voided[caseId]) revert CaseExists(caseId);
+        if (escrow.getJob(jobId).status != ServiceEscrow.JobStatus.Disputed) revert JobNotDisputed();
+        uint256 at = disputeDeadline(jobId);
+        if (block.timestamp < at) revert TooEarly(at);
+        emit DisputeTimedOut(jobId, msg.sender);
+        escrow.resolve(jobId, BPS);
+    }
+
     // ───────────────────────────── withdraw ─────────────────────────────
 
     function withdraw() external nonReentrant {
@@ -398,6 +438,13 @@ contract ArbiterPoolV2 {
         if (minVotingPeriod_ == 0 || minVotingPeriod_ > votingWindow) revert InvalidParams();
         minVotingPeriod = minVotingPeriod_;
         emit MinVotingPeriodChanged(minVotingPeriod_);
+    }
+
+    /// @dev Bounded so the owner can neither make the refund instant nor switch it off in practice.
+    function setDisputeTimeout(uint64 disputeTimeout_) external onlyOwner {
+        if (disputeTimeout_ < 1 days || disputeTimeout_ > 90 days) revert InvalidParams();
+        disputeTimeout = disputeTimeout_;
+        emit DisputeTimeoutChanged(disputeTimeout_);
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
