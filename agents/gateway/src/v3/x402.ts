@@ -175,6 +175,8 @@ export class X402Facilitator {
   private lastFlush = 0;
   private flushing = false;
   private funding: { at: number; balance: bigint | null } = { at: 0, balance: null };
+  /** settle() runs one at a time per payer (see settle) */
+  private readonly payerTail = new Map<string, Promise<void>>();
 
   constructor(private readonly ctx: V3Context) {
     this.vaultAddress = ctx.address("x402Vault") ?? null;
@@ -288,8 +290,29 @@ export class X402Facilitator {
     return { isValid: true, payer: v.payer, voucher: v };
   }
 
-  /** Verifies and queues the voucher for batched settlement. */
+  /**
+   * Verifies and queues the voucher for batched settlement. Serialised per payer: verify() checks
+   * balance ≥ pending + amount across several awaited vault reads, and the voucher only counts as pending
+   * once inserted, so two vouchers with different nonces settled in parallel each saw the other as absent —
+   * a payer with a 1 FMX deposit was served N resources for 1 FMX each and the vault skipped all but one.
+   */
   async settle(payment: Payment, resource: string, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<{ success: boolean; nonce: string; txHash: string | null; queued: boolean; errorReason?: string; payer: string }> {
+    const key = payment.payload.voucher.payer.toLowerCase();
+    const prev = this.payerTail.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const mine = new Promise<void>((r) => (release = r));
+    const tail = prev.then(() => mine);
+    this.payerTail.set(key, tail);
+    await prev;
+    try {
+      return await this.settleLocked(payment, resource, requirement);
+    } finally {
+      release();
+      if (this.payerTail.get(key) === tail) this.payerTail.delete(key);
+    }
+  }
+
+  private async settleLocked(payment: Payment, resource: string, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<{ success: boolean; nonce: string; txHash: string | null; queued: boolean; errorReason?: string; payer: string }> {
     const res = await this.verify(payment, requirement);
     const v = payment.payload.voucher;
     if (!res.isValid) return { success: false, nonce: v.nonce, txHash: null, queued: false, errorReason: res.invalidReason, payer: v.payer };
