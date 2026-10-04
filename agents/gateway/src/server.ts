@@ -1,7 +1,7 @@
 import Fastify, { LogController, type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
-import { JsonRpcProvider, Contract } from "ethers";
+import { JsonRpcProvider, Contract, getAddress } from "ethers";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import { openDb, getMeta, type Db } from "./db.js";
 import { REGISTRY_ABI, ESCROW_ABI, JobStatusName, AgentStatusName } from "./abi.js";
@@ -315,7 +315,17 @@ export async function buildServer(opts: BuildOptions = {}) {
   });
 
   app.get<{ Querystring: { client?: string; agentOwner?: string; limit?: string; offset?: string } }>("/api/jobs", async (req) => {
-    const { client, agentOwner } = req.query;
+    // rows hold checksummed addresses (as the contracts return them); a wallet's lowercase address matched nothing
+    const norm = (a: string | undefined) => {
+      if (!a) return a;
+      try {
+        return getAddress(a.trim().toLowerCase());
+      } catch {
+        return a;
+      }
+    };
+    const client = norm(req.query.client);
+    const agentOwner = norm(req.query.agentOwner);
     let sql = "SELECT j.* FROM jobs j";
     const where: string[] = [];
     const params: unknown[] = [];

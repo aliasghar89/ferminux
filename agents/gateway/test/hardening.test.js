@@ -196,6 +196,20 @@ test("faucet: parallel requests for one fresh address send one drip, and paralle
   assert.equal(sent, 4);
 });
 
+test("GET /api/jobs?client= / ?agentOwner= match an address in any letter case", async (t) => {
+  const { app, db } = await setup();
+  t.after(() => app.close());
+  const owner = "0x4660E707371db34E8229A66b1e141053F61b2AD4";
+  const client = "0x38A358681199a42B11085A46cEF390D7C26FF68d";
+  db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (21, ?, 'Case Bot', 'https://case.example', 1, 1)").run(owner);
+  db.prepare("INSERT INTO jobs (id, agentId, client, amount, inputHash, inputURI, createdAt, status) VALUES (31, 21, ?, '1', '0x11', '', 1790000000, 1)").run(client);
+  for (const q of [`client=${client}`, `client=${client.toLowerCase()}`, `agentOwner=${owner.toLowerCase()}`, `agentOwner=${owner.toUpperCase().replace("0X", "0x")}`]) {
+    const res = (await app.inject({ method: "GET", url: `/api/jobs?${q}` })).json();
+    assert.deepEqual(res.items.map((j) => j.id), [31], q);
+  }
+  assert.deepEqual((await app.inject({ method: "GET", url: "/api/jobs?client=not-an-address" })).json().items, []);
+});
+
 test("job views carry reviewDeadline / claimableAt for Delivered jobs", async (t) => {
   const { app, db } = await setup();
   t.after(() => app.close());
