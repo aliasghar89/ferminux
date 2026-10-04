@@ -129,6 +129,8 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
   const now = opts.now ?? (() => Date.now());
   const lastReplyBySender = new Map<string, number>();
   const repliedIds = new Set<number>();
+  /** ids being checked against the gateway right now: a re-sent forward must not start a second reply */
+  const verifying = new Set<number>();
   let replyTimes: number[] = [];
   const ownAddress = opts.fmx.requireSigner().address;
   const maxInboxBytes = opts.maxInboxBytes ?? (Number(process.env.INBOX_MAX_BYTES) > 0 ? Number(process.env.INBOX_MAX_BYTES) : INBOX_MAX_BYTES_DEFAULT);
@@ -150,7 +152,7 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
     if (opts.autoreply && opts.handlerName === "llm") {
       if (opts.isActive && !opts.isActive()) {
         req.log.info({ id: msg.id }, "auto-reply skipped: agent is not Active");
-      } else if (typeof msg.id === "number" && repliedIds.has(msg.id)) {
+      } else if (typeof msg.id === "number" && (repliedIds.has(msg.id) || verifying.has(msg.id))) {
         req.log.info({ id: msg.id }, "auto-reply skipped: already answered this message");
       } else {
         // cheap pre-checks on the claimed fields first; the trusted copy is checked again below
@@ -163,10 +165,11 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
           req.log.warn({ id: msg.id, maxPerHour }, "auto-reply skipped: hourly budget spent");
         } else {
           willReply = true;
-          replyTimes.push(t);
-          if (typeof msg.id === "number") repliedIds.add(msg.id);
-          if (repliedIds.size > 5000) repliedIds.clear();
-          // verify + reply asynchronously — never block the gateway's 5 s forward timeout
+          if (typeof msg.id === "number") verifying.add(msg.id);
+          // verify + reply asynchronously — never block the gateway's 5 s forward timeout.
+          // The hourly budget and the answered-id set are spent only once the gateway confirms the message:
+          // spent on the unverified POST, anyone could exhaust the budget, or mark the next (sequential)
+          // message ids as already answered, with forged messages the gateway never sent.
           void (async () => {
             const trusted = await trustedMessage(opts.fmx, msg.id, ownAddress);
             if (!trusted) {
@@ -178,11 +181,24 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
               req.log.info({ id: msg.id, reason: again.reason }, "auto-reply skipped (trusted copy)");
               return;
             }
-            lastReplyBySender.set(again.sender.toLowerCase(), now());
+            const t2 = now();
+            replyTimes = replyTimes.filter((x) => t2 - x < 3_600_000);
+            if (replyTimes.length >= maxPerHour) {
+              req.log.warn({ id: msg.id, maxPerHour }, "auto-reply skipped: hourly budget spent");
+              return;
+            }
+            replyTimes.push(t2);
+            if (repliedIds.size >= 5000) repliedIds.clear();
+            repliedIds.add(trusted.id as number);
+            lastReplyBySender.set(again.sender.toLowerCase(), t2);
             await autoReply(opts, trusted, again.sender);
-          })().catch((err) => {
-            req.log.error({ err, id: msg.id }, "auto-reply failed");
-          });
+          })()
+            .catch((err) => {
+              req.log.error({ err, id: msg.id }, "auto-reply failed");
+            })
+            .finally(() => {
+              if (typeof msg.id === "number") verifying.delete(msg.id);
+            });
         }
       }
     }

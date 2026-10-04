@@ -1148,3 +1148,51 @@ test("the block-scoped log index finds the right log when a block holds two tran
   const res = await offline(() => verifyCv(doc, { provider: rpc }));
   assert.equal(res.claims[0].status, "verified");
 });
+
+test("BREAK #8: the same JobCompleted cited twice counts once — the copy is rejected, whatever index addresses it", async () => {
+  // Each claim used to verify on its own, so repeating the largest real job (or one x402 Settled, which no
+  // registry counter bounds) multiplied verifiedEarned — the figure a hiring agent ranks by.
+  const copy = jobClaim();
+  copy.id = "fmx:1:job:1-again";
+  delete copy.evidence.blockLogIndex; // addressed by receipt position instead: still the same log
+  const { doc, wallet } = await makeCv({ claims: [registrationClaim(new Wallet(OWNER_KEY).address), jobClaim(), copy] });
+  const res = await offline(() => verifyCv(doc, { provider: rpcFor(wallet) }));
+  assert.equal(res.ok, false);
+  assert.equal(res.verified, 2);
+  assert.equal(res.rejected, 1);
+  assert.match(res.claims.find((c) => c.id === copy.id).reason, /same log as fmx:1:job:1/);
+  assert.equal(res.verifiedEarned.escrowEarnedWei, "97500000000000000", "the payout is counted once");
+  assert.equal(res.verifiedEarned.paidJobs, 1);
+});
+
+test("BREAK #9: an EscrowJob proved by a JobRequested log cannot state a settled outcome and a payout", async () => {
+  // The JobRequested rule checks no payout field, and cvMoneyFromClaims counts payoutWei for any verified
+  // EscrowJob whose outcome is Completed — so any job ever requested of the agent minted earnings at will.
+  const TX_REQ = "0x" + "44".repeat(32);
+  const event = "JobRequested(uint256,uint256,address,uint256,bytes32,string)";
+  const reqLog = escrowIface.encodeEventLog("JobRequested", [1, 1, JOB.client, JOB.amount, JOB.inputHash, JOB.inputURI]);
+  const forged = {
+    id: "fmx:1:job:1-forged",
+    type: "EscrowJob",
+    jobId: 1,
+    client: JOB.client,
+    amountWei: JOB.amount.toString(),
+    payoutWei: "5000000000000000000000", // 5,000 FMX the log never mentions
+    outcome: "Completed",
+    rating: null,
+    evidence: { trust: "chain", chainId: CHAIN_ID, block: 349200, tx: TX_REQ, logIndex: 0, address: ESCROW, event, topic0: keccak256(toUtf8Bytes(event)), method: "eth_getTransactionReceipt" },
+  };
+  const owner = new Wallet(OWNER_KEY).address;
+  const { doc, wallet } = await makeCv({ claims: [registrationClaim(owner), forged] });
+  const rpc = rpcFor(wallet, { receipts: { ...receipts(owner), [TX_REQ]: { blockNumber: 349200, status: 1, logs: [{ address: ESCROW, topics: reqLog.topics, data: reqLog.data, index: 0 }] } } });
+  const res = await offline(() => verifyCv(doc, { provider: rpc }));
+  assert.equal(res.ok, false);
+  assert.match(res.claims.find((c) => c.id === forged.id).reason, /proves no completed or resolved settlement/);
+  assert.equal(res.verifiedEarned.escrowEarnedWei, "0");
+
+  // the same log with an honest, unsettled outcome still verifies
+  const honest = { ...forged, id: "fmx:1:job:1-open", outcome: "Delivered", payoutWei: null };
+  const second = await makeCv({ claims: [registrationClaim(owner), honest] });
+  const res2 = await offline(() => verifyCv(second.doc, { provider: rpc }));
+  assert.equal(res2.claims.find((c) => c.id === honest.id).status, "verified", res2.errors.join("; "));
+});
