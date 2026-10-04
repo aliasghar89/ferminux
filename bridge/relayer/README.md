@@ -352,7 +352,12 @@ back ratchets its own budget down and eventually refuses legitimate transfers.
 **Retryable vs final.** `rpc_error`, `bridge_paused`, `dst_token_paused`,
 `over_local_daily_cap` and `not_confirmed` leave the transfer pending and are retried
 (the 24h bucket drains, a pause is lifted). Everything else marks the transfer
-`rejected` permanently and alerts. A rejected transfer is never retried by software.
+`rejected` and alerts. One rejection is revisited: `over_contract_cap`. Once a
+minute the validator re-reads the destination's `maxPerTransfer` for every token
+with such a rejection, and a transfer the raised cap now covers goes back to
+`confirmed` and through the **whole** verification again (a `maxTransferAgeMs`
+shorter than the cap's 48h timelock will then refuse it as `too_old`). Every other
+rejection is never retried by software.
 
 ### The watcher, and why the scan window is re-derived every poll
 
@@ -1174,7 +1179,10 @@ from the inside.
 1. `GET /transfers?limit=200` on each validator. The `status` and `reason` say who
    refused and why.
 2. `rejected` with `over_local_*_cap` — a validator's config is tighter than the
-   contract's. Intended, if the amount is genuinely above policy.
+   contract's. Intended, if the amount is genuinely above policy. `rejected` with
+   `over_contract_cap` — the destination's `maxPerTransfer` is below the amount;
+   once the owner raises it, validators move the transfer back to `confirmed`
+   within a minute and sign it if it still passes every check.
 3. `orphaned` — the source log vanished. The user's funds were never locked on the
    canonical side (the block was reverted); nothing to do.
 4. `confirmed` on some, missing on others — a validator is behind. Check
@@ -1191,7 +1199,9 @@ source chain. Nothing is stolen and nothing is minted, but that user's funds are
 sitting in the bridge with no path forward. The e2e demonstrates this deliberately.
 
 There is **no automatic remedy and no refund path in the contract** — `rescue()`
-cannot touch `lockedBalance`, by design. Options, in preference order:
+cannot touch `lockedBalance`, by design. The one refusal software clears is
+`over_contract_cap`: raise the destination's `maxPerTransfer` and the validators
+pick the transfer up again (see *Retryable vs final*). Otherwise, in preference order:
 
 1. If the refusal was a policy cap that is legitimately too tight, raise the
    validator's config cap (no timelock, it is off-chain), restart, and the transfer

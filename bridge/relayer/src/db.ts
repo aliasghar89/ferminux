@@ -29,7 +29,11 @@ export type TransferStatus =
   | 'confirmed'
   /** This node signed it (validator role). */
   | 'signed'
-  /** This node refused it. `reason` says why. Never retried automatically. */
+  /**
+   * This node refused it. `reason` says why. Never retried automatically, with
+   * one exception: `over_contract_cap` is revisited when the destination's
+   * maxPerTransfer is raised (validator.ts, revisitContractCapRejections).
+   */
   | 'rejected'
   /** Observed as processed on the destination chain. Terminal. */
   | 'executed'
@@ -115,6 +119,8 @@ export interface TransferFilter {
    */
   srcChainId?: number;
   dstChainId?: number;
+  /** Rows whose `reason` starts with this text, compared literally. */
+  reasonPrefix?: string;
   limit?: number;
 }
 
@@ -298,6 +304,11 @@ class SqliteStore implements Store {
     if (filter.dstChainId !== undefined) {
       where.push('dst_chain_id = ?');
       args.push(filter.dstChainId);
+    }
+    if (filter.reasonPrefix !== undefined) {
+      // substr, not LIKE: `_` in a refusal code is a LIKE wildcard.
+      where.push('substr(reason, 1, ?) = ?');
+      args.push(filter.reasonPrefix.length, filter.reasonPrefix);
     }
     const sql = `SELECT * FROM transfers ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY first_seen_at ASC LIMIT ?`;
     args.push(filter.limit ?? 500);
@@ -568,6 +579,8 @@ class JournalStore implements Store {
     if (filter.status && filter.status.length > 0) out = out.filter((t) => filter.status?.includes(t.status));
     if (filter.srcChainId !== undefined) out = out.filter((t) => t.transfer.srcChainId === filter.srcChainId);
     if (filter.dstChainId !== undefined) out = out.filter((t) => t.transfer.dstChainId === filter.dstChainId);
+    const prefix = filter.reasonPrefix;
+    if (prefix !== undefined) out = out.filter((t) => t.reason !== null && t.reason.startsWith(prefix));
     out.sort((a, b) => a.firstSeenAt - b.firstSeenAt);
     return out.slice(0, filter.limit ?? 500);
   }
