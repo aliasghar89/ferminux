@@ -16,7 +16,7 @@
 
 import { ethers } from "ethers";
 import {
-  parseArgs, usage, fail, hr, fmt,
+  parseArgs, usage, fail, hr, fmt, bpsArg,
   chainConfig, connect, requireSigner, broadcastGate, verifyDexDeployment,
   tokenInfo, sendStep,
   ROUTER_ABI, FACTORY_ABI, PAIR_ABI, WNATIVE_ABI,
@@ -45,6 +45,7 @@ for (const k of ["token", "quote", "lp-recipient"]) {
   if (opts[k] && !ethers.isAddress(opts[k])) fail(`--${k} '${opts[k]}' is not a valid address`);
 }
 if (opts.token.toLowerCase() === opts.quote.toLowerCase()) fail("--token and --quote are the same address");
+const slipBps = bpsArg(opts["slippage-bps"], "slippage-bps");
 
 const live = broadcastGate(opts);
 
@@ -82,7 +83,6 @@ if (opts.price) {
 }
 if (tokenRaw === 0n || quoteRaw === 0n) fail("computed a zero deposit amount — check --price / amounts");
 
-const slipBps = BigInt(opts["slippage-bps"]);
 const tokenMin = (tokenRaw * (10000n - slipBps)) / 10000n;
 const quoteMin = (quoteRaw * (10000n - slipBps)) / 10000n;
 
@@ -165,7 +165,7 @@ console.log(`\nexpected LP minted: ~${fmt.units(expectedLp, 18)} LP (UNI-V2 styl
 console.log("of which 1000 wei of LP is burned forever to the pair itself (MINIMUM_LIQUIDITY).");
 
 // gas estimate for the first actionable step (a fresh state can't estimate later
-// steps — they depend on earlier ones being mined)
+// steps — they depend on earlier ones being confirmed)
 try {
   const gasPrice = (await provider.getFeeData()).gasPrice ?? 0n;
   console.log(`\ncurrent gas price: ${ethers.formatUnits(gasPrice, "gwei")} gwei ${cfg.nativeSymbol}`);

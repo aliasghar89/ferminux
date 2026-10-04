@@ -7,7 +7,8 @@
   "scripts": {
     "plan": "node scripts/plan-pool.mjs",
     "rehearse:bsc": "node scripts/fork-rehearsal.mjs --chain bsc --port 8603",
-    "rehearse:base": "node scripts/fork-rehearsal.mjs --chain base --port 8604"
+    "rehearse:base": "node scripts/fork-rehearsal.mjs --chain base --port 8604",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "ethers": "^6.13.4"
