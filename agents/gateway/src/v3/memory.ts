@@ -123,6 +123,7 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: V3Context, fac: 
       const after = quota.usedBytes - (existing?.size ?? 0) + size;
       const overflow = after - quota.quotaBytes;
       let paid: { blocks: number; bytes: number } | null = null;
+      let charged: { payer: string | null; nonce: string | null; creditId: number } | null = null;
       if (overflow > 0) {
         const blocks = Math.ceil(overflow / MEMORY_BLOCK_BYTES);
         const price = MEMORY_PRICE_PER_BLOCK_WEI * BigInt(blocks);
@@ -134,13 +135,24 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: V3Context, fac: 
         if (!info) return reply; // 402 sent
         if (!info.free) {
           const t = ctx.nowS();
-          db.prepare("INSERT INTO memory_credits (address, bytes, payer, nonce, amount, createdAt, expiresAt) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+          const credit = db.prepare("INSERT INTO memory_credits (address, bytes, payer, nonce, amount, createdAt, expiresAt) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
             address, blocks * MEMORY_BLOCK_BYTES, info.payer, info.nonce, info.amount, t, t + MEMORY_CREDIT_TTL_S,
           );
           paid = { blocks, bytes: blocks * MEMORY_BLOCK_BYTES };
+          charged = { payer: info.payer, nonce: info.nonce, creditId: Number(credit.lastInsertRowid) };
         }
       }
-      commons.commitWrite(address, body);
+      try {
+        commons.commitWrite(address, body);
+      } catch (err) {
+        // the 1 write/s limit or the replay guard refused the write after the voucher was taken: nothing was
+        // stored, so neither the payment nor the credit it bought may stand
+        if (charged) {
+          fac.voidQueued(charged.payer, charged.nonce, "memory write refused after payment");
+          db.prepare("DELETE FROM memory_credits WHERE rowid = ?").run(charged.creditId);
+        }
+        throw err;
+      }
       const t = ctx.nowS();
       db.prepare(
         `INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)

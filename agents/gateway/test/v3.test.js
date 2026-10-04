@@ -286,6 +286,20 @@ test("memory: put/get/list/delete, limits, over-quota 402 paid with a voucher", 
   assert.equal((await inject("DELETE", "/api/memory/notes", undefined, await headers(alice, "memory.delete"))).statusCode, 404);
 });
 
+test("memory: a paid over-quota write the flood limit refuses keeps neither the payment nor the credit", async (t) => {
+  const { app, db, clock, signed, inject, voucher } = await setup();
+  t.after(() => app.close());
+  assert.equal((await inject("PUT", "/api/memory/first", await signed(alice, "memory.put", { value: 1 }))).statusCode, 201);
+  db.prepare("INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, 'blob', 'x', ?, 1, 1)").run(alice.address, 5 * 1024 * 1024);
+  const body = await signed(alice, "memory.put", { value: "y".repeat(1000) });
+  const acc = (await inject("PUT", "/api/memory/extra", body)).json().accepts[0];
+  const pay = await voucher(alice, { payee: acc.payTo, amount: acc.maxAmountRequired, nonce: acc.extra.nonceHint, expiry: clock.s() + 300 });
+  const res = await inject("PUT", "/api/memory/extra", body, { PAYMENT: b64(pay) }); // same second as the first write
+  assert.equal(res.statusCode, 429, res.body);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM memory_credits").get().c, 0);
+  assert.equal(db.prepare("SELECT status FROM x402_vouchers WHERE nonce = ?").get(String(acc.extra.nonceHint)).status, "voided");
+});
+
 test("compute listings via tools kind=compute", async (t) => {
   const { app, signed, inject } = await setup();
   t.after(() => app.close());
