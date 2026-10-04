@@ -57,7 +57,10 @@ contract MemoryAnchor {
     uint16 public maxUriBytes = 256; // matches AgentRegistry's string limits
 
     mapping(uint256 => Anchor[]) private _anchors; // agentId => batches, index = seq - 1
-    mapping(uint256 => mapping(address => bool)) public isAnchorer; // agentId => delegate => allowed
+    /// @dev agentId => delegate => the owner who granted it. A grant counts only while its grantor still
+    ///      owns the agent: memory follows the agent through `transferOwnership`, and a gateway key the
+    ///      previous owner delegated must not keep appending to the new owner's chain.
+    mapping(uint256 => mapping(address => address)) private _anchorerGrantor;
     mapping(uint256 => uint256) public nonces; // agentId => next signed-anchor nonce
 
     // ───────────────────────────── events ─────────────────────────────
@@ -184,11 +187,12 @@ contract MemoryAnchor {
 
     /// @notice Let `who` anchor for this agent (a gateway key, a sidecar, a second process). Owner only.
     /// @dev A delegate can only APPEND — it cannot rewrite or remove an anchored batch, and the
-    ///      prevRoot compare-and-swap means it cannot fork the chain either.
+    ///      prevRoot compare-and-swap means it cannot fork the chain either. The grant lapses when the
+    ///      agent changes owner; the new owner grants its own delegates.
     function setAnchorer(uint256 agentId, address who, bool allowed) external {
         if (msg.sender != _ownerOf(agentId)) revert NotAuthorized();
         if (who == address(0)) revert ZeroAddress();
-        isAnchorer[agentId][who] = allowed;
+        _anchorerGrantor[agentId][who] = allowed ? msg.sender : address(0);
         emit AnchorerSet(agentId, who, allowed);
     }
 
@@ -247,6 +251,12 @@ contract MemoryAnchor {
         for (uint256 i; i < n; i++) {
             out[i] = list[fromSeq - 1 + i];
         }
+    }
+
+    /// @notice True when `who` holds a `setAnchorer` grant from the agent's CURRENT owner.
+    function isAnchorer(uint256 agentId, address who) public view returns (bool) {
+        address g = _anchorerGrantor[agentId][who];
+        return g != address(0) && g == registry.getAgent(agentId).owner;
     }
 
     function nonceOf(uint256 agentId) external view returns (uint256) {
@@ -398,7 +408,8 @@ contract MemoryAnchor {
         address o = registry.getAgent(agentId).owner;
         if (o == address(0)) revert UnknownAgent(agentId);
         if (who == o) return true;
-        if (isAnchorer[agentId][who]) return true;
+        address g = _anchorerGrantor[agentId][who];
+        if (g != address(0) && g == o) return true;
         if (address(accountFactory) != address(0) && who.code.length != 0) {
             if (accountFactory.isAccount(who) && IAccountLike(who).owner() == o) return true;
         }

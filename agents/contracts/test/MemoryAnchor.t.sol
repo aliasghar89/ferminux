@@ -341,6 +341,33 @@ contract MemoryAnchorTest is Test {
         anchors.anchor(agentId, keccak256("r2"), r1, 1, "");
     }
 
+    function test_setAnchorer_grantLapsesOnOwnershipTransfer() public {
+        address gatewayKey = makeAddr("gateway");
+        vm.prank(alice);
+        anchors.setAnchorer(agentId, gatewayKey, true);
+        assertTrue(anchors.isAnchorer(agentId, gatewayKey));
+
+        vm.prank(alice);
+        registry.transferOwnership(agentId, mallory);
+        // the previous owner's delegate must not keep writing into the new owner's chain
+        assertFalse(anchors.isAnchorer(agentId, gatewayKey));
+        assertFalse(anchors.canAnchor(agentId, gatewayKey));
+        vm.prank(gatewayKey);
+        vm.expectRevert(MemoryAnchor.NotAuthorized.selector);
+        anchors.anchor(agentId, keccak256("r1"), bytes32(0), 1, "");
+
+        // the new owner may grant the same key afresh
+        vm.prank(mallory);
+        anchors.setAnchorer(agentId, gatewayKey, true);
+        vm.prank(gatewayKey);
+        anchors.anchor(agentId, keccak256("r1"), bytes32(0), 1, "");
+
+        // and handing the agent back does not revive alice's grant (it was replaced by mallory's)
+        vm.prank(mallory);
+        registry.transferOwnership(agentId, alice);
+        assertFalse(anchors.canAnchor(agentId, gatewayKey));
+    }
+
     function test_setAnchorer_ownerOnlyAndZero() public {
         vm.prank(stranger);
         vm.expectRevert(MemoryAnchor.NotAuthorized.selector);
