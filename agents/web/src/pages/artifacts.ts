@@ -1,7 +1,7 @@
 import { keccak256, toUtf8Bytes } from "ethers";
 import { api, ApiError } from "../api";
 import { config } from "../config";
-import { esc, int, pretty, timeHtml } from "../format";
+import { esc, int, pretty, timeHtml, uriHtml } from "../format";
 import { $, addrHtml, authorHtml, hashHtml, initChrome, setBusy, skel } from "../ui";
 import { onWallet, walletState } from "../wallet";
 import { btnLabel, bytes, ensureWallet, icon, isMe, parseTags, say, signHint, signedCall, tagsHtml } from "../commons";
@@ -182,7 +182,7 @@ async function renderDetail(id: number) {
           <div class="kv-row"><dt>Kind</dt><dd>${esc(a.kind)}</dd></div>
           <div class="kv-row"><dt>License</dt><dd>${esc(a.license)}</dd></div>
           ${a.payloadHash ? `<div class="kv-row"><dt>Payload hash</dt><dd>${hashHtml(a.payloadHash)} <span class="faint small">keccak256 of the bytes</span></dd></div><div class="kv-row"><dt>Download</dt><dd><a class="mono" href="${esc(payloadUrl)}" rel="noopener">${esc(payloadAbs)}</a><button class="copy" type="button" data-copy="${esc(payloadAbs)}">copy</button></dd></div>` : ""}
-          ${a.url ? `<div class="kv-row"><dt>URL</dt><dd><a class="mono" href="${esc(a.url)}" rel="noopener nofollow">${esc(a.url)}</a><button class="copy" type="button" data-copy="${esc(a.url)}">copy</button></dd></div>` : ""}
+          ${a.url ? `<div class="kv-row"><dt>URL</dt><dd>${uriHtml(a.url, 'class="mono"')}<button class="copy" type="button" data-copy="${esc(a.url)}">copy</button></dd></div>` : ""}
           ${a.size ? `<div class="kv-row"><dt>Size</dt><dd class="num">${int(a.size)} bytes${a.contentType ? ` <span class="faint small">${esc(a.contentType)}</span>` : ""}</dd></div>` : ""}
           <div class="kv-row"><dt>Owner</dt><dd>${addrHtml(a.owner.address, { n: 8 })}</dd></div>
           <div class="kv-row"><dt>API</dt><dd><span class="mono">GET /api/artifacts/${a.id}</span><button class="copy" type="button" data-copy="${esc(location.origin)}/api/artifacts/${a.id}">copy</button></dd></div>
@@ -201,7 +201,7 @@ async function renderDetail(id: number) {
   onWallet(async (s) => { if (!s.address) return; try { const fresh = await api.artifact(a.id, s.address); a.starred = fresh.starred; a.stars = fresh.stars; $("#star-slot")!.innerHTML = starBtn(a, true); wire(); } catch { /* ignore */ } });
   // preview
   const pv = $("#preview")!;
-  if (!a.payloadHash) { pv.innerHTML = a.url ? `<p class="small muted" style="padding:14px 18px">Content is hosted externally: <a href="${esc(a.url)}" rel="noopener nofollow" style="text-decoration:underline">${esc(a.url)}</a>. Not hashed by the network.</p>` : `<p class="small muted" style="padding:14px 18px">No content attached.</p>`; return; }
+  if (!a.payloadHash) { pv.innerHTML = a.url ? `<p class="small muted" style="padding:14px 18px">Content is hosted externally: ${uriHtml(a.url, 'style="text-decoration:underline"')}. Not hashed by the network.</p>` : `<p class="small muted" style="padding:14px 18px">No content attached.</p>`; return; }
   try {
     const { text, contentType } = await api.payloadText(a.payloadHash);
     const textual = !contentType || /^text\/|json|xml|csv|javascript|typescript|markdown|yaml|toml/i.test(contentType);

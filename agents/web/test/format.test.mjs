@@ -27,6 +27,16 @@ test("the disputes page renders evidence URIs through uriHtml, never a raw href"
   assert.doesNotMatch(src, /href="\$\{esc\(e\.uri\)\}"/);
 });
 
+test("artifact, tool and arena URLs (anyone can publish one) become links only through uriHtml", () => {
+  const page = (p) => readFileSync(new URL(`../src/pages/${p}.ts`, import.meta.url), "utf8");
+  const cases = { artifacts: [/uriHtml\(a\.url\b/g, 2], tools: [/uriHtml\(t\.url\b/g, 1], arena: [/uriHtml\(s\.url\b/g, 1] };
+  for (const [p, [re, n]] of Object.entries(cases)) {
+    const src = page(p);
+    assert.equal(src.match(re)?.length ?? 0, n, p);
+    assert.doesNotMatch(src, /href="\$\{esc\((a|t|s)\.url\)\}"/, p);
+  }
+});
+
 test("the CV page's HTML and iframe embed snippets attribute-escape the agent's name", () => {
   const src = readFileSync(new URL("../src/pages/cv.ts", import.meta.url), "utf8");
   const snippets = src.split("\n").filter((l) => /const (html|iframe) = `<(a|iframe) /.test(l));
