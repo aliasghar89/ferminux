@@ -573,10 +573,22 @@ async function phaseEclipseRefusal() {
     );
     const confirmLine = JSON.parse(procLines(v3, '"msg":"transfer confirmed"').find((l) => l.includes(sent.transferId)));
     assertEq(confirmLine.endpointsAgreed, '2/2', 'validator3 confirmed only once BOTH endpoints showed the log');
-    const after = await transferRow(port, sent.transferId);
+    // The "transfer confirmed" line is logged BEFORE the validator verifies and
+    // signs, so the row can still read "confirmed" for a few round trips.
+    let after = null;
+    try {
+      await waitFor(
+        'validator3 moves past "confirmed"',
+        async () => ['executed', 'signed'].includes((after = await transferRow(port, sent.transferId))?.status),
+        10_000,
+        100,
+      );
+    } catch {
+      /* reported by the assertion below */
+    }
     assert(
-      after.status === 'executed' || after.status === 'signed',
-      `validator3 reached a terminal state "${after.status}" — it did not sign a transfer the quorum had already executed`,
+      after?.status === 'executed' || after?.status === 'signed',
+      `validator3 reached a terminal state "${after?.status}" — it did not sign a transfer the quorum had already executed`,
     );
   } catch (err) {
     process.stdout.write(`\n--- validator3 tail ---\n${procLines(v3).slice(-15).join('\n')}\n`);
@@ -625,7 +637,16 @@ async function phaseDeadEndpointFailover() {
     200,
   );
   assertEq(JSON.parse(confirmLine).endpointsAgreed, '2/2', 'it confirmed on the two endpoints that answered, and counted only those');
-  await waitFor('and signs it', async () => (await api(port, `/signatures?transferId=${sent.transferId}`)).status === 200, 20_000);
+  // validator1 and validator2 are still running and are a quorum on their own,
+  // so the submitter usually executes this transfer before validator4 has
+  // rescanned from block 1 and reached it. Either outcome proves the dead
+  // endpoint stalled nothing: a signature, or an "already executed" from the
+  // destination. Demanding the signature made this step fail on every run.
+  await waitFor(
+    'and signs it, or finds it already executed',
+    async () => ['signed', 'executed'].includes((await transferRow(port, sent.transferId))?.status),
+    20_000,
+  );
   ok('one dead endpoint out of three degrades nothing — the validator signs normally');
   await killProc(v4, 'SIGKILL');
 
