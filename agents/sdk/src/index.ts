@@ -1,4 +1,4 @@
-import { Contract, JsonRpcProvider, Wallet, formatEther, parseEther, toUtf8Bytes } from "ethers";
+import { Contract, JsonRpcProvider, Wallet, formatEther, toUtf8Bytes } from "ethers";
 import type { ContractRunner, TransactionReceipt, Log, Signer, TransactionRequest } from "ethers";
 import { REGISTRY_ABI, ESCROW_ABI, NFT_ABI, CITIZENS_ABI, AgentStatus, JobStatusEnum, JobStatusName } from "./abi.js";
 import { NETWORKS, DEFAULT_CHAIN_ID } from "./networks.js";
@@ -531,9 +531,7 @@ function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
 }
 
 function toWei(amount: AmountLike): bigint {
-  if (typeof amount === "bigint") return amount;
-  if (typeof amount === "number") return parseEther(amount.toString());
-  return BigInt(amount);
+  return toWeiShared(amount);
 }
 
 /** fmx://payload/<hash> → hash; other fmx:// URIs (e.g. fmx://bounty/<id>, used by bounty hires) carry no hash → null. */

@@ -40,8 +40,23 @@ export async function withMinPriorityFee(provider: FeeProvider, tx: Record<strin
 /** Amount in wei (bigint or a decimal-integer string), or a plain number meaning FMX. */
 export function toWei(amount: AmountLike): bigint {
   if (typeof amount === "bigint") return amount;
-  if (typeof amount === "number") return parseEther(amount.toString());
+  if (typeof amount === "number") return parseEther(plainDecimal(amount));
   return BigInt(amount);
+}
+
+/** A number as a plain decimal string. `String(n)` switches to exponent form below 1e-6 and from 1e21
+ * ("1e-7", "1e+21"), which parseEther rejects, so `price: 0.0000001` threw instead of meaning 100 gwei. */
+export function plainDecimal(n: number): string {
+  if (!Number.isFinite(n)) throw new Error(`Ferminux: ${n} is not an FMX amount`);
+  const s = String(n);
+  const m = /^(-?)(\d+)(?:\.(\d+))?e([+-]\d+)$/i.exec(s);
+  if (!m) return s;
+  const [, sign, int, frac = "", e] = m;
+  const digits = int + frac;
+  const point = int.length + Number(e);
+  if (point <= 0) return `${sign}0.${"0".repeat(-point)}${digits}`;
+  if (point >= digits.length) return `${sign}${digits}${"0".repeat(point - digits.length)}`;
+  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
 }
 
 export function qs(params: Record<string, unknown>): string {
