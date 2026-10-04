@@ -49,8 +49,9 @@ services:
       POSTGRES_USER: blockscout
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fmx-explorer-db-pw}
     ports:
-      # host port 7432 to avoid colliding with anything on 5432; internal-only is fine too
-      - "${FMX_EXPLORER_DB_PORT:-7432}:5432"
+      # host port 7432 to avoid colliding with anything on 5432. Loopback only by default: the
+      # password has a public default, and a published Docker port bypasses host firewalls (ufw).
+      - "${FMX_EXPLORER_DB_PORT:-127.0.0.1:7432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
