@@ -20,6 +20,12 @@ export const RELAY_PER_IP_PER_DAY = 100;
 export const RELAY_MAX_PER_DAY = Number(process.env.RELAY_MAX_PER_DAY || 2000);
 export const ACCOUNT_CREATE_PER_IP_PER_DAY = 5;
 export const ACCOUNT_CREATE_MAX_PER_DAY = Number(process.env.ACCOUNT_CREATE_MAX_PER_DAY || 200);
+/**
+ * How long a sent relay / account creation stays joinable by an identical request. Until the tx is included a
+ * re-POST still passes estimateGas (the account nonce, or the clone's code, only changes on inclusion) and would
+ * be sent a second time, to revert on-chain at the relayer's expense.
+ */
+export const RELAY_DEDUPE_MS = 120_000;
 
 export function allowedTargets(ctx: V3Context): Record<string, string> {
   const out: Record<string, string> = { registry: ctx.cfg.registry, escrow: ctx.cfg.escrow };
@@ -37,10 +43,44 @@ export function registerRelayRoutes(app: FastifyInstance, ctx: V3Context): void 
   const countIpStmt = db.prepare("SELECT COUNT(*) AS c FROM relays WHERE kind = ? AND ip = ? AND createdAt >= ? AND ok = 1");
   const countAllStmt = db.prepare("SELECT COUNT(*) AS c FROM relays WHERE kind = ? AND createdAt >= ? AND ok = 1");
   const insertStmt = db.prepare("INSERT INTO relays (kind, subject, target, txHash, ok, error, gasLimit, createdAt, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-  /** per-IP + global day caps (429 / 503); `used` is the per-subject count the caller already has */
-  function checkCaps(kind: "relay" | "create", ip: string, day: number, perIp: number, global: number): void {
-    if ((countIpStmt.get(kind, ip, day) as { c: number }).c >= perIp) throw new HttpError(429, `${kind} limit for this IP reached today (${perIp})`, "rate_limited");
-    if ((countAllStmt.get(kind, day) as { c: number }).c >= global) throw new HttpError(503, `${kind} sponsorship is exhausted for today (${global}) — send the transaction yourself`, "daily_cap");
+  // Sends still between their cap checks and the relays row that records them (as in faucet.ts). The caps read the
+  // table, and the row is written only after several RPC round trips and the send, so N parallel requests all
+  // passed every per-account / per-owner, per-IP and global cap. Each one reserves its slot here synchronously,
+  // after the checks and before the first await, and every cap counts these alongside the rows.
+  type Kind = "relay" | "create";
+  const reserved: Array<{ kind: Kind; subject: string; ip: string }> = [];
+  const reservedCount = (kind: Kind, match: (r: { subject: string; ip: string }) => boolean) => reserved.filter((r) => r.kind === kind && match(r)).length;
+  function reserve(kind: Kind, subject: string, ip: string): () => void {
+    const slot = { kind, subject: subject.toLowerCase(), ip };
+    reserved.push(slot);
+    return () => {
+      const i = reserved.indexOf(slot);
+      if (i >= 0) reserved.splice(i, 1);
+    };
+  }
+  /** rows today for `subject` plus its reserved slots */
+  function usedBy(kind: Kind, subject: string, day: number): number {
+    return (countStmt.get(kind, subject, day) as { c: number }).c + reservedCount(kind, (r) => r.subject === subject.toLowerCase());
+  }
+  /** per-IP + global day caps (429 / 503), counting reserved slots */
+  function checkCaps(kind: Kind, ip: string, day: number, perIp: number, global: number): void {
+    if ((countIpStmt.get(kind, ip, day) as { c: number }).c + reservedCount(kind, (r) => r.ip === ip) >= perIp) throw new HttpError(429, `${kind} limit for this IP reached today (${perIp})`, "rate_limited");
+    if ((countAllStmt.get(kind, day) as { c: number }).c + reservedCount(kind, () => true) >= global) throw new HttpError(503, `${kind} sponsorship is exhausted for today (${global}) — send the transaction yourself`, "daily_cap");
+  }
+  // Identical requests in flight (or sent within RELAY_DEDUPE_MS) share one send and its answer: parallel copies of
+  // one signed relay, or creates of one predicted account, all passed estimateGas / getCode and were all sent.
+  const flights = new Map<string, Promise<Record<string, unknown>>>();
+  async function once(key: string, send: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> {
+    const flight = send();
+    flights.set(key, flight);
+    try {
+      const out = await flight;
+      setTimeout(() => flights.get(key) === flight && flights.delete(key), RELAY_DEDUPE_MS).unref?.();
+      return out;
+    } catch (err) {
+      if (flights.get(key) === flight) flights.delete(key);
+      throw err;
+    }
   }
 
   function relayerStatus(reply: import("fastify").FastifyReply, ...keys: V3ContractKey[]): boolean {
@@ -76,35 +116,47 @@ export function registerRelayRoutes(app: FastifyInstance, ctx: V3Context): void 
       if (typeof sig !== "string" || !isHexString(sig) || sig.length < 132) throw new HttpError(400, "sig must be a 0x hex EIP-712 signature (FerminuxAgentAccount Execute)");
       const t = ctx.nowS();
       const ip = String(req.ip || "?");
-      const used = (countStmt.get("relay", account, dayStart(t)) as { c: number }).c;
+      // the signature binds every field, so the same tuple is the same request: join the one already being sent
+      const key = `relay:${keccak256(toUtf8Bytes([account, to, value, data, deadline, sig].join("|").toLowerCase()))}`;
+      const joined = flights.get(key);
+      if (joined) return reply.code(202).send(await joined);
+      const used = usedBy("relay", account, dayStart(t));
       if (used >= RELAY_PER_ACCOUNT_PER_DAY) throw new HttpError(429, `relay limit: ${RELAY_PER_ACCOUNT_PER_DAY} per account per day`, "rate_limited");
       checkCaps("relay", ip, dayStart(t), RELAY_PER_IP_PER_DAY, RELAY_MAX_PER_DAY);
+      const release = reserve("relay", account, ip);
 
-      const acct = new Contract(account, ctx.iface("accountImpl").fragments, ctx.relayer!);
-      const code = await ctx.provider.getCode(account).catch(() => "0x");
-      if (code === "0x") throw new HttpError(404, "account has no code (create it via POST /api/accounts/create)");
-      // only clones our factory deployed get sponsored gas — any other contract with an executeWithSig() could burn the 300k cap per call
-      const factory = ctx.contract("accountFactory");
-      if (factory) {
-        const known = db.prepare("SELECT 1 FROM agent_accounts WHERE lower(account) = lower(?)").get(account) || (await factory.isAccount(account).catch(() => false));
-        if (!known) throw new HttpError(403, "account was not created by the Ferminux AgentAccountFactory", "target_not_allowed");
-      }
-      let gas: bigint;
       try {
-        gas = (await acct.executeWithSig.estimateGas(to, value, data, deadline, sig)) as bigint;
-      } catch (err) {
-        insertStmt.run("relay", account, to, null, 0, (err as Error).message.slice(0, 200), null, t, ip);
-        throw new HttpError(400, `executeWithSig would revert: ${(err as Error).message.slice(0, 160)}`);
+        const out = await once(key, async () => {
+          const acct = new Contract(account, ctx.iface("accountImpl").fragments, ctx.relayer!);
+          const code = await ctx.provider.getCode(account).catch(() => "0x");
+          if (code === "0x") throw new HttpError(404, "account has no code (create it via POST /api/accounts/create)");
+          // only clones our factory deployed get sponsored gas — any other contract with an executeWithSig() could burn the 300k cap per call
+          const factory = ctx.contract("accountFactory");
+          if (factory) {
+            const known = db.prepare("SELECT 1 FROM agent_accounts WHERE lower(account) = lower(?)").get(account) || (await factory.isAccount(account).catch(() => false));
+            if (!known) throw new HttpError(403, "account was not created by the Ferminux AgentAccountFactory", "target_not_allowed");
+          }
+          let gas: bigint;
+          try {
+            gas = (await acct.executeWithSig.estimateGas(to, value, data, deadline, sig)) as bigint;
+          } catch (err) {
+            insertStmt.run("relay", account, to, null, 0, (err as Error).message.slice(0, 200), null, t, ip);
+            throw new HttpError(400, `executeWithSig would revert: ${(err as Error).message.slice(0, 160)}`);
+          }
+          if (gas > RELAY_MAX_GAS) throw new HttpError(400, `gas ${gas} exceeds the ${RELAY_MAX_GAS} relay cap`);
+          const fee = await ctx.provider.getFeeData();
+          const tx = await acct.executeWithSig(to, value, data, deadline, sig, {
+            gasLimit: RELAY_MAX_GAS,
+            maxPriorityFeePerGas: RELAY_PRIORITY_FEE_WEI,
+            maxFeePerGas: (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n) < RELAY_PRIORITY_FEE_WEI ? RELAY_PRIORITY_FEE_WEI * 2n : (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n),
+          });
+          insertStmt.run("relay", account, to, tx.hash, 1, null, Number(RELAY_MAX_GAS), t, ip);
+          return { txHash: tx.hash, tx: tx.hash, account, to, value: value.toString(), gasEstimate: gas.toString(), gasLimit: RELAY_MAX_GAS.toString(), relayer: ctx.relayer!.address, remainingToday: RELAY_PER_ACCOUNT_PER_DAY - used - 1 };
+        });
+        return reply.code(202).send(out);
+      } finally {
+        release();
       }
-      if (gas > RELAY_MAX_GAS) throw new HttpError(400, `gas ${gas} exceeds the ${RELAY_MAX_GAS} relay cap`);
-      const fee = await ctx.provider.getFeeData();
-      const tx = await acct.executeWithSig(to, value, data, deadline, sig, {
-        gasLimit: RELAY_MAX_GAS,
-        maxPriorityFeePerGas: RELAY_PRIORITY_FEE_WEI,
-        maxFeePerGas: (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n) < RELAY_PRIORITY_FEE_WEI ? RELAY_PRIORITY_FEE_WEI * 2n : (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n),
-      });
-      insertStmt.run("relay", account, to, tx.hash, 1, null, Number(RELAY_MAX_GAS), t, ip);
-      return reply.code(202).send({ txHash: tx.hash, tx: tx.hash, account, to, value: value.toString(), gasEstimate: gas.toString(), gasLimit: RELAY_MAX_GAS.toString(), relayer: ctx.relayer!.address, remainingToday: RELAY_PER_ACCOUNT_PER_DAY - used - 1 });
     } catch (err) {
       return commons.sendError(reply, err);
     }
@@ -129,16 +181,28 @@ export function registerRelayRoutes(app: FastifyInstance, ctx: V3Context): void 
       const predicted = getAddress((await factory.predict(owner, salt)) as string);
       const code = await ctx.provider.getCode(predicted).catch(() => "0x");
       if (code !== "0x") return { account: predicted, owner, salt, existing: true, txHash: null };
+      // synchronous from here until the slot is reserved: one predicted account is one creation, whoever asks
+      const key = `create:${predicted.toLowerCase()}`;
+      const joined = flights.get(key);
+      if (joined) return reply.code(202).send(await joined);
       const t = ctx.nowS();
       const ip = String(req.ip || "?");
-      const used = (countStmt.get("create", owner, dayStart(t)) as { c: number }).c;
+      const used = usedBy("create", owner, dayStart(t));
       if (used >= ACCOUNT_CREATE_PER_OWNER_PER_DAY) throw new HttpError(429, `account creation limit: ${ACCOUNT_CREATE_PER_OWNER_PER_DAY} per owner per day`, "rate_limited");
       checkCaps("create", ip, dayStart(t), ACCOUNT_CREATE_PER_IP_PER_DAY, ACCOUNT_CREATE_MAX_PER_DAY);
-      const signer = factory.connect(ctx.relayer!) as Contract;
-      const fee = await ctx.provider.getFeeData();
-      const tx = await signer.create(owner, salt, { maxPriorityFeePerGas: RELAY_PRIORITY_FEE_WEI, maxFeePerGas: (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n) < RELAY_PRIORITY_FEE_WEI ? RELAY_PRIORITY_FEE_WEI * 2n : (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n) });
-      insertStmt.run("create", owner, predicted, tx.hash, 1, null, null, t, ip);
-      return reply.code(202).send({ account: predicted, owner, salt, existing: false, txHash: tx.hash, tx: tx.hash, relayer: ctx.relayer!.address });
+      const release = reserve("create", owner, ip);
+      try {
+        const out = await once(key, async () => {
+          const signer = factory.connect(ctx.relayer!) as Contract;
+          const fee = await ctx.provider.getFeeData();
+          const tx = await signer.create(owner, salt, { maxPriorityFeePerGas: RELAY_PRIORITY_FEE_WEI, maxFeePerGas: (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n) < RELAY_PRIORITY_FEE_WEI ? RELAY_PRIORITY_FEE_WEI * 2n : (fee.maxFeePerGas ?? fee.gasPrice ?? RELAY_PRIORITY_FEE_WEI * 2n) });
+          insertStmt.run("create", owner, predicted, tx.hash, 1, null, null, t, ip);
+          return { account: predicted, owner, salt, existing: false, txHash: tx.hash, tx: tx.hash, relayer: ctx.relayer!.address };
+        });
+        return reply.code(202).send(out);
+      } finally {
+        release();
+      }
     } catch (err) {
       return commons.sendError(reply, err);
     }
