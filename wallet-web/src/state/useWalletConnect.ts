@@ -74,7 +74,7 @@ async function createKit(projectId: string, persist: boolean): Promise<KitLike> 
   // telemetryEnabled only stops the batched events: WalletKit.init still calls
   // core.eventClient.init(), which POSTs one INIT event (client id + user
   // agent) to pulse.walletconnect.org regardless. The wallet's CSP does not
-  // allow that host (infra/compose/nginx/nginx.conf), so the request would
+  // allow that host (deploy/csp.conf), so the request would
   // only be refused with a console error on every pairing. Skip it here.
   const events = (core as unknown as { eventClient?: { init?: () => Promise<void> } }).eventClient;
   if (events) events.init = async () => undefined;
