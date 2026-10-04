@@ -575,6 +575,127 @@ contract X402VaultV2Test is Test {
         vault.relock();
         assertTrue(vault.unlockAt(mallory) != 0);
     }
+
+    // ═════════════════════════════ V2 fix 7: a contract payer's dirty ERC-1271 answer ═════════════════════════════
+
+    /// @dev A good EOA voucher (nonce 1) and a voucher from `odd` (a contract payer, nonce 7) in one batch.
+    function _mixedBatch(address v, address odd) internal returns (X402Vault.Voucher[] memory vs, bytes[] memory sigs) {
+        vm.prank(payer);
+        X402Vault(v).depositFor{value: 1 ether}(odd);
+        vs = new X402Vault.Voucher[](2);
+        sigs = new bytes[](2);
+        vs[0] = X402Vault.Voucher(payer, payee, 1 ether, 1, uint64(block.timestamp + 60), keccak256("resource"));
+        (uint8 vv, bytes32 r, bytes32 s) = vm.sign(payerPk, X402Vault(v).hashVoucher(vs[0]));
+        sigs[0] = abi.encodePacked(r, s, vv);
+        vs[1] = X402Vault.Voucher(odd, payee, 1 ether, 7, uint64(block.timestamp + 60), keccak256("resource"));
+        sigs[1] = hex"00";
+    }
+
+    /// @notice The live vault: one contract payer that answers the magic value with dirty padding makes
+    ///         the whole settleBatch revert — the honest voucher next to it does not settle either.
+    function test_attack_v1_dirtyMagicRevertsWholeBatch() public {
+        X402Vault v1 = new X402Vault(gov, treasury);
+        vm.prank(payer);
+        v1.deposit{value: 10 ether}();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _mixedBatch(address(v1), address(new DirtyMagicPayer()));
+        vm.expectRevert();
+        v1.settleBatch(vs, sigs);
+        assertFalse(v1.used(payer, 1));
+        assertEq(v1.credits(payee), 0);
+        // even the facilitator pre-check reverts instead of answering
+        vm.expectRevert();
+        v1.verify(vs[1], sigs[1]);
+    }
+
+    /// @notice V2 skips that voucher and settles the rest.
+    function test_v2_dirtyMagicSkippedRestSettles() public {
+        address odd = address(new DirtyMagicPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _mixedBatch(address(vault), odd);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Settled(payer, payee, 1 ether, _fee(1 ether), 1, keccak256("resource"));
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(odd, 7, "bad signature");
+        vault.settleBatch(vs2, sigs);
+        assertTrue(vault.used(payer, 1));
+        assertFalse(vault.used(odd, 7));
+        assertEq(vault.balance(odd), 1 ether);
+
+        (bool ok, string memory reason) = vault.verify(vs2[1], sigs[1]);
+        assertFalse(ok);
+        assertEq(reason, "bad signature");
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(vs2[1], sigs[1]);
+    }
+
+    function test_v2_shortRevertingOrLongAnswers() public {
+        // too short, reverting: bad signature, skipped
+        address shortP = address(new ShortAnswerPayer());
+        address revP = address(new RevertingPayer());
+        for (uint256 i = 0; i < 2; i++) {
+            address odd = i == 0 ? shortP : revP;
+            (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _mixedBatch(address(vault), odd);
+            vs[0].nonce = 100 + i;
+            X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+            sigs[0] = _sign(payerPk, vs2[0]);
+            vm.expectEmit(true, true, true, true);
+            emit X402VaultV2.Skipped(odd, 7, "bad signature");
+            vault.settleBatch(vs2, sigs);
+            assertTrue(vault.used(payer, 100 + i));
+        }
+        // the clean magic value followed by a long tail is a valid answer (as in X402Vault); only its
+        // first word is read
+        address longP = address(new LongAnswerPayer());
+        vm.prank(payer);
+        vault.depositFor{value: 1 ether}(longP);
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 7);
+        v.payer = longP;
+        vault.settle(v, hex"00");
+        assertEq(vault.balance(longP), 0);
+    }
+
+    function _asV2(X402Vault.Voucher[] memory vs) internal pure returns (X402VaultV2.Voucher[] memory out) {
+        out = new X402VaultV2.Voucher[](vs.length);
+        for (uint256 i = 0; i < vs.length; i++) {
+            out[i] = X402VaultV2.Voucher(vs[i].payer, vs[i].payee, vs[i].amount, vs[i].nonce, vs[i].expiry, vs[i].ref);
+        }
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value with a dirty low-order byte.
+contract DirtyMagicPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        assembly {
+            mstore(0, 0x1626ba7e00000000000000000000000000000000000000000000000000000001)
+            return(0, 32)
+        }
+    }
+}
+
+/// @dev ERC-1271 payer answering just the four magic bytes, unpadded.
+contract ShortAnswerPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        assembly {
+            mstore(0, 0x1626ba7e00000000000000000000000000000000000000000000000000000000)
+            return(0, 4)
+        }
+    }
+}
+
+contract RevertingPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        revert("no");
+    }
+}
+
+/// @dev ERC-1271 payer answering the clean magic value followed by 4 KiB.
+contract LongAnswerPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        assembly {
+            mstore(0, 0x1626ba7e00000000000000000000000000000000000000000000000000000000)
+            return(0, 4128)
+        }
+    }
 }
 
 contract ReenterVaultV2 {

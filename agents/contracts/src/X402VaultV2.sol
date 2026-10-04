@@ -13,6 +13,11 @@ import {Sig} from "./lib/Sig.sol";
 ///           withdrawal needs a fresh `requestUnlock` and its full delay, during which outstanding
 ///           vouchers can still be settled. A `depositFor` by anyone else leaves the payer's lock state
 ///           alone, so a third party cannot keep a payer from withdrawing with dust deposits.
+///         - A contract payer's ERC-1271 answer can no longer revert a batch. X402Vault decoded it with
+///           `abi.decode(ret, (bytes4))`, which reverts on dirty padding, so one such payer made
+///           `settleBatch` revert as a whole and no voucher in it settled. Here the answer must be the
+///           magic value with clean padding; anything else (dirty, short, reverting) is "bad signature"
+///           and that voucher alone is skipped. Only the first 32 bytes of the answer are copied.
 ///
 /// MIGRATION — replaces the live `x402Vault` (agents/deployments-v3.3961.json). Nothing here is deployed:
 ///   1. Deploy `X402VaultV2(deployer, feeRecipient)`, then — last — `setGovernance(multisig)`.
@@ -46,6 +51,9 @@ contract X402VaultV2 {
     uint16 public constant BPS = 10000;
     bytes32 public constant VOUCHER_TYPEHASH =
         keccak256("Voucher(address payer,address payee,uint256 amount,uint256 nonce,uint64 expiry,bytes32 ref)");
+    bytes4 private constant ERC1271_MAGIC = 0x1626ba7e;
+    /// @dev The same value as an ABI-encoded bytes4 answer: left-aligned, zero padding.
+    bytes32 private constant ERC1271_MAGIC_WORD = 0x1626ba7e00000000000000000000000000000000000000000000000000000000;
 
     // ───────────────────────────── storage ─────────────────────────────
 
@@ -248,8 +256,22 @@ contract X402VaultV2 {
         if (block.timestamp > v.expiry) return (false, "expired");
         if (used[v.payer][v.nonce]) return (false, "nonce used");
         if (balance[v.payer] < v.amount) return (false, "insufficient balance");
-        if (!Sig.isValid(v.payer, hashVoucher(v), sig)) return (false, "bad signature");
+        if (!_isValidSig(v.payer, hashVoucher(v), sig)) return (false, "bad signature");
         return (true, "");
+    }
+
+    /// @dev Sig.isValid without its ways to revert: `signer`'s own EOA signature, or the ERC-1271 magic
+    ///      value — exactly, clean padding included — from `signer` as a contract. A reverting, short or
+    ///      dirty answer is simply not valid; only its first word is copied.
+    function _isValidSig(address signer, bytes32 digest, bytes calldata sig) internal view returns (bool valid) {
+        address rec = Sig.recover(digest, sig);
+        if (rec != address(0) && rec == signer) return true;
+        if (signer.code.length == 0) return false;
+        bytes memory data = abi.encodeWithSelector(ERC1271_MAGIC, digest, sig);
+        assembly ("memory-safe") {
+            let ok := staticcall(gas(), signer, add(data, 0x20), mload(data), 0, 0x20)
+            valid := and(ok, and(gt(returndatasize(), 0x1f), eq(mload(0), ERC1271_MAGIC_WORD)))
+        }
     }
 
     /// @dev Caller has verified. Effects only — no external calls.
