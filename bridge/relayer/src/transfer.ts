@@ -175,6 +175,21 @@ export function toSolidityTuple(signature: string): { v: number; r: string; s: s
   return { v: sig.v, r: sig.r, s: sig.s };
 }
 
+/**
+ * A uint64 protocol field (chain id, nonce) as the number this relayer carries
+ * it as, or a refusal. Number() above 2^53 − 1 does not fail, it rounds to a
+ * neighbouring value: the node would then hash, store and compare a transfer
+ * that nobody sent. Every uint64 that arrives from a log, a peer or the
+ * journal comes through here, so an unrepresentable value is refused at the
+ * door instead of being carried on as a different one.
+ */
+export function u64ToNumber(v: bigint, what: string): number {
+  if (v < 0n || v > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`${what} ${v} is outside 0..2^53-1 and cannot be represented exactly — refusing rather than rounding`);
+  }
+  return Number(v);
+}
+
 /** Stable, human-readable key for a route. */
 export function routeKey(srcChainId: number, dstChainId: number): string {
   return `${srcChainId}->${dstChainId}`;
@@ -199,9 +214,9 @@ export function decodeSentLog(log: Log, decoded: {
   fee: bigint;
 }): SentEvent {
   const transfer: BridgeTransfer = {
-    srcChainId: Number(decoded.srcChainId),
-    dstChainId: Number(decoded.dstChainId),
-    nonce: Number(decoded.nonce),
+    srcChainId: u64ToNumber(decoded.srcChainId, 'Sent.srcChainId'),
+    dstChainId: u64ToNumber(decoded.dstChainId, 'Sent.dstChainId'),
+    nonce: u64ToNumber(decoded.nonce, 'Sent.nonce'),
     srcToken: getAddress(decoded.localToken),
     dstToken: getAddress(decoded.remoteToken),
     sender: getAddress(decoded.sender),
@@ -248,26 +263,31 @@ export function serializeTransfer(t: BridgeTransfer): Record<string, string | nu
 export function parseTransfer(raw: unknown): BridgeTransfer {
   if (!raw || typeof raw !== 'object') throw new Error('transfer must be an object');
   const o = raw as Record<string, unknown>;
-  const num = (k: string, max: bigint): number => {
-    const v = o[k];
-    const n = typeof v === 'string' || typeof v === 'number' ? BigInt(v) : null;
-    if (n === null || n < 0n || n > max) throw new Error(`transfer.${k} invalid`);
-    return Number(n);
+  // A decimal string, or a number JSON.parse could hold exactly. A JSON number
+  // past 2^53 − 1 was already rounded by the parser, and BigInt('') is 0n, so
+  // neither is evidence of the value the sender meant.
+  const uint = (v: unknown): bigint | null => {
+    if (typeof v === 'number') return Number.isSafeInteger(v) && v >= 0 ? BigInt(v) : null;
+    if (typeof v === 'string' && /^[0-9]{1,78}$/.test(v)) return BigInt(v);
+    return null;
+  };
+  const num = (k: string): number => {
+    const n = uint(o[k]);
+    if (n === null) throw new Error(`transfer.${k} invalid`);
+    return u64ToNumber(n, `transfer.${k}`);
   };
   const addr = (k: string): string => {
     const v = o[k];
     if (typeof v !== 'string') throw new Error(`transfer.${k} must be a string`);
     return getAddress(v);
   };
-  const amountRaw = o.amount;
-  if (typeof amountRaw !== 'string' && typeof amountRaw !== 'number') throw new Error('transfer.amount invalid');
-  const amount = BigInt(amountRaw);
+  const amount = uint(o.amount);
+  if (amount === null) throw new Error('transfer.amount invalid');
   if (amount <= 0n || amount > (1n << 256n) - 1n) throw new Error('transfer.amount out of range');
-  const MAX_U64 = (1n << 64n) - 1n;
   return {
-    srcChainId: num('srcChainId', MAX_U64),
-    dstChainId: num('dstChainId', MAX_U64),
-    nonce: num('nonce', MAX_U64),
+    srcChainId: num('srcChainId'),
+    dstChainId: num('dstChainId'),
+    nonce: num('nonce'),
     srcToken: addr('srcToken'),
     dstToken: addr('dstToken'),
     sender: addr('sender'),
