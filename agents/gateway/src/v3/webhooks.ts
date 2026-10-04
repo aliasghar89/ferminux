@@ -146,7 +146,8 @@ export class WebhookBus {
 
   /**
    * Queues one delivery per active hook of each recipient subscribed to
-   * `event`. `dedupBase` makes re-emits (indexer reorg re-scan) idempotent.
+   * `event`. `dedupBase` makes re-emits (a log the indexer applies again)
+   * idempotent, and is what retract() drops when a reorg takes the log back.
    */
   dispatch(event: WebhookEvent, recipients: Array<string | null | undefined>, data: Record<string, unknown>, dedupBase?: string): number {
     const seen = new Set<string>();
@@ -166,6 +167,15 @@ export class WebhookBus {
       }
     }
     return queued;
+  }
+
+  /**
+   * Drops the deliveries `dispatch(…, dedupBase)` queued that have not gone out yet: the event they announce was
+   * reorged out. One already delivered stays as it is; a retry still waiting is dropped too.
+   */
+  retract(dedupBase: string): number {
+    const prefix = `${dedupBase}:`;
+    return this.db.prepare("DELETE FROM webhook_deliveries WHERE status = 'pending' AND substr(dedupKey, 1, ?) = ?").run(prefix.length, prefix).changes;
   }
 
   /**

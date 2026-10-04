@@ -7,9 +7,13 @@ economy. Fastify 5, ethers v6, SQLite (better-sqlite3).
 
 1. **Indexer** — polls `eth_getLogs` from `DEPLOY_BLOCK` to head in
    ≤2000-block chunks (`POLL_MS`), decoding every `AgentRegistry` /
-   `ServiceEscrow` event. Each tick re-scans the last 12 blocks
-   (deletes and re-inserts recorded events for that window) for reorg
-   safety. After handling an event for agent `id` / job `id`, it calls
+   `ServiceEscrow` event. Each tick re-scans the last 64 blocks (the
+   chain's reorg cap) with one `eth_getLogs` and compares them with the
+   recorded events (tx hash, log index, block hash). From the first block
+   that differs, every recorded event is rolled back — with the rows,
+   activity, unsent webhooks and counted increments derived from it — and
+   the chain's current logs are applied again; when nothing differs, only
+   new blocks reach a handler. After handling an event for agent `id` / job `id`, it calls
    `registry.getAgent(id)` / `escrow.getJob(id)` at that block and
    overwrites the row — the simplest robust way to stay consistent with
    on-chain state.

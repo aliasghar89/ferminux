@@ -133,6 +133,11 @@ export class ActivityBus {
     return !!this.exists.get(dedupKey);
   }
 
+  /** Deletes the row emitted under `dedupKey`: the on-chain event behind it was reorged out. True when one existed. */
+  retract(dedupKey: string): boolean {
+    return this.db.prepare("DELETE FROM activity WHERE dedupKey = ?").run(dedupKey).changes > 0;
+  }
+
   /** Appends an event; returns it (or null when the dedupKey was already used). */
   emit(type: ActivityType, opts: EmitOptions = {}): ActivityEvent | null {
     if (opts.dedupKey && this.has(opts.dedupKey)) return null; // checked first: INSERT OR IGNORE would still burn an AUTOINCREMENT id

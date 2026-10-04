@@ -99,6 +99,8 @@ function migrate(db: Db): void {
   // block timestamp column added with Addendum v3 (prod volume persists): add if missing
   const eventCols = db.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
   if (!eventCols.some((c) => c.name === "ts")) db.exec("ALTER TABLE events ADD COLUMN ts INTEGER");
+  // block hash: the reorg check compares it with the chain's (NULL on rows indexed before it was recorded)
+  if (!eventCols.some((c) => c.name === "blockHash")) db.exec("ALTER TABLE events ADD COLUMN blockHash TEXT");
   migrateCommons(db);
   migrateV3(db);
   migrateValidators(db);
