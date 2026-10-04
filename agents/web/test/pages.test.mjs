@@ -67,3 +67,20 @@ test("public copy on the new pages keeps the naming rules", () => {
 test("no public copy claims existing compilers work unchanged", () => {
   for (const f of ["public/llms.txt", "public/llms-full.txt", "docs/index.html"]) assert.doesNotMatch(web(f), /work against Ferminux unchanged/, f);
 });
+
+test("every Vite entry carries the shared head and a title; the sitemap lists only indexable pages", () => {
+  const entries = [...web("vite.config.ts").matchAll(/resolve\(root, "([^"]+\.html)"\)/g)].map((m) => m[1]);
+  assert.ok(entries.length >= 30, `entries: ${entries.length}`);
+  const noindex = new Map();
+  for (const e of entries) {
+    const html = web(e);
+    assert.ok(html.includes("<!-- @head -->"), `${e} has no @head (favicon, og:image)`);
+    assert.match(html, /<title>[^<]+<\/title>/, e);
+    const c = /<link rel="canonical" href="([^"]+)">/.exec(html)?.[1];
+    if (c) noindex.set(c, /<meta name="robots" content="[^"]*noindex/.test(html));
+    else assert.equal(e, "404.html", `${e} has no canonical URL`);
+  }
+  for (const [, loc] of web("public/sitemap.xml").matchAll(/<loc>([^<?]+)<\/loc>/g)) {
+    if (noindex.has(loc)) assert.equal(noindex.get(loc), false, `${loc} is in the sitemap but marked noindex`);
+  }
+});
