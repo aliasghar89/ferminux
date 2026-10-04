@@ -1,7 +1,7 @@
 # Ferminux Explorer — Blockscout
 
 Blockscout block explorer for **Ferminux Network** (ChainID **3961**, coin **FMX**,
-Clique proof-of-authority with five bonded signers, ~7 s blocks, EIP-1559 from
+blocks confirmed by a set of authorised signers under Clique, ~7 s blocks, EIP-1559 from
 genesis).
 
 Every image tag is pinned and was verified **multi-arch (linux/amd64 + linux/arm64)**
