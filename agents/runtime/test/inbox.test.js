@@ -155,3 +155,41 @@ test("POST /inbox never auto-replies to a forged message: unknown id, or a body/
   assert.ok(existsSync(join(dir, "inbox.jsonl.1")), "rotated");
   assert.ok(statSync(join(dir, "inbox.jsonl")).size < 800);
 });
+
+test("POST /inbox: forged messages spend neither the hourly budget nor a future message id", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "fmx-inbox-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const sent = [];
+  const gatewayItems = [];
+  const fmx = {
+    requireSigner: () => ({ address: own.address }),
+    messages: { send: async (m) => sent.push(m), inbox: async () => ({ items: gatewayItems }) },
+  };
+  const app = Fastify({ logger: false });
+  registerInbox(app, {
+    fmx, inboxPath: join(dir, "inbox.jsonl"), agentName: () => "Scribe", agentId: 7, handlerName: "llm",
+    handler: async () => ({ ok: true, output: "ok" }),
+    autoreply: true, maxRepliesPerHour: 2,
+  });
+  await app.ready();
+  t.after(() => app.close());
+  const post = (payload) => app.inject({ method: "POST", url: "/inbox", payload });
+  const wait = () => new Promise((r) => setTimeout(r, 30));
+  const third = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+
+  // ids 20..24 do not exist on the gateway yet: every forged POST is refused once checked
+  for (let i = 0; i < 5; i++) await post({ id: 20 + i, from: { address: `0x${String(i + 1).padStart(40, "0")}` }, subject: "x", body: "hi" });
+  await wait();
+  assert.equal(sent.length, 0);
+  // the real messages 20 and 21 then arrive: both are answered (budget 2/h untouched, ids not pre-marked)
+  gatewayItems.push({ id: 20, from: { address: other }, to: { address: own.address }, subject: "a", body: "first" });
+  gatewayItems.push({ id: 21, from: { address: third }, to: { address: own.address }, subject: "b", body: "second" });
+  await post({ id: 20, from: { address: other }, subject: "a", body: "first" });
+  await post({ id: 21, from: { address: third }, subject: "b", body: "second" });
+  await wait();
+  assert.equal(sent.length, 2);
+  // the same id forwarded again is still never answered twice
+  await post({ id: 20, from: { address: other }, subject: "a", body: "first" });
+  await wait();
+  assert.equal(sent.length, 2);
+});
