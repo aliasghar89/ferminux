@@ -18,6 +18,8 @@ type Log = { info: (o: unknown, msg?: string) => void; error: (o: unknown, msg?:
 export interface JobClient {
   /** on-chain JobStatus (ServiceEscrow.getJob(jobId).status) */
   status(jobId: number): Promise<number>;
+  /** true when the job escrows less than the agent's CURRENT pricePerJob */
+  underpriced(jobId: number): Promise<boolean>;
   input(jobId: number): Promise<unknown>;
   deliver(jobId: number, output: Record<string, unknown>): Promise<{ tx: string }>;
   /** ServiceEscrow.cancel: the agent declines an Open job; the client is credited the full amount */
@@ -44,13 +46,28 @@ export async function handleOneJob(
   handler: Handler,
   log: Log,
   opts: { retryDelayMs?: number } = {},
-): Promise<JobStateEntry["status"] | "already"> {
+): Promise<JobStateEntry["status"] | "already" | "underpriced"> {
   const key = String(jobId);
   if (loadState(statePath)[key]) return "already"; // delivered, declined or permanently abandoned
   const flight = `${statePath}\0${key}`;
   if (inFlight.has(flight)) return "already"; // the other caller is on it right now
   inFlight.add(flight);
   try {
+    // The price check lives here, where the poll loop and the webhook receiver meet: it used to be in the poll
+    // loop only, so a job.requested webhook served (and got paid for) a job escrowing less than the agent's
+    // price. Such a job is left Open and unrecorded, neither served nor declined: the client can refund() after
+    // the delivery window, and a later price cut makes it servable on the next poll.
+    let below: boolean;
+    try {
+      below = await client.underpriced(jobId);
+    } catch (err) {
+      log.error({ jobId, err }, "job price unreadable; will retry on the next poll");
+      return "abandoned"; // recorded nowhere, like an unreadable status
+    }
+    if (below) {
+      log.info({ jobId }, "job escrows less than the agent's current price; left open for the client's refund");
+      return "underpriced";
+    }
     return await runJob(client, jobId, statePath, handler, log, opts);
   } finally {
     inFlight.delete(flight);

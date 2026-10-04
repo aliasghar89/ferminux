@@ -22,6 +22,7 @@ function client(over = {}) {
   const c = {
     calls,
     status: async () => OPEN,
+    underpriced: async () => false,
     input: async () => "what is the weather in Baku?",
     deliver: async (jobId, output) => { calls.push(["deliver", jobId, output]); return { tx: "0xd" }; },
     cancel: async (jobId) => { calls.push(["cancel", jobId]); return { tx: "0xc" }; },
@@ -74,6 +75,26 @@ test("jobs: a job no longer Open is skipped; an unreadable status is not recorde
   const c2 = client({ status: async () => { throw new Error("ECONNREFUSED"); } });
   assert.equal(await handleOneJob(c2, 12, path, async () => ({ ok: true }), log, { retryDelayMs: 0 }), "abandoned");
   assert.equal(loadState(path)["12"], undefined);
+});
+
+test("jobs: a job escrowing less than the agent's current price is left alone — on the webhook path too, which used to serve it", async (t) => {
+  const statePath = tmp(t);
+  let runs = 0;
+  const handler = async () => { runs++; return { ok: true, output: "work" }; };
+  const c = client({ underpriced: async (jobId) => jobId === 30 });
+  assert.equal(await handleOneJob(c, 30, statePath, handler, log, { retryDelayMs: 0 }), "underpriced");
+  assert.equal(runs, 0, "the handler never ran");
+  assert.deepEqual(c.calls, [], "neither delivered nor declined: the client can refund() after the delivery window");
+  assert.equal(loadState(statePath)["30"], undefined, "not recorded, so a later price cut makes it servable");
+  assert.equal(await handleOneJob(c, 32, statePath, handler, log, { retryDelayMs: 0 }), "delivered", "a job at the price is served");
+  assert.equal(runs, 1);
+
+  // the price cannot be read: nothing is done and nothing recorded, so the next poll retries it
+  const c2 = client({ underpriced: async () => { throw new Error("ECONNREFUSED"); } });
+  assert.equal(await handleOneJob(c2, 31, statePath, handler, log, { retryDelayMs: 0 }), "abandoned");
+  assert.equal(runs, 1);
+  assert.deepEqual(c2.calls, []);
+  assert.equal(loadState(statePath)["31"], undefined);
 });
 
 test("chain handler: plain language or an unknown op is a refusal; the op list only for an explicit help", async () => {
