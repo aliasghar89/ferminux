@@ -195,6 +195,25 @@ test('quote: refuses an amount above the per-transfer cap', () => {
   assert.match(q.problems.join(' '), /per-transfer cap of 100/);
 });
 
+test('quote: refuses a net amount above the DESTINATION per-transfer cap', () => {
+  // execute() checks the net amount against the destination registry, and a
+  // validator rejects such a transfer for good — after send() has taken the funds.
+  const over = quoteTransfer({ ...baseQuote, amountWei: parseEther('10'), dstMaxPerTransfer: parseEther('9') });
+  assert.equal(over.ok, false);
+  assert.match(over.problems.join(' '), /destination's per-transfer cap of 9 FMX/);
+
+  const exact = quoteTransfer({ ...baseQuote, amountWei: parseEther('10'), dstMaxPerTransfer: parseEther('9.99') });
+  assert.equal(exact.ok, true, 'the cap applies to the NET amount, fee already taken');
+
+  assert.equal(quoteTransfer({ ...baseQuote, amountWei: parseEther('10'), dstMaxPerTransfer: null }).ok, true, 'unknown never blocks');
+});
+
+test('quote: refuses while the destination is paused', () => {
+  const q = quoteTransfer({ ...baseQuote, amountWei: parseEther('10'), dstPaused: true });
+  assert.equal(q.ok, false);
+  assert.match(q.problems.join(' '), /destination bridge is paused/);
+});
+
 test('quote: refuses an amount above the remaining 24 h capacity', () => {
   const q = quoteTransfer({
     ...baseQuote,
