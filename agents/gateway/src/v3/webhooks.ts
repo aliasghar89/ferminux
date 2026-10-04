@@ -32,6 +32,15 @@ export const WEBHOOK_MAX_PER_OWNER = 10;
 export const WEBHOOK_SECRET_MIN = 16;
 export const WEBHOOK_SECRET_MAX = 128;
 export const WEBHOOK_DELIVERY_RETENTION_S = 30 * 86_400;
+// Deliveries used to go out one at a time, 50 a tick, oldest first: one owner's endpoint that hung for the 10 s
+// timeout held every other owner's delivery behind each of its queued rows. Now each endpoint is a lane (its due
+// deliveries in order, one at a time) and lanes run side by side under these caps.
+/** endpoints being delivered to at once, across every owner */
+export const WEBHOOK_CONCURRENCY = 16;
+/** ...of which one owner's endpoints may hold (an owner may register WEBHOOK_MAX_PER_OWNER) */
+export const WEBHOOK_PER_OWNER_CONCURRENCY = 4;
+/** deliveries one endpoint gets per tick; its first failure ends its turn, so a hanging endpoint costs one timeout per tick */
+export const WEBHOOK_PER_ENDPOINT_PER_TICK = 10;
 
 export interface WebhookRow {
   id: number;
@@ -104,6 +113,11 @@ export class WebhookBus {
   private readonly markRetry;
   private readonly markFailed;
   private readonly prune;
+  private readonly stillPending;
+  /** endpoints (webhook ids) with a lane in flight — never picked twice, even by overlapping ticks */
+  private readonly busyHooks = new Set<number>();
+  /** lower(owner) → lanes in flight */
+  private readonly busyOwners = new Map<string, number>();
 
   constructor(
     readonly db: Db,
@@ -116,7 +130,14 @@ export class WebhookBus {
     this.insertDelivery = db.prepare(
       "INSERT OR IGNORE INTO webhook_deliveries (webhookId, owner, event, payload, status, attempts, nextAt, createdAt, dedupKey) VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, ?)",
     );
-    this.due = db.prepare("SELECT * FROM webhook_deliveries WHERE status = 'pending' AND nextAt <= ? ORDER BY nextAt ASC, id ASC LIMIT 50");
+    // the oldest WEBHOOK_PER_ENDPOINT_PER_TICK due rows of EVERY endpoint: a flat "oldest 50" let one backlog fill the batch
+    this.due = db.prepare(
+      `SELECT * FROM (
+         SELECT *, ROW_NUMBER() OVER (PARTITION BY webhookId ORDER BY nextAt ASC, id ASC) AS lanePos
+         FROM webhook_deliveries WHERE status = 'pending' AND nextAt <= ?
+       ) WHERE lanePos <= ? ORDER BY nextAt ASC, id ASC LIMIT 5000`,
+    );
+    this.stillPending = db.prepare("SELECT 1 FROM webhook_deliveries WHERE id = ? AND status = 'pending'");
     this.markOk = db.prepare("UPDATE webhook_deliveries SET status = 'ok', attempts = attempts + 1, lastStatus = ?, lastError = NULL, deliveredAt = ? WHERE id = ?");
     this.markRetry = db.prepare("UPDATE webhook_deliveries SET attempts = attempts + 1, lastStatus = ?, lastError = ?, nextAt = ? WHERE id = ?");
     this.markFailed = db.prepare("UPDATE webhook_deliveries SET status = 'failed', attempts = attempts + 1, lastStatus = ?, lastError = ? WHERE id = ?");
@@ -147,12 +168,50 @@ export class WebhookBus {
     return queued;
   }
 
-  /** Delivers everything due; returns the number of attempts made. */
+  /**
+   * Starts a lane for every endpoint with something due (within the concurrency caps, oldest first) and resolves
+   * once those lanes finish; returns the number of attempts made. Endpoints already busy — a slow lane from an
+   * earlier tick — are skipped, so ticks may overlap.
+   */
   async tick(): Promise<number> {
     const t = Math.floor(this.now() / 1000);
-    const rows = this.due.all(t) as DeliveryRow[];
-    let attempts = 0;
+    const rows = this.due.all(t, WEBHOOK_PER_ENDPOINT_PER_TICK) as DeliveryRow[];
+    const lanes = new Map<number, DeliveryRow[]>(); // insertion order = order of each endpoint's oldest due row
     for (const row of rows) {
+      if (this.busyHooks.has(row.webhookId)) continue;
+      const lane = lanes.get(row.webhookId);
+      if (lane) lane.push(row);
+      else lanes.set(row.webhookId, [row]);
+    }
+    const running: Array<Promise<number>> = [];
+    for (const [webhookId, lane] of lanes) {
+      if (this.busyHooks.size >= WEBHOOK_CONCURRENCY) break;
+      const owner = lane[0]!.owner.toLowerCase();
+      const held = this.busyOwners.get(owner) ?? 0;
+      if (held >= WEBHOOK_PER_OWNER_CONCURRENCY) continue;
+      // claimed synchronously, before the first await, so an overlapping tick cannot pick this endpoint too
+      this.busyHooks.add(webhookId);
+      this.busyOwners.set(owner, held + 1);
+      running.push(
+        this.runLane(lane).finally(() => {
+          this.busyHooks.delete(webhookId);
+          const left = (this.busyOwners.get(owner) ?? 1) - 1;
+          if (left > 0) this.busyOwners.set(owner, left);
+          else this.busyOwners.delete(owner);
+        }),
+      );
+    }
+    let attempts = 0;
+    for (const n of await Promise.all(running)) attempts += n;
+    if (rows.length === 0 && Math.random() < 0.05) this.prune.run(t - WEBHOOK_DELIVERY_RETENTION_S);
+    return attempts;
+  }
+
+  /** One endpoint's due deliveries, in order. The first failure ends the lane: the rest stay due for the next tick. */
+  private async runLane(lane: DeliveryRow[]): Promise<number> {
+    let attempts = 0;
+    for (const row of lane) {
+      if (!this.stillPending.get(row.id)) continue; // e.g. failed by a DELETE of its webhook while the lane waited
       attempts++;
       const hook = this.db.prepare("SELECT * FROM webhooks WHERE id = ?").get(row.webhookId) as WebhookRow | undefined;
       if (!hook || hook.active !== 1) {
@@ -160,15 +219,15 @@ export class WebhookBus {
         continue;
       }
       const { ok, status, error } = await this.deliver(hook, row);
+      const t = Math.floor(this.now() / 1000);
       if (ok) {
         this.markOk.run(status, t, row.id);
-      } else if (row.attempts < WEBHOOK_RETRY_S.length) {
-        this.markRetry.run(status, error, t + WEBHOOK_RETRY_S[row.attempts]!, row.id);
-      } else {
-        this.markFailed.run(status, error, row.id);
+        continue;
       }
+      if (row.attempts < WEBHOOK_RETRY_S.length) this.markRetry.run(status, error, t + WEBHOOK_RETRY_S[row.attempts]!, row.id);
+      else this.markFailed.run(status, error, row.id);
+      break;
     }
-    if (rows.length === 0 && Math.random() < 0.05) this.prune.run(t - WEBHOOK_DELIVERY_RETENTION_S);
     return attempts;
   }
 
@@ -202,16 +261,14 @@ export class WebhookBus {
 
   start(intervalMs: number): () => void {
     let stopped = false;
-    let running = false;
+    // Ticks are allowed to overlap: a busy endpoint stays claimed until its lane ends, so a lane still waiting out a
+    // timeout never delays the next tick for everyone else, and no delivery is sent twice.
     const run = async () => {
-      if (stopped || running) return;
-      running = true;
+      if (stopped) return;
       try {
         await this.tick();
       } catch (err) {
         console.error("[webhooks] tick failed:", err);
-      } finally {
-        running = false;
       }
     };
     const handle = setInterval(run, intervalMs);

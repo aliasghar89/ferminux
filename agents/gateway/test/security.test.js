@@ -295,6 +295,69 @@ test("webhooks: every attempt carries its own ts, signed over exactly the body s
   assert.ok(sent.at(-1).at - sent[0].at > 600, "the last retry lands past a 600 s window from the first attempt");
 });
 
+// Deliveries went out one at a time, oldest first, 50 a tick, 10 s timeout each: one owner's slow or hanging
+// endpoints held every other owner's delivery behind each of their queued rows.
+test("webhooks: endpoints are delivered side by side, one owner cannot take every slot, a failing endpoint yields its turn", async () => {
+  const { WEBHOOK_PER_OWNER_CONCURRENCY } = await import("../dist/v3/webhooks.js");
+  const db = openMemoryDb();
+  const nowMs = 1_758_400_000_000;
+  const carol = new Wallet("0x" + "c4".repeat(32));
+  const calls = [];
+  let live = 0;
+  let maxLive = 0;
+  const liveByHost = new Map();
+  let maxPerHost = 0;
+  const ownerOf = new Map();
+  const liveByOwner = new Map();
+  let maxPerOwner = 0;
+  const bus = new WebhookBus(db, () => nowMs, async (url, init) => {
+    const host = new URL(url).hostname;
+    const owner = ownerOf.get(host);
+    calls.push({ host, delivery: init.headers["x-ferminux-delivery"] });
+    live++;
+    liveByHost.set(host, (liveByHost.get(host) ?? 0) + 1);
+    liveByOwner.set(owner, (liveByOwner.get(owner) ?? 0) + 1);
+    maxLive = Math.max(maxLive, live);
+    maxPerHost = Math.max(maxPerHost, liveByHost.get(host));
+    maxPerOwner = Math.max(maxPerOwner, liveByOwner.get(owner));
+    await new Promise((r) => setTimeout(r, host.startsWith("slow") ? 30 : 2));
+    live--;
+    liveByHost.set(host, liveByHost.get(host) - 1);
+    liveByOwner.set(owner, liveByOwner.get(owner) - 1);
+    return new Response("x", { status: host.startsWith("down") ? 500 : 200 });
+  });
+  const hook = db.prepare("INSERT INTO webhooks (owner, url, secret, events, active, createdAt, updatedAt) VALUES (?, ?, 'sixteen-chars-secret', '[\"job.requested\"]', 1, 1, 1)");
+  const add = (owner, host) => {
+    ownerOf.set(host, owner.address);
+    hook.run(owner.address, `https://${host}/in`);
+  };
+  // alice: six slow endpoints with five deliveries each, all queued before anyone else's
+  for (let i = 0; i < 6; i++) add(alice, `slow${i}.example`);
+  for (let k = 0; k < 5; k++) bus.dispatch("job.requested", [alice.address], { k }, `a:${k}`);
+  // carol: one endpoint that answers 500, three deliveries; bob: one healthy endpoint, one delivery
+  add(carol, "down.example");
+  for (let k = 0; k < 3; k++) bus.dispatch("job.requested", [carol.address], { k }, `c:${k}`);
+  add(bob, "fast.example");
+  bus.dispatch("job.requested", [bob.address], { k: 0 }, "b:0");
+
+  const attempts = await bus.tick();
+  assert.ok(calls.findIndex((c) => c.host === "fast.example") < 6, `bob waited behind alice's backlog: ${calls.map((c) => c.host).join(",")}`);
+  assert.equal(maxPerHost, 1, "one delivery at a time per endpoint");
+  assert.ok(maxPerOwner <= WEBHOOK_PER_OWNER_CONCURRENCY, `alice held ${maxPerOwner} slots`);
+  assert.ok(maxLive > 1, "lanes run side by side");
+  assert.equal(calls.filter((c) => c.host === "down.example").length, 1, "a failing endpoint yields its turn after one attempt");
+  assert.equal(attempts, WEBHOOK_PER_OWNER_CONCURRENCY * 5 + 1 + 1);
+  const pending = (host) => db.prepare("SELECT COUNT(*) AS c FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhookId WHERE d.status = 'pending' AND w.url = ?").get(`https://${host}/in`).c;
+  assert.equal(pending("slow5.example"), 5, "alice's endpoints beyond her share wait for the next tick");
+  assert.equal(pending("fast.example"), 0);
+
+  // overlapping ticks never send one delivery twice
+  await Promise.all([bus.tick(), bus.tick(), bus.tick()]);
+  const ids = calls.map((c) => c.delivery);
+  assert.equal(new Set(ids).size, ids.length, "no delivery sent twice");
+  assert.equal(pending("slow5.example"), 0);
+});
+
 test("v3 indexer: increment handlers apply a replayed log exactly once (reorg re-scan / resumed backfill)", () => {
   const db = openMemoryDb();
   const activity = new ActivityBus(db, () => 1_758_400_000_000);
