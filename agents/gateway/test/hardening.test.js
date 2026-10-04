@@ -172,6 +172,30 @@ test("faucet: stops at the relayer reserve so gasless relays keep their gas; def
   assert.equal(ok.statusCode, 202, ok.body);
 });
 
+test("faucet: parallel requests for one fresh address send one drip, and parallel ones from one IP respect its daily cap", async (t) => {
+  const db = openMemoryDb();
+  const { app, v3 } = await buildServer({ db, cfg: { ...cfg, relayerKey: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba" }, workers: false, logger: false, commons: { forward: async () => {}, toolProbeFetch: async () => new Response(null, { status: 200 }) } });
+  await app.ready();
+  t.after(() => app.close());
+  const slow = () => new Promise((r) => setTimeout(r, 20));
+  v3.provider.getBalance = async (a) => (await slow(), a === v3.relayer.address ? 10n ** 18n * 1000n : 0n);
+  v3.provider.getTransactionCount = async () => (await slow(), 0);
+  v3.provider.getFeeData = async () => ({ maxFeePerGas: 2_000_000_000n });
+  let sent = 0;
+  v3.relayer.sendTransaction = async () => ({ hash: "0x" + (++sent).toString(16).padStart(64, "0") });
+  const drip = (address, ip) => app.inject({ method: "POST", url: "/api/faucet", headers: { "content-type": "application/json", "x-forwarded-for": ip }, payload: JSON.stringify({ address }) });
+  const same = await Promise.all(Array.from({ length: 5 }, (_, i) => drip("0x000000000000000000000000000000000000bEEF", `203.0.113.${i + 1}`)));
+  assert.deepEqual(same.map((r) => r.statusCode).sort(), [202, 429, 429, 429, 429]);
+  assert.equal(sent, 1);
+  // 7 of this IP's 10 daily drips already used: of 6 parallel requests (the route's per-minute burst) only 3 may pass
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 0; i < 7; i++) db.prepare("INSERT INTO relays (kind, subject, target, txHash, ok, gasLimit, createdAt) VALUES ('faucet', ?, '198.51.100.7', '0x', 1, 21000, ?)").run(`0x${String(i).padStart(40, "a")}`, now);
+  const addrs = Array.from({ length: 6 }, (_, i) => "0x" + (0xc0de00 + i).toString(16).padStart(40, "0"));
+  const oneIp = await Promise.all(addrs.map((a) => drip(a, "198.51.100.7")));
+  assert.deepEqual(oneIp.map((r) => r.statusCode).sort(), [202, 202, 202, 429, 429, 429]);
+  assert.equal(sent, 4);
+});
+
 test("job views carry reviewDeadline / claimableAt for Delivered jobs", async (t) => {
   const { app, db } = await setup();
   t.after(() => app.close());
