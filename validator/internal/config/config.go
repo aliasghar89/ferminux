@@ -382,7 +382,9 @@ func CheckNodeArgs(args []string) error {
 				return fmt.Errorf("config: node flag %s is not allowed for a validator node", f)
 			}
 		}
-		if strings.HasPrefix(name, "--miner.") {
+		// --signer.enabled and --signer.rewardaddress are the node's own aliases
+		// of --mine and --miner.etherbase (chain/cmd/utils/flags.go)
+		if strings.HasPrefix(name, "--miner.") || strings.HasPrefix(name, "--signer.") {
 			return fmt.Errorf("config: node flag %s is not allowed for a validator node", name)
 		}
 	}
