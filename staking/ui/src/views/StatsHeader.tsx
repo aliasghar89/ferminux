@@ -1,5 +1,6 @@
 // The four numbers that make the network look alive or dead. They are real
-// contract reads or they are a dash — never an estimate.
+// contract reads or they are a dash — never an estimate. The vault keeps no
+// staker count, so none is shown: positions opened is what it does count.
 
 import type { Poll, VaultData, RosterData } from '../state/useStakingData.ts';
 import { runwaySeconds } from '../lib/math.ts';
@@ -16,7 +17,7 @@ export function StatsHeader({
   deployed: boolean;
 }) {
   const o = vault.data?.overview ?? null;
-  const activeNodes = roster.data ? roster.data.nodes.filter((n) => n.active).length : null;
+  const activeNodes = roster.data ? roster.data.nodes.length : null;
   const runway = o ? runwaySeconds(o.rewardPoolWei, o.totalWeightedUnitsWei, o.dripPerYearWei) : null;
 
   const value = (loading: boolean, content: React.ReactNode) => {
@@ -43,10 +44,12 @@ export function StatsHeader({
               ),
             )}
           </div>
+          <div className="sub">principal in the vault, cooldowns included</div>
         </div>
         <div className="stat">
-          <div className="k">Stakers</div>
-          <div className="v">{value(vault.loading, o ? o.stakerCount.toLocaleString('en-US') : <span className="muted">—</span>)}</div>
+          <div className="k">Positions</div>
+          <div className="v">{value(vault.loading, o ? o.positionCount.toLocaleString('en-US') : <span className="muted">—</span>)}</div>
+          <div className="sub">opened, all time — not distinct stakers</div>
         </div>
         <div className="stat">
           <div className="k">Bonded nodes</div>

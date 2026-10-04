@@ -1,24 +1,27 @@
 // POSITIONS: principal, accrued rewards, unlock countdown, claim / unstake /
 // withdraw — and emergency exit clearly marked with exactly what it forfeits.
+// Withdrawn positions stay listed while they hold banked rewards: withdraw()
+// returns principal only, and those rewards are still the staker's to claim.
 
 import { useState } from 'react';
-import { EXPLORER_URL, STAKING_VAULT_ADDRESS } from '../config.ts';
+import { EXPLORER_URL, SECONDS_PER_BLOCK, STAKING_VAULT_ADDRESS } from '../config.ts';
 import type { ChainState } from '../state/useChain.ts';
 import type { WalletState } from '../state/useWallet.ts';
 import type { Poll, VaultData } from '../state/useStakingData.ts';
 import {
   claim,
-  beginUnstake,
+  requestUnstake,
   withdraw,
   emergencyExit,
   humanizeTxError,
+  isLocked,
+  isVisiblePosition,
   type Position,
 } from '../lib/staking.ts';
-import { countdown } from '../lib/math.ts';
-import { formatFMX, formatCountdown, formatDateTime } from '../lib/format.ts';
+import { tierSpec } from '../lib/tiers.ts';
+import { countdown, secondsUntilBlock } from '../lib/math.ts';
+import { formatFMX, formatCountdown, formatDateTime, formatDuration, formatWeight } from '../lib/format.ts';
 import { Modal, Spinner, Skeleton } from '../components/ui.tsx';
-
-const TIER_NAMES = ['Flexible', 'Locked 90d', 'Locked 180d', 'Validator'];
 
 type Busy = { id: bigint; action: string } | null;
 
@@ -46,6 +49,18 @@ export function PositionsPanel({
   const [lastTx, setLastTx] = useState<string | null>(null);
   const [emergencyFor, setEmergencyFor] = useState<Position | null>(null);
   const penaltyBps = vault.data?.overview.emergencyPenaltyBps ?? 500n;
+  const tiers = vault.data?.tiers ?? null;
+
+  /** When a locked position unlocks, in words: a date, or a block height with its 7 s-cadence estimate. */
+  const unlockText = (p: Position): string => {
+    if (p.unlockBlock > 0) {
+      const block = p.unlockBlock.toLocaleString('en-US');
+      if (chain.blockNumber === null) return `at block ${block}`;
+      const secs = secondsUntilBlock(chain.blockNumber, p.unlockBlock, SECONDS_PER_BLOCK);
+      return `at block ${block} (about ${formatDuration(secs)} at ${SECONDS_PER_BLOCK} s blocks)`;
+    }
+    return `in ${formatCountdown(countdown(now, p.unlockTime))} (${formatDateTime(p.unlockTime)})`;
+  };
 
   const run = async (p: Position, action: string, fn: () => Promise<{ hash: string; wait: () => Promise<unknown> }>) => {
     if (!chain.provider) return;
@@ -111,7 +126,7 @@ export function PositionsPanel({
     );
   }
 
-  const open = (positions.data ?? []).filter((p) => p.state !== 'withdrawn');
+  const open = (positions.data ?? []).filter(isVisiblePosition);
   if (open.length === 0) {
     return (
       <div className="empty-state">
@@ -142,8 +157,10 @@ export function PositionsPanel({
       )}
       <ul className="row-list">
         {open.map((p) => {
-          const locked = p.state === 'active' && p.unlockTime > now;
+          const locked = p.state === 'active' && isLocked(p, now, chain.blockNumber);
           const cooling = p.state === 'cooling';
+          const withdrawn = p.state === 'withdrawn';
+          const boostedWeight = p.boosted ? (tiers?.[p.tier]?.boostedWeightBps ?? null) : null;
           const coolDone = cooling && p.cooldownEnd <= now;
           const isBusy = (action: string) => busy !== null && busy.id === p.id && busy.action === action;
           const anyBusy = busy !== null;
@@ -151,27 +168,39 @@ export function PositionsPanel({
             <li key={p.id.toString()}>
               <div className="row-main">
                 <div className="row-title">
-                  {TIER_NAMES[p.tier] ?? `Tier ${p.tier}`}
+                  {tierSpec(p.tier)?.shortName ?? `Tier ${p.tier}`}
                   <span
                     className={
-                      'state-badge ' + (cooling ? 'state-cooling' : locked ? 'state-locked' : 'state-active')
+                      'state-badge ' +
+                      (cooling || withdrawn ? 'state-cooling' : locked ? 'state-locked' : 'state-active')
                     }
                   >
-                    {cooling ? (coolDone ? 'COOLDOWN OVER' : 'COOLING DOWN') : locked ? 'LOCKED' : 'ACTIVE'}
+                    {withdrawn
+                      ? 'WITHDRAWN'
+                      : cooling
+                        ? coolDone
+                          ? 'COOLDOWN OVER'
+                          : 'COOLING DOWN'
+                        : locked
+                          ? 'LOCKED'
+                          : 'ACTIVE'}
                   </span>
                 </div>
                 <div className="row-sub">
-                  {cooling
-                    ? coolDone
-                      ? 'Cooldown finished — withdraw your principal.'
-                      : `Withdrawable in ${formatCountdown(countdown(now, p.cooldownEnd))} (${formatDateTime(p.cooldownEnd)}). No rewards accrue during cooldown.`
-                    : locked
-                      ? `Unlocks in ${formatCountdown(countdown(now, p.unlockTime))} (${formatDateTime(p.unlockTime)})`
-                      : 'Unlocked — exit starts a 7-day cooldown.'}
+                  {withdrawn
+                    ? 'Principal withdrawn — the rewards it earned are still yours to claim.'
+                    : cooling
+                      ? coolDone
+                        ? 'Cooldown finished — withdraw your principal.'
+                        : `Withdrawable in ${formatCountdown(countdown(now, p.cooldownEnd))} (${formatDateTime(p.cooldownEnd)}). No rewards accrue during cooldown.`
+                      : locked
+                        ? `Unlocks ${unlockText(p)}`
+                        : 'Unlocked — exit starts a 7-day cooldown.'}
+                  {boostedWeight !== null && ` Uptime boost on: earning at ${formatWeight(boostedWeight)}.`}
                 </div>
               </div>
               <div className="row-value num">
-                {formatFMX(p.amountWei)} FMX
+                {withdrawn ? 'withdrawn' : `${formatFMX(p.amountWei)} FMX`}
                 <span className="sub">+{formatFMX(p.pendingRewardsWei)} accrued</span>
               </div>
               <div className="row-actions">
@@ -189,7 +218,7 @@ export function PositionsPanel({
                     className="btn btn-sm"
                     disabled={anyBusy}
                     onClick={() =>
-                      void run(p, 'unstake', async () => beginUnstake(await signer(), STAKING_VAULT_ADDRESS, p.id))
+                      void run(p, 'unstake', async () => requestUnstake(await signer(), STAKING_VAULT_ADDRESS, p.id))
                     }
                   >
                     {isBusy('unstake') ? <Spinner /> : 'Start unstake'}
@@ -221,8 +250,8 @@ export function PositionsPanel({
       {emergencyFor && (
         <Modal title="Emergency exit — read this" onClose={() => setEmergencyFor(null)}>
           <div className="notice notice-danger">
-            This position is locked until <strong>{formatDateTime(emergencyFor.unlockTime)}</strong>. Leaving now
-            forfeits, irreversibly:
+            This position is locked — it unlocks <strong>{unlockText(emergencyFor)}</strong>. Leaving now forfeits,
+            irreversibly:
           </div>
           <table className="confirm-table">
             <tbody>

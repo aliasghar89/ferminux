@@ -13,7 +13,7 @@ import {
   type Tier,
   type Position,
 } from '../lib/staking.ts';
-import { fetchRoster, fetchRegistryParams, type NetworkNode } from '../lib/nodes.ts';
+import { fetchRoster, fetchRegistryParams, type NetworkNode, type RegistryParams } from '../lib/nodes.ts';
 
 export interface Poll<T> {
   data: T | null;
@@ -95,10 +95,8 @@ export function usePositions(provider: Provider | null, vaultAddress: string, ow
  * Node registry
  * ------------------------------------------------------------------ */
 
-export interface RosterData {
+export interface RosterData extends RegistryParams {
   nodes: NetworkNode[];
-  minBondWei: bigint;
-  validatorTier: number;
 }
 
 export function useRoster(provider: Provider | null, registryAddress: string): Poll<RosterData> {

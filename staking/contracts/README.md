@@ -40,6 +40,13 @@ function getValidators() external view
 // MIN_VALIDATOR_STAKE = 25_000 ether.
 ```
 
+## ABIs
+
+`abi/<Name>.json` is `forge inspect <Name> abi --json` for both contracts. The
+staking app (`../ui`) checks its ABI fragments against these files, and its
+e2e fails if they differ from a fresh `forge build` — regenerate them whenever
+a contract's interface changes.
+
 ## Scripts
 
 ```sh
