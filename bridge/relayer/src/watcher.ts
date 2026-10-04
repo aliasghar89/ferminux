@@ -276,7 +276,7 @@ export class Watcher {
 
   /** Promote every 'seen' transfer buried deep enough — or bury it. */
   private async confirmPending(settled: number): Promise<void> {
-    const pending = this.store.listTransfers({ status: ['seen'], limit: 1000 }).filter((t) => t.transfer.srcChainId === this.chain.chainId);
+    const pending = this.store.listTransfers({ status: ['seen'], srcChainId: this.chain.chainId, limit: 1000 });
     for (const t of pending) {
       if (t.srcBlockNumber > settled) continue;
 
