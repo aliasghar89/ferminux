@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { handleOneJob, isRefusal } from "../dist/jobs.js";
 import { loadState } from "../dist/state.js";
 import { chainHandler } from "../dist/handlers/chain.js";
+import { toolsHandler } from "../dist/handlers/tools.js";
 
 const log = { info() {}, warn() {}, error() {} };
 const OPEN = 1, DELIVERED = 2;
@@ -95,6 +96,19 @@ test("jobs: a job escrowing less than the agent's current price is left alone â€
   assert.equal(runs, 1);
   assert.deepEqual(c2.calls, []);
   assert.equal(loadState(statePath)["31"], undefined);
+});
+
+test("tools handler: an unparseable timestamp is a refusal, so the job is declined instead of delivered and paid", async (t) => {
+  const bad = await toolsHandler({ op: "timestamp", text: "not a date" });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error, "unparseable date/time");
+  assert.equal(isRefusal(bad), true);
+  const c = client();
+  assert.equal(await handleOneJob(c, 40, tmp(t), () => toolsHandler('{"op":"timestamp","text":"yesterday-ish"}'), log, { retryDelayMs: 0 }), "declined");
+  assert.deepEqual(c.calls, [["cancel", 40]]);
+  const good = await toolsHandler({ op: "timestamp", text: "1700000000" });
+  assert.equal(good.ok, true);
+  assert.equal(good.output.iso, "2023-11-14T22:13:20.000Z");
 });
 
 test("chain handler: plain language or an unknown op is a refusal; the op list only for an explicit help", async () => {
