@@ -279,7 +279,9 @@ func Resolve(c Config, dir string) (*Resolved, error) {
 	if err := CheckLoopback(r.Dashboard); err != nil {
 		return nil, err
 	}
-	if c.Gas.TipGwei <= 0 {
+	// Signers never include a transaction tipping under 1 gwei: a lower tip
+	// would leave every attestation pending until its window closed.
+	if c.Gas.TipGwei < 1 {
 		r.Gas.TipGwei = 1
 	}
 	if c.Gas.MaxFeeGwei <= 0 {
