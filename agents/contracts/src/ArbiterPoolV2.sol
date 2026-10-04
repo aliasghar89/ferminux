@@ -12,6 +12,11 @@ import {ServiceEscrow} from "./ServiceEscrow.sol";
 ///         - Minimum voting period: the early close at `quorum + 2` votes waits `minVotingPeriod` after
 ///           the case opened. ArbiterPool let five bonds vote and close in the block that opened the
 ///           case, before any honest arbiter could see it.
+///         - Void instead of stranding: when the pool can no longer resolve a case's job — the job left
+///           Disputed some other way (e.g. `forward` → escrow.resolve), or escrow governance moved away —
+///           `close` voids the case: its voters' `pendingVotes` are released, the opener gets the case fee
+///           back and the job may get a new case. ArbiterPool reverted there for ever, so those voters
+///           could never leave the pool.
 ///
 /// MIGRATION — replaces the live `arbiterPool` (agents/deployments-v3.3961.json). Nothing here is deployed:
 ///   1. Deploy `ArbiterPoolV2(escrow, multisig)` against the live `escrow`.
@@ -29,6 +34,8 @@ import {ServiceEscrow} from "./ServiceEscrow.sol";
 ///      no way to release that case's voters.
 ///   4. Point the gateway / SDK / web `arbiterPool` key at v2 and export its ABI then
 ///      (`forge inspect ArbiterPoolV2 abi --json > abi/ArbiterPoolV2.json`).
+///   v2's own successor needs no drain: once governance has moved, each open v2 case voids at its close
+///   time and its job, still Disputed, can be brought to the new pool.
 /// @dev Paris EVM. Pull payments: bonds, rewards and the case-fee remainder land in `credits`.
 ///      Design decisions carried over from ArbiterPool:
 ///      - `leavePool` is two-step: first call starts the 7-day cooldown (and blocks new votes), second
@@ -36,7 +43,7 @@ import {ServiceEscrow} from "./ServiceEscrow.sol";
 ///      - Median of an even vote count = floor(mean of the two middle votes). Zero votes at window end
 ///        → result 5000 (even split) and the fee goes to `owner` credits; leftover wei of a split too.
 ///      - An arbiter may not vote on a case where it is the client or the agent owner.
-///      - `close` reverts (whole tx) while escrow.governance != this — cases stay open until then.
+///      Voided cases keep `closed = true` and `result = 0`; read `voided(caseId)` to tell them apart.
 contract ArbiterPoolV2 {
     // ───────────────────────────── types ─────────────────────────────
 
@@ -85,7 +92,9 @@ contract ArbiterPoolV2 {
 
     uint256 public nextCaseId; // ids start at 1
     mapping(uint256 => Case) private _cases;
-    mapping(uint256 => uint256) public caseOf; // jobId => caseId
+    mapping(uint256 => uint256) public caseOf; // jobId => latest caseId
+    /// @notice Closed without a decision because the pool could no longer resolve the job.
+    mapping(uint256 => bool) public voided;
     mapping(uint256 => address[]) private _voters;
     mapping(uint256 => mapping(address => Vote)) private _votes;
     mapping(uint256 => string[]) private _evidence;
@@ -101,6 +110,7 @@ contract ArbiterPoolV2 {
     event EvidenceSubmitted(uint256 indexed caseId, address indexed by, string uri);
     event Voted(uint256 indexed caseId, address indexed arbiter, uint16 clientBps);
     event CaseClosed(uint256 indexed caseId, uint256 indexed jobId, uint16 clientBps);
+    event CaseVoided(uint256 indexed caseId, uint256 indexed jobId);
     event Rewarded(uint256 indexed caseId, address indexed arbiter, uint256 amount);
     event ParamsChanged(uint256 minStake, uint64 votingWindow, uint8 quorum);
     event MinVotingPeriodChanged(uint64 minVotingPeriod);
@@ -213,10 +223,12 @@ contract ArbiterPoolV2 {
     // ───────────────────────────── cases ─────────────────────────────
 
     /// @notice Open a case on a Disputed job. Client or agent owner; fee = 1 FMX (msg.value) → rewards.
+    ///         A job whose previous case was voided may be opened again.
     function openCase(uint256 jobId, string calldata evidenceURI) external payable returns (uint256 caseId) {
         if (msg.value != CASE_FEE) revert WrongFee(msg.value, CASE_FEE);
         if (bytes(evidenceURI).length > 256) revert StringTooLong();
-        if (caseOf[jobId] != 0) revert CaseExists(caseOf[jobId]);
+        uint256 prev = caseOf[jobId];
+        if (prev != 0 && !voided[prev]) revert CaseExists(prev);
         ServiceEscrow.Job memory j = escrow.getJob(jobId);
         if (j.status != ServiceEscrow.JobStatus.Disputed) revert JobNotDisputed();
         _requireParty(j, msg.sender);
@@ -258,6 +270,8 @@ contract ArbiterPoolV2 {
         if (since >= c.openedAt) revert JoinedAfterCaseOpened(since, c.openedAt);
         if (_votes[caseId][msg.sender].cast) revert AlreadyVoted();
         ServiceEscrow.Job memory j = escrow.getJob(c.jobId);
+        // settled elsewhere: a vote here would only pin the arbiter's bond until someone voids the case
+        if (j.status != ServiceEscrow.JobStatus.Disputed) revert JobNotDisputed();
         if (msg.sender == j.client || msg.sender == registry.getAgent(j.agentId).owner) revert ConflictOfInterest();
 
         _votes[caseId][msg.sender] = Vote({clientBps: clientBps, cast: true});
@@ -267,22 +281,35 @@ contract ArbiterPoolV2 {
         emit Voted(caseId, msg.sender, clientBps);
     }
 
-    /// @notice True once `close` may decide the case: the voting window is over, or `quorum + 2` votes
-    ///         are in AND `minVotingPeriod` has passed since the case opened.
-    function closable(uint256 caseId) public view returns (bool) {
+    /// @notice True when `close` would succeed now: the job already left Disputed (the case voids), or
+    ///         the voting window is over, or `quorum + 2` votes are in AND `minVotingPeriod` has passed
+    ///         since the case opened.
+    function closable(uint256 caseId) external view returns (bool) {
         Case storage c = _cases[caseId];
         if (c.openedAt == 0 || c.closed) return false;
-        if (block.timestamp >= uint256(c.openedAt) + votingWindow) return true;
-        return c.votes >= uint256(quorum) + 2 && block.timestamp >= uint256(c.openedAt) + minVotingPeriod;
+        if (escrow.getJob(c.jobId).status != ServiceEscrow.JobStatus.Disputed) return true;
+        return _decidable(c);
     }
 
-    /// @notice Close once `closable`. Resolves the escrow job with the median vote and splits the case
-    ///         fee among voters within 2000 bps of the result.
+    /// @notice Close the case. Normally: once the window is over (or early, see `closable`), resolve the
+    ///         escrow job with the median vote and split the case fee among voters within 2000 bps of
+    ///         the result. When the pool can no longer resolve the job, the case is voided instead —
+    ///         at once if the job already left Disputed, at the normal close time if escrow governance
+    ///         is no longer this pool.
     function close(uint256 caseId) external {
         Case storage c = _cases[caseId];
         if (c.openedAt == 0) revert UnknownCase();
         if (c.closed) revert CaseClosedAlready();
-        if (!closable(caseId)) revert NotClosable();
+        if (escrow.getJob(c.jobId).status != ServiceEscrow.JobStatus.Disputed) {
+            _void(caseId, c);
+            return;
+        }
+        if (!_decidable(c)) revert NotClosable();
+        // escrow.resolve would revert for as long as governance stays elsewhere
+        if (escrow.governance() != address(this)) {
+            _void(caseId, c);
+            return;
+        }
 
         address[] storage voters = _voters[caseId];
         uint256 n = voters.length;
@@ -310,7 +337,7 @@ contract ArbiterPoolV2 {
         if (CASE_FEE - distributed != 0) credits[owner] += CASE_FEE - distributed;
 
         emit CaseClosed(caseId, c.jobId, result);
-        escrow.resolve(c.jobId, result); // reverts unless escrow.governance == this
+        escrow.resolve(c.jobId, result);
     }
 
     function getCase(uint256 caseId) external view returns (Case memory) {
@@ -380,6 +407,23 @@ contract ArbiterPoolV2 {
     }
 
     // ───────────────────────────── internals ─────────────────────────────
+
+    function _decidable(Case storage c) internal view returns (bool) {
+        if (block.timestamp >= uint256(c.openedAt) + votingWindow) return true;
+        return c.votes >= uint256(quorum) + 2 && block.timestamp >= uint256(c.openedAt) + minVotingPeriod;
+    }
+
+    /// @dev No decision: release every voter, return the fee to the opener, let the job be reopened.
+    function _void(uint256 caseId, Case storage c) internal {
+        address[] storage voters = _voters[caseId];
+        for (uint256 i = 0; i < voters.length; i++) {
+            pendingVotes[voters[i]] -= 1;
+        }
+        c.closed = true;
+        voided[caseId] = true;
+        credits[c.opener] += CASE_FEE;
+        emit CaseVoided(caseId, c.jobId);
+    }
 
     function _requireParty(ServiceEscrow.Job memory j, address who) internal view {
         if (who != j.client && who != registry.getAgent(j.agentId).owner) revert NotParty();

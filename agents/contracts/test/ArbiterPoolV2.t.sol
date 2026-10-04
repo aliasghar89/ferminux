@@ -401,16 +401,19 @@ contract ArbiterPoolV2Test is BaseTest {
         pool.close(99);
     }
 
-    function test_close_revertsWhenEscrowGovernanceNotPool() public {
-        // hand escrow governance back to gov (via forward) → close must revert atomically
+    /// @dev V2: ArbiterPool reverted here (NotGovernance) for as long as governance stayed away; V2
+    ///      voids the case at its normal close time instead. See the fix-2 section below.
+    function test_close_voidsWhenEscrowGovernanceNotPool() public {
         vm.prank(multisig);
         pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (gov)));
         assertEq(escrow.governance(), gov);
         uint256 caseId = _openCase(_disputedJob(), bob);
-        vm.warp(block.timestamp + 3 days);
-        vm.expectRevert(ServiceEscrow.NotGovernance.selector);
+        vm.expectRevert(ArbiterPoolV2.NotClosable.selector); // not before the normal close time
         pool.close(caseId);
-        assertFalse(pool.getCase(caseId).closed);
+        vm.warp(block.timestamp + 3 days);
+        pool.close(caseId);
+        assertTrue(pool.getCase(caseId).closed);
+        assertTrue(pool.voided(caseId));
     }
 
     function test_close_anyoneMayCall() public {
@@ -797,5 +800,185 @@ contract ArbiterPoolV2Test is BaseTest {
             vm.expectRevert(ArbiterPoolV2.NotClosable.selector);
         }
         pool.close(caseId);
+    }
+
+    // ═════════════════════════════ V2 fix 2: cases the pool can no longer resolve ═════════════════════════════
+
+    /// @dev Live ArbiterPool as escrow governance, with arbs[0..2] bonded and a voted case on a disputed job.
+    function _v1CaseWithVotes() internal returns (ArbiterPool v1, uint256 jobId, uint256 caseId) {
+        v1 = new ArbiterPool(escrow, multisig);
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(v1))));
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(arbs[i]);
+            v1.joinPool{value: 500 ether}();
+        }
+        jobId = _disputedJob();
+        vm.prank(bob);
+        caseId = v1.openCase{value: 1 ether}(jobId, "");
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(arbs[i]);
+            v1.vote(caseId, 5000);
+        }
+    }
+
+    /// @notice The live pool: once the job is settled through `forward`, close() reverts for ever and the
+    ///         voters' bonds can never leave the pool.
+    function test_attack_v1_directResolveStrandsVoters() public {
+        (ArbiterPool v1, uint256 jobId, uint256 caseId) = _v1CaseWithVotes();
+        vm.prank(multisig);
+        v1.forward(address(escrow), abi.encodeCall(ServiceEscrow.resolve, (jobId, 10000)));
+
+        vm.warp(block.timestamp + 3 days);
+        vm.expectRevert(abi.encodeWithSelector(ServiceEscrow.WrongStatus.selector, ServiceEscrow.JobStatus.Resolved));
+        v1.close(caseId);
+
+        vm.prank(arbs[0]);
+        v1.leavePool();
+        vm.warp(block.timestamp + 365 days);
+        vm.prank(arbs[0]);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPool.VotesPending.selector, 1));
+        v1.leavePool();
+        assertEq(v1.stake(arbs[0]), 500 ether); // stranded
+    }
+
+    /// @notice The live pool: once escrow governance moves on, close() reverts NotGovernance for ever.
+    function test_attack_v1_governanceMovedStrandsVoters() public {
+        (ArbiterPool v1,, uint256 caseId) = _v1CaseWithVotes();
+        vm.prank(multisig);
+        v1.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (gov)));
+        vm.warp(block.timestamp + 3 days);
+        vm.expectRevert(ServiceEscrow.NotGovernance.selector);
+        v1.close(caseId);
+        vm.prank(arbs[1]);
+        v1.leavePool();
+        vm.warp(block.timestamp + 7 days);
+        vm.prank(arbs[1]);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPool.VotesPending.selector, 1));
+        v1.leavePool();
+    }
+
+    function _poolSolvent() internal view {
+        uint256 owed = pool.credits(multisig) + pool.credits(bob) + pool.credits(alice);
+        for (uint256 i = 0; i < 5; i++) {
+            owed += pool.stake(arbs[i]) + pool.credits(arbs[i]);
+        }
+        assertEq(address(pool).balance, owed);
+    }
+
+    function test_v2_close_voidsAtOnceWhenJobResolvedElsewhere() public {
+        _joinAll();
+        uint256 jobId = _disputedJob();
+        uint256 caseId = _openCase(jobId, bob);
+        for (uint256 i = 0; i < 3; i++) {
+            _vote(caseId, i, 5000);
+        }
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.resolve, (jobId, 2500)));
+        assertEq(escrow.credits(bob), 2.5 ether);
+
+        // nobody can pin a bond on the dead case any more
+        vm.prank(arbs[3]);
+        vm.expectRevert(ArbiterPoolV2.JobNotDisputed.selector);
+        pool.vote(caseId, 0);
+
+        assertTrue(pool.closable(caseId)); // well inside the voting window
+        vm.expectEmit(true, true, true, true);
+        emit ArbiterPoolV2.CaseVoided(caseId, jobId);
+        pool.close(caseId);
+
+        ArbiterPoolV2.Case memory c = pool.getCase(caseId);
+        assertTrue(c.closed);
+        assertTrue(pool.voided(caseId));
+        assertEq(c.result, 0);
+        for (uint256 i = 0; i < 3; i++) {
+            assertEq(pool.pendingVotes(arbs[i]), 0);
+            assertEq(pool.credits(arbs[i]), 0); // no decision, no reward
+        }
+        assertEq(pool.credits(bob), 1 ether); // case fee back to the opener
+        assertEq(pool.credits(multisig), 0);
+        assertEq(escrow.credits(bob), 2.5 ether); // the escrow outcome is the direct resolve's
+        _poolSolvent();
+
+        vm.expectRevert(ArbiterPoolV2.CaseClosedAlready.selector);
+        pool.close(caseId);
+
+        // the voters can leave
+        vm.prank(arbs[0]);
+        pool.leavePool();
+        vm.warp(block.timestamp + 7 days);
+        vm.prank(arbs[0]);
+        pool.leavePool();
+        assertEq(pool.credits(arbs[0]), 500 ether);
+    }
+
+    function test_v2_close_voidsWhenGovernanceMovedAway_thenJobReopens() public {
+        _joinAll();
+        uint256 jobId = _disputedJob();
+        uint256 caseId = _openCase(jobId, alice);
+        _vote(caseId, 0, 9000);
+        _vote(caseId, 1, 9000);
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (gov)));
+
+        assertFalse(pool.closable(caseId)); // still voting: governance may come back in time
+        vm.expectRevert(ArbiterPoolV2.NotClosable.selector);
+        pool.close(caseId);
+        vm.warp(block.timestamp + 3 days);
+        vm.expectEmit(true, true, true, true);
+        emit ArbiterPoolV2.CaseVoided(caseId, jobId);
+        pool.close(caseId);
+        assertEq(pool.pendingVotes(arbs[0]), 0);
+        assertEq(pool.pendingVotes(arbs[1]), 0);
+        assertEq(pool.credits(alice), 1 ether);
+        assertEq(uint8(escrow.getJob(jobId).status), uint8(ServiceEscrow.JobStatus.Disputed));
+        _poolSolvent();
+
+        // governance returns; the job gets a fresh case and a decision
+        vm.prank(gov);
+        escrow.setGovernance(address(pool));
+        uint256 caseId2 = _openCase(jobId, bob);
+        assertEq(caseId2, caseId + 1);
+        assertEq(pool.caseOf(jobId), caseId2);
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.CaseExists.selector, caseId2));
+        pool.openCase{value: 1 ether}(jobId, "");
+        _vote(caseId2, 0, 6000);
+        _vote(caseId2, 1, 6000);
+        _vote(caseId2, 2, 6000);
+        vm.warp(block.timestamp + 3 days);
+        pool.close(caseId2);
+        assertFalse(pool.voided(caseId2));
+        assertEq(pool.getCase(caseId2).result, 6000);
+        assertEq(escrow.credits(bob), 6 ether);
+    }
+
+    /// @notice Hand-over to a successor pool needs no drain: the successor decides the job, the old case voids.
+    function test_v2_migrationToSuccessorPool() public {
+        _joinAll();
+        ArbiterPoolV2 next = new ArbiterPoolV2(escrow, multisig);
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(arbs[i]);
+            next.joinPool{value: 500 ether}();
+        }
+        uint256 jobId = _disputedJob();
+        uint256 caseId = _openCase(jobId, bob);
+        _vote(caseId, 0, 1000);
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(next))));
+
+        vm.prank(bob);
+        uint256 nextCase = next.openCase{value: 1 ether}(jobId, "");
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(arbs[i]);
+            next.vote(nextCase, 7000);
+        }
+        vm.warp(block.timestamp + 3 days);
+        next.close(nextCase);
+        assertEq(uint8(escrow.getJob(jobId).status), uint8(ServiceEscrow.JobStatus.Resolved));
+
+        pool.close(caseId);
+        assertTrue(pool.voided(caseId));
+        assertEq(pool.pendingVotes(arbs[0]), 0);
     }
 }
