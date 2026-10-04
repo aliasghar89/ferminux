@@ -69,8 +69,10 @@ export default function LaunchForm(props: Props) {
   // predictable revert.
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
-    const nameLen = new TextEncoder().encode(name).length;
-    const symLen = new TextEncoder().encode(symbol).length;
+    // measured on what submit() sends (trimmed), so "   " is caught here
+    // rather than by a reverting estimateGas
+    const nameLen = new TextEncoder().encode(name.trim()).length;
+    const symLen = new TextEncoder().encode(symbol.trim()).length;
     if (name && (nameLen < 1 || nameLen > 64)) e.name = "1–64 bytes.";
     if (symbol && (symLen < 1 || symLen > 12)) e.symbol = "1–12 bytes.";
     const dec = Number(decimals);
