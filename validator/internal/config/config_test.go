@@ -20,6 +20,12 @@ func TestResolveDefaults(t *testing.T) {
 	if r.Dashboard != "127.0.0.1:0" || r.Schedule.Interval != 200 || r.Gas.TipGwei != 1 {
 		t.Fatalf("defaults not applied: %+v", r)
 	}
+	// signers never include a tip below 1 gwei
+	c := base()
+	c.Gas.TipGwei = 0.5
+	if r, err := Resolve(c, t.TempDir()); err != nil || r.Gas.TipGwei != 1 {
+		t.Fatalf("sub-gwei tip kept: %v %v", r.Gas.TipGwei, err)
+	}
 }
 
 func TestMainnetGuards(t *testing.T) {
@@ -91,7 +97,7 @@ func TestRPCMustBeLocal(t *testing.T) {
 }
 
 func TestNodeArgs(t *testing.T) {
-	for _, a := range []string{"--ferminux.allowdeepreorg", "--unlock=0xabc", "--mine", "--http", "-http", "--http.addr=0.0.0.0", "--miner.etherbase=0x1", "--datadir=/x", "--config", "-config=/etc/node.toml"} {
+	for _, a := range []string{"--ferminux.allowdeepreorg", "--unlock=0xabc", "--mine", "--http", "-http", "--http.addr=0.0.0.0", "--miner.etherbase=0x1", "--signer.enabled", "-signer.enabled=true", "--signer.rewardaddress=0x1", "--datadir=/x", "--config", "-config=/etc/node.toml"} {
 		if CheckNodeArgs([]string{"--syncmode=full", a}) == nil {
 			t.Fatalf("%s accepted", a)
 		}

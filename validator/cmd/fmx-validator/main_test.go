@@ -232,6 +232,20 @@ func TestCredentialFile(t *testing.T) {
 	if st, _ := os.Stat(dst); st.Mode().Perm() != 0o600 {
 		t.Fatalf("copy mode %o", st.Mode().Perm())
 	}
+	// install runs as root on a network directory the service user owns: a
+	// link planted there must not redirect the write
+	netDir, victim := t.TempDir(), filepath.Join(t.TempDir(), "victim")
+	os.WriteFile(victim, []byte("keep\n"), 0o644)
+	os.Symlink(victim, filepath.Join(netDir, "attester-password"))
+	if _, err := copyPasswordFile(p, netDir); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(victim); string(b) != "keep\n" {
+		t.Fatalf("the copy followed a planted link: %q", b)
+	}
+	if st, err := os.Lstat(filepath.Join(netDir, "attester-password")); err != nil || !st.Mode().IsRegular() || st.Mode().Perm() != 0o600 {
+		t.Fatalf("copy is not a fresh 0600 file: %v %v", st, err)
+	}
 }
 
 // A run that fails says why in last-error.txt, which status prints while nothing runs;

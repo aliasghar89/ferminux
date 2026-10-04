@@ -79,6 +79,10 @@ async function main() {
   check('chainVitals avg interval 7 s', vitals.avgInterval === 7, String(vitals.avgInterval));
   check('chainVitals hashrate = difficulty / interval', vitals.hashrate === 100, String(vitals.hashrate));
   check('chainVitals needs 3+ blocks', FMX.chainVitals(blocks.slice(0, 2)).avgInterval === null);
+  // a buffer with a hole (blocks 5, 6, then 10) still averages per block, not per header
+  const holed = blocks.slice(0, 2).concat([{ number: 10, timestamp: 35, difficulty: 700, txns: 0 }]);
+  check('chainVitals averages over the block-number span', FMX.chainVitals(holed).avgInterval === 7,
+    String(FMX.chainVitals(holed).avgInterval));
 
   // 6. Offline fallback: unreachable RPC must reject (renderOffline path)
   let offlineOk = false;
