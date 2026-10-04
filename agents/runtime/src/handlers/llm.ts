@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { extractText, type Handler } from "./util.js";
+import { extractText, redactSecrets, type Handler } from "./util.js";
 
 interface ChatMessage {
   role: string;
@@ -46,8 +46,10 @@ export const llmHandler: Handler = async (input) => {
       signal: controller.signal,
     });
     if (!res.ok) {
+      // The provider's body can echo the key, the account or the request. The message reaches a job's decline
+      // reason (and, before, /invoke callers), so the body travels as `detail`, redacted, for this agent's log only.
       const body = await res.text().catch(() => "");
-      throw new Error(`llm handler: upstream ${res.status}: ${body}`);
+      throw Object.assign(new Error(`llm handler: upstream ${res.status}`), { detail: redactSecrets(body).slice(0, 500) });
     }
     const json = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
@@ -112,7 +114,8 @@ async function runCli(cmd: string, input: unknown, systemPrompt?: string): Promi
     child.on("close", (code) => {
       clearTimeout(timer);
       const text = out.trim();
-      if (code !== 0 && !text) return reject(new Error(`cli handler: exit ${code}: ${err.trim().slice(0, 400)}`));
+      // stderr is the CLI's own account of the failure (login, quota, org): `detail`, like an upstream body above
+      if (code !== 0 && !text) return reject(Object.assign(new Error(`cli handler: exit ${code}`), { detail: redactSecrets(err.trim()).slice(0, 400) }));
       if (!text) return reject(new Error("cli handler: empty output"));
       resolve({ ok: true, output: text, model: process.env.LLM_MODEL || "cli", via: "subscription-cli" });
     });
