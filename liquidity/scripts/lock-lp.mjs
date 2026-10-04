@@ -101,9 +101,19 @@ if (!lockerAddr) {
 const locker = new ethers.Contract(lockerAddr, art.abi, signer);
 
 await sendStep("approve LP to locker", pair.connect(signer).approve(lockerAddr, amountRaw));
-const id = await locker.lock.staticCall(opts.pair, amountRaw, unlockAt);
-console.log(`  lock simulation OK — lock id will be ${id}`);
-await sendStep("lock", locker.lock(opts.pair, amountRaw, unlockAt));
+const simId = await locker.lock.staticCall(opts.pair, amountRaw, unlockAt);
+console.log(`  lock simulation OK — lock id should be ${simId}`);
+const lockRc = await sendStep("lock", locker.lock(opts.pair, amountRaw, unlockAt));
+// The id is taken from this transaction's own Locked event, not the
+// simulation: on a shared --locker anyone else's lock landing between the two
+// shifts the id, and the proof below would then describe a stranger's lock.
+const lockedLog = lockRc.logs
+  .filter((l) => l.address.toLowerCase() === lockerAddr.toLowerCase())
+  .map((l) => { try { return locker.interface.parseLog(l); } catch { return null; } })
+  .find((ev) => ev && ev.name === "Locked");
+if (!lockedLog) fail(`no Locked event from ${lockerAddr} in tx ${lockRc.hash}`);
+const id = lockedLog.args.id;
+if (id !== simId) console.log(`  note: another lock landed first — this lock's id is ${id}`);
 
 hr("LOCK PROOF — what a buyer verifies");
 const lk = await locker.getLock(id);
