@@ -39,7 +39,8 @@ test("says it is paused, warns against sending, and names the plan and the alter
 });
 
 test("every address on the page is one the bridge's own records name", () => {
-  const known = [repo("bridge/ui/src/config.ts"), repo("bridge/relayer/config/chains.json"), web("whitepaper/index.html")].join("\n").toLowerCase();
+  // Committed records only: relayer/config/chains.json is gitignored, so it is absent in CI and a clean clone.
+  const known = [repo("bridge/ui/src/config.ts"), repo("bridge/watcher/watcher.config.json"), web("whitepaper/index.html")].join("\n").toLowerCase();
   const addrs = new Set([...text.matchAll(/0x[0-9a-fA-F]{40}/g)].map((m) => m[0]).filter((a) => !/^0x0{40}$/.test(a)));
   assert.ok(addrs.size >= 5, `addresses: ${addrs.size}`);
   for (const a of addrs) assert.ok(known.includes(a.toLowerCase()), `${a} is not in the bridge records`);

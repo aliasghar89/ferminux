@@ -81,6 +81,11 @@ export function safeHref(u: unknown): string {
   const s = String(u ?? "").trim();
   return /^(https?:\/\/[^\s"'<>]+|\/(?!\/)[^\s"'<>]*)$/i.test(s) ? esc(s) : "#";
 }
+/** A free-text URI someone wrote on chain (dispute evidence): a link only when safeHref accepts it; anything else (fmx://, javascript:) is shown as text, never as an href. */
+export function uriHtml(u: unknown, attrs = ""): string {
+  const href = safeHref(u);
+  return href === "#" ? `<span ${attrs}>${esc(u)}</span>` : `<a ${attrs} href="${href}" rel="noopener nofollow">${esc(u)}</a>`;
+}
 export function starsHtml(avg: number | null | undefined, count?: number): string {
   if (avg === null || avg === undefined || !count) return `<span class="faint small">no ratings yet</span>`;
   const full = Math.round(avg);
