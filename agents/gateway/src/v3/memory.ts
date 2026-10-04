@@ -63,8 +63,10 @@ export function registerMemoryRoutes(app: FastifyInstance, ctx: V3Context, fac: 
     }
   }
 
+  // `raw` is the router's already-decoded :key. Decoding it again threw URIError (a 500) on a bare "%" and
+  // let "%2541" address the key "A"; the pattern below admits no "%", so the decoded value is checked as is.
   function checkKey(raw: string): string {
-    const key = decodeURIComponent(raw);
+    const key = raw;
     if (!MEMORY_KEY_RE.test(key)) throw new HttpError(400, "key must be 1–128 chars: letters, digits, . _ : -");
     return key;
   }

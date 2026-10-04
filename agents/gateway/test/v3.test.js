@@ -286,6 +286,24 @@ test("memory: put/get/list/delete, limits, over-quota 402 paid with a voucher", 
   assert.equal((await inject("DELETE", "/api/memory/notes", undefined, await headers(alice, "memory.delete"))).statusCode, 404);
 });
 
+// The router already percent-decodes :key; decoding it a second time threw URIError (500) on a key with a bare
+// "%", and turned "/api/memory/%2541" into the key "A".
+test("memory: a key carrying % is a 400, never a 500 or a second decode", async (t) => {
+  const { app, db, clock, signed, headers, inject } = await setup();
+  t.after(() => app.close());
+  db.prepare("INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, 'A', '1', 1, 1, 1)").run(alice.address);
+  for (const path of ["/api/memory/a%25zz", "/api/memory/%25", "/api/memory/%2541"]) {
+    const got = await inject("GET", path, undefined, await headers(alice, "memory.get"));
+    assert.equal(got.statusCode, 400, `${path}: ${got.body}`);
+  }
+  const put = await inject("PUT", "/api/memory/a%25zz", await signed(alice, "memory.put", { value: 1 }));
+  assert.equal(put.statusCode, 400, put.body);
+  clock.advance(1100);
+  const del = await inject("DELETE", "/api/memory/%25E0", undefined, await headers(alice, "memory.delete"));
+  assert.equal(del.statusCode, 400, del.body);
+  assert.equal((await inject("GET", "/api/memory/A", undefined, await headers(alice, "memory.get"))).statusCode, 200);
+});
+
 test("memory: a paid over-quota write the flood limit refuses keeps neither the payment nor the credit", async (t) => {
   const { app, db, clock, signed, inject, voucher } = await setup();
   t.after(() => app.close());
