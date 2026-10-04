@@ -1,7 +1,7 @@
 # Ferminux Explorer — Blockscout
 
 Blockscout block explorer for **Ferminux Network** (ChainID **3961**, coin **FMX**,
-Clique proof-of-authority with five bonded signers, ~7 s blocks, EIP-1559 from
+blocks confirmed by a set of authorised signers under Clique, ~7 s blocks, EIP-1559 from
 genesis).
 
 Every image tag is pinned and was verified **multi-arch (linux/amd64 + linux/arm64)**
@@ -346,7 +346,7 @@ database, not in the verifier.
 | `FMX_RPC_HTTP` | `http://host.docker.internal:8545` | JSON-RPC HTTP URL (from inside containers) |
 | `FMX_RPC_WS` | `ws://host.docker.internal:8546` | JSON-RPC WebSocket URL (realtime blocks) |
 | `FMX_EXPLORER_PORT` | `4000` | Host port of the nginx entrypoint |
-| `FMX_EXPLORER_DB_PORT` | `7432` | Host port of postgres (debug; firewall in prod) |
+| `FMX_EXPLORER_DB_PORT` | `127.0.0.1:7432` | Host address:port of postgres (debug access, loopback only) |
 | `FMX_EXPLORER_HOST` | `localhost` | Public hostname the browser uses |
 | `FMX_EXPLORER_PUBLIC_PORT` | `4000` | Public port (443 behind TLS) |
 | `FMX_EXPLORER_PROTO` | `http` | `http` or `https` |

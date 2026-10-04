@@ -211,6 +211,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The ABI check reads agents/contracts/out, which is not committed: build
+      # it here (forge-std through contracts/lib, as in the contracts job).
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Build agents/contracts
+        working-directory: .
+        run: |
+          git clone --quiet --depth 1 --branch "$FORGE_STD_VERSION" \
+            https://github.com/foundry-rs/forge-std.git contracts/lib/forge-std
+          rm -rf contracts/lib/forge-std/.git
+          cd agents/contracts && forge build
+
       # the validators pages' ABI fragments and constants against
       # agents/contracts/src/validators
       - name: Validators ABI in sync

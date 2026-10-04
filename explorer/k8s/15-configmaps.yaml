@@ -124,11 +124,11 @@ data:
       "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "coinbase": "0x0000000000000000000000000000000000000000",
       "alloc": {
-        "0x1000000000000000000000000000000000000001": { "balance": "12000000000000000000000000" },
-        "0x1000000000000000000000000000000000000002": { "balance": "6000000000000000000000000" },
-        "0x1000000000000000000000000000000000000003": { "balance": "5000000000000000000000000" },
-        "0x1000000000000000000000000000000000000004": { "balance": "4000000000000000000000000" },
-        "0x1000000000000000000000000000000000000005": { "balance": "3000000000000000000000000" }
+        "0xc0A5Eb613f859f072554F29f1Ab7400265af15aB": { "balance": "12000000000000000000000000" },
+        "0xEeDd7368290a17aB2Aa3F298Ff24BB99D581E787": { "balance": "6000000000000000000000000" },
+        "0x86e286684Ae5899A941142D143949C444F9Fe831": { "balance": "5000000000000000000000000" },
+        "0x040F1E90EF72b364141D91c3C0314ac3b5eCD0AE": { "balance": "4000000000000000000000000" },
+        "0x34f5366014EF292fd5ff9FFDE81d47819EF65cFC": { "balance": "3000000000000000000000000" }
       }
     }
 ---
@@ -140,34 +140,365 @@ metadata:
   labels:
     app.kubernetes.io/part-of: ferminux-explorer
 data:
+  # Generated from explorer/seeder/*: keep identical (the rewards sidecar in
+  # docker-compose.yml mounts those files directly).
   emission-ranges.sql: |
-    -- Ferminux emission schedule -> Blockscout emission_rewards (idempotent).
-    -- subsidy(block) = 6 FMX >> era, era = block / 4,500,000 (chain/consensus/powhash/ferminux.go)
-    INSERT INTO emission_rewards (block_range, reward)
+    -- Ferminux emission schedule -> Blockscout emission_rewards table.
+    --
+    -- MUST mirror chain/consensus/powhash/ferminux.go:FerminuxBlockReward exactly:
+    --
+    --     if block <  20,000                -> 6 FMX          (launch rate)
+    --     else  era = block / 4,500,000
+    --           reward = 1 FMX >> era       (base rate, halving each era)
+    --           era >= 60 -> 0              (1e18 >> 60 == 0)
+    --
+    -- and, from the authority fork at block 160,000, the engine in
+    -- chain/consensus/posa quarters that reward and splits it 40/50/10 between the
+    -- sealing signer, the reward sink and the treasury. What this table holds is
+    -- the MINER'S share, because that is what Blockscout attributes to the block's
+    -- miner; the sink and treasury appear separately as 'emission_funds'.
+    --
+    -- The earlier version of this file predated the emission fork and encoded the
+    -- pre-fork schedule (6 FMX >> era from genesis). That made the explorer report
+    -- 6 FMX for every block after 20,000 while the chain was actually paying 1 —
+    -- a six-fold public overstatement of emission, on the page people would use to
+    -- check supply. Blockscout derives miner rewards purely from this table for a
+    -- geth-variant PoW chain, so a wrong row here is not cosmetic: it is the number.
+    --
+    -- Ranges must partition [0, ∞) with no gap and no overlap, so era 0 is split at
+    -- the fork block rather than starting at zero.
+    --
+    -- Idempotent AND self-correcting: unlike the previous version, this replaces the
+    -- contents rather than skipping when rows already exist. A schedule that can
+    -- only ever be written once cannot be fixed after a fork.
+
+    BEGIN;
+
+    -- Only rewrite when the table does not already match, so the 20s seeder loop is
+    -- not churning the table on every pass.
+    CREATE TEMP TABLE want_emission (block_range int8range, reward numeric) ON COMMIT DROP;
+
+    -- Launch rate, genesis up to the emission fork.
+    INSERT INTO want_emission VALUES (int8range(0, 20000), 6000000000000000000::numeric);
+
+    -- Era 0 begins at the emission fork rather than at genesis, so the first
+    -- base-rate range is the remainder of era 0, split again at the AUTHORITY fork.
+    INSERT INTO want_emission VALUES (int8range(20000, 160000), 1000000000000000000::numeric);
+
+    -- From the authority fork (PosaBlock 160,000) the reward is the proof-of-work
+    -- schedule divided by four and then split three ways by the engine
+    -- (consensus/posa: 50% reward sink, 10% treasury, the remainder to the signer).
+    -- This table drives what the explorer shows as the reward for the block's
+    -- miner, and the block's miner is the signer, so the value here is the SIGNER'S
+    -- share: 1 FMX / 4 = 0.25, minus 50% and 10%, = 0.1 FMX. The other 0.15 is
+    -- written as an 'emission_funds' row by seed-rewards.sql, which is exactly the
+    -- distinction Blockscout's two reward types exist to express.
+    INSERT INTO want_emission VALUES (int8range(160000, 4500000), 100000000000000000::numeric);
+
+    -- Eras 1..59. div() floors, which reproduces the Go right-shift exactly.
+    -- Era 59 still pays 1 wei; era 60 floors to 0, which is why the tail starts there.
+    -- Eras 1..59 are entirely inside the authority era, so each carries the
+    -- signer's share of the quartered subsidy.
+    --
+    -- Computed as the REMAINDER after the sink and treasury take their cuts, not as
+    -- a flat 40%. The engine (consensus/posa SplitReward) does
+    --     signer = total - (total*50/100) - (total*10/100)
+    -- with integer division, so the truncation remainder lands with the signer. A
+    -- flat 40% throws that remainder away and understates the signer by 1-2 wei
+    -- from era 16 onward — the two forms agree for the first sixteen eras, which is
+    -- exactly why the discrepancy would never have shown up in testing and would
+    -- have quietly appeared around year sixteen. Match the engine, not the
+    -- description of the engine.
+    INSERT INTO want_emission
     SELECT int8range(era * 4500000, (era + 1) * 4500000),
-           div(6000000000000000000::numeric, (2::numeric ^ era))
-    FROM generate_series(0, 62) AS era
-    WHERE NOT EXISTS (SELECT 1 FROM emission_rewards);
+           t - div(t * 50, 100) - div(t * 10, 100)
+    FROM (SELECT era, div(div(1000000000000000000::numeric, (2::numeric ^ era)), 4) AS t
+            FROM generate_series(1, 59) AS era) q;
+
+    -- Fully decayed from era 60 (block 270,000,000) onward.
+    INSERT INTO want_emission VALUES (int8range(270000000, NULL), 0::numeric);
+
+    -- Replace only if different, so the loop is a no-op once correct.
+    DELETE FROM emission_rewards
+    WHERE NOT EXISTS (
+      SELECT 1 FROM want_emission w
+      WHERE w.block_range = emission_rewards.block_range AND w.reward = emission_rewards.reward
+    );
+
     INSERT INTO emission_rewards (block_range, reward)
-    SELECT int8range(283500000, NULL), 0
-    WHERE NOT EXISTS (SELECT 1 FROM emission_rewards WHERE block_range = int8range(283500000, NULL));
+    SELECT w.block_range, w.reward FROM want_emission w
+    WHERE NOT EXISTS (
+      SELECT 1 FROM emission_rewards e
+      WHERE e.block_range = w.block_range AND e.reward = w.reward
+    );
+
+    COMMIT;
   seed-rewards.sql: |
-    -- Miner reward per indexed block: subsidy + tip fees. geth variant cannot
-    -- fetch beneficiaries over RPC, so this fills block_rewards for the UI/API.
+    -- Per-block rewards for Blockscout, which cannot derive them over RPC for a
+    -- geth-variant chain.
+    --
+    --   validator      = protocol subsidy paid to the block's miner + priority fees
+    --   emission_funds = the shares the protocol pays to contracts, not to a miner
+    --
+    -- The subsidy MUST mirror the chain:
+    --   chain/consensus/powhash/ferminux.go:FerminuxBlockReward
+    --       block <  20,000  -> 6 FMX                      (launch rate)
+    --       block >= 20,000  -> 1 FMX >> (block / 4,500,000)
+    --   chain/consensus/posa (from PosaBlock = 160,000)
+    --       total    = that reward / 4                     (approved emission cut)
+    --       sink     = 50% of total   -> FMXRewardSink contract
+    --       treasury = 10% of total   -> treasury
+    --       signer   = the remainder (40% plus the integer-division remainder)
+    --   tips = sum(gas_used * gas_price) - base_fee * gas_used, floored at 0.
+    --   Transaction fees follow Engine.Author, which for an authority header is the
+    --   ECRECOVERED signer (core/evm.go beneficiary), so tips stay with the miner
+    --   row after the fork exactly as before it.
+    --
+    -- Uncle rewards are not modelled (uncles are effectively absent at ~7s blocks,
+    -- and the authority era has none at all).
+    --
+    -- THREE BUGS THIS FILE HAS HAD, named so they are not reintroduced:
+    --
+    --   1. The subsidy was hardcoded to 6 FMX with the pre-fork halving curve, so
+    --      every block after the emission fork was reported at six times what the
+    --      chain actually paid. On this chain the table IS the number the explorer
+    --      shows, so it was a six-fold public overstatement of emission on the page
+    --      people use to check supply.
+    --
+    --   2. It only ever INSERTed rows that did not exist, so once a wrong reward was
+    --      written no amount of re-running could fix it. A seeder that can only
+    --      write once cannot survive a consensus change, and this chain has had two.
+    --
+    --   3. The subsidy expression was duplicated between the insert and the repair,
+    --      which is how (1) survived a partial fix. It is now a single IMMUTABLE
+    --      function that both statements call, so they cannot disagree again.
+
+    BEGIN;
+
+    -- Single source of truth for the schedule. IMMUTABLE: same block, same answer,
+    -- always — the planner may cache it freely.
+    -- NOTE the div(): the era is a FLOOR of num/4,500,000, and `(num / 4500000)::int`
+    -- does not compute it. Numeric division keeps the fraction and the cast to int
+    -- ROUNDS, so block 4,499,999 would land in era 1 and be paid half its due, and
+    -- every block from 2,250,000 onward would be understated. The previous version
+    -- of this file was accidentally safe because it divided two bigints, where SQL
+    -- floors; introducing a numeric parameter silently changed the arithmetic. The
+    -- boundary test in the deploy caught it. div() truncates, which for a positive
+    -- block number is the floor the Go code performs.
+    CREATE OR REPLACE FUNCTION ferminux_subsidy_total(num numeric) RETURNS numeric AS $$
+      SELECT CASE
+        WHEN num < 20000 THEN 6000000000000000000::numeric
+        WHEN num < 160000 THEN div(1000000000000000000::numeric, (2::numeric ^ LEAST(div(num, 4500000)::int, 63)))
+        ELSE div(div(1000000000000000000::numeric, (2::numeric ^ LEAST(div(num, 4500000)::int, 63))), 4)
+      END;
+    $$ LANGUAGE sql IMMUTABLE;
+
+    -- The signer's share: the whole subsidy before the authority fork, and after it
+    -- the remainder once the sink and treasury shares are taken — computed by
+    -- subtraction, like the engine, so the integer-division remainder lands in the
+    -- same place the chain puts it.
+    CREATE OR REPLACE FUNCTION ferminux_share_miner(num numeric) RETURNS numeric AS $$
+      SELECT CASE WHEN num < 160000 THEN ferminux_subsidy_total(num)
+                  ELSE ferminux_subsidy_total(num)
+                       - div(ferminux_subsidy_total(num) * 50, 100)
+                       - div(ferminux_subsidy_total(num) * 10, 100)
+             END;
+    $$ LANGUAGE sql IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION ferminux_share_sink(num numeric) RETURNS numeric AS $$
+      SELECT CASE WHEN num < 160000 THEN 0::numeric
+                  ELSE div(ferminux_subsidy_total(num) * 50, 100) END;
+    $$ LANGUAGE sql IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION ferminux_share_treasury(num numeric) RETURNS numeric AS $$
+      SELECT CASE WHEN num < 160000 THEN 0::numeric
+                  ELSE div(ferminux_subsidy_total(num) * 10, 100) END;
+    $$ LANGUAGE sql IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION ferminux_tips(block_hash_in bytea) RETURNS numeric AS $$
+      SELECT GREATEST(
+        COALESCE((SELECT SUM(COALESCE(t.gas_used, 0) * COALESCE(t.gas_price, 0))
+                    FROM transactions t WHERE t.block_hash = block_hash_in), 0)
+        - COALESCE((SELECT COALESCE(b.base_fee_per_gas, 0) * COALESCE(b.gas_used, 0)
+                      FROM blocks b WHERE b.hash = block_hash_in), 0),
+        0);
+    $$ LANGUAGE sql STABLE;
+
+    -- ---------------------------------------------------------------- validator
     INSERT INTO block_rewards (address_hash, block_hash, address_type, reward, inserted_at, updated_at)
-    SELECT b.miner_hash,
-           b.hash,
-           'validator',
-           div(6000000000000000000::numeric, (2::numeric ^ LEAST((b.number / 4500000)::int, 63)))
-           + GREATEST(
-               COALESCE((SELECT SUM(COALESCE(t.gas_used, 0) * COALESCE(t.gas_price, 0))
-                           FROM transactions t
-                          WHERE t.block_hash = b.hash), 0)
-               - COALESCE(b.base_fee_per_gas, 0) * COALESCE(b.gas_used, 0),
-               0),
-           NOW(),
-           NOW()
+    SELECT b.miner_hash, b.hash, 'validator',
+           ferminux_share_miner(b.number::numeric) + ferminux_tips(b.hash),
+           NOW(), NOW()
     FROM blocks b
     WHERE b.consensus
-      AND NOT EXISTS (SELECT 1 FROM block_rewards r WHERE r.block_hash = b.hash)
+      AND NOT EXISTS (SELECT 1 FROM block_rewards r WHERE r.block_hash = b.hash AND r.address_type = 'validator')
     ON CONFLICT DO NOTHING;
+
+    UPDATE block_rewards r
+    SET reward = ferminux_share_miner(b.number::numeric) + ferminux_tips(b.hash), updated_at = NOW()
+    FROM blocks b
+    WHERE r.block_hash = b.hash AND b.consensus AND r.address_type = 'validator'
+      AND r.reward IS DISTINCT FROM ferminux_share_miner(b.number::numeric) + ferminux_tips(b.hash);
+
+    -- ----------------------------------------------------------- emission funds
+    -- From the authority fork the protocol pays 50% to the reward-sink contract and
+    -- 10% to the treasury. These are real emission and belong on the block, but not
+    -- to its miner; Blockscout's second reward type is precisely for this.
+    -- Before the fork these produce no rows at all, so this section is inert until
+    -- block 160,000 — which is the point of shipping it early.
+    INSERT INTO block_rewards (address_hash, block_hash, address_type, reward, inserted_at, updated_at)
+    SELECT decode('691E5275BF346FfFa0B30174dDBeDfCC078dd8D6', 'hex'), b.hash, 'emission_funds',
+           ferminux_share_sink(b.number::numeric), NOW(), NOW()
+    FROM blocks b
+    WHERE b.consensus AND b.number >= 160000
+      AND NOT EXISTS (SELECT 1 FROM block_rewards r
+                       WHERE r.block_hash = b.hash AND r.address_type = 'emission_funds'
+                         AND r.address_hash = decode('691E5275BF346FfFa0B30174dDBeDfCC078dd8D6', 'hex'))
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO block_rewards (address_hash, block_hash, address_type, reward, inserted_at, updated_at)
+    SELECT decode('c0A5Eb613f859f072554F29f1Ab7400265af15aB', 'hex'), b.hash, 'emission_funds',
+           ferminux_share_treasury(b.number::numeric), NOW(), NOW()
+    FROM blocks b
+    WHERE b.consensus AND b.number >= 160000
+      AND NOT EXISTS (SELECT 1 FROM block_rewards r
+                       WHERE r.block_hash = b.hash AND r.address_type = 'emission_funds'
+                         AND r.address_hash = decode('c0A5Eb613f859f072554F29f1Ab7400265af15aB', 'hex'))
+    ON CONFLICT DO NOTHING;
+
+    UPDATE block_rewards r
+    SET reward = ferminux_share_sink(b.number::numeric), updated_at = NOW()
+    FROM blocks b
+    WHERE r.block_hash = b.hash AND b.consensus AND r.address_type = 'emission_funds'
+      AND r.address_hash = decode('691E5275BF346FfFa0B30174dDBeDfCC078dd8D6', 'hex')
+      AND r.reward IS DISTINCT FROM ferminux_share_sink(b.number::numeric);
+
+    UPDATE block_rewards r
+    SET reward = ferminux_share_treasury(b.number::numeric), updated_at = NOW()
+    FROM blocks b
+    WHERE r.block_hash = b.hash AND b.consensus AND r.address_type = 'emission_funds'
+      AND r.address_hash = decode('c0A5Eb613f859f072554F29f1Ab7400265af15aB', 'hex')
+      AND r.reward IS DISTINCT FROM ferminux_share_treasury(b.number::numeric);
+
+    -- A pre-fork block has no emission-funds share. If one is ever written (a bad
+    -- backfill, a rolled-back fork block), remove it rather than leave emission
+    -- credited that the chain never paid.
+    DELETE FROM block_rewards r
+    USING blocks b
+    WHERE r.block_hash = b.hash AND r.address_type = 'emission_funds' AND b.number < 160000;
+
+    COMMIT;
+  seed-signers.sh: |
+    #!/bin/sh
+    # Attribute authority blocks to the signer that actually sealed them.
+    #
+    # THE PROBLEM, which only appears at the fork and would appear on every block:
+    # Clique's Prepare sets header.Coinbase to the zero address (it repurposes that
+    # field for signer votes), and geth's RPC marshals "miner" straight from
+    # header.Coinbase. Blockscout believes it. So from PosaBlock onward the explorer
+    # would show EVERY block mined by 0x0000…0000, with the reward paid there, while
+    # the chain credits the ecrecovered signer — and during a signer vote it would
+    # name the vote's subject as the miner, which is worse than a blank.
+    #
+    # The chain is right and the explorer is wrong, so this repairs the explorer:
+    # for each post-fork block whose signer has not been confirmed yet, ask the
+    # node who sealed it (clique_getSigner recovers it from the header seal — the
+    # same source the consensus rules use) and rewrite blocks.miner_hash, carrying
+    # the reward row with it.
+    #
+    # A vote block's coinbase is the vote's SUBJECT, not zero, so "still credited
+    # to 0x0" cannot find it. Every post-fork block is therefore checked once, and
+    # the answer is recorded in ferminux_block_signers (block hash -> signer). A
+    # block is checked again whenever its miner_hash no longer equals the recorded
+    # signer, which also repairs a block the indexer has re-imported.
+    #
+    # Runs every pass and is a no-op before the fork: no block below PosaBlock
+    # matches, so this file changes nothing until the day it is needed. That is
+    # deliberate — it is deployed early precisely so fork day is not the first time
+    # it runs.
+    #
+    # Uses wget and psql only: the sidecar is a postgres:alpine image with no curl
+    # and no jq, and adding a dependency to the explorer for this would be silly.
+    set -u
+
+    RPC="${FMX_RPC:-http://miner:8545}"
+    FORK="${FMX_POSA_BLOCK:-160000}"
+    BATCH="${FMX_SIGNER_BATCH:-500}"
+
+    psql -q -v ON_ERROR_STOP=1 -c "
+      CREATE TABLE IF NOT EXISTS ferminux_block_signers (
+        block_hash bytea PRIMARY KEY,
+        signer     bytea NOT NULL
+      );" >/dev/null 2>&1 || exit 0
+
+    # Post-fork blocks whose miner is not the confirmed signer (never checked, or
+    # changed since). Ordered oldest first so a long backlog converges from the
+    # fork forward rather than in random order.
+    rows=$(psql -tAF'|' -c "
+      SELECT b.number, '0x' || encode(b.hash, 'hex')
+      FROM blocks b
+      WHERE b.consensus AND b.number >= ${FORK}
+        AND NOT EXISTS (SELECT 1 FROM ferminux_block_signers s
+                         WHERE s.block_hash = b.hash AND s.signer = b.miner_hash)
+      ORDER BY b.number
+      LIMIT ${BATCH};" 2>/dev/null) || exit 0
+    [ -n "$rows" ] || exit 0
+
+    echo "$rows" | while IFS='|' read -r number hash; do
+      [ -n "$hash" ] || continue
+      signer=$(wget -qO- --timeout=8 \
+        --header='Content-Type: application/json' \
+        --post-data="{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"clique_getSigner\",\"params\":[\"${hash}\"]}" \
+        "$RPC" 2>/dev/null | sed -n 's/.*"result":"0x\([0-9a-fA-F]\{40\}\)".*/\1/p')
+      # No signer means the node could not recover one. Leave the row alone: a wrong
+      # attribution is worse than a missing one, and the next pass will retry.
+      [ -n "$signer" ] || { echo "seed-signers: block ${number}: no signer from ${RPC}"; continue; }
+      h=${hash#0x}
+
+      psql -q -v ON_ERROR_STOP=1 <<SQL 2>/dev/null || { echo "seed-signers: block ${number}: update failed"; continue; }
+    BEGIN;
+    -- blocks.miner_hash references addresses.hash, so the signer must exist there
+    -- first. Blockscout fills the rest of the row on its own once it indexes the
+    -- address; all that matters here is that the foreign key resolves.
+    INSERT INTO addresses (hash, inserted_at, updated_at)
+    VALUES (decode('${signer}', 'hex'), NOW(), NOW())
+    ON CONFLICT (hash) DO NOTHING;
+
+    UPDATE blocks
+       SET miner_hash = decode('${signer}', 'hex'), updated_at = NOW()
+     WHERE hash = decode('${h}', 'hex') AND consensus
+       AND miner_hash IS DISTINCT FROM decode('${signer}', 'hex');
+
+    -- Carry the reward row to the same address. The PRIMARY KEY is
+    -- (address_hash, block_hash, address_type), so this is an update of the key
+    -- itself; if a row for the correct address somehow already exists, keep it and
+    -- drop the stale one (zero address or vote subject) rather than failing.
+    UPDATE block_rewards r
+       SET address_hash = decode('${signer}', 'hex'), updated_at = NOW()
+     WHERE r.block_hash = decode('${h}', 'hex')
+       AND r.address_type = 'validator'
+       AND r.address_hash <> decode('${signer}', 'hex')
+       AND NOT EXISTS (
+         SELECT 1 FROM block_rewards r2
+          WHERE r2.block_hash = r.block_hash AND r2.address_type = r.address_type
+            AND r2.address_hash = decode('${signer}', 'hex'));
+
+    DELETE FROM block_rewards r
+     WHERE r.block_hash = decode('${h}', 'hex')
+       AND r.address_type = 'validator'
+       AND r.address_hash <> decode('${signer}', 'hex');
+
+    INSERT INTO ferminux_block_signers (block_hash, signer)
+    VALUES (decode('${h}', 'hex'), decode('${signer}', 'hex'))
+    ON CONFLICT (block_hash) DO UPDATE SET signer = EXCLUDED.signer;
+    COMMIT;
+    SQL
+    done
+
+    # The loop runs in a subshell (pipe), so report from a fresh count.
+    remaining=$(psql -tAc "
+      SELECT count(*) FROM blocks b
+       WHERE b.consensus AND b.number >= ${FORK}
+         AND NOT EXISTS (SELECT 1 FROM ferminux_block_signers s
+                          WHERE s.block_hash = b.hash AND s.signer = b.miner_hash);" 2>/dev/null)
+    [ "${remaining:-0}" = "0" ] || echo "seed-signers: ${remaining} authority block(s) not yet attributed to their signer"
