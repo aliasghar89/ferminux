@@ -348,7 +348,12 @@ contract NodeRegistry {
         require(!e.finalized, "NR: epoch already finalized");
         require(block.timestamp >= uint256(e.postedAt) + DISPUTE_WINDOW, "NR: dispute window open");
         e.finalized = true;
-        if (epoch > latestFinalizedEpoch || !hasFinalizedEpoch) {
+        // Two posted epochs can both be past their window, and anyone may
+        // finalize them in either order. An epoch older than one already
+        // finalized still enters the qualification record, but must not
+        // overwrite the newer epoch's boost or last score with stale data.
+        bool newest = !hasFinalizedEpoch || epoch > latestFinalizedEpoch;
+        if (newest) {
             latestFinalizedEpoch = epoch;
             hasFinalizedEpoch = true;
         }
@@ -360,10 +365,12 @@ contract NodeRegistry {
             if (!n.active) continue; // deregistered since posting
             uint16 score = scores[i];
             nodeScore[ids[i]][epoch] = score;
-            n.lastUptimeBps = score;
             if (score > 0 && epochEnd > n.lastSeen) n.lastSeen = epochEnd;
             bool boosted = score >= BOOST_THRESHOLD_BPS;
-            staking.setBoost(n.positionId, boosted);
+            if (newest) {
+                n.lastUptimeBps = score;
+                staking.setBoost(n.positionId, boosted);
+            }
             emit NodeAttested(ids[i], epoch, score, boosted);
         }
         emit EpochFinalized(epoch, ids.length);

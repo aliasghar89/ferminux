@@ -338,6 +338,30 @@ contract NodeRegistryTest is StakingTestBase {
         assertEq(staking.totalUnits(), MIN_VAL * 20);
     }
 
+    /// Finalization is permissionless and two posted epochs can both be past
+    /// their dispute window. Finalizing the older one last must not overwrite
+    /// the boost and last score the newer one set.
+    function test_FinalizeOutOfOrderKeepsNewestBoost() public {
+        (uint256 nodeId, uint256 pos) = _oneNode();
+        uint256 older = registry.currentEpoch() - 1;
+        postEpochFor(older, nodeId, 10_000);
+        skip(EPOCH);
+        uint256 newer = registry.currentEpoch() - 1;
+        postEpochFor(newer, nodeId, 0);
+        skip(DISPUTE);
+
+        registry.finalizeEpoch(newer);
+        assertFalse(staking.getPosition(pos).boosted);
+        registry.finalizeEpoch(older);
+
+        assertFalse(staking.getPosition(pos).boosted, "a stale epoch re-applied its boost");
+        assertEq(staking.totalUnits(), MIN_VAL * 20);
+        assertEq(registry.getNode(nodeId).lastUptimeBps, 0, "a stale epoch overwrote the last score");
+        assertEq(registry.latestFinalizedEpoch(), newer);
+        // The older score still counts towards the qualification record.
+        assertEq(registry.nodeScore(nodeId, older), 10_000);
+    }
+
     function test_FinalizeSkipsDeregisteredNode() public {
         (uint256 nodeId, uint256 pos) = _oneNode();
         uint256 epoch = registry.currentEpoch() - 1;
