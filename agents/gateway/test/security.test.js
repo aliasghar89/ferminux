@@ -7,6 +7,11 @@
 process.env.ALLOW_PRIVATE_FETCH = "1";
 import test from "node:test";
 import assert from "node:assert/strict";
+import dns from "node:dns";
+import dnsPromises from "node:dns/promises";
+import { createServer } from "node:http";
+import { syncBuiltinESMExports } from "node:module";
+import { gzipSync } from "node:zlib";
 import { Wallet, keccak256, toUtf8Bytes } from "ethers";
 import { buildServer } from "../dist/server.js";
 import { openMemoryDb } from "../dist/db.js";
@@ -123,6 +128,77 @@ test("net: safeFetch follows ≤ 3 redirects, never into private space, and drop
   } finally {
     if (prev !== undefined) process.env.ALLOW_PRIVATE_FETCH = prev;
   }
+});
+
+// assertPublicUrl resolved the name, then fetch() resolved it again to connect: a DNS answer that flips between the
+// two (rebinding) passed the check with a public address and connected to a private one.
+test("net: safeFetch connects to the address it checked, never to a second resolution (DNS rebinding)", async (t) => {
+  const seen = [];
+  const server = createServer((req, res) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      seen.push({ host: req.headers.host, url: req.url });
+      if (req.url === "/hop") {
+        res.writeHead(302, { location: `http://second.rebind.test:${port}/end` });
+        return res.end();
+      }
+      if (req.url === "/echo") {
+        res.writeHead(200, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ body: Buffer.concat(chunks).toString(), xa: req.headers["x-a"], method: req.method }));
+      }
+      if (req.url === "/gz") {
+        res.writeHead(200, { "content-type": "text/plain", "content-encoding": "gzip" });
+        return res.end(gzipSync("unzipped"));
+      }
+      res.writeHead(200, { "content-type": "text/plain" });
+      res.end(`reached ${req.headers.host}`);
+    });
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const port = server.address().port;
+  t.after(() => server.close());
+  // a rebinding resolver: the check's lookup answers 127.0.0.1 (where the server listens); a lookup made to connect
+  // answers 127.0.0.2, where nothing does
+  const lookups = [];
+  const realPromise = dnsPromises.lookup;
+  const realCb = dns.lookup;
+  dnsPromises.lookup = async (host, opts) => {
+    if (!String(host).endsWith(".rebind.test")) return realPromise(host, opts);
+    lookups.push(host);
+    return [{ address: "127.0.0.1", family: 4 }];
+  };
+  dns.lookup = (host, opts, cb) => {
+    if (!String(host).endsWith(".rebind.test")) return realCb(host, opts, cb);
+    lookups.push(`connect:${host}`);
+    const done = typeof opts === "function" ? opts : cb;
+    return opts && typeof opts === "object" && opts.all ? done(null, [{ address: "127.0.0.2", family: 4 }]) : done(null, "127.0.0.2", 4);
+  };
+  syncBuiltinESMExports();
+  t.after(() => {
+    dnsPromises.lookup = realPromise;
+    dns.lookup = realCb;
+    syncBuiltinESMExports();
+  });
+
+  // ALLOW_PRIVATE_FETCH=1 in this file, so 127.0.0.1 passes the check: what matters is where the socket goes
+  const res = await safeFetch(`http://first.rebind.test:${port}/hop`, { timeoutMs: 3000 });
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), `reached second.rebind.test:${port}`, "the redirect hop is resolved, checked and pinned too");
+  assert.deepEqual(seen.map((s) => s.host), [`first.rebind.test:${port}`, `second.rebind.test:${port}`], "Host stays the name");
+  assert.deepEqual(lookups, ["first.rebind.test", "second.rebind.test"], "one resolution per hop, none at connect time");
+  const echo = await (await safeFetch(`http://first.rebind.test:${port}/echo`, { method: "POST", body: "payload", headers: { "x-a": "1" }, timeoutMs: 3000 })).json();
+  assert.deepEqual(echo, { body: "payload", xa: "1", method: "POST" });
+  assert.equal(await (await safeFetch(`http://first.rebind.test:${port}/gz`, { timeoutMs: 3000 })).text(), "unzipped");
+
+  // without the dev escape hatch, a private answer is refused before any connection
+  delete process.env.ALLOW_PRIVATE_FETCH;
+  try {
+    await assert.rejects(safeFetch(`http://first.rebind.test:${port}/x`), (e) => e.code === "private_url");
+  } finally {
+    process.env.ALLOW_PRIVATE_FETCH = "1";
+  }
+  assert.equal(seen.filter((s) => s.url === "/x").length, 0);
 });
 
 test("net: readCapped stops reading past the cap", async () => {
