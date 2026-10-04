@@ -334,3 +334,22 @@ test("payload store never serves active content from the gateway origin", async 
   assert.match(got.headers["content-security-policy"], /sandbox/);
   assert.equal(got.body, "<script>alert(1)</script>");
 });
+
+test("v3 indexer: agent-token wei counters stay exact past 2^63 wei (≈ 9.22 FMX)", () => {
+  const db = openMemoryDb();
+  const activity = new ActivityBus(db, () => 1_758_400_000_000);
+  const webhooks = new WebhookBus(db, () => 1_758_400_000_000, async () => new Response("ok"));
+  const deps = { db, activity, webhooks };
+  const token = "0x00000000000000000000000000000000000070C0";
+  const ev = (name, args, logIndex) => ({ key: "tokenFactory", parsed: { name }, args, blockNumber: 30, txHash: "0x" + "ef".repeat(32), logIndex, ts: 1_758_400_000 });
+  applyV3Event(deps, ev("Launched", { token, agentId: "7", symbol: "SCRB" }, 0));
+  const six = "6000000000000000000"; // 6 FMX
+  for (let i = 1; i <= 3; i++) {
+    applyV3Event(deps, ev("Bought", { token, fmxIn: six }, i));
+    applyV3Event(deps, ev("Sold", { token, fmxOut: six }, 10 + i));
+    applyV3Event(deps, ev("Distributed", { token, amount: six }, 20 + i));
+  }
+  applyV3Event(deps, ev("Bought", { token, fmxIn: six }, 3)); // replayed log
+  const row = db.prepare("SELECT buys, sells, fmxIn, fmxOut, distributed FROM agent_tokens WHERE lower(token) = lower(?)").get(token);
+  assert.deepEqual({ ...row }, { buys: 3, sells: 3, fmxIn: "18000000000000000000", fmxOut: "18000000000000000000", distributed: "18000000000000000000" });
+});
