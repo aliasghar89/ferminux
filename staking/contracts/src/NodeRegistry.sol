@@ -142,6 +142,9 @@ contract NodeRegistry {
     mapping(uint256 => uint16[]) internal _epochScores;
     /// @notice nodeId => epoch => attested uptime (bps), set at finalization.
     mapping(uint256 => mapping(uint256 => uint16)) public nodeScore;
+    /// @notice nodeId => latest finalized epoch whose score set the node's
+    ///         boost and lastUptimeBps, PLUS ONE (0 = none yet).
+    mapping(uint256 => uint256) internal _appliedEpochPlus1;
 
     uint256 public latestFinalizedEpoch;
     bool public hasFinalizedEpoch;
@@ -337,7 +340,8 @@ contract NodeRegistry {
     /**
      * @notice After the 7-day dispute window anyone may finalize a posted
      *         epoch: scores become part of the qualification record and each
-     *         included node's boost is set (>=95% -> 3.0x, else 2.0x).
+     *         included node's boost is set (>=95% -> 3.0x, else 2.0x) unless
+     *         a newer finalized epoch already set that node's boost.
      *         Nodes deregistered since posting are skipped, and setBoost
      *         no-ops on exited positions — finalization can never be bricked.
      */
@@ -348,12 +352,7 @@ contract NodeRegistry {
         require(!e.finalized, "NR: epoch already finalized");
         require(block.timestamp >= uint256(e.postedAt) + DISPUTE_WINDOW, "NR: dispute window open");
         e.finalized = true;
-        // Two posted epochs can both be past their window, and anyone may
-        // finalize them in either order. An epoch older than one already
-        // finalized still enters the qualification record, but must not
-        // overwrite the newer epoch's boost or last score with stale data.
-        bool newest = !hasFinalizedEpoch || epoch > latestFinalizedEpoch;
-        if (newest) {
+        if (!hasFinalizedEpoch || epoch > latestFinalizedEpoch) {
             latestFinalizedEpoch = epoch;
             hasFinalizedEpoch = true;
         }
@@ -361,17 +360,27 @@ contract NodeRegistry {
         uint16[] storage scores = _epochScores[epoch];
         uint64 epochEnd = uint64((epoch + 1) * EPOCH_LENGTH);
         for (uint256 i = 0; i < ids.length; i++) {
-            Node storage n = _nodes[ids[i]];
+            uint256 id = ids[i];
+            Node storage n = _nodes[id];
             if (!n.active) continue; // deregistered since posting
             uint16 score = scores[i];
-            nodeScore[ids[i]][epoch] = score;
+            nodeScore[id][epoch] = score;
             if (score > 0 && epochEnd > n.lastSeen) n.lastSeen = epochEnd;
-            bool boosted = score >= BOOST_THRESHOLD_BPS;
-            if (newest) {
+            // Two posted epochs can both be past their window, and anyone may
+            // finalize them in either order. Staleness is per node, like
+            // lastSeen above: an older epoch still enters the qualification
+            // record but must not overwrite a newer epoch's boost or last
+            // score for THIS node — yet a node the newer epoch left out still
+            // takes the older score. A global "newest epoch" flag would make
+            // that node's 2.0x/3.0x weight depend on who finalizes first.
+            if (epoch >= _appliedEpochPlus1[id]) {
+                _appliedEpochPlus1[id] = epoch + 1;
                 n.lastUptimeBps = score;
-                staking.setBoost(n.positionId, boosted);
+                staking.setBoost(n.positionId, score >= BOOST_THRESHOLD_BPS);
             }
-            emit NodeAttested(ids[i], epoch, score, boosted);
+            // `boosted` is the boost in force for the node after this epoch, so
+            // an indexer replaying events never re-applies a stale score.
+            emit NodeAttested(id, epoch, score, n.lastUptimeBps >= BOOST_THRESHOLD_BPS);
         }
         emit EpochFinalized(epoch, ids.length);
     }

@@ -14,6 +14,8 @@
 //   • the node roster shows the seeded node with bond + uptime + boost
 //   • register a node: stake a validator bond in the UI, sign the digest the
 //     form shows with the node key, paste it back, see it confirmed
+//   • emergency-exit that bond: the node leaves the roster but is still
+//     offered for deregistration, and deregisters
 //   • the explainer says, verbatim, that staking does not secure the chain
 //
 // Requirements (both optional — the script SKIPS cleanly without them):
@@ -295,6 +297,25 @@ async function main() {
     await page.click('.modal button:has-text("Done")');
     await page.locator('.roster-table tbody tr').nth(1).waitFor({ timeout: 15_000 });
     ok('register a node: validator bond staked in the UI, the digest it shows signed by the node key, registered on chain');
+
+    // --- that bond exits: its node leaves the roster but stays registered, and
+    //     Deregister is still offered for it outside the roster ---
+    await page.click('[role=tab]:has-text("Positions")');
+    await page.click('button:has-text("Emergency exit")');
+    await page.click('.modal button:has-text("Forfeit and exit")');
+    await page.locator('.state-badge', { hasText: 'COOLING DOWN' }).waitFor({ timeout: 20_000 });
+    await page.click('[role=tab]:has-text("Nodes")');
+    const outside = page.locator('.notice', { hasText: 'Your nodes outside the roster' });
+    await outside.waitFor({ timeout: 15_000 });
+    assert.equal(await page.locator('.roster-table').first().locator('tbody tr').count(), 1, 'only the seeded node is live');
+    await page.screenshot({ path: join(SHOTS, '4c-outside-roster.png') });
+    await outside.locator('button:has-text("Deregister")').click();
+    await page.locator('.modal', { hasText: 'registered again on an active validator-track bond' }).waitFor();
+    await page.click('.modal button:has-text("Deregister node")');
+    await page.locator('.modal .notice-success', { hasText: 'deregistered' }).waitFor({ timeout: 20_000 });
+    await page.click('.modal button:has-text("Done")');
+    await outside.waitFor({ state: 'detached', timeout: 15_000 });
+    ok('exited bond: its node leaves the roster, is listed outside it, and deregisters from there');
 
     // --- explainer honesty ---
     await page.click('[role=tab]:has-text("How it works")');

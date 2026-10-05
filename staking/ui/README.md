@@ -34,8 +34,10 @@ loading/empty/error state handled.
   with a Claim action while it still holds banked rewards.
 - **Nodes**: the live registry roster (`listActiveNodes`: bond, uptime, boost,
   last seen) with the bonded-nodes ≠ distinct-operators caveat stated in the
-  UI, the register-a-node flow, and deregistration for your own nodes.
-  Registering takes the position, the consensus address and the enode URL (its
+  UI, the register-a-node flow, and deregistration for your own nodes —
+  including those the roster leaves out because their bond exited or fell
+  below the minimum, found through your positions (`nodeIdByPosition`), since
+  they still hold their node key and consensus address. Registering takes the position, the consensus address and the enode URL (its
   64-byte public key is the node identity), plus a signature by the node's own
   key over `registrationDigest` — a raw 32-byte hash, no message prefix. The
   form shows the digest and a `cast wallet sign --no-hash` example, and checks
@@ -83,8 +85,8 @@ app calls, and three checks keep every copy in line with the source:
 | `npm run dev` | vite dev server |
 | `npm run build` | `tsc --noEmit` + vite build + no-external-URL guard |
 | `npm test` | unit tests: APY/reward/runway/countdown math, the settled-pool and lock mirrors, formatting, enode → node address, registration digest + possession signature, validation, ABI fragments vs `../contracts/abi`, tier shape vs `FMXStaking.sol` |
-| `npm run e2e` | anvil on **port 8612** (chain-id 3961): builds and deploys the real `FMXStaking` + `NodeRegistry`, stakes, advances time, claims, cooldown/withdraw/claim-after-withdraw, emergency exit, node registration with a node-key signature, watchtower epoch → dispute window → boost, deregistration, drip-cap scaling, fail-closed pool depletion, paused deposits — all through `src/lib/*`. Needs `forge` and `anvil` |
-| `npm run ui` | headless-Chromium check on ports **8612/8613**: real bundle against the real contracts on a seeded anvil — stats, connect, full stake flow, positions, roster, node registration with a node-key signature, explainer. Skips cleanly without `anvil`/`playwright-core` (`PLAYWRIGHT_DIR`, `CHROME_PATH`) |
+| `npm run e2e` | anvil on **port 8612** (chain-id 3961): builds and deploys the real `FMXStaking` + `NodeRegistry`, stakes, advances time, claims, cooldown/withdraw/claim-after-withdraw, emergency exit, node registration with a node-key signature, watchtower epoch → dispute window → boost, deregistration (also after the bond exited), drip-cap scaling, fail-closed pool depletion, paused deposits — all through `src/lib/*`. Needs `forge` and `anvil` |
+| `npm run ui` | headless-Chromium check on ports **8612/8613**: real bundle against the real contracts on a seeded anvil — stats, connect, full stake flow, positions, roster, node registration with a node-key signature, deregistering a node whose bond exited, explainer. Skips cleanly without `anvil`/`playwright-core` (`PLAYWRIGHT_DIR`, `CHROME_PATH`) |
 
 Ports 8612/8613 only (assigned range); nothing here touches mainnet.
 

@@ -98,6 +98,52 @@ export async function fetchBondedPositions(
   return new Set(positionIds.filter((_, i) => nodeIds[i] !== 0n).map((id) => id.toString()));
 }
 
+/** A node the wallet registered and has not deregistered, live or not. */
+export interface OwnNode {
+  id: bigint;
+  nodeAddress: string;
+  consensusAddr: string;
+  /** The bonding position — possibly no longer Active. */
+  positionId: bigint;
+}
+
+/**
+ * The operator's registered nodes, found through its own positions in ANY
+ * state (nodeIdByPosition ≠ 0). listActiveNodes() leaves out a node whose bond
+ * exited or fell below the minimum, yet the registry keeps that node's key,
+ * consensus address and position bound until deregisterNode() — so the
+ * roster alone cannot offer Deregister for it, and re-registering the same
+ * node on a new bond would fail with "node key already registered".
+ */
+export async function fetchOwnNodes(
+  provider: Provider,
+  registryAddress: string,
+  operator: string,
+  positionIds: bigint[],
+): Promise<OwnNode[]> {
+  const registry = registryContract(registryAddress, provider);
+  const nodeIds = await Promise.all(positionIds.map((id) => registry.nodeIdByPosition(id) as Promise<bigint>));
+  const ids = nodeIds.filter((id) => id !== 0n);
+  const raw = (await Promise.all(ids.map((id) => registry.getNode(id)))) as Array<{
+    operator: string;
+    consensusAddr: string;
+    nodeAddress: string;
+    active: boolean;
+    positionId: bigint;
+  }>;
+  const me = operator.toLowerCase();
+  return raw
+    .map((n, i) => ({ n, id: ids[i] }))
+    .filter(({ n }) => n.active && n.operator.toLowerCase() === me)
+    .map(({ n, id }) => ({ id, nodeAddress: n.nodeAddress, consensusAddr: n.consensusAddr, positionId: n.positionId }));
+}
+
+/** Own nodes the live roster does not list — the ones only fetchOwnNodes() can reach. */
+export function nodesOutsideRoster(own: OwnNode[], roster: NetworkNode[]): OwnNode[] {
+  const listed = new Set(roster.map((n) => n.id));
+  return own.filter((n) => !listed.has(n.id));
+}
+
 /* ------------------------------------------------------------------ *
  * Registration — the node key proves possession
  * ------------------------------------------------------------------ */

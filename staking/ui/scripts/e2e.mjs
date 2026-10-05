@@ -26,7 +26,8 @@
 //      non-validator positions refused; roster reads back
 //  11. watchtower epoch → dispute window → finalize: roster uptime/last seen,
 //      boost on, and the boosted bond accrues at 3.0× / 30%
-//  12. deregister through the lib: roster empties, boost dropped
+//  12. deregister through the lib: roster empties, boost dropped; a node whose
+//      bond exited is off the roster yet found through its position and freed
 //  13. drip-cap scaling: the UI's effective APY equals the vault's
 //  14. fail-closed pool: the settled pool reaches zero with no transaction,
 //      accrual stops, principal intact
@@ -65,6 +66,8 @@ import {
   fetchRoster,
   fetchRegistryParams,
   fetchBondedPositions,
+  fetchOwnNodes,
+  nodesOutsideRoster,
   registerNode,
   deregisterNode,
   registrationDigest,
@@ -488,6 +491,21 @@ async function main() {
     assert.equal((await fetchPositions(provider, vaultAddr, bob.address))[0].boosted, false, 'boost dropped');
     assert.equal((await fetchBondedPositions(provider, registryAddr, [bobPosId])).size, 0, 'position free again');
     ok(`deregister: roster empty, boost dropped, position free to bond again (${deregGas} gas)`);
+
+    // A bond that exits leaves its node registered but off the roster: the
+    // operator still finds it through the position and frees the node key.
+    await (await registerNode(bob, registryAddr, { pubkey, consensusAddr, positionId: bobPosId, signature: goodSig })).wait();
+    await (await emergencyExit(bob, vaultAddr, bobPosId)).wait();
+    assert.equal((await fetchRoster(provider, registryAddr)).length, 0, 'an exited bond is not live');
+    const stranded = await fetchOwnNodes(provider, registryAddr, bob.address, [bobPosId]);
+    assert.equal(stranded.length, 1, 'still registered, and found through its position');
+    assert.equal(stranded[0].nodeAddress, nodeAddress);
+    assert.deepEqual(nodesOutsideRoster(stranded, await fetchRoster(provider, registryAddr)), stranded);
+    await (await deregisterNode(bob, registryAddr, stranded[0].id)).wait();
+    assert.deepEqual(await fetchOwnNodes(provider, registryAddr, bob.address, [bobPosId]), []);
+    assert.equal(await registry.nodeIdByNodeAddress(nodeAddress), 0n, 'node key free to register again');
+    assert.equal(await registry.nodeIdByConsensusAddr(consensusAddr), 0n, 'consensus address free again');
+    ok('exited bond: its node is off the roster but found through the position and deregistered');
 
     // --- 13. drip-cap scaling: the UI's effective APY equals the vault's ---
     // Push weighted stake past the knee: knee = DRIP / 10% = 12M FMX at 1.0×.
