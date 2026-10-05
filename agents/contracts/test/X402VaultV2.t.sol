@@ -654,6 +654,79 @@ contract X402VaultV2Test is Test {
         assertEq(vault.balance(longP), 0);
     }
 
+    // ═════════════════════════════ V2 fix 8: a contract payer's gas-burning ERC-1271 answer ═════════════════════════════
+
+    /// @dev The chain's block gas limit (genesis/genesis.json: 0x1C9C380).
+    uint256 internal constant BLOCK_GAS = 30_000_000;
+
+    /// @dev The facilitator's full batch of 50: `burner`'s voucher (nonce 7, valid for a year) first, then
+    ///      49 honest vouchers from distinct funded payers to distinct payees (nonce i).
+    function _burnerBatch(address v, address burner)
+        internal
+        returns (X402Vault.Voucher[] memory vs, bytes[] memory sigs)
+    {
+        vs = new X402Vault.Voucher[](50);
+        sigs = new bytes[](50);
+        vm.startPrank(payer);
+        X402Vault(v).depositFor{value: 1 ether}(burner);
+        vs[0] = X402Vault.Voucher(burner, payee, 1 ether, 7, uint64(block.timestamp + 365 days), keccak256("resource"));
+        sigs[0] = hex"00";
+        for (uint256 i = 1; i < 50; i++) {
+            uint256 pk = 0xA000 + i;
+            address from = vm.addr(pk);
+            X402Vault(v).depositFor{value: 1 ether}(from);
+            vs[i] = X402Vault.Voucher(
+                from, address(uint160(0xB000 + i)), 0.1 ether, i, uint64(block.timestamp + 60), keccak256("resource")
+            );
+            (uint8 vv, bytes32 r, bytes32 s) = vm.sign(pk, X402Vault(v).hashVoucher(vs[i]));
+            sigs[i] = abi.encodePacked(r, s, vv);
+        }
+        vm.stopPrank();
+    }
+
+    /// @notice The live vault: a payer whose answer passed the facilitator's pre-check and now burns gas
+    ///         takes 63/64 of the batch's gas. The 49 honest vouchers after it need more than the 1/64
+    ///         left, so the batch fails even at the block gas limit and none of them settles.
+    function test_attack_v1_gasBurningAnswerSinksBatch() public {
+        X402Vault v1 = new X402Vault(gov, treasury);
+        GasBurnerPayer burner = new GasBurnerPayer();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(v1), address(burner));
+        (bool valid,) = v1.verify(vs[0], sigs[0]);
+        assertTrue(valid); // what the gateway saw when it accepted the voucher
+        burner.arm();
+        (bool ok,) = address(v1).call{gas: BLOCK_GAS}(abi.encodeCall(X402Vault.settleBatch, (vs, sigs)));
+        assertFalse(ok);
+        assertFalse(v1.used(vs[1].payer, 1));
+    }
+
+    /// @notice V2 gives the answer a fixed allowance: that voucher is skipped, the 49 after it settle
+    ///         within the block gas limit, and the burner costs the batch its allowance and no more.
+    function test_v2_gasBurningAnswerSkippedRestSettles() public {
+        GasBurnerPayer burner = new GasBurnerPayer();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(burner));
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        (bool valid,) = vault.verify(vs2[0], sigs[0]);
+        assertTrue(valid);
+        burner.arm();
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(address(burner), 7, "bad signature");
+        vault.settleBatch{gas: BLOCK_GAS}(vs2, sigs);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+            assertEq(vault.credits(vs2[i].payee), 0.1 ether - _fee(0.1 ether));
+        }
+        assertFalse(vault.used(address(burner), 7));
+        assertEq(vault.balance(address(burner)), 1 ether);
+
+        X402VaultV2.Voucher[] memory one = new X402VaultV2.Voucher[](1);
+        bytes[] memory oneSig = new bytes[](1);
+        one[0] = vs2[0];
+        oneSig[0] = sigs[0];
+        uint256 before = gasleft();
+        vault.settleBatch{gas: BLOCK_GAS}(one, oneSig);
+        assertLt(before - gasleft(), 250_000); // the 200k allowance plus the batch's own work
+    }
+
     function _asV2(X402Vault.Voucher[] memory vs) internal pure returns (X402VaultV2.Voucher[] memory out) {
         out = new X402VaultV2.Voucher[](vs.length);
         for (uint256 i = 0; i < vs.length; i++) {
@@ -695,6 +768,20 @@ contract LongAnswerPayer {
             mstore(0, 0x1626ba7e00000000000000000000000000000000000000000000000000000000)
             return(0, 4128)
         }
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value until armed, then burning all the gas it is given.
+contract GasBurnerPayer {
+    bool public armed;
+
+    function arm() external {
+        armed = true;
+    }
+
+    function isValidSignature(bytes32, bytes calldata) external view returns (bytes4 magic) {
+        if (!armed) return 0x1626ba7e;
+        while (true) {}
     }
 }
 

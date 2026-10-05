@@ -18,6 +18,10 @@ import {Sig} from "./lib/Sig.sol";
 ///           `settleBatch` revert as a whole and no voucher in it settled. Here the answer must be the
 ///           magic value with clean padding; anything else (dirty, short, reverting) is "bad signature"
 ///           and that voucher alone is skipped. Only the first 32 bytes of the answer are copied.
+///           The answer gets a fixed `ERC1271_GAS`, not all the gas: X402Vault forwarded 63/64 of what the
+///           batch had left, so a payer whose answer burns gas starved every voucher after it and the
+///           batch failed even at the block gas limit. Here such a voucher costs that allowance, and an
+///           answer that runs out of it is "bad signature" too.
 ///
 /// MIGRATION — replaces the live `x402Vault` (agents/deployments-v3.3961.json). Nothing here is deployed:
 ///   1. Deploy `X402VaultV2(deployer, feeRecipient)`, then — last — `setGovernance(multisig)`.
@@ -54,6 +58,10 @@ contract X402VaultV2 {
     bytes4 private constant ERC1271_MAGIC = 0x1626ba7e;
     /// @dev The same value as an ABI-encoded bytes4 answer: left-aligned, zero padding.
     bytes32 private constant ERC1271_MAGIC_WORD = 0x1626ba7e00000000000000000000000000000000000000000000000000000000;
+    /// @dev Gas an ERC-1271 answer may use. AgentAccount's check (an ecrecover, or its owner's own ERC-1271
+    ///      check when the owner is a multisig) needs a fraction of it, and a batch of 50 answers that each
+    ///      burn all of it stays well inside the block gas limit.
+    uint256 private constant ERC1271_GAS = 200_000;
 
     // ───────────────────────────── storage ─────────────────────────────
 
@@ -262,14 +270,16 @@ contract X402VaultV2 {
 
     /// @dev Sig.isValid without its ways to revert: `signer`'s own EOA signature, or the ERC-1271 magic
     ///      value — exactly, clean padding included — from `signer` as a contract. A reverting, short or
-    ///      dirty answer is simply not valid; only its first word is copied.
+    ///      dirty answer, or one that runs out of `ERC1271_GAS`, is simply not valid; only its first word
+    ///      is copied.
     function _isValidSig(address signer, bytes32 digest, bytes calldata sig) internal view returns (bool valid) {
         address rec = Sig.recover(digest, sig);
         if (rec != address(0) && rec == signer) return true;
         if (signer.code.length == 0) return false;
         bytes memory data = abi.encodeWithSelector(ERC1271_MAGIC, digest, sig);
         assembly ("memory-safe") {
-            let ok := staticcall(gas(), signer, add(data, 0x20), mload(data), 0, 0x20)
+            // capped: with gas() a payer's answer could take 63/64 of the batch's gas and starve the rest
+            let ok := staticcall(ERC1271_GAS, signer, add(data, 0x20), mload(data), 0, 0x20)
             valid := and(ok, and(gt(returndatasize(), 0x1f), eq(mload(0), ERC1271_MAGIC_WORD)))
         }
     }
