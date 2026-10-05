@@ -286,6 +286,24 @@ test("memory: put/get/list/delete, limits, over-quota 402 paid with a voucher", 
   assert.equal((await inject("DELETE", "/api/memory/notes", undefined, await headers(alice, "memory.delete"))).statusCode, 404);
 });
 
+// The router already percent-decodes :key; decoding it a second time threw URIError (500) on a key with a bare
+// "%", and turned "/api/memory/%2541" into the key "A".
+test("memory: a key carrying % is a 400, never a 500 or a second decode", async (t) => {
+  const { app, db, clock, signed, headers, inject } = await setup();
+  t.after(() => app.close());
+  db.prepare("INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, 'A', '1', 1, 1, 1)").run(alice.address);
+  for (const path of ["/api/memory/a%25zz", "/api/memory/%25", "/api/memory/%2541"]) {
+    const got = await inject("GET", path, undefined, await headers(alice, "memory.get"));
+    assert.equal(got.statusCode, 400, `${path}: ${got.body}`);
+  }
+  const put = await inject("PUT", "/api/memory/a%25zz", await signed(alice, "memory.put", { value: 1 }));
+  assert.equal(put.statusCode, 400, put.body);
+  clock.advance(1100);
+  const del = await inject("DELETE", "/api/memory/%25E0", undefined, await headers(alice, "memory.delete"));
+  assert.equal(del.statusCode, 400, del.body);
+  assert.equal((await inject("GET", "/api/memory/A", undefined, await headers(alice, "memory.get"))).statusCode, 200);
+});
+
 test("memory: a paid over-quota write the flood limit refuses keeps neither the payment nor the credit", async (t) => {
   const { app, db, clock, signed, inject, voucher } = await setup();
   t.after(() => app.close());
@@ -536,6 +554,25 @@ test("A2A/invoke routing: internal only for the canonical hosted agent; self-poi
   assert.equal(hop.statusCode, 508);
   const hopRpc = await inject("POST", "/a/12/a2a", { jsonrpc: "2.0", id: 1, method: "tasks/send", params: { message: { parts: [{ type: "text", text: "x" }] } } }, { "x-ferminux-hop": "1" });
   assert.equal(hopRpc.statusCode, 508);
+});
+
+// The deployed X402Vault re-locks only in withdraw() (unlockAt = 0); deposit() leaves unlockAt alone, so the old
+// advice "re-lock (deposit)" sent payers round in a loop.
+test("x402: a voucher from a vault that is about to unlock names the action that re-locks it", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const vault = { verify: async () => [true, ""], balance: async () => 10n ** 18n, unlockAt: async () => BigInt(nowS + 30) };
+  const ctx = { db, cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" }, address: (k) => (k === "x402Vault" ? vaultAddr : undefined), contract: (k) => (k === "x402Vault" ? vault : undefined), facilitator: null, now: () => nowS * 1000, nowS: () => nowS };
+  const fac = new X402Facilitator(ctx);
+  const v = { payer: bob.address, payee: alice.address, amount: "1000", nonce: "1", expiry: nowS + 300, ref: "0x" + "00".repeat(32) };
+  const signature = await bob.signTypedData({ name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr }, X402_VOUCHER_TYPES, { ...v, amount: BigInt(v.amount), nonce: BigInt(v.nonce) });
+  const res = await fac.settle({ scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: v, signature } }, "https://ferminux.net/x");
+  assert.equal(res.success, false);
+  assert.match(res.errorReason, new RegExp(`unlocks at ${nowS + 30}`));
+  assert.match(res.errorReason, /withdraw\(\)/);
+  assert.doesNotMatch(res.errorReason, /re-lock \(deposit\)/);
 });
 
 test("x402: parallel vouchers from one payer cannot together spend more than the vault deposit", async () => {

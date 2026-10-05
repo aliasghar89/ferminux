@@ -44,7 +44,7 @@ import { registerNetworkRoutes } from "./v3/network.js";
 import { registerCvContextRoutes } from "./v3/cv-context.js";
 import { registerLoadtestRoutes } from "./loadtest.js";
 import { slugify } from "./v3/a2a.js";
-import { applyV3Event, reconcileStreamCancels } from "./v3/indexer-v3.js";
+import { applyV3Event, reconcileStreamCancels, revertV3Event } from "./v3/indexer-v3.js";
 import { attachValidationOracle, validationForJob, agentValidations } from "./v3/validation.js";
 
 export interface BuildOptions {
@@ -393,10 +393,10 @@ export async function buildServer(opts: BuildOptions = {}) {
   const now = opts.commons?.now ?? (() => Date.now());
   const activity = new ActivityBus(db, now);
   const commonsCtx = registerCommons(app, { db, cfg, activity, ...(opts.commons ?? {}) });
-  const indexerHooks = makeIndexerHooks(db, activity, { referralRules: referralRules(cfg.referralMinJobFmx) });
 
   // Addendum v3 — agent economy (x402, webhooks, memory, compute, A2A, FRC-8004, pay-in, relay, audit)
   const webhooks = new WebhookBus(db, now, opts.v3?.fetchImpl);
+  const indexerHooks = makeIndexerHooks(db, activity, { referralRules: referralRules(cfg.referralMinJobFmx), webhooks });
   const v3 = createV3Context({ db, cfg, provider, commons: commonsCtx, activity, webhooks, fetchImpl: opts.v3?.fetchImpl, feeRecipient: FIXED_CONTRACTS.treasury });
   const x402 = new X402Facilitator(v3);
   const priceFeed = opts.v3?.priceFeed ?? new PriceFeed(cfg.bscRpcUrl, { fixedPriceUsd: cfg.payinPriceUsd, minPriceUsd: cfg.payinMinPriceUsd, now, ferminuxRpcUrl: cfg.rpcUrl, bridgeStatusUrl: cfg.bridgeStatusUrl });
@@ -433,6 +433,7 @@ export async function buildServer(opts: BuildOptions = {}) {
   const detachWebhooks = webhooks.attachActivity(activity);
   const detachOracle = workers ? attachValidationOracle(v3, activity) : () => undefined;
   indexerHooks.onV3Event = (ev) => applyV3Event({ db, activity, webhooks }, ev);
+  indexerHooks.onV3Rollback = (ev) => revertV3Event({ db, activity, webhooks }, ev);
   try {
     const n = reconcileStreamCancels(db);
     if (n) app.log.info({ streams: n }, "reconciled claimed totals of cancelled streams");

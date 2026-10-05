@@ -7,6 +7,11 @@
 process.env.ALLOW_PRIVATE_FETCH = "1";
 import test from "node:test";
 import assert from "node:assert/strict";
+import dns from "node:dns";
+import dnsPromises from "node:dns/promises";
+import { createServer } from "node:http";
+import { syncBuiltinESMExports } from "node:module";
+import { gzipSync } from "node:zlib";
 import { Wallet, keccak256, toUtf8Bytes } from "ethers";
 import { buildServer } from "../dist/server.js";
 import { openMemoryDb } from "../dist/db.js";
@@ -123,6 +128,77 @@ test("net: safeFetch follows ≤ 3 redirects, never into private space, and drop
   } finally {
     if (prev !== undefined) process.env.ALLOW_PRIVATE_FETCH = prev;
   }
+});
+
+// assertPublicUrl resolved the name, then fetch() resolved it again to connect: a DNS answer that flips between the
+// two (rebinding) passed the check with a public address and connected to a private one.
+test("net: safeFetch connects to the address it checked, never to a second resolution (DNS rebinding)", async (t) => {
+  const seen = [];
+  const server = createServer((req, res) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      seen.push({ host: req.headers.host, url: req.url });
+      if (req.url === "/hop") {
+        res.writeHead(302, { location: `http://second.rebind.test:${port}/end` });
+        return res.end();
+      }
+      if (req.url === "/echo") {
+        res.writeHead(200, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ body: Buffer.concat(chunks).toString(), xa: req.headers["x-a"], method: req.method }));
+      }
+      if (req.url === "/gz") {
+        res.writeHead(200, { "content-type": "text/plain", "content-encoding": "gzip" });
+        return res.end(gzipSync("unzipped"));
+      }
+      res.writeHead(200, { "content-type": "text/plain" });
+      res.end(`reached ${req.headers.host}`);
+    });
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const port = server.address().port;
+  t.after(() => server.close());
+  // a rebinding resolver: the check's lookup answers 127.0.0.1 (where the server listens); a lookup made to connect
+  // answers 127.0.0.2, where nothing does
+  const lookups = [];
+  const realPromise = dnsPromises.lookup;
+  const realCb = dns.lookup;
+  dnsPromises.lookup = async (host, opts) => {
+    if (!String(host).endsWith(".rebind.test")) return realPromise(host, opts);
+    lookups.push(host);
+    return [{ address: "127.0.0.1", family: 4 }];
+  };
+  dns.lookup = (host, opts, cb) => {
+    if (!String(host).endsWith(".rebind.test")) return realCb(host, opts, cb);
+    lookups.push(`connect:${host}`);
+    const done = typeof opts === "function" ? opts : cb;
+    return opts && typeof opts === "object" && opts.all ? done(null, [{ address: "127.0.0.2", family: 4 }]) : done(null, "127.0.0.2", 4);
+  };
+  syncBuiltinESMExports();
+  t.after(() => {
+    dnsPromises.lookup = realPromise;
+    dns.lookup = realCb;
+    syncBuiltinESMExports();
+  });
+
+  // ALLOW_PRIVATE_FETCH=1 in this file, so 127.0.0.1 passes the check: what matters is where the socket goes
+  const res = await safeFetch(`http://first.rebind.test:${port}/hop`, { timeoutMs: 3000 });
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), `reached second.rebind.test:${port}`, "the redirect hop is resolved, checked and pinned too");
+  assert.deepEqual(seen.map((s) => s.host), [`first.rebind.test:${port}`, `second.rebind.test:${port}`], "Host stays the name");
+  assert.deepEqual(lookups, ["first.rebind.test", "second.rebind.test"], "one resolution per hop, none at connect time");
+  const echo = await (await safeFetch(`http://first.rebind.test:${port}/echo`, { method: "POST", body: "payload", headers: { "x-a": "1" }, timeoutMs: 3000 })).json();
+  assert.deepEqual(echo, { body: "payload", xa: "1", method: "POST" });
+  assert.equal(await (await safeFetch(`http://first.rebind.test:${port}/gz`, { timeoutMs: 3000 })).text(), "unzipped");
+
+  // without the dev escape hatch, a private answer is refused before any connection
+  delete process.env.ALLOW_PRIVATE_FETCH;
+  try {
+    await assert.rejects(safeFetch(`http://first.rebind.test:${port}/x`), (e) => e.code === "private_url");
+  } finally {
+    process.env.ALLOW_PRIVATE_FETCH = "1";
+  }
+  assert.equal(seen.filter((s) => s.url === "/x").length, 0);
 });
 
 test("net: readCapped stops reading past the cap", async () => {
@@ -263,6 +339,101 @@ test("SSE: per-IP and global connection caps answer 503", async (t) => {
   void other;
 });
 
+// Receivers refuse a delivery whose `ts` is older than their replay window (the runtime's is 600 s). The payload was
+// stamped once at dispatch, so the 10-min retry (and anything after a backlog) always arrived stale and was refused.
+test("webhooks: every attempt carries its own ts, signed over exactly the body sent", async () => {
+  const { signWebhook } = await import("../dist/v3/webhooks.js");
+  const db = openMemoryDb();
+  let nowMs = 1_758_400_000_000;
+  const sent = [];
+  const bus = new WebhookBus(db, () => nowMs, async (_url, init) => {
+    sent.push({ at: Math.floor(nowMs / 1000), body: String(init.body), sig: init.headers["x-ferminux-signature"] });
+    return new Response("busy", { status: 503 });
+  });
+  const secret = "s3cret-s3cret-s3cret";
+  db.prepare("INSERT INTO webhooks (owner, url, secret, events, active, createdAt, updatedAt) VALUES (?, 'https://hook.example/in', ?, '[\"job.requested\"]', 1, 1, 1)").run(alice.address, secret);
+  assert.equal(bus.dispatch("job.requested", [alice.address], { jobId: 1 }, "job.requested:0xabc"), 1);
+  for (const waitS of [0, 11, 61, 601]) {
+    nowMs += waitS * 1000;
+    await bus.tick();
+  }
+  assert.equal(sent.length, 4);
+  const ids = new Set();
+  for (const a of sent) {
+    const p = JSON.parse(a.body);
+    assert.equal(p.ts, a.at, "ts is the attempt's own time");
+    assert.equal(a.sig, signWebhook(secret, a.body));
+    assert.equal(p.event, "job.requested");
+    assert.deepEqual(p.data, { jobId: 1 });
+    ids.add(p.id);
+  }
+  assert.equal(ids.size, 1, "the delivery id stays stable across attempts (receivers dedupe on it)");
+  assert.ok(sent.at(-1).at - sent[0].at > 600, "the last retry lands past a 600 s window from the first attempt");
+});
+
+// Deliveries went out one at a time, oldest first, 50 a tick, 10 s timeout each: one owner's slow or hanging
+// endpoints held every other owner's delivery behind each of their queued rows.
+test("webhooks: endpoints are delivered side by side, one owner cannot take every slot, a failing endpoint yields its turn", async () => {
+  const { WEBHOOK_PER_OWNER_CONCURRENCY } = await import("../dist/v3/webhooks.js");
+  const db = openMemoryDb();
+  const nowMs = 1_758_400_000_000;
+  const carol = new Wallet("0x" + "c4".repeat(32));
+  const calls = [];
+  let live = 0;
+  let maxLive = 0;
+  const liveByHost = new Map();
+  let maxPerHost = 0;
+  const ownerOf = new Map();
+  const liveByOwner = new Map();
+  let maxPerOwner = 0;
+  const bus = new WebhookBus(db, () => nowMs, async (url, init) => {
+    const host = new URL(url).hostname;
+    const owner = ownerOf.get(host);
+    calls.push({ host, delivery: init.headers["x-ferminux-delivery"] });
+    live++;
+    liveByHost.set(host, (liveByHost.get(host) ?? 0) + 1);
+    liveByOwner.set(owner, (liveByOwner.get(owner) ?? 0) + 1);
+    maxLive = Math.max(maxLive, live);
+    maxPerHost = Math.max(maxPerHost, liveByHost.get(host));
+    maxPerOwner = Math.max(maxPerOwner, liveByOwner.get(owner));
+    await new Promise((r) => setTimeout(r, host.startsWith("slow") ? 30 : 2));
+    live--;
+    liveByHost.set(host, liveByHost.get(host) - 1);
+    liveByOwner.set(owner, liveByOwner.get(owner) - 1);
+    return new Response("x", { status: host.startsWith("down") ? 500 : 200 });
+  });
+  const hook = db.prepare("INSERT INTO webhooks (owner, url, secret, events, active, createdAt, updatedAt) VALUES (?, ?, 'sixteen-chars-secret', '[\"job.requested\"]', 1, 1, 1)");
+  const add = (owner, host) => {
+    ownerOf.set(host, owner.address);
+    hook.run(owner.address, `https://${host}/in`);
+  };
+  // alice: six slow endpoints with five deliveries each, all queued before anyone else's
+  for (let i = 0; i < 6; i++) add(alice, `slow${i}.example`);
+  for (let k = 0; k < 5; k++) bus.dispatch("job.requested", [alice.address], { k }, `a:${k}`);
+  // carol: one endpoint that answers 500, three deliveries; bob: one healthy endpoint, one delivery
+  add(carol, "down.example");
+  for (let k = 0; k < 3; k++) bus.dispatch("job.requested", [carol.address], { k }, `c:${k}`);
+  add(bob, "fast.example");
+  bus.dispatch("job.requested", [bob.address], { k: 0 }, "b:0");
+
+  const attempts = await bus.tick();
+  assert.ok(calls.findIndex((c) => c.host === "fast.example") < 6, `bob waited behind alice's backlog: ${calls.map((c) => c.host).join(",")}`);
+  assert.equal(maxPerHost, 1, "one delivery at a time per endpoint");
+  assert.ok(maxPerOwner <= WEBHOOK_PER_OWNER_CONCURRENCY, `alice held ${maxPerOwner} slots`);
+  assert.ok(maxLive > 1, "lanes run side by side");
+  assert.equal(calls.filter((c) => c.host === "down.example").length, 1, "a failing endpoint yields its turn after one attempt");
+  assert.equal(attempts, WEBHOOK_PER_OWNER_CONCURRENCY * 5 + 1 + 1);
+  const pending = (host) => db.prepare("SELECT COUNT(*) AS c FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhookId WHERE d.status = 'pending' AND w.url = ?").get(`https://${host}/in`).c;
+  assert.equal(pending("slow5.example"), 5, "alice's endpoints beyond her share wait for the next tick");
+  assert.equal(pending("fast.example"), 0);
+
+  // overlapping ticks never send one delivery twice
+  await Promise.all([bus.tick(), bus.tick(), bus.tick()]);
+  const ids = calls.map((c) => c.delivery);
+  assert.equal(new Set(ids).size, ids.length, "no delivery sent twice");
+  assert.equal(pending("slow5.example"), 0);
+});
+
 test("v3 indexer: increment handlers apply a replayed log exactly once (reorg re-scan / resumed backfill)", () => {
   const db = openMemoryDb();
   const activity = new ActivityBus(db, () => 1_758_400_000_000);
@@ -333,6 +504,31 @@ test("payload store never serves active content from the gateway origin", async 
   assert.equal(got.headers["x-content-type-options"], "nosniff");
   assert.match(got.headers["content-security-policy"], /sandbox/);
   assert.equal(got.body, "<script>alert(1)</script>");
+});
+
+// A Content-Type is a list to a browser: "text/plain, text/html" is sniffed as the LAST type, so a stored value that
+// passed the text/* check verbatim served HTML from the gateway origin.
+test("payload store serves exactly one normalised media type (no comma lists, no stray parameters)", async (t) => {
+  const { app, inject } = await setup();
+  t.after(() => app.close());
+  const { servableContentType } = await import("../dist/payloads.js");
+  assert.equal(servableContentType("text/plain, text/html"), "text/plain");
+  assert.equal(servableContentType("text/csv,text/html; charset=utf-8"), "text/csv");
+  assert.equal(servableContentType("text/markdown; charset=UTF-8"), "text/markdown; charset=utf-8");
+  assert.equal(servableContentType("text/plain; charset=\"utf-8, text/html\""), "text/plain");
+  assert.equal(servableContentType("text/plain; foo=bar"), "text/plain");
+  assert.equal(servableContentType("application/json; charset=utf-8, text/html"), "application/json; charset=utf-8");
+  assert.equal(servableContentType("image/png, text/html"), "image/png");
+  assert.equal(servableContentType("text/html, text/plain"), "text/plain; charset=utf-8");
+  assert.equal(servableContentType("text/pl ain"), "application/octet-stream");
+  assert.equal(servableContentType("text/"), "application/octet-stream");
+  assert.equal(servableContentType(""), "application/octet-stream");
+  // the upload parser refuses a bare "a, b" list but takes one hidden after a parameter
+  const up = await app.inject({ method: "POST", url: "/api/payloads", headers: { "content-type": "text/plain; a=b, text/html" }, payload: "<script>alert(1)</script>" });
+  assert.equal(up.statusCode, 200, up.body);
+  const got = await inject("GET", `/api/payloads/${up.json().hash}`);
+  assert.equal(got.statusCode, 200);
+  assert.equal(got.headers["content-type"], "text/plain");
 });
 
 test("v3 indexer: agent-token wei counters stay exact past 2^63 wei (≈ 9.22 FMX)", () => {

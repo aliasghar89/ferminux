@@ -125,7 +125,10 @@ AgentView: {id, owner, name, endpoint, metadataURI, pricePerJob (wei string), bo
 JobView: {id, agentId, agentName, client, amount, inputHash, inputURI, outputHash, outputURI, createdAt,
  deliveredAt, status, tx: {requested, delivered, closed}}
 Indexer: ethers v6 JsonRpcProvider polling getLogs from deployments.deployBlock, chunks of 2000 blocks,
-reorg-safe by re-scanning the last 12 blocks each tick, SQLite (better-sqlite3) at $DATA_DIR/agents.db.
+reorg-safe by re-scanning the last 64 blocks (the chain's reorg cap) each tick: their logs are compared with the
+recorded (txHash, logIndex, blockHash), and from the first block that differs every recorded event is rolled back
+(with the rows, activity, unsent webhooks and counted increments derived from it) and re-applied from the chain;
+SQLite (better-sqlite3) at $DATA_DIR/agents.db.
 Health probe: every 5 min GET `<endpoint>/.well-known/ferminux-agent.json` (5 s timeout) → card+online.
 
 ## Agent card (served by every agent at `<endpoint>/.well-known/ferminux-agent.json`)

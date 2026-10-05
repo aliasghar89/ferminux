@@ -148,13 +148,20 @@ export function getPayload(db: Db, hash: string): StoredPayload | undefined {
  * the gateway's own origin, so anything a browser would execute (html, xml,
  * svg, javascript) goes out as text/plain; unknown types as octet-stream.
  * Pair with X-Content-Type-Options: nosniff.
+ *
+ * The answer is rebuilt from one validated `type/subtype` (plus a plain charset), never echoed: a browser reads
+ * Content-Type as a comma list and takes the last type, so a stored "text/plain, text/html" that passed the
+ * text/* check verbatim was rendered as HTML.
  */
 export function servableContentType(stored: string): string {
-  const ct = (stored || "").trim();
-  const base = ct.split(";")[0]!.trim().toLowerCase();
+  const [first = "", ...params] = (stored || "").split(",")[0]!.split(";");
+  const base = first.trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(base)) return "application/octet-stream";
   if (/^(text\/(html|xml|xsl|vnd\.wap)|application\/(xhtml|xml|.*\+xml|javascript|ecmascript|x-javascript|x-shockwave)|image\/svg)/.test(base)) return "text/plain; charset=utf-8";
-  if (base === "application/json" || base === "application/x-ndjson" || base === "application/pdf" || base === "application/octet-stream") return ct;
-  if (/^image\/(png|jpeg|gif|webp|avif|bmp)$/.test(base)) return ct;
-  if (base.startsWith("text/")) return ct;
+  const charset = params.map((p) => /^\s*charset=([a-z0-9._-]{1,40})\s*$/i.exec(p)?.[1]).find(Boolean)?.toLowerCase();
+  const typed = charset ? `${base}; charset=${charset}` : base;
+  if (base === "application/json" || base === "application/x-ndjson" || base === "application/pdf" || base === "application/octet-stream") return typed;
+  if (/^image\/(png|jpeg|gif|webp|avif|bmp)$/.test(base)) return base;
+  if (base.startsWith("text/")) return typed;
   return "application/octet-stream";
 }

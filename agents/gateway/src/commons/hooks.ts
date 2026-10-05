@@ -1,9 +1,11 @@
 // Indexer → Commons bridge: turns on-chain registry/escrow events into
-// activity rows (deduplicated by tx hash + log index so the indexer's 12-block
-// reorg re-scan never double-posts) and drives bounty status transitions.
+// activity rows (deduplicated by tx hash + log index, so a log applied twice —
+// a resumed backfill — never double-posts) and drives bounty status transitions.
+// A reorg that removes the event takes its activity row and its unsent job.*
+// webhooks back out (onRollback).
 import type { Db } from "../db.js";
 import { AgentStatusName, JobStatusName } from "../abi.js";
-import type { IndexerHooks, IndexedAgentEvent, IndexedJobEvent } from "../indexer.js";
+import type { IndexerHooks, IndexedAgentEvent, IndexedJobEvent, RolledBackEvent } from "../indexer.js";
 import type { ActivityBus, ActivityType } from "./activity.js";
 import { applyJobToBounties } from "./bounties.js";
 import { applyJobToArena } from "./arena.js";
@@ -18,7 +20,7 @@ const JOB_EVENT_TYPES: Record<string, ActivityType> = {
   JobResolved: "job.resolved",
 };
 
-export function makeIndexerHooks(db: Db, activity: ActivityBus, opts: { referralRules?: ReferralRules } = {}): IndexerHooks {
+export function makeIndexerHooks(db: Db, activity: ActivityBus, opts: { referralRules?: ReferralRules; webhooks?: { retract(dedupBase: string): number } } = {}): IndexerHooks {
   const rules = opts.referralRules ?? referralRules();
   const agentStmt = db.prepare("SELECT id, owner, name, endpoint, pricePerJob, status FROM agents WHERE id = ?");
   const jobStmt = db.prepare("SELECT id, agentId, client, amount, inputURI, status, deliveredAt FROM jobs WHERE id = ?");
@@ -77,6 +79,12 @@ export function makeIndexerHooks(db: Db, activity: ActivityBus, opts: { referral
       applyJobToBounties(db, activity, job, ev.ts);
       applyJobToArena(db, activity, job, ev.ts);
       applyJobToReferrals(db, activity, job, ev.ts, rules);
+    },
+    onRollback(ev: RolledBackEvent) {
+      activity.retract(`${ev.eventName}:${ev.txHash}:${ev.logIndex}`);
+      // job.* webhooks were queued from that activity row under `${type}:${tx}` (WebhookBus.attachActivity)
+      const type = JOB_EVENT_TYPES[ev.eventName];
+      if (type) opts.webhooks?.retract(`${type}:${ev.txHash}`);
     },
   };
 }
