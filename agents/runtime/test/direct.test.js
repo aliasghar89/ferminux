@@ -75,3 +75,27 @@ test("a refusal ({ok:false}) answers 422 on /invoke and a failed task on /a2a, s
   assert.equal((await app.inject({ method: "POST", url: "/invoke", payload: { text: "help" } })).statusCode, 200);
   assert.equal((await app.inject({ method: "POST", url: "/a2a", payload: rpc("help") })).json().result.status.state, "completed");
 });
+
+test("a handler that throws: callers get a generic error on /invoke and /a2a, the detail goes to the log with secrets redacted", async (t) => {
+  const KEY = "sk-proj-Zx81secretKEYvalue99";
+  const lines = [];
+  const app = Fastify({ logger: { level: "info", stream: { write: (l) => lines.push(l) } } });
+  t.after(() => app.close());
+  const boom = Object.assign(new Error(`llm handler: upstream 401: {"error":"Incorrect API key provided: ${KEY}"}`), { detail: `bad key ${KEY}` });
+  registerDirectCallRoutes(app, { handler: async () => { throw boom; }, gate: () => async () => {}, notForSale: async () => ({ ok: false }) });
+  await app.ready();
+
+  const inv = await app.inject({ method: "POST", url: "/invoke", payload: { text: "hi" } });
+  assert.equal(inv.statusCode, 500, "a failed call is not billed: the gateway releases the voucher on 5xx");
+  assert.deepEqual(inv.json(), { ok: false, error: "the agent could not complete this request" });
+  const a2a = await app.inject({ method: "POST", url: "/a2a", payload: rpc("hi") });
+  assert.equal(a2a.statusCode, 500);
+  assert.deepEqual(a2a.json(), { jsonrpc: "2.0", id: 1, error: { code: -32000, message: "the agent could not complete this request" } });
+  for (const r of [inv, a2a]) assert.doesNotMatch(r.body, /upstream|Incorrect|sk-proj/);
+
+  const logged = lines.join("");
+  assert.match(logged, /direct call failed/);
+  assert.match(logged, /llm handler: upstream 401/, "the operator still sees what went wrong");
+  assert.match(logged, /bad key \[redacted\]/);
+  assert.ok(!logged.includes(KEY), "but never the key the provider echoed back");
+});

@@ -1,5 +1,5 @@
 import { api, ApiError } from "../api";
-import { esc, int, pretty, timeHtml } from "../format";
+import { esc, int, pretty, timeHtml, uriHtml } from "../format";
 import { $, addrHtml, authorHtml, initChrome, onlineDot, onlineSr, skel } from "../ui";
 import { onWallet, walletState } from "../wallet";
 import { btnLabel, bytes, ensureWallet, icon, signHint, signedCall } from "../commons";
@@ -123,7 +123,7 @@ async function renderDetail(id: number) {
         <div class="card"><p class="desc">${esc(t.description)}</p></div>
         <dl class="kv">
           <div class="kv-row"><dt>Kind</dt><dd>${esc(KIND_LABEL[t.kind] || t.kind)}</dd></div>
-          <div class="kv-row"><dt>URL</dt><dd><a class="mono" href="${esc(t.url)}" rel="noopener nofollow">${esc(t.url)}</a><button class="copy" type="button" data-copy="${esc(t.url)}">copy</button></dd></div>
+          <div class="kv-row"><dt>URL</dt><dd>${uriHtml(t.url, 'class="mono"')}<button class="copy" type="button" data-copy="${esc(t.url)}">copy</button></dd></div>
           <div class="kv-row"><dt>Owner</dt><dd>${addrHtml(t.owner.address, { n: 8 })}${t.owner.agentId ? ` <a class="small" href="/agents/?id=${t.owner.agentId}" style="text-decoration:underline">agent #${t.owner.agentId}</a>` : ""}</dd></div>
           <div class="kv-row"><dt>Availability</dt><dd>${t.online === null || t.online === undefined ? "Not probed yet — the gateway checks every 10 minutes." : t.online ? "Reachable at the last probe." : "Unreachable at the last probe."}</dd></div>
           <div class="kv-row"><dt>API</dt><dd><span class="mono">GET /api/tools/${t.id}</span><button class="copy" type="button" data-copy="${esc(location.origin)}/api/tools/${t.id}">copy</button></dd></div>

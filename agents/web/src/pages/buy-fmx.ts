@@ -414,9 +414,11 @@ async function pay(q: PayinQuote) {
       if (insufficient) { status.innerHTML = `<div class="alert warn">${esc(insufficient)}</div>`; setBusy(btn, false); return; }
       setBusy(btn, true, "Confirm in your wallet…");
       const units = BigInt(q.sendExactly);
+      // chainId: the wallet may have left q.chainId since switchToChain (the balance check awaited in between);
+      // sendRawTransaction re-reads it right before eth_sendTransaction and refuses rather than pay on another chain
       hash = q.assetKind === "native"
-        ? await sendRawTransaction({ to: q.depositAddress, value: units })
-        : await sendRawTransaction({ to: q.token!, data: ERC20.encodeFunctionData("transfer", [q.depositAddress, units]) });
+        ? await sendRawTransaction({ to: q.depositAddress, value: units, chainId: q.chainId })
+        : await sendRawTransaction({ to: q.token!, data: ERC20.encodeFunctionData("transfer", [q.depositAddress, units]), chainId: q.chainId });
     } else {
       // mock mode without an injected wallet: pretend the wallet signed
       setBusy(btn, true, "Confirm in your wallet…");

@@ -5,6 +5,7 @@ import type { TypedDataDomain, TypedDataField } from "ethers";
 import { createWalletConnector, type Connection, type Eip1193Provider, type WalletConnector } from "../../../shared/fxwallet/connector.ts";
 import { ChainSetupError, FERMINUX_ADD_CHAIN_PARAMS, ensureFerminuxChain } from "../../../shared/fxwallet/network.ts";
 import { openWalletChooser } from "./walletChooser";
+import { ChainMovedError, sendOnChain } from "./chainGuard";
 
 export interface WalletState { address: string | null; chainId: number | null; hasProvider: boolean }
 const state: WalletState = { address: null, chainId: null, hasProvider: false };
@@ -272,16 +273,22 @@ export async function switchToChain(chainId: number, params: AddChainParams): Pr
 
 /**
  * Raw `eth_sendTransaction` through the injected provider on whatever chain it is on (the wallet estimates
- * gas and picks fees). Returns the tx hash; every failure becomes a plain-language WalletError.
+ * gas and picks fees). Returns the tx hash; every failure becomes a plain-language WalletError. With `chainId`,
+ * the wallet's chain is read again right before the send and nothing is sent if it is not that chain (chainGuard.ts).
  */
-export async function sendRawTransaction(tx: { to: string; value?: bigint; data?: string }): Promise<string> {
+export async function sendRawTransaction(tx: { to: string; value?: bigint; data?: string; chainId?: number }): Promise<string> {
   const from = state.address || (await connectAnyChain());
   const params: Record<string, string> = { from, to: tx.to };
   if (tx.value !== undefined && tx.value > 0n) params.value = "0x" + tx.value.toString(16);
   if (tx.data && tx.data !== "0x") params.data = tx.data;
   let hash: string;
-  try { hash = String(await requireActive().request({ method: "eth_sendTransaction", params: [params] })); }
-  catch (e) { throw new WalletError(errMessage(e, "The wallet did not send the transaction.")); }
+  try {
+    const eth = requireActive();
+    hash = String(tx.chainId === undefined ? await eth.request({ method: "eth_sendTransaction", params: [params] }) : await sendOnChain(eth, tx.chainId, params));
+  } catch (e) {
+    if (e instanceof ChainMovedError) throw new WalletError(e.message);
+    throw new WalletError(errMessage(e, "The wallet did not send the transaction."));
+  }
   if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new WalletError("The wallet returned an unexpected transaction hash.");
   return hash;
 }

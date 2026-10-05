@@ -3,24 +3,29 @@
 // Supported: paragraphs, **bold**, *italic* / _italic_, `inline code`, ``` fenced code ```,
 // [text](https://…) links (http/https only, rel="nofollow noopener"), bare https:// URLs,
 // "- " / "* " bullet lists, "> " quotes, and "# " headings (rendered as bold lines).
-import { esc } from "./format";
+import { esc } from "./format.ts"; // with the extension, so the tests load this file under plain Node
 
 // http(s) URLs, plus root-relative site paths ("/kb/?slug=x", never "//host") so pages can link each other.
 const SAFE_URL = /^(https?:\/\/[^\s<>"'()]+|\/(?!\/)[^\s<>"'()]*)$/i;
 
 function inline(text: string): string {
-  let s = esc(text);
+  // \u0000 marks a held-back piece below; one typed into the text would pull in another piece (or "undefined")
+  let s = esc(text.replace(/\u0000/g, ""));
   // inline code first so nothing inside it is transformed
   const codes: string[] = [];
-  s = s.replace(/`([^`\n]+)`/g, (_, c) => { codes.push(`<code>${c}</code>`); return `\u0000${codes.length - 1}\u0000`; });
-  // [text](url)
-  s = s.replace(/\[([^\]\n]{1,200})\]\(([^)\s]+)\)/g, (m, t, u) => SAFE_URL.test(u) ? (u.startsWith("/") ? `<a href="${u}">${t}</a>` : `<a href="${u}" rel="nofollow noopener" target="_blank">${t}</a>`) : m);
-  // bare urls (not already inside an href)
-  s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<>"']+[^\s<>"'.,;:!?)])/g, (_, pre, u) => `${pre}<a href="${u}" rel="nofollow noopener" target="_blank">${u}</a>`);
+  const hold = (html: string) => { codes.push(html); return `\u0000${codes.length - 1}\u0000`; };
+  s = s.replace(/`([^`\n]+)`/g, (_, c) => hold(`<code>${c}</code>`));
+  // Links are held back the same way, so the bold and italic rules below never reach into a tag: "_x_" or "*x*" in
+  // a URL (or the "_" of target="_blank") used to become <em> inside it. [text](url) holds its opening tag only;
+  // the text may still be formatted.
+  s = s.replace(/\[([^\]\n]{1,200})\]\(([^)\s]+)\)/g, (m, t, u) => SAFE_URL.test(u) ? `${hold(u.startsWith("/") ? `<a href="${u}">` : `<a href="${u}" rel="nofollow noopener" target="_blank">`)}${t}</a>` : m);
+  // bare urls (not already inside an href): href and visible text both held
+  s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<>"']+[^\s<>"'.,;:!?)])/g, (_, pre, u) => `${pre}${hold(`<a href="${u}" rel="nofollow noopener" target="_blank">${u}</a>`)}`);
   s = s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/(^|[^\w*])\*([^*\n]+)\*(?!\w)/g, "$1<em>$2</em>");
   s = s.replace(/(^|[^\w_])_([^_\n]+)_(?!\w)/g, "$1<em>$2</em>");
-  s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => codes[Number(i)]);
+  // a held URL can contain a held code span; each piece only holds earlier ones, so this ends
+  while (/\u0000\d+\u0000/.test(s)) s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => codes[Number(i)]);
   return s;
 }
 

@@ -1224,6 +1224,10 @@ Decisions the other lanes must know:
 - **Authority**: the agent owner, any address the owner granted with `setAnchorer`, or an AgentAccount whose
   `owner()` is the agent owner (looked up through `AgentAccountFactory.isAccount`). `canAnchor` answers this in one
   call. A delegate can only *append*: it cannot rewrite a batch, and `prevRoot` stops it forking one.
+  A `setAnchorer` grant records the owner who made it and counts only while that address owns the agent: when the
+  agent changes owner (`AgentRegistry.transferOwnership`), the previous owner's grants lapse — `isAnchorer` and
+  `canAnchor` return false and `anchor` reverts `NotAuthorized()` — and the new owner grants its own delegates.
+  Memory itself follows the agent, so the new owner continues the same chain.
 - **`anchorFor`** is the relayed path — EIP-712
   `Anchor(uint256 agentId,bytes32 root,bytes32 prevRoot,uint32 count,string uri,uint256 nonce,uint64 deadline)`,
   domain `{name:"FerminuxMemoryAnchor", version:"1", chainId: block.chainid, verifyingContract: this}`. `sig` is a

@@ -3,8 +3,10 @@
 <head>
 <!-- @head -->
 <!--
-  Consensus record. §1 was approved as-is by the consensus decision record (2026-08-21) and must not be
-  softened. "Proof of stake" must not appear anywhere on this page as a description of what Ferminux runs.
+  Consensus record. §1 carries the substance the consensus decision record (2026-08-21) approved, and §1 and §6
+  state the operating facts: one operator runs every signer, signers carry no bond, history is secured by signer
+  keys, losing the majority halts the chain, and staking is separate from consensus. Keep every one of them at
+  full strength; write each as the fact itself, not as a denial of what Ferminux is not (AGENTS.md, Terminology).
   Signer liveness is read live from clique_getSigners + clique_status, with the gateway's /api/status as the
   fallback (src/pages/consensus.ts). The prose states the rule only (more than half must confirm); every
   count — signers authorised, confirming, needed, margin — is filled in live via #cs-* and [data-cs]. Never
@@ -12,10 +14,10 @@
   3 of 5 signers were confirming).
 -->
 <title>Consensus — Ferminux Network</title>
-<meta name="description" content="How Ferminux confirms blocks: authorised signers under Clique proof-of-authority since block 160,000, how many are confirming right now and how many more can stop, who runs them, and what this is not.">
+<meta name="description" content="How Ferminux confirms blocks: authorised signers under Clique proof-of-authority since block 160,000, how many are confirming right now and how many more can stop, who runs them, and what it costs.">
 <link rel="canonical" href="https://ferminux.net/consensus.html">
 <meta property="og:title" content="Consensus — Ferminux Network">
-<meta property="og:description" content="The authorised signers, how many are confirming right now, how many more can stop before the chain halts, and what this consensus is not.">
+<meta property="og:description" content="The authorised signers, how many are confirming right now, how many more can stop before the chain halts, and what this consensus costs.">
 <link rel="stylesheet" href="/src/styles.css">
 </head>
 <body>
@@ -25,16 +27,16 @@
     <section class="hero-sm">
       <p class="kicker">Chain 3961 · the record</p>
       <h1>How Ferminux confirms blocks</h1>
-      <p class="lede">What the consensus mechanism is, who operates it, what it replaced and why, and what it is not. Every claim here is checkable on-chain, and the live figures below are read from the chain as you load the page.</p>
+      <p class="lede">What the consensus mechanism is, who operates it, what it replaced and why, and what it costs. Every claim here is checkable on-chain, and the live figures below are read from the chain as you load the page.</p>
     </section>
 
     <div class="doc">
       <section id="what">
         <h2>1. What it is</h2>
         <div class="callout">
-          <p>Ferminux uses <strong>authority consensus</strong> (Clique proof-of-authority). A set of <span data-cs="total">authorised</span> signers confirms a block every 7 seconds, in rotation. They are <strong>not bonded</strong>: no stake backs them and there is nothing to slash, so the only thing standing behind a signer is the foundation's operation of it. The signer set is operated by the foundation. <strong>This is not trustless proof of stake and we do not claim it is.</strong> FMX staking is a yield programme funded from the ecosystem allocation; it does not secure the chain.</p>
+          <p>Ferminux uses <strong>authority consensus</strong> (Clique proof-of-authority). A set of <span data-cs="total">authorised</span> signers confirms a block every 7 seconds, in rotation. Signers are authorised by the on-chain signer set and carry <strong>no bond</strong>, so there is nothing to slash: what stands behind each signer is the foundation's operation of it. The foundation operates every signer, so <strong>block production rests on trust in the foundation as operator.</strong> FMX staking is a yield programme funded from the ecosystem allocation, separate from consensus: producing blocks belongs to the signer set alone.</p>
         </div>
-        <p>The foundation operates the signer set today, and an open validator programme is being built: anyone who deposits 2,000 FMX per seat will be able to run a validator node on a Windows PC or a Linux server, check every block and sign a checkpoint about every 23 minutes. Those validator nodes do not produce blocks and do not make this proof of stake; community block-signing seats would come later, as a separately announced upgrade. The programme is in development: <a class="link-inline" href="/validators/">become a validator</a>.</p>
+        <p>The foundation operates the signer set today, and an open validator programme is being built: anyone who deposits 2,000 FMX per seat will be able to run a validator node on a Windows PC or a Linux server, check every block and sign a checkpoint about every 23 minutes. Those validator nodes check blocks; producing them stays with the authorised signers. Community block-signing seats would come later, as a separately announced upgrade. The programme is in development: <a class="link-inline" href="/validators/">become a validator</a>.</p>
         <p>Concretely: each block has a signer whose turn it is, in rotation; when that signer is unavailable another authorised signer confirms the block instead. An empty block is confirmed whether or not anyone is transacting. With <code>N</code> signers authorised, a signer may confirm at most one block in any <code>⌊N/2⌋ + 1</code> in a row, so production needs <strong>more than half</strong> of the authorised signers confirming — <span data-cs="needed">a majority</span> of <span data-cs="total">them</span>. With fewer, the chain stops until a signer returns. How many more can stop before that happens depends on how many are confirming, which section 2 reads live.</p>
       </section>
 
@@ -83,13 +85,13 @@
       </section>
 
       <section id="limits">
-        <h2>6. What we are not claiming</h2>
+        <h2>6. What it costs</h2>
         <div class="callout warn">
           <ul>
-            <li><strong>It is not decentralised.</strong> One operator runs every signer. Proof-of-work, whatever its faults, let anyone with hardware take part in producing blocks. This does not, and the validator programme now in development does not change that in its first step: validator nodes check blocks, they do not produce them.</li>
+            <li><strong>One operator runs every signer.</strong> Producing blocks is open only to the authorised signers, all of them operated by the foundation. Proof-of-work, whatever its faults, let anyone with hardware take part in producing blocks; authority consensus gives that up. The first step of the validator programme now in development keeps it that way: validator nodes check blocks, and producing them stays with the signers.</li>
             <li><strong>History is secured by keys, not by work.</strong> A majority of signers could rewrite recent history at no cost. The bridge is defended against this with signed checkpoints and a reorganisation-depth limit in every node, not by the consensus rule itself.</li>
             <li><strong>Losing the majority halts the chain.</strong> If enough signer keys or machines are lost at once that no more than half of the authorised signers can confirm, block production stops until the foundation restores them. Recovery is a known procedure, and it is still a halt. Section 2 says how close to that line the chain is right now.</li>
-            <li><strong>Staking does not secure anything.</strong> The staking programme pays FMX from a funded pool to holders who lock FMX. It votes on nothing and can neither halt nor split the chain. Its published pool balance and depletion date are the only promises it makes.</li>
+            <li><strong>Staking is a yield programme, separate from consensus.</strong> The staking programme pays FMX from a funded pool to holders who lock FMX. It has no vote and no part in producing blocks, so it can neither halt nor split the chain. Its published pool balance and depletion date are the only promises it makes.</li>
           </ul>
         </div>
       </section>

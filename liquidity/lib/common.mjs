@@ -83,6 +83,17 @@ export function parseArgs(argv, spec) {
   return out;
 }
 
+// A basis-points flag feeds min = amount * (10000 - bps) / 10000. Anything but a whole number 0..10000 either
+// crashed in BigInt() ("0.5") or gave a minimum below zero or above the amount (20000, -50), which addLiquidity
+// only rejects after createPair and the approvals have been sent.
+export function bpsArg(value, flag) {
+  const s = String(value ?? "").trim();
+  if (!/^\d+$/.test(s) || Number(s) > 10000) {
+    fail(`--${flag} must be a whole number of basis points from 0 to 10000 (50 = 0.5%), got '${value}'`);
+  }
+  return BigInt(s);
+}
+
 export function usage(spec) {
   const lines = Object.entries(spec).map(
     ([k, s]) =>
@@ -197,6 +208,6 @@ export async function sendStep(label, txPromise) {
   process.stdout.write(`  ${label} ... `);
   const tx = await txPromise;
   const rc = await tx.wait();
-  console.log(`mined in block ${rc.blockNumber}, gasUsed=${rc.gasUsed}, tx=${rc.hash}`);
+  console.log(`confirmed in block ${rc.blockNumber}, gasUsed=${rc.gasUsed}, tx=${rc.hash}`);
   return rc;
 }
