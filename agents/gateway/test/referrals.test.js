@@ -51,10 +51,17 @@ async function setup() {
     return app.inject({ method: "POST", url: "/api/referrals", headers: { "content-type": "application/json" }, payload: JSON.stringify(await signed(wallet, "referral.claim", payload)) });
   };
   const get = async (url) => (await app.inject({ method: "GET", url })).json();
-  // the indexer's head: a completion is paid once it is REORG_DEPTH blocks under it (applyJobToReferrals called
-  // without a block takes the head as the completion's block)
+  // the indexer's head: a completion is paid once the block of its recorded JobCompleted log is REORG_DEPTH blocks
+  // under it. The indexer records that log before it runs the hook: `completed` records one (at the head by default).
   setMeta(db, "indexedBlock", "1000");
-  const indexer = { advance: (n) => setMeta(db, "indexedBlock", String(Number(getMeta(db, "indexedBlock")) + n)) };
+  const head = () => Number(getMeta(db, "indexedBlock"));
+  let logs = 0;
+  const indexer = {
+    advance: (n) => setMeta(db, "indexedBlock", String(head() + n)),
+    completed: (jobId, block = head()) =>
+      db.prepare("INSERT INTO events (txHash, logIndex, blockNumber, contractName, eventName, argsJSON, ts) VALUES (?, 0, ?, 'escrow', 'JobCompleted', ?, ?)").run(`0xc${++logs}`, block, JSON.stringify({ jobId: String(jobId) }), clock.s()),
+    reorged: (jobId) => db.prepare("DELETE FROM events WHERE eventName = 'JobCompleted' AND json_extract(argsJSON, '$.jobId') = ?").run(String(jobId)),
+  };
   return { app, db, activity, indexerHooks, clock, post, get, indexer };
 }
 
@@ -100,7 +107,10 @@ test("referrals", async (t) => {
     const acct = "0x00000000000000000000000000000000000000AA";
     db.prepare("INSERT INTO agent_accounts (account, owner, createdAt) VALUES (?, ?, ?)").run(acct, toolbox.address, clock.s());
     ins.run(493, 12, acct, parseEther("50").toString(), 3, clock.s()); // referrer's AgentAccount hires the referred agent
-    for (const id of [490, 491, 492, 493]) indexerHooks.onJobEvent({ jobId: id, eventName: "JobCompleted", args: {}, ts: clock.s(), txHash: `0x0${id}`, logIndex: 0, blockNumber: 1 });
+    for (const id of [490, 491, 492, 493]) {
+      indexer.completed(id, 1);
+      indexerHooks.onJobEvent({ jobId: id, eventName: "JobCompleted", args: {}, ts: clock.s(), txHash: `0x0${id}`, logIndex: 0, blockNumber: 1 });
+    }
     assert.equal((await get("/api/referrals/12")).status, "registered");
     assert.equal((await get("/api/referrals/leaderboard")).minJobFmx, "5");
   });
@@ -110,6 +120,7 @@ test("referrals", async (t) => {
     indexerHooks.onJobEvent({ jobId: 501, eventName: "JobRequested", args: {}, ts: clock.s(), txHash: "0x01", logIndex: 0, blockNumber: 1 });
     assert.equal((await get("/api/referrals/12")).status, "registered");
     db.prepare("UPDATE jobs SET status = 3 WHERE id = 501").run(); // Completed
+    indexer.completed(501, 2);
     indexerHooks.onJobEvent({ jobId: 501, eventName: "JobCompleted", args: { rating: 5 }, ts: clock.s(), txHash: "0x02", logIndex: 0, blockNumber: 2 });
     const v = await get("/api/referrals/12");
     assert.equal(v.status, "pending");
@@ -125,6 +136,7 @@ test("referrals", async (t) => {
     assert.equal(lb.items[0].paid, 0);
     assert.deepEqual(lb.totals, { referred: 1, paid: 0, pending: 1 });
     // a second completed job changes nothing
+    indexer.completed(502);
     applyJobToReferrals(db, activity, { id: 502, agentId: 12, status: 3, client: client.address, amount: parseEther("9").toString() }, clock.s());
     assert.equal((await get("/api/referrals/12")).jobId, 501);
   });
@@ -157,6 +169,7 @@ test("referrals", async (t) => {
   await t.test("a failed second transfer is retried without re-sending the first", async () => {
     db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, ?, ?)").run(14, client.address, "Third", "https://third.example", 1, clock.s());
     assert.equal((await post(client, { newAgentId: 14, ref: 1 })).statusCode, 201);
+    indexer.completed(601);
     applyJobToReferrals(db, activity, { id: 601, agentId: 14, status: 3, client: newbie.address, amount: parseEther("5").toString() }, clock.s());
     indexer.advance(REORG_DEPTH); // the completion is out of a reorg's reach
     let calls = 0;
@@ -178,6 +191,7 @@ test("referrals", async (t) => {
     const owner = new Wallet("0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a");
     db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, ?, ?)").run(15, owner.address, "Fourth", "https://fourth.example", 1, clock.s());
     assert.equal((await post(owner, { newAgentId: 15, ref: 1 })).statusCode, 201);
+    indexer.completed(701);
     applyJobToReferrals(db, activity, { id: 701, agentId: 15, status: 3, client: client.address, amount: parseEther("5").toString() }, clock.s());
     // simulate: nonce 20 was reserved for the first leg and the tx broadcast, then the process died before txNew was written
     db.prepare("UPDATE referrals SET nonceNew = 20 WHERE newAgentId = 15").run();
@@ -200,6 +214,7 @@ test("referrals", async (t) => {
       wallets.push(w);
       ins.run(20 + i, w.address, `Ref ${i}`, "https://r.example", 1, clock.s());
       assert.equal((await post(w, { newAgentId: 20 + i, ref: 1 })).statusCode, 201);
+      indexer.completed(800 + i);
       applyJobToReferrals(db, activity, { id: 800 + i, agentId: 20 + i, status: 3, client: client.address, amount: parseEther("5").toString() }, clock.s());
     }
     indexer.advance(REORG_DEPTH);
@@ -226,6 +241,7 @@ test("referrals", async (t) => {
     db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, ?, ?)").run(30, owner.address, "Fifth", "https://fifth.example", 1, clock.s());
     clock.advance(86_400_000); // a fresh UTC day: the caps leave room
     assert.equal((await post(owner, { newAgentId: 30, ref: 1 })).statusCode, 201);
+    indexer.completed(901);
     applyJobToReferrals(db, activity, { id: 901, agentId: 30, status: 3, client: client.address, amount: parseEther("5").toString() }, clock.s());
     indexer.advance(REORG_DEPTH); // deep enough to pay: only the rollback stops it
     const sent = [];
@@ -257,7 +273,7 @@ test("referrals", async (t) => {
       db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, ?, ?)").run(id, owners[id].address, `Agent ${id}`, "https://a.example", 1, clock.s());
       assert.equal((await post(owners[id], { newAgentId: id, ref: 1 })).statusCode, 201);
     }
-    const complete = (agentId, jobId) => applyJobToReferrals(db, activity, { id: jobId, agentId, status: 3, client: client.address, amount: parseEther("5").toString() }, clock.s());
+    const complete = (agentId, jobId) => (indexer.completed(jobId), applyJobToReferrals(db, activity, { id: jobId, agentId, status: 3, client: client.address, amount: parseEther("5").toString() }, clock.s()));
     const row = (id) => ({ ...db.prepare("SELECT paid, txNew, txRef, nonceNew, nonceRef, reorgFlag IS NOT NULL AS flagged FROM referrals WHERE newAgentId = ?").get(id) });
     let next = 50; // growth wallet's next nonce: a send that returns is confirmed at once
     const sent = [];
@@ -289,6 +305,7 @@ test("referrals", async (t) => {
     await payout({ fails: (to) => to === owners[32].address }).tick();
     assert.deepEqual(row(32), { paid: 0, txNew: null, txRef: null, nonceNew: 51, nonceRef: null, flagged: 0 });
     revertJobOnReferrals(db, "JobCompleted", 932, 501);
+    indexer.reorged(932);
     assert.equal(row(32).flagged, 1);
     await payout().tick();
     await payout().tick();
@@ -343,35 +360,42 @@ test("referral payout waits until the completion is REORG_DEPTH blocks under the
   const job = (id, agentId) => ({ id, agentId, status: 3, client: client.address, amount: parseEther("5").toString() });
   const refer = (agentId, owner) => db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts) VALUES (?, 1, ?, ?, 1)").run(agentId, owner, toolbox.address);
   const row = (agentId) => ({ ...db.prepare("SELECT paid, eligibleAt IS NOT NULL AS eligible, eligibleBlock FROM referrals WHERE newAgentId = ?").get(agentId) });
+  // the indexer records a JobCompleted log, then runs the hook; a rollback deletes it
+  const logged = (id, block) => db.prepare("INSERT INTO events (txHash, logIndex, blockNumber, contractName, eventName, argsJSON, ts) VALUES (?, 0, ?, 'escrow', 'JobCompleted', ?, 1)").run(`0xc${id}b${block}`, block, JSON.stringify({ jobId: String(id) }));
+  const reorged = (id, block) => (revertJobOnReferrals(db, "JobCompleted", id, block), db.prepare("DELETE FROM events WHERE txHash = ?").run(`0xc${id}b${block}`));
   const sent = [];
   const payout = new ReferralPayout({ db, activity, provider: null, nowS: () => 1_758_400_000, txCounts: async () => [sent.length, sent.length], send: async (to) => (sent.push(to), `0xs${sent.length}`) });
 
   // job 6 completes at the head; a 10-block reorg drops the completion before it is deep: nothing went out for it
   refer(7, newbie.address);
   head(2000);
-  applyJobToReferrals(db, activity, job(6, 7), 1, undefined, 2000);
+  logged(6, 2000);
+  applyJobToReferrals(db, activity, job(6, 7), 1);
   assert.deepEqual(row(7), { paid: 0, eligible: 1, eligibleBlock: 2000 });
   assert.equal(await payout.tick(), 0);
   head(2010);
   assert.equal(await payout.tick(), 0);
-  revertJobOnReferrals(db, "JobCompleted", 6, 2000);
+  reorged(6, 2000);
   assert.deepEqual(row(7), { paid: 0, eligible: 0, eligibleBlock: null });
   assert.deepEqual(sent, []);
 
   // completed on the winning branch at block 2005: not paid 63 blocks under the head, paid 64 under it
-  applyJobToReferrals(db, activity, job(6, 7), 2, undefined, 2005);
+  logged(6, 2005);
+  applyJobToReferrals(db, activity, job(6, 7), 2);
   head(2005 + REORG_DEPTH - 1);
   assert.equal(await payout.tick(), 0);
   head(2005 + REORG_DEPTH);
   assert.equal(await payout.tick(), 1);
   assert.deepEqual(sent, [newbie.address, toolbox.address]);
 
-  // an earlier event of job 8 made the row eligible (the job read at its latest state): the payout waits on the
-  // JobCompleted log applied after it
+  // an earlier event of job 8 reads it Completed (the job read at its latest state): nothing is eligible until its
+  // JobCompleted log is applied, and the payout waits on that log's block
   const early = Wallet.createRandom().address;
   refer(8, early);
-  applyJobToReferrals(db, activity, job(8, 8), 3, undefined, 2080);
-  applyJobToReferrals(db, activity, job(8, 8), 3, undefined, 2090);
+  applyJobToReferrals(db, activity, job(8, 8), 3);
+  assert.deepEqual(row(8), { paid: 0, eligible: 0, eligibleBlock: null });
+  logged(8, 2090);
+  applyJobToReferrals(db, activity, job(8, 8), 3);
   assert.equal(row(8).eligibleBlock, 2090);
   head(2080 + REORG_DEPTH);
   assert.equal(await payout.tick(), 0);
@@ -388,6 +412,129 @@ test("referral payout waits until the completion is REORG_DEPTH blocks under the
   head(2150 + REORG_DEPTH);
   assert.equal(await payout.tick(), 1);
   assert.deepEqual(sent.slice(-2), [legacy, toolbox.address]);
+
+  // a row a gateway made eligible on a latest-state read, with an earlier event's block and no JobCompleted log
+  // recorded: nothing is paid on that block; it waits for the log, then for that log's own depth
+  const unlogged = Wallet.createRandom().address;
+  refer(10, unlogged);
+  db.prepare("UPDATE referrals SET eligibleAt = 5, jobId = 10, eligibleBlock = 2100 WHERE newAgentId = 10").run();
+  assert.equal(await payout.tick(), 0);
+  assert.deepEqual(row(10), { paid: 0, eligible: 1, eligibleBlock: null });
+  logged(10, 2200);
+  assert.equal(await payout.tick(), 0);
+  assert.equal(row(10).eligibleBlock, 2200);
+  head(2200 + REORG_DEPTH);
+  assert.equal(await payout.tick(), 1);
+  assert.deepEqual(sent.slice(-2), [unlogged, toolbox.address]);
+});
+
+// A claim for a job the jobs table already read Completed took the indexed head as its completion's block when no
+// JobCompleted log was recorded: mid-backfill (the job read at its latest state) the next chunk moved the head past it,
+// and the payout went out for a completion no recorded log backed.
+test("a referral claimed for a completed job is eligible only through its recorded JobCompleted log", async (t) => {
+  const { app, db, activity, indexerHooks, clock, post, get, indexer } = await setup();
+  t.after(() => app.close());
+  const sent = [];
+  const payout = new ReferralPayout({ db, activity, provider: null, nowS: clock.s, txCounts: async () => [sent.length, sent.length], send: async (to) => (sent.push(to), `0xs${sent.length}`) });
+  const ins = db.prepare("INSERT INTO jobs (id, agentId, client, amount, status, createdAt) VALUES (?, ?, ?, ?, 3, ?)");
+
+  // job 501 reads Completed, its log is not recorded yet: the claim is registered, and nothing is paid on it
+  ins.run(501, 12, client.address, parseEther("5").toString(), clock.s());
+  assert.equal((await post(newbie, { newAgentId: 12, ref: 1 })).statusCode, 201);
+  assert.equal((await get("/api/referrals/12")).status, "registered");
+  indexer.advance(REORG_DEPTH);
+  assert.equal(await payout.tick(), 0);
+  assert.deepEqual(sent, []);
+  // the indexer applies the log: eligible at its block, paid once that block is REORG_DEPTH under the head
+  indexer.completed(501);
+  indexerHooks.onJobEvent({ jobId: 501, eventName: "JobCompleted", args: {}, ts: clock.s(), txHash: "0x0501", logIndex: 0, blockNumber: 1064 });
+  assert.equal((await get("/api/referrals/12")).status, "pending");
+  assert.equal(db.prepare("SELECT eligibleBlock FROM referrals WHERE newAgentId = 12").get().eligibleBlock, 1064);
+  assert.equal(await payout.tick(), 0);
+  indexer.advance(REORG_DEPTH);
+  assert.equal(await payout.tick(), 1);
+  assert.deepEqual(sent, [newbie.address, toolbox.address]);
+
+  // a job whose log is recorded already makes the claim eligible at once, at that log's block
+  const owner = Wallet.createRandom();
+  db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, ?, ?)").run(14, owner.address, "Fourth", "https://fourth.example", 1, clock.s());
+  ins.run(502, 14, client.address, parseEther("5").toString(), clock.s());
+  indexer.completed(502, 1050);
+  assert.equal((await post(owner, { newAgentId: 14, ref: 1 })).statusCode, 201);
+  assert.equal((await get("/api/referrals/14")).status, "pending");
+  assert.equal(db.prepare("SELECT eligibleBlock FROM referrals WHERE newAgentId = 14").get().eligibleBlock, 1050);
+});
+
+// Nonces are per wallet, and a row recorded only the nonce number: after GROWTH_KEY changed, a nonce the new wallet
+// reserved matched one the old wallet had paid on, so a transfer broadcast and then lost to a send() timeout (or a crash
+// before its hash was written) counted as never sent and went out again on a fresh nonce. A leg in flight when the key
+// changed was compared with the new wallet's counts and sent again from it.
+test("a GROWTH_KEY change never sends a leg twice: nonces are matched within the wallet that reserved them", async () => {
+  const { ActivityBus } = await import("../dist/commons/activity.js");
+  const db = openMemoryDb();
+  const activity = new ActivityBus(db, () => 1_758_400_000_000);
+  setMeta(db, "indexedBlock", String(1000 + REORG_DEPTH));
+  const owners = {};
+  for (const id of [7, 8, 9]) {
+    owners[id] = Wallet.createRandom().address;
+    db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts) VALUES (?, 1, ?, ?, 1)").run(id, owners[id], toolbox.address);
+    db.prepare("INSERT INTO events (txHash, logIndex, blockNumber, contractName, eventName, argsJSON, ts) VALUES (?, 0, 1000, 'escrow', 'JobCompleted', ?, 1)").run(`0xc${id}`, JSON.stringify({ jobId: String(id) }));
+  }
+  const earn = (id) => db.prepare("UPDATE referrals SET eligibleAt = ?, jobId = ?, eligibleBlock = 1000 WHERE newAgentId = ?").run(id, id, id);
+  const row = (id) => ({ ...db.prepare("SELECT paid, txNew, txRef, nonceNew, nonceRef FROM referrals WHERE newAgentId = ?").get(id) });
+  // every wallet's transfers are confirmed at once; `timesOut` makes send() throw after the node accepted the transfer
+  const counts = new Map();
+  const sent = [];
+  const payout = (wallet, timesOut = () => false) =>
+    new ReferralPayout({
+      db,
+      activity,
+      provider: { getBalance: async () => parseEther("1000") },
+      growthKey: wallet.privateKey,
+      nowS: () => 1_758_400_000,
+      txCounts: async () => [counts.get(wallet.address) ?? 0, counts.get(wallet.address) ?? 0],
+      send: async (to, _value, nonce) => {
+        sent.push([wallet.address, to, nonce]);
+        counts.set(wallet.address, nonce + 1);
+        if (timesOut(to)) throw new Error("request timeout");
+        return `0x${wallet.address.slice(2, 8)}${nonce}`;
+      },
+    });
+  const before = Wallet.createRandom();
+  const after = Wallet.createRandom();
+
+  // the first key pays agent 7 on its nonces 0 and 1; agent 9's first leg goes out on nonce 2 and its send times out
+  earn(7);
+  earn(9);
+  await payout(before, (to) => to === owners[9]).tick();
+  assert.deepEqual(sent, [[before.address, owners[7], 0], [before.address, toolbox.address, 1], [before.address, owners[9], 2]]);
+  assert.deepEqual(row(9), { paid: 0, txNew: null, txRef: null, nonceNew: 2, nonceRef: null });
+
+  // GROWTH_KEY changes. Agent 8's first leg goes out on the new wallet's nonce 0 and its send times out too.
+  earn(8);
+  await payout(after, (to) => to === owners[8]).tick();
+  assert.deepEqual(sent.slice(3), [[after.address, owners[8], 0]], "agent 9's leg in flight on the old wallet is not sent again from the new one");
+  assert.match(db.prepare("SELECT error FROM referrals WHERE newAgentId = 9").get().error, new RegExp(`reserved on GROWTH_KEY ${before.address}`));
+
+  // agent 7's tx on the old wallet's nonce 0 is not agent 8's: the new wallet's nonce 0 is confirmed, so it is agent 8's
+  assert.equal(await payout(after).tick(), 1);
+  assert.deepEqual(sent.slice(4), [[after.address, toolbox.address, 1]], "agent 8's first leg is not sent twice");
+  assert.deepEqual(row(8), { paid: 1, txNew: "recovered:nonce:0", txRef: `0x${after.address.slice(2, 8)}1`, nonceNew: 0, nonceRef: 1 });
+  assert.deepEqual(row(9), { paid: 0, txNew: null, txRef: null, nonceNew: 2, nonceRef: null }, "still held");
+});
+
+// fromNew / fromRef shipped after the referrals table: a database deployed before them gains the columns, and migrating twice is a no-op.
+test("migrateGrowth adds fromNew and fromRef to a referrals table created before they existed", async () => {
+  const { default: Database } = await import("better-sqlite3");
+  const { migrateGrowth } = await import("../dist/commons/schema.js");
+  const db = new Database(":memory:");
+  db.exec("CREATE TABLE referrals (newAgentId INTEGER PRIMARY KEY, refAgentId INTEGER NOT NULL, newOwner TEXT NOT NULL, refOwner TEXT NOT NULL, ts INTEGER NOT NULL, paid INTEGER NOT NULL DEFAULT 0, eligibleAt INTEGER, jobId INTEGER, paidAt INTEGER, txNew TEXT, txRef TEXT, rewardWei TEXT, error TEXT, nonceNew INTEGER, nonceRef INTEGER, reorgFlag TEXT, eligibleBlock INTEGER)");
+  db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts, nonceNew) VALUES (7, 8, '0xa', '0xb', 1, 3)").run();
+  migrateGrowth(db);
+  migrateGrowth(db);
+  const cols = db.prepare("PRAGMA table_info(referrals)").all().map((c) => c.name);
+  assert.ok(cols.includes("fromNew") && cols.includes("fromRef"));
+  assert.deepEqual({ ...db.prepare("SELECT nonceNew, fromNew, fromRef FROM referrals WHERE newAgentId = 7").get() }, { nonceNew: 3, fromNew: null, fromRef: null });
 });
 
 // eligibleBlock shipped after the referrals table: a database deployed before it gains the column, and migrating twice is a no-op.

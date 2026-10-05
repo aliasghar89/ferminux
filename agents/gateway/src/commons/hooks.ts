@@ -80,7 +80,7 @@ export function makeIndexerHooks(db: Db, activity: ActivityBus, opts: { referral
       }
       applyJobToBounties(db, activity, job, ev.ts);
       applyJobToArena(db, activity, job, ev.ts);
-      applyJobToReferrals(db, activity, job, ev.ts, rules, ev.blockNumber);
+      applyJobToReferrals(db, activity, job, ev.ts, rules);
     },
     onRollback(ev: RolledBackEvent) {
       activity.retract(`${ev.eventName}:${ev.txHash}:${ev.logIndex}`);

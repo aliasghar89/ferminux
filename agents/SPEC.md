@@ -492,6 +492,18 @@ chain 3961, RPC `https://rpc.ferminux.net`.
   skipped in this batch. An estimate that fails without the node running out
   of gas or reverting (the RPC unreachable or rate-limiting) counts nothing.
   Vouchers that have failed an attempt queue behind fresh ones.
+- `settleBatch` is sent with a gas limit of its estimate plus
+  `X402_SETTLE_GAS_MARGIN_PER_VOUCHER` = **75,000** gas per voucher, capped by
+  the block gas limit. The node estimates against the state of that moment,
+  and a voucher the vault skipped there (an EOA payer's deposit drained during
+  the estimate, then refilled) settles on chain for about 51k more gas, or 72k
+  when it also writes the fee recipient's credit from zero.
+- A batch that still reverts on chain counts nothing against its vouchers,
+  because nothing says which one was at fault. They are re-queued, each in
+  batches of at most half that size (`batchCap`, halved again on every
+  revert), until a voucher reverts alone. Only that voucher counts a settle
+  attempt (`failed` after `X402_MAX_SETTLE_ATTEMPTS`), and it is retried
+  alone.
 - The facilitator also refuses a voucher when the payer's vault deposit unlocks
   at or before `now + X402_MIN_EXPIRY_S` — the payer must re-lock (deposit) or
   wait out the withdrawal first, otherwise the balance can leave before the
@@ -536,17 +548,25 @@ list.
   `GROWTH_KEY`. A job qualifies when it was paid by a third party — the client
   is neither owner nor an `AgentAccount` of either — for at least
   `REFERRAL_MIN_JOB_FMX` (default 5 FMX).
-- The worker pays a row only once the block of the `JobCompleted` that made it
-  eligible (`eligibleBlock`) is at least `REORG_DEPTH` = **64** blocks under the
-  gateway's indexed head — counted in blocks, not time. The indexer re-checks
-  the 64 blocks under its head every tick, so a completion a reorg can still
-  remove takes its eligibility back before any FMX goes out. Until then the row
-  reads `pending`.
+- A row is eligible only through a `JobCompleted` log the indexer has
+  recorded. A job read as Completed before its log is applied (a pruned node
+  answers a read at an old block with the latest state, and a backfill records
+  its progress chunk by chunk) makes nothing eligible, and a claim for such a
+  job stays `registered` until the log is applied.
+- The worker pays a row only once the block of the recorded `JobCompleted` that
+  made it eligible (`eligibleBlock`) is at least `REORG_DEPTH` = **64** blocks
+  under the gateway's indexed head — counted in blocks, not time. The indexer
+  re-checks the 64 blocks under its head every tick, so a completion a reorg can
+  still remove takes its eligibility back before any FMX goes out. Until then
+  the row reads `pending`.
 - Caps: `REFERRAL_MAX_PAYOUTS_PER_REFERRER_PER_DAY` (default 5) and
   `REFERRAL_MAX_PAYOUTS_PER_DAY` (default 50), both per UTC day. Each transfer
-  reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`) so a retry
-  can never double-pay. `GROWTH_KEY` unset → rows stay `paid = 0` ("pending")
-  and the worker is a no-op.
+  reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`), with the
+  address it was reserved on (`fromNew`, `fromRef`), so a retry can never
+  double-pay. A leg whose nonce was reserved on another `GROWTH_KEY` (the key
+  changed while it was in flight) is held with an error until an operator has
+  checked that wallet's transfer. `GROWTH_KEY` unset → rows stay `paid = 0`
+  ("pending") and the worker is a no-op.
 - A reorg that removes the `JobCompleted` behind a row's eligibility takes the
   eligibility back while no transfer has been reserved; the row is earned again
   if the winning branch completes the job, and waits for that completion's
@@ -555,8 +575,8 @@ list.
   is flagged (`reorgFlag`), logged and held for review. Nothing more goes out
   for it — neither a leg not sent yet nor a re-send on a reserved nonce —
   unless the winning branch completes the job again, which clears the flag. A
-  reserved nonce that another transfer has since used is replaced, never
-  recorded as this payout's.
+  reserved nonce that another transfer from the same wallet has since used is
+  replaced, never recorded as this payout's.
 - Reads: `GET /api/referrals/leaderboard` (top referrers plus `rewardFmx`,
   `payoutEnabled`, totals and the 10 most recent), `GET /api/referrals/:agentId`
   (the row for one referred agent), `GET /api/referrals/by/:agentId` (every
