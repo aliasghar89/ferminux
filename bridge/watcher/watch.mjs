@@ -212,7 +212,7 @@ async function main() {
           } catch {
             continue; // an event this build does not know about
           }
-          handleEvent(c, parsed, log, rec, knownLimits, cursors);
+          handleEvent(c, parsed, log, rec, knownLimits, cursors, chains);
         }
 
         cursors.set(c.chainId, to);
@@ -295,7 +295,7 @@ async function main() {
   }
 }
 
-function handleEvent(chain, parsed, log, rec, knownLimits, cursors) {
+function handleEvent(chain, parsed, log, rec, knownLimits, cursors, chains) {
   const name = parsed.name;
   const a = parsed.args;
   const at = `blk=${log.blockNumber} tx=${log.transactionHash}`;
@@ -323,7 +323,9 @@ function handleEvent(chain, parsed, log, rec, knownLimits, cursors) {
       // is right for a chain whose RPC is down and wrong for one this watcher
       // does not scan at all: that execution could never be reconciled, so a
       // forged one would never be reported. Say so now, once, at full volume.
-      if (!cursors.has(Number(a.srcChainId))) {
+      // Asked of the config, not of `cursors`: those come back from the state
+      // file, so a chain removed from the config keeps one for ever.
+      if (!chains.has(Number(a.srcChainId))) {
         emit('critical', chain.name, 'UNVERIFIABLE-EXECUTION',
           `transferId=${a.transferId} claims source chain ${a.srcChainId}, which this watcher does not scan, so no Sent can ever be matched. ` +
           `amount=${fmtAmount(a.amount)} recipient=${a.recipient}. Add that chain to the watcher config, and pause() if no such route exists. ${at}`);
