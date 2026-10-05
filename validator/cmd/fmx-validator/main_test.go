@@ -86,6 +86,25 @@ func TestResume(t *testing.T) {
 	}
 }
 
+// `sudo fmx-validator resume --yes` runs as root in a data directory the
+// service user owns, which can put a link where its network directory was:
+// removing HALTED by path had root delete the HALTED in the link's target.
+func TestResumeNeverRemovesThroughALink(t *testing.T) {
+	dd, victim := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(victim, HaltedFile), []byte("2026-09-25T00:00:00Z another stop\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(dd, "mainnet")); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	if out, code := cli(t, "resume", "--data-dir", dd, "--yes"); code == 0 {
+		t.Fatalf("resume went through a linked network directory: %s", out)
+	}
+	if _, err := os.Stat(filepath.Join(victim, HaltedFile)); err != nil {
+		t.Fatalf("resume removed HALTED in the link's target: %v", err)
+	}
+}
+
 // With no hub address yet the sidecar stays up, serves the dashboard and says what is missing.
 func TestRunWaitsForSetup(t *testing.T) {
 	dd := t.TempDir()
@@ -388,6 +407,32 @@ func TestCredentialFile(t *testing.T) {
 	}
 	if st, err := os.Lstat(filepath.Join(netDir, "attester-password")); err != nil || !st.Mode().IsRegular() || st.Mode().Perm() != 0o600 {
 		t.Fatalf("copy is not a fresh 0600 file: %v %v", st, err)
+	}
+}
+
+// install copies the password after Save has checked the network directory,
+// and the service user can put a link where that directory was in between:
+// removing and creating attester-password by path followed it, and Save
+// refused the link only afterwards.
+func TestCopyPasswordFileRefusesALinkedNetworkDirectory(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "pw")
+	if err := os.WriteFile(p, []byte("a long enough password\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dd, victim := t.TempDir(), t.TempDir() // victim stands in for a directory only root may change
+	const victimText = "a file only root may change\n"
+	if err := os.WriteFile(filepath.Join(victim, "attester-password"), []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	netDir := filepath.Join(dd, "mainnet")
+	if err := os.Symlink(victim, netDir); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	if _, err := copyPasswordFile(p, netDir); err == nil {
+		t.Fatal("the password was copied through a linked network directory")
+	}
+	if b, err := os.ReadFile(filepath.Join(victim, "attester-password")); err != nil || string(b) != victimText {
+		t.Fatalf("attester-password in the link's target was removed or changed: %q %v", b, err)
 	}
 }
 
