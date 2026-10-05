@@ -27,7 +27,8 @@
 #
 # Nothing here joins chain 3961 or any public network: the genesis check runs with
 # --nodiscover --maxpeers 0 --nat none, the --dev networks have no p2p at all, and the
-# packaging smoke registers the mainnet service without starting it.
+# packaging smoke registers the mainnet service without starting it and keeps the
+# service on localhost while it runs install.sh again.
 #
 # The containers start from digest-pinned Debian images and install what they need
 # themselves: no image is built or tagged, and removing the containers at the end
