@@ -1064,6 +1064,44 @@ test('capacity: repeated reject-and-release does not ratchet the budget down', a
   assert.equal(final.ok, true, 'and a legitimate transfer still gets signed afterwards');
 });
 
+// ============================================================================
+// FINDING: an unreadable destination domain separator was a final refusal
+// ============================================================================
+
+test('domain: a separator that cannot be READ is a retryable rpc_error, not an impostor', async () => {
+  // A real ChainClient for the destination, with no healthy endpoint yet — the
+  // state a 429 or a failed probe leaves behind. Before: domain_mismatch, which
+  // is final, so a passing RPC blip permanently rejected a transfer whose funds
+  // send() had already locked, and paged "impostor contract" for it.
+  const { ctx, stored, transfer, limiter } = verifyFixture();
+  const fired = watchAlerts(ctx.alerts);
+  const dstCfg = ctx.chains.get(CHAIN_B).config;
+  const dst = new ChainClient(dstCfg, silentLogger(), ctx.alerts);
+  try {
+    ctx.chains.get(CHAIN_B).verifyDomainSeparator = (expected) => dst.verifyDomainSeparator(expected);
+    const result = await verifyForSigning(ctx, stored);
+    assert.equal(result.ok, false, 'still refuses: nothing unchecked is signed');
+    assert.equal(result.code, 'rpc_error', result.reason ?? '');
+    assert.match(result.reason ?? '', /no healthy RPC endpoint/);
+    assert.equal(fired.filter((a) => a.kind === 'domain_mismatch').length, 0, 'no impostor alert for an unreachable node');
+    assert.equal(result.consumed, null);
+    assert.equal(limiter.usage(windowKey(transfer.srcChainId, transfer.srcToken, 'out')), 0n);
+  } finally {
+    dst.endpoints.forEach((e) => e.provider.destroy());
+  }
+});
+
+test('domain: a separator that is read and DIFFERS is still a final domain_mismatch', async () => {
+  const { ctx, stored } = verifyFixture();
+  const fired = watchAlerts(ctx.alerts);
+  const wrong = `0x${'ee'.repeat(32)}`;
+  ctx.chains.get(CHAIN_B).verifyDomainSeparator = async (expected) => ({ ok: false, onChain: wrong, reason: `on-chain ${wrong} != locally derived ${expected}` });
+  const result = await verifyForSigning(ctx, stored);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'domain_mismatch');
+  assert.equal(fired.filter((a) => a.kind === 'domain_mismatch' && a.severity === 'critical').length, 1);
+});
+
 test('capacity: a dry-run verification consumes nothing to release', async () => {
   const { ctx, stored, transfer, limiter } = verifyFixture();
   const result = await verifyForSigning(ctx, stored, false);
