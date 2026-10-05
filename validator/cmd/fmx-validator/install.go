@@ -299,13 +299,8 @@ func chownForService(name, dataDir string, dataDirExisted bool, netDir string) e
 			return err
 		}
 	}
-	err = filepath.WalkDir(netDir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		return os.Lchown(p, uid, gid)
-	})
-	if err != nil {
+	// never by path: the service user can swap a directory for a link mid-walk
+	if err := chownTree(netDir, uid, gid); err != nil {
 		return fmt.Errorf("giving %s to %s: %w", netDir, name, err)
 	}
 	// the user must be able to enter the data directory to reach its network directory

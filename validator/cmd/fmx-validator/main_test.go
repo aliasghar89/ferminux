@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -151,6 +153,70 @@ func TestChownForService(t *testing.T) {
 	}
 	if err := chownForService("no-such-user-fmx-test", dd, false, net); err == nil {
 		t.Fatal("unknown service user accepted")
+	}
+}
+
+// chownForService runs as root over a tree the service user can change while
+// it runs: a directory replaced by a link mid-walk must not lead it outside.
+func TestChownForServiceStaysInTheTree(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
+		t.Skip("POSIX, root")
+	}
+	svc, err := user.Lookup("nobody")
+	if err != nil {
+		t.Skip(err)
+	}
+	owner := func(p string) int {
+		st, err := os.Lstat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		uid, _, _ := statOwner(st)
+		return uid
+	}
+	base := t.TempDir()
+	dd := filepath.Join(base, "fmx")
+	net := filepath.Join(dd, "mainnet")
+	outside := filepath.Join(base, "outside")
+	for _, d := range []string{filepath.Join(net, "aaa"), filepath.Join(net, "zzz"), outside} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(outside, "root-only"), []byte("x"), 0o600)
+	// a link planted beforehand is chowned as a link, never followed
+	os.Symlink(outside, filepath.Join(net, "planted"))
+	// enough entries before zzz that the swap below lands while the walk runs
+	for i := 0; i < 5000; i++ {
+		os.WriteFile(filepath.Join(net, "aaa", fmt.Sprint(i)), nil, 0o600)
+	}
+	svcUID, _ := strconv.Atoi(svc.Uid)
+	swapped := make(chan struct{})
+	go func() {
+		defer close(swapped)
+		// once aaa is chowned, net has been listed with zzz as a directory
+		for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); {
+			if st, err := os.Lstat(filepath.Join(net, "aaa")); err == nil {
+				if uid, _, _ := statOwner(st); uid == svcUID {
+					break
+				}
+			}
+		}
+		os.Rename(filepath.Join(net, "zzz"), filepath.Join(net, "zzz.was"))
+		os.Symlink(outside, filepath.Join(net, "zzz"))
+	}()
+	err = chownForService(svc.Username, dd, true, net)
+	<-swapped
+	if err != nil {
+		t.Logf("chownForService: %v", err) // refusing a changed tree is fine; leaving it is not
+	}
+	for _, p := range []string{outside, filepath.Join(outside, "root-only")} {
+		if uid := owner(p); uid != 0 {
+			t.Fatalf("%s, outside the network directory, was given to uid %d", p, uid)
+		}
+	}
+	if err == nil && (owner(filepath.Join(net, "aaa", "4999")) != svcUID || owner(filepath.Join(net, "planted")) != svcUID) {
+		t.Fatal("the network directory was not handed over")
 	}
 }
 
