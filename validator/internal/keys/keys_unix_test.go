@@ -5,11 +5,75 @@ package keys
 import (
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/aliasghar89/ferminux/chain/accounts/keystore"
 	"github.com/aliasghar89/ferminux/chain/crypto"
 )
+
+// On an installed node (install.sh --no-key prints `sudo fmx-validator keys
+// import ...` for afterwards) root writes the key into a network directory
+// the service user owns. A key file root creates was root's, 0600, and so was
+// a keys directory it made: the service could not read its own attester key.
+func TestWriteTakesTheDirectoryOwner(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("only root can give a file to another user")
+	}
+	const uid, gid = 65534, 65534
+	priv, _ := crypto.GenerateKey()
+	enc, err := keystore.EncryptKey(&keystore.Key{Address: crypto.PubkeyToAddress(priv.PublicKey), PrivateKey: priv}, string(pw), keystore.LightScryptN, keystore.LightScryptP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, keysDirExists := range []bool{false, true} {
+		name := "keys directory made"
+		if keysDirExists {
+			name = "keys directory there"
+		}
+		t.Run(name, func(t *testing.T) {
+			dd := t.TempDir()
+			net := filepath.Join(dd, "devnet")
+			dir := filepath.Join(net, "keys")
+			mk := []string{net}
+			if keysDirExists {
+				mk = append(mk, dir)
+			}
+			for _, d := range mk {
+				if err := os.Mkdir(d, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chown(d, uid, gid); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if keysDirExists {
+				_, err = Import(dd, dir, "devnet", 31337, enc, pw)
+			} else {
+				_, err = Create(dd, dir, "devnet", 31337, pw)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for p, mode := range map[string]os.FileMode{dir: 0o700, filepath.Join(dir, KeyFile): 0o600, filepath.Join(dir, MarkerFile): 0o600} {
+				fi, err := os.Lstat(p)
+				if err != nil {
+					t.Fatal(err)
+				}
+				st := fi.Sys().(*syscall.Stat_t)
+				if st.Uid != uid || st.Gid != gid {
+					t.Fatalf("%s is %d:%d, want the service user's %d:%d", p, st.Uid, st.Gid, uid, gid)
+				}
+				if fi.Mode().Perm() != mode {
+					t.Fatalf("%s mode %v, want %v", p, fi.Mode().Perm(), mode)
+				}
+			}
+			if entries, _ := os.ReadDir(dir); len(entries) != 2 {
+				t.Fatalf("keys directory holds %v, want the key and its marker only", entries)
+			}
+		})
+	}
+}
 
 // `sudo fmx-validator keys new` and `keys import` write the key as root into a
 // network directory the service user owns. A link that user planted at

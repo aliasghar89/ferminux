@@ -30,22 +30,26 @@ func saveKey(dir string, key, marker []byte) error {
 	}
 	defer unix.Close(dfd)
 	var st unix.Stat_t
+	if err := unix.Fstat(dfd, &st); err != nil {
+		return &os.PathError{Op: "fstat", Path: dir, Err: err}
+	}
+	uid, gid := st.Uid, st.Gid // the key files take the keys directory's owner
 	switch err := unix.Fstatat(dfd, KeyFile, &st, unix.AT_SYMLINK_NOFOLLOW); {
 	case err == nil:
 		return fmt.Errorf("%s already exists; refusing to overwrite an attester key", filepath.Join(dir, KeyFile))
 	case err != unix.ENOENT:
 		return &os.PathError{Op: "lstat", Path: filepath.Join(dir, KeyFile), Err: err}
 	}
-	if err := writeAt(dfd, dir, KeyFile, key); err != nil {
+	if err := writeAt(dfd, dir, KeyFile, key, uid, gid); err != nil {
 		return err
 	}
-	return writeAt(dfd, dir, MarkerFile, marker)
+	return writeAt(dfd, dir, MarkerFile, marker, uid, gid)
 }
 
 // openKeysDir opens dir, making it (0700) when it is missing, and refuses a
 // link in place of dir or of its parent, the network directory: the service
 // user owns the network directory and can put a link in either place at any
-// time.
+// time. A keys directory it makes takes the network directory's owner.
 func openKeysDir(dir string) (int, error) {
 	parent, name := filepath.Dir(dir), filepath.Base(dir)
 	if err := os.MkdirAll(parent, 0o700); err != nil {
@@ -56,10 +60,42 @@ func openKeysDir(dir string) (int, error) {
 		return -1, err
 	}
 	defer unix.Close(pfd)
-	if err := unix.Mkdirat(pfd, name, 0o700); err != nil && err != unix.EEXIST {
+	made := true
+	if err := unix.Mkdirat(pfd, name, 0o700); err == unix.EEXIST {
+		made = false
+	} else if err != nil {
 		return -1, &os.PathError{Op: "mkdir", Path: dir, Err: err}
 	}
-	return openDirAt(pfd, name, dir)
+	dfd, err := openDirAt(pfd, name, dir)
+	if err != nil || !made {
+		return dfd, err
+	}
+	var st unix.Stat_t
+	if err := unix.Fstat(pfd, &st); err != nil {
+		unix.Close(dfd)
+		return -1, &os.PathError{Op: "fstat", Path: parent, Err: err}
+	}
+	if err := keepOwner(dfd, st.Uid, st.Gid); err != nil {
+		unix.Close(dfd)
+		return -1, &os.PathError{Op: "chown", Path: dir, Err: err}
+	}
+	return dfd, nil
+}
+
+// keepOwner gives what is open at fd, a keys directory or key file this
+// process created, the owner of the directory it was created in. A new file
+// belongs to whoever creates it, and only install's hand-over of the tree
+// gave the key to the service user, so `sudo fmx-validator keys import` (or
+// keys new) on an installed node left a root-owned keys directory or 0600 key
+// in the service user's network directory: the service could not read its
+// own attester key. Only root can give a file away; anyone else keeps the
+// file as their own. It chowns through the descriptor: chowning by name would
+// act on whatever is there by then.
+func keepOwner(fd int, uid, gid uint32) error {
+	if os.Geteuid() != 0 {
+		return nil
+	}
+	return unix.Fchown(fd, int(uid), int(gid))
 }
 
 // openDirAt opens the directory name relative to at without following a link
@@ -76,8 +112,9 @@ func openDirAt(at int, name, path string) (int, error) {
 }
 
 // writeAt puts data in name, in the directory open at dfd: a new 0600 file
-// made O_EXCL under a random name, synced, then renamed over name.
-func writeAt(dfd int, dir, name string, data []byte) error {
+// made O_EXCL under a random name, given uid:gid (see keepOwner), synced, then
+// renamed over name.
+func writeAt(dfd int, dir, name string, data []byte, uid, gid uint32) error {
 	var r [8]byte
 	if _, err := rand.Read(r[:]); err != nil {
 		return err
@@ -88,6 +125,11 @@ func writeAt(dfd int, dir, name string, data []byte) error {
 		return &os.PathError{Op: "open", Path: filepath.Join(dir, tmp), Err: err}
 	}
 	f := os.NewFile(uintptr(fd), filepath.Join(dir, tmp))
+	if err := keepOwner(fd, uid, gid); err != nil {
+		f.Close()
+		unix.Unlinkat(dfd, tmp, 0)
+		return &os.PathError{Op: "chown", Path: filepath.Join(dir, tmp), Err: err}
+	}
 	if _, err := f.Write(data); err != nil {
 		f.Close()
 		unix.Unlinkat(dfd, tmp, 0)
