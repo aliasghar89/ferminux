@@ -224,6 +224,11 @@ jobs:
         working-directory: explorer
         run: node --test scripts/k8s-seeder.test.mjs
 
+      # The k8s frontend ConfigMap is a hand-kept copy of envs/frontend.env.
+      - name: Kubernetes frontend config
+        working-directory: explorer
+        run: node --test scripts/k8s-frontend.test.mjs
+
       # The ABI check reads agents/contracts/out, which is not committed: build
       # it here (forge-std through contracts/lib, as in the contracts job).
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
