@@ -28,7 +28,7 @@ verifier, which downloads compilers on first use.
 explorer/
 ├── docker-compose.yml       # full stack: db + backend + rewards-sidecar + smart-contract-verifier
 │                            #             + frontend + nginx proxy
-├── .env.example             # every overridable knob (local defaults are baked in)
+├── .env.example             # every overridable knob (local defaults baked in, secrets required)
 ├── envs/backend.env         # static Blockscout backend config (chain id, coin, fetcher flags)
 ├── envs/verifier.env        # static smart-contract-verifier config
 ├── envs/frontend.env        # static frontend config (network name, FMX, decimals)
@@ -75,6 +75,9 @@ Ports used: **4000** (explorer UI + API) and **7432** (postgres, debug only).
 
 ```sh
 cd <repo>/explorer
+cp .env.example .env                   # the two secrets have no default: generate them
+sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 24)|" .env
+sed -i "s|^SECRET_KEY_BASE=.*|SECRET_KEY_BASE=$(openssl rand -base64 48)|" .env
 docker compose config --quiet          # validate
 docker compose up -d                   # first start pulls ~1.5 GB of images
 
@@ -352,8 +355,30 @@ database, not in the verifier.
 | `FMX_EXPLORER_PROTO` | `http` | `http` or `https` |
 | `FMX_EXPLORER_WS_PROTO` | `ws` | `ws` or `wss` |
 | `FMX_PUBLIC_RPC_URL` | `https://rpc.ferminux.net` | RPC URL the frontend offers for "add network to wallet" |
-| `POSTGRES_PASSWORD` | dev default | **Override in production** |
-| `SECRET_KEY_BASE` | dev default | Phoenix secret — **override in production** |
+| `POSTGRES_PASSWORD` | none — **required** | Postgres password, also embedded in the backend's `DATABASE_URL` (use hex: `openssl rand -hex 24`) |
+| `SECRET_KEY_BASE` | none — **required** | Phoenix secret (`openssl rand -base64 48`) |
+
+The two secrets have no default on purpose: a value committed in
+`docker-compose.yml` would be the password of every stack started without an
+`.env`. Until both are set, every `docker compose` command in this directory
+(`config`, `up`, `exec`, `down`) stops with `set POSTGRES_PASSWORD in .env` or
+`set SECRET_KEY_BASE in .env`.
+
+**An existing stack that ran on the old built-in defaults** keeps its database
+password in the data volume: Postgres reads `POSTGRES_PASSWORD` only when it
+creates the data directory. Rotate it rather than writing the old default into
+`.env`:
+
+```sh
+# 1. put fresh values in .env (as in the smoke test above), then
+# 2. give the database the same new password, through the local socket:
+docker compose exec db psql -U blockscout -d blockscout \
+  -c "ALTER USER blockscout WITH PASSWORD '$(sed -n 's/^POSTGRES_PASSWORD=//p' .env)'"
+# 3. recreate everything that carries the password or the secret:
+docker compose up -d --force-recreate db backend rewards-sidecar
+```
+
+A new `SECRET_KEY_BASE` only invalidates sessions signed with the old one.
 
 Static chain config (chain id 3961, FMX, fetcher flags) lives in
 `envs/backend.env` / `envs/frontend.env` and `k8s/15-configmaps.yaml`.

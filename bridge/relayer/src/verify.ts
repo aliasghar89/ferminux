@@ -233,7 +233,9 @@ export async function verifyForSigning(
     return refuse('dst_token_unregistered', `destination token ${t.dstToken} is not registered on the destination bridge`);
   }
   if (cfgOnChain.paused) return refuse('dst_token_paused', `destination token ${t.dstToken} is paused`);
-  if (Number(cfgOnChain.remoteChainId) !== t.srcChainId) {
+  // Compared as uint64, not through Number(): a rounded registry value must
+  // not be able to equal a chain id it is not.
+  if (BigInt(cfgOnChain.remoteChainId) !== BigInt(t.srcChainId)) {
     return refuse('route_mismatch', `destination registry says remoteChainId ${cfgOnChain.remoteChainId}, transfer says ${t.srcChainId}`);
   }
   if (getAddress(cfgOnChain.remoteToken) !== getAddress(t.srcToken)) {

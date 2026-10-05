@@ -6,7 +6,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Wallet, verifyMessage, verifyTypedData, Interface, MaxUint256, parseEther, hexlify, toUtf8Bytes } from 'ethers';
+import { Wallet, verifyMessage, verifyTypedData, Interface, MaxUint256, parseEther, hexlify, toUtf8Bytes, Transaction } from 'ethers';
 
 import { parsePersonalSign, parseTypedDataV4, parseTxRequest, parseWatchAsset, parseQuantity, printableText } from '../src/connect/requests.ts';
 import { screenRequest, siweDomainMismatch, needsKey, permitWarning } from '../src/connect/screen.ts';
@@ -23,7 +23,8 @@ import {
   relativeTime,
 } from '../src/connect/sites.ts';
 import { decodeCalldata, isUnlimited, selectorOf } from '../src/connect/decode.ts';
-import { signPersonal, signTyped } from '../src/connect/execute.ts';
+import { exceedsBalance, prepareCall, signAndSend, signPersonal, signTyped } from '../src/connect/execute.ts';
+import { OP_GAS_PRICE_ORACLE } from '../src/lib/tx.ts';
 import { FRAME_VAULT_KEY } from '../src/connect/frame.ts';
 import { VAULT_KEY } from '../src/lib/vault.ts';
 import { readHash } from '../src/connect/channel.ts';
@@ -316,4 +317,103 @@ test('the "transaction sent" signal between wallet windows carries public data o
   assert.equal(parseTxSignal({ ...good, from: 'me' }), null);
   assert.equal(parseTxSignal({ ...good, chainId: -1 }), null);
   assert.equal(parseTxSignal('x'), null);
+});
+
+/* ---------------- the OP-stack L1 data fee in the connect window ---------------- */
+
+const opOracle = new Interface([
+  'function getL1FeeUpperBound(uint256 unsignedTxSize) view returns (uint256)',
+  'function getL1Fee(bytes data) view returns (uint256)',
+]);
+
+/**
+ * A node for prepareCall: base fee 5 mwei, tip 1 mwei (max fee 11 mwei), a
+ * plain transfer, and a GasPriceOracle at the OP-stack predeploy answered by
+ * `oracle` (or missing). Every oracle call is recorded.
+ */
+function connectNode({ balance, oracle }) {
+  const asked = [];
+  let broadcast = null;
+  return {
+    asked,
+    raw: () => broadcast,
+    provider: {
+      getBlock: async () => ({ baseFeePerGas: 5_000_000n }),
+      send: async (method) => {
+        if (method === 'eth_maxPriorityFeePerGas') return '0xf4240';
+        throw new Error(`unexpected rpc ${method}`);
+      },
+      getBalance: async () => balance,
+      getTransactionCount: async () => 7,
+      getCode: async () => '0x',
+      estimateGas: async () => 21000n,
+      call: async (tx) => {
+        assert.equal(tx.to, OP_GAS_PRICE_ORACLE);
+        const parsed = opOracle.parseTransaction({ data: tx.data });
+        asked.push(parsed);
+        if (!oracle) throw new Error('execution reverted');
+        return oracle(parsed);
+      },
+      broadcastTransaction: async (raw) => {
+        broadcast = raw;
+        return { hash: Transaction.from(raw).hash };
+      },
+    },
+  };
+}
+
+const GAS_FEE = 21000n * 11_000_000n;
+const sendReq = (value) => ({ from: A, to: B, value, data: '0x', gas: null });
+
+test('connect window: on Base and Optimism the L1 data fee is in the fee and in the balance check', async () => {
+  for (const chainId of [8453, 10]) {
+    // Holds the value and the gas exactly, but not the L1 data fee.
+    const value = 10n ** 15n;
+    const node = connectNode({ balance: value + GAS_FEE, oracle: () => opOracle.encodeFunctionResult('getL1FeeUpperBound', [777n]) });
+    const p = await prepareCall(node.provider, chainId, sendReq(value));
+    assert.equal(p.l1FeeWei, 777n, `chain ${chainId}`);
+    assert.equal(p.maxFeeWei, GAS_FEE + 777n);
+    assert.equal(p.l1FeeUnknown, undefined);
+    assert.equal(exceedsBalance(p), true, 'value + gas fits, value + gas + L1 fee does not');
+    assert.equal(exceedsBalance({ ...p, balance: value + GAS_FEE + 777n }), false);
+
+    // The fee was sized on the transaction that is then signed, byte for byte.
+    assert.equal(node.asked.length, 1);
+    assert.equal(node.asked[0].name, 'getL1FeeUpperBound');
+    await signAndSend(KEY, node.provider, p);
+    const signed = Transaction.from(node.raw());
+    assert.equal(BigInt((signed.unsignedSerialized.length - 2) / 2), node.asked[0].args[0]);
+    assert.equal(signed.chainId, BigInt(chainId));
+  }
+});
+
+test('connect window: a pre-Fjord oracle is read through getL1Fee; no oracle is flagged, never zero', async () => {
+  const value = 1n;
+  const old = connectNode({
+    balance: 10n ** 18n,
+    oracle: (call) => {
+      if (call.name === 'getL1FeeUpperBound') throw new Error('execution reverted');
+      return opOracle.encodeFunctionResult('getL1Fee', [400n]);
+    },
+  });
+  const p = await prepareCall(old.provider, 10, sendReq(value));
+  assert.deepEqual(old.asked.map((c) => c.name), ['getL1FeeUpperBound', 'getL1Fee']);
+  assert.equal(p.l1FeeWei, 500n, 'getL1Fee plus 25 %');
+  assert.equal(p.maxFeeWei, GAS_FEE + 500n);
+
+  const none = await prepareCall(connectNode({ balance: 10n ** 18n }).provider, 8453, sendReq(value));
+  assert.equal(none.l1FeeUnknown, true);
+  assert.equal(none.l1FeeWei, undefined);
+  assert.equal(none.maxFeeWei, GAS_FEE);
+});
+
+test('connect window: chains without an L1 data fee never ask the oracle', async () => {
+  for (const chainId of [42161, 137]) {
+    const node = connectNode({ balance: GAS_FEE, oracle: () => assert.fail('no oracle read off the OP stack') });
+    const p = await prepareCall(node.provider, chainId, sendReq(0n));
+    assert.equal(node.asked.length, 0);
+    assert.equal(p.maxFeeWei, GAS_FEE);
+    assert.equal(p.l1FeeWei, undefined);
+    assert.equal(exceedsBalance(p), false);
+  }
 });

@@ -290,6 +290,74 @@ test('watcher: the cursor never moves past the settled height, even when the sca
   }
 });
 
+// ------------------------------------------------------------------ per-chain confirmation pass
+
+test("watcher: another chain's backlog of seen transfers cannot starve this chain's confirmations", async () => {
+  // Before: the pass fetched the 1000 oldest `seen` rows of ANY chain and then
+  // kept this chain's. 1000 older rows from chain B left chain A with nothing.
+  const dir = mkdtempSync(join(tmpdir(), 'fmx-scan-'));
+  const store = await openStore(join(dir, 'r.db'), 'sqlite');
+  const checked = [];
+  const confirmed = [];
+  const chain = {
+    name: 'a',
+    chainId: CHAIN_A,
+    config: { confirmations: 3, startBlock: 0, pollIntervalMs: 500 },
+    healthyEndpoints: [{}],
+    healthCheck: async () => {},
+    getBlockNumber: async () => 200,
+    settledHeight: async () => 197,
+    scanSent: async () => [],
+    confirmSentAcrossEndpoints: async (id) => {
+      checked.push(id);
+      return { status: 'ok', agreed: 1, checked: 1, reason: null };
+    },
+  };
+  const row = (transferId, srcChainId, firstSeenAt) => ({
+    transferId,
+    transfer: {
+      srcChainId,
+      dstChainId: srcChainId === CHAIN_A ? CHAIN_B : CHAIN_A,
+      nonce: 1,
+      srcToken: ZeroAddress,
+      dstToken: getAddress(`0x${'22'.repeat(20)}`),
+      sender: getAddress(`0x${'33'.repeat(20)}`),
+      recipient: getAddress(`0x${'44'.repeat(20)}`),
+      amount: 10n ** 18n,
+    },
+    fee: 0n,
+    srcBlockNumber: 100,
+    srcBlockHash: `0x${'aa'.repeat(32)}`,
+    srcTxHash: `0x${'bb'.repeat(32)}`,
+    srcLogIndex: 0,
+    status: 'seen',
+    reason: null,
+    firstSeenAt,
+    confirmedAt: null,
+    executedAt: null,
+    executedTxHash: null,
+    updatedAt: firstSeenAt,
+  });
+  try {
+    const t0 = Date.now() - 3_600_000;
+    for (let i = 0; i < 1000; i++) store.putTransfer(row(`0x${i.toString(16).padStart(64, '0')}`, CHAIN_B, t0 + i));
+    const mine = `0x${'ab'.repeat(32)}`;
+    store.putTransfer(row(mine, CHAIN_A, t0 + 5_000));
+    store.setCursor(CHAIN_A, 199);
+
+    const w = new Watcher({ chain, store, log: silent(), alerts: alerter(), requireRpcQuorum: false, onConfirmed: (t) => confirmed.push(t.transferId) });
+    await w.pollOnce();
+    assert.equal(w.stats.lastError, null);
+    assert.deepEqual(checked, [mine], "only this chain's transfer is re-read, and it is reached");
+    assert.deepEqual(confirmed, [mine]);
+    assert.equal(store.getTransfer(mine)?.status, 'confirmed');
+    assert.equal(store.listTransfers({ status: ['seen'], limit: 2000 }).length, 1000, "chain B's rows are left for chain B's watcher");
+  } finally {
+    store.close?.();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ------------------------------------------------------------------ scan health
 
 test('scan health: frozen, never-run and far-behind scanners are lagging; a current one is not', () => {

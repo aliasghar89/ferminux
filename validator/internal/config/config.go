@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -314,15 +315,57 @@ func Resolve(c Config, dir string) (*Resolved, error) {
 }
 
 // Save writes config.json (mode 0600).
+//
+// install runs this as root in a network directory the service user owns, so
+// it never writes through what is already there: os.WriteFile follows a
+// symlink, and a config.json linked to a file elsewhere would have had that
+// file overwritten by root. A link at config.json, or in place of the
+// directory, is refused. The file is written under a fresh name (O_EXCL, so
+// never through anything planted) and renamed over config.json, which
+// replaces whatever directory entry is there by then and follows no link.
 func Save(dir string, c Config) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	if fi, err := os.Lstat(dir); err != nil {
+		return err
+	} else if !fi.IsDir() {
+		return fmt.Errorf("config: %s is a link or not a directory; refusing to write config.json through it", dir)
+	}
+	path := filepath.Join(dir, "config.json")
+	if fi, err := os.Lstat(path); err == nil && !fi.Mode().IsRegular() {
+		return fmt.Errorf("config: %s is a link or not a regular file; refusing to write through it", path)
+	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "config.json"), append(b, '\n'), 0o600)
+	f, err := os.CreateTemp(dir, ".config.json.*") // O_EXCL, mode 0600
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	if _, err := f.Write(append(b, '\n')); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 // CheckLoopback refuses any dashboard bind address that is not 127.0.0.1/::1.

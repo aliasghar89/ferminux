@@ -166,8 +166,9 @@ export interface QuoteInput {
   /**
    * The DESTINATION registry's maxPerTransfer for the mirrored asset, or null
    * while unknown. execute() checks the NET amount against it, and a validator
-   * that sees it exceeded rejects the transfer for good (over_contract_cap is
-   * not retryable) — after send() has already locked or burned the funds here.
+   * that sees it exceeded rejects the transfer (over_contract_cap) until the
+   * owner raises that cap through its timelock — after send() has already
+   * locked or burned the funds here.
    */
   dstMaxPerTransfer?: bigint | null;
   /** The destination bridge, or the mirrored asset on it, is paused. */

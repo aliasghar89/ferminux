@@ -4,8 +4,8 @@
 // gets signed, and they are signed offline with the chain id the request
 // carried — the RPC cannot talk the wallet into another chain.
 
-import { Contract, Wallet, type JsonRpcProvider } from 'ethers';
-import { feePolicyFor, getFeeInfo, NATIVE_TRANSFER_GAS } from '../lib/tx.ts';
+import { Contract, Transaction, Wallet, type JsonRpcProvider, type TransactionLike } from 'ethers';
+import { estimateOpL1Fee, feePolicyFor, getFeeInfo, NATIVE_TRANSFER_GAS } from '../lib/tx.ts';
 import { chainById } from '../lib/chains.ts';
 import { txMaxFeeWei } from '../lib/validate.ts';
 import { CHAIN_ID, RPC_URLS } from '../config.ts';
@@ -53,8 +53,15 @@ export interface PreparedCall {
   gasLimit: bigint;
   maxFeePerGas: bigint;
   maxPriorityFeePerGas: bigint;
-  /** gasLimit × maxFeePerGas: the most this can cost in fees. */
+  /**
+   * The most this can cost in fees: gasLimit × maxFeePerGas, plus the L1 data
+   * fee upper bound on an OP-stack chain (Base, Optimism).
+   */
   maxFeeWei: bigint;
+  /** OP-stack L1 data fee upper bound, already included in maxFeeWei. */
+  l1FeeWei?: bigint;
+  /** OP-stack chain whose L1 fee oracle could not be read: maxFeeWei excludes that fee. */
+  l1FeeUnknown?: boolean;
   balance: bigint;
   /** `to` has code (a contract call rather than a plain transfer). */
   toIsContract: boolean;
@@ -69,8 +76,9 @@ export interface PreparedCall {
  */
 export async function prepareCall(provider: JsonRpcProvider, chainId: number, req: TxRequest): Promise<PreparedCall> {
   const chain = chainById(chainId);
+  const feePolicy = feePolicyFor(chain ?? { id: chainId, opStackL1Fee: false }, CHAIN_ID);
   const [fees, balance, nonce, code] = await Promise.all([
-    getFeeInfo(provider, feePolicyFor(chain ?? { id: chainId, opStackL1Fee: false }, CHAIN_ID)),
+    getFeeInfo(provider, feePolicy),
     provider.getBalance(req.from),
     provider.getTransactionCount(req.from, 'pending'),
     req.to ? provider.getCode(req.to) : Promise.resolve('0x'),
@@ -85,7 +93,7 @@ export async function prepareCall(provider: JsonRpcProvider, chainId: number, re
   // transfer and needs no headroom; anything that runs code gets +20%.
   const policy = estimate === NATIVE_TRANSFER_GAS ? estimate : (estimate * 12n) / 10n;
   const gasLimit = req.gas !== null && req.gas >= estimate ? req.gas : policy;
-  return {
+  const prepared: PreparedCall = {
     chainId,
     from: req.from,
     to: req.to,
@@ -99,12 +107,31 @@ export async function prepareCall(provider: JsonRpcProvider, chainId: number, re
     balance,
     toIsContract: code !== '0x',
   };
+  // Base and Optimism charge an L1 data fee on top of gas, priced on the
+  // transaction's bytes. Left out, an account holding the value and the gas but
+  // not that fee passed the balance check, and the node refused the signed
+  // transaction. Sized on exactly the transaction signAndSend signs. The
+  // oracle unreadable is said, not treated as zero.
+  if (feePolicy.opStackL1Fee) {
+    const l1 = await estimateOpL1Fee(provider, Transaction.from(txFields(prepared)).unsignedSerialized);
+    if (l1 === null) {
+      prepared.l1FeeUnknown = true;
+    } else {
+      prepared.l1FeeWei = l1;
+      prepared.maxFeeWei += l1;
+    }
+  }
+  return prepared;
 }
 
-export async function signAndSend(privateKey: string, provider: JsonRpcProvider, p: PreparedCall): Promise<string> {
-  const signer = new Wallet(privateKey);
-  if (signer.address.toLowerCase() !== p.from.toLowerCase()) throw new Error('Signer does not match the requested account.');
-  const raw = await signer.signTransaction({
+/** Value plus the worst-case fee is more than the account holds. */
+export function exceedsBalance(p: PreparedCall): boolean {
+  return p.value + p.maxFeeWei > p.balance;
+}
+
+/** The transaction signAndSend signs; prepareCall sizes the L1 data fee on the same fields. */
+function txFields(p: PreparedCall): TransactionLike<string> {
+  return {
     type: 2,
     chainId: p.chainId,
     to: p.to,
@@ -114,7 +141,13 @@ export async function signAndSend(privateKey: string, provider: JsonRpcProvider,
     gasLimit: p.gasLimit,
     maxFeePerGas: p.maxFeePerGas,
     maxPriorityFeePerGas: p.maxPriorityFeePerGas,
-  });
+  };
+}
+
+export async function signAndSend(privateKey: string, provider: JsonRpcProvider, p: PreparedCall): Promise<string> {
+  const signer = new Wallet(privateKey);
+  if (signer.address.toLowerCase() !== p.from.toLowerCase()) throw new Error('Signer does not match the requested account.');
+  const raw = await signer.signTransaction(txFields(p));
   const res = await provider.broadcastTransaction(raw);
   return res.hash;
 }

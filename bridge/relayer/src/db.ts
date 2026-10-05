@@ -29,7 +29,11 @@ export type TransferStatus =
   | 'confirmed'
   /** This node signed it (validator role). */
   | 'signed'
-  /** This node refused it. `reason` says why. Never retried automatically. */
+  /**
+   * This node refused it. `reason` says why. Never retried automatically, with
+   * one exception: `over_contract_cap` is revisited when the destination's
+   * maxPerTransfer is raised (validator.ts, revisitContractCapRejections).
+   */
   | 'rejected'
   /** Observed as processed on the destination chain. Terminal. */
   | 'executed'
@@ -106,6 +110,20 @@ export interface StoredWindow {
   updatedAt: number;
 }
 
+export interface TransferFilter {
+  status?: TransferStatus[];
+  /**
+   * Filter in the query, not after it. A caller that fetches `limit` rows and
+   * then drops another chain's would let that chain's backlog fill every slot
+   * and starve this one.
+   */
+  srcChainId?: number;
+  dstChainId?: number;
+  /** Rows whose `reason` starts with this text, compared literally. */
+  reasonPrefix?: string;
+  limit?: number;
+}
+
 export interface Store {
   readonly driver: 'sqlite' | 'journal';
 
@@ -114,7 +132,7 @@ export interface Store {
 
   putTransfer(t: StoredTransfer): void;
   getTransfer(transferId: string): StoredTransfer | null;
-  listTransfers(filter: { status?: TransferStatus[]; dstChainId?: number; limit?: number }): StoredTransfer[];
+  listTransfers(filter: TransferFilter): StoredTransfer[];
   setTransferStatus(transferId: string, status: TransferStatus, reason?: string | null): void;
   markExecuted(transferId: string, txHash: string | null): void;
 
@@ -165,6 +183,7 @@ CREATE TABLE IF NOT EXISTS transfers (
 );
 CREATE INDEX IF NOT EXISTS transfers_status  ON transfers(status);
 CREATE INDEX IF NOT EXISTS transfers_dst     ON transfers(dst_chain_id, status);
+CREATE INDEX IF NOT EXISTS transfers_src     ON transfers(src_chain_id, status);
 CREATE TABLE IF NOT EXISTS signatures (
   transfer_id TEXT NOT NULL,
   signer      TEXT NOT NULL,
@@ -271,16 +290,25 @@ class SqliteStore implements Store {
     return row ? rowToTransfer(row) : null;
   }
 
-  listTransfers(filter: { status?: TransferStatus[]; dstChainId?: number; limit?: number }): StoredTransfer[] {
+  listTransfers(filter: TransferFilter): StoredTransfer[] {
     const where: string[] = [];
     const args: unknown[] = [];
     if (filter.status && filter.status.length > 0) {
       where.push(`status IN (${filter.status.map(() => '?').join(',')})`);
       args.push(...filter.status);
     }
+    if (filter.srcChainId !== undefined) {
+      where.push('src_chain_id = ?');
+      args.push(filter.srcChainId);
+    }
     if (filter.dstChainId !== undefined) {
       where.push('dst_chain_id = ?');
       args.push(filter.dstChainId);
+    }
+    if (filter.reasonPrefix !== undefined) {
+      // substr, not LIKE: `_` in a refusal code is a LIKE wildcard.
+      where.push('substr(reason, 1, ?) = ?');
+      args.push(filter.reasonPrefix.length, filter.reasonPrefix);
     }
     const sql = `SELECT * FROM transfers ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY first_seen_at ASC LIMIT ?`;
     args.push(filter.limit ?? 500);
@@ -546,10 +574,13 @@ class JournalStore implements Store {
     return this.transfers.get(transferId) ?? null;
   }
 
-  listTransfers(filter: { status?: TransferStatus[]; dstChainId?: number; limit?: number }): StoredTransfer[] {
+  listTransfers(filter: TransferFilter): StoredTransfer[] {
     let out = [...this.transfers.values()];
     if (filter.status && filter.status.length > 0) out = out.filter((t) => filter.status?.includes(t.status));
+    if (filter.srcChainId !== undefined) out = out.filter((t) => t.transfer.srcChainId === filter.srcChainId);
     if (filter.dstChainId !== undefined) out = out.filter((t) => t.transfer.dstChainId === filter.dstChainId);
+    const prefix = filter.reasonPrefix;
+    if (prefix !== undefined) out = out.filter((t) => t.reason !== null && t.reason.startsWith(prefix));
     out.sort((a, b) => a.firstSeenAt - b.firstSeenAt);
     return out.slice(0, filter.limit ?? 500);
   }

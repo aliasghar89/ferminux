@@ -28,7 +28,7 @@ import { screenRequest, needsKey, permitWarning, siweDomainMismatch, type Screen
 import { isSecureOrigin, loadSites, onSitesChange, saveSites, touched, withSite, withoutSite, type ConnectedSite } from './sites.ts';
 import { handOffUrl, otherWalletUrls, walletPlace } from './origins.ts';
 import { decodeCalldata, isUnlimited, type DecodedCall } from './decode.ts';
-import { prepareCall, providerFor, signAndSend, signPersonal, signTyped, tokenFacts, WouldFailError, type PreparedCall, type TokenFacts } from './execute.ts';
+import { exceedsBalance, prepareCall, providerFor, signAndSend, signPersonal, signTyped, tokenFacts, WouldFailError, type PreparedCall, type TokenFacts } from './execute.ts';
 import type { PersonalSignRequest, TxRequest, TypedDataRequest, WatchAssetRequest } from './requests.ts';
 import { ConnectedSites } from './ConnectedSites.tsx';
 import { Brand } from '../components/Brand.tsx';
@@ -833,7 +833,8 @@ function TxReview({
   const ready = state.status === 'ready' ? state : null;
   const token = ready?.token ?? null;
   const total = ready ? request.value + ready.prepared.maxFeeWei : null;
-  const insufficient = ready && total !== null && total > ready.prepared.balance;
+  // maxFeeWei carries the L1 data fee on Base and Optimism (execute.ts)
+  const insufficient = ready && exceedsBalance(ready.prepared);
   // approve(spender, amount) and increaseAllowance(spender, addedValue) both
   // grant an allowance and both carry it at arg index 1.
   const grantsAllowance = decoded?.name === 'approve' || decoded?.name === 'increaseAllowance';
@@ -916,6 +917,8 @@ function TxReview({
                 {ready ? (
                   <>
                     up to {formatAmount(ready.prepared.maxFeeWei, decimals, 8)} {symbol}
+                    {ready.prepared.l1FeeWei !== undefined && <span className="muted"> · incl. L1 data fee</span>}
+                    {ready.prepared.l1FeeUnknown && <span className="muted"> · plus an L1 data fee that could not be read</span>}
                   </>
                 ) : (
                   <span className="muted">estimating…</span>

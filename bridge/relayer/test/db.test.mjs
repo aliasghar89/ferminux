@@ -213,4 +213,20 @@ for (const driver of ['sqlite', 'journal']) {
       assert.equal(store.counts().transfers_signed, 2);
     });
   });
+
+  test(`[${driver}] listTransfers filters by source chain before applying the limit`, async () => {
+    await withStore(async (store) => {
+      const t0 = Date.now() - 10_000;
+      // Two older rows from another source chain would fill a limit of 2 if
+      // the chain filter ran after the query.
+      for (const [i, id] of [`0x${'01'.repeat(32)}`, `0x${'02'.repeat(32)}`].entries()) {
+        store.putTransfer(storedTransfer({ transferId: id, firstSeenAt: t0 + i, transfer: { ...TRANSFER, srcChainId: 56, dstChainId: 3961 } }));
+      }
+      store.putTransfer(storedTransfer({ firstSeenAt: t0 + 100 }));
+      const mine = store.listTransfers({ status: ['seen'], srcChainId: 3961, limit: 2 });
+      assert.deepEqual(mine.map((t) => t.transferId), [ID]);
+      assert.equal(store.listTransfers({ status: ['seen'], srcChainId: 56, limit: 2 }).length, 2);
+      assert.equal(store.listTransfers({ status: ['seen'], srcChainId: 137 }).length, 0);
+    });
+  });
 }

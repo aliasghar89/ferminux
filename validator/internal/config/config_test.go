@@ -1,7 +1,11 @@
 package config
 
 import (
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -144,5 +148,105 @@ func TestSaveLoad(t *testing.T) {
 	}
 	if _, err := Load(dd, "mainnet"); err == nil {
 		t.Fatal("missing config loaded")
+	}
+}
+
+// install calls Save as root in a directory the service user owns: a link the
+// service user planted there must never become a root write somewhere else.
+func TestSaveRefusesLinks(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	const victimText = "a file the service user may not write\n"
+	victim := filepath.Join(dd, "victim")
+	if err := os.WriteFile(victim, []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(dir, "config.json")); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	if err := Save(dir, base()); err == nil {
+		t.Fatal("Save wrote config.json through a symlink")
+	}
+	if b, _ := os.ReadFile(victim); string(b) != victimText {
+		t.Fatalf("the link target was overwritten: %q", b)
+	}
+
+	// the network directory itself swapped for a link
+	elsewhere := t.TempDir()
+	linked := filepath.Join(dd, "testnet")
+	if err := os.Symlink(elsewhere, linked); err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(linked, base()); err == nil {
+		t.Fatal("Save wrote through a linked network directory")
+	}
+	if _, err := os.Lstat(filepath.Join(elsewhere, "config.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("config.json appeared in the link's target directory: %v", err)
+	}
+}
+
+// A hard link is a regular file to Lstat, so it is not refused: the new
+// config.json replaces the directory entry and the other name keeps its data.
+func TestSaveDoesNotWriteThroughAHardLink(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	const victimText = "a file the service user may not write\n"
+	victim := filepath.Join(dd, "victim")
+	if err := os.WriteFile(victim, []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(victim, filepath.Join(dir, "config.json")); err != nil {
+		t.Skipf("hard links unavailable here: %v", err)
+	}
+	if err := Save(dir, base()); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(victim); string(b) != victimText {
+		t.Fatalf("the other name of the hard link was overwritten: %q", b)
+	}
+	if _, err := Load(dd, "devnet"); err != nil {
+		t.Fatalf("the saved config does not load: %v", err)
+	}
+}
+
+func TestSaveReplacesAndLeavesNoTempFile(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(path, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(dir, base()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(dd, "devnet"); err != nil {
+		t.Fatalf("the saved config does not load: %v", err)
+	}
+	fi, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
+		t.Fatalf("config.json mode %v, want 0600", fi.Mode().Perm())
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "config.json" {
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Fatalf("directory holds %v, want only config.json", names)
 	}
 }
