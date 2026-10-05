@@ -361,7 +361,7 @@ export function migrateV3(db: Db): void {
   // Columns added after a table first shipped (prod volume persists): add if missing.
   for (const [table, column, type] of [
     ["tools", "compute", "TEXT"], ["validations", "jobId", "INTEGER"],
-    ["x402_vouchers", "attempts", "INTEGER NOT NULL DEFAULT 0"],
+    ["x402_vouchers", "attempts", "INTEGER NOT NULL DEFAULT 0"], ["x402_vouchers", "batchCap", "INTEGER"],
     ["relays", "ip", "TEXT"],
     // pay-in v2 (multi-asset): asset symbol, human amount, exact token units the payer must send (incl. dust), USD value
     ["payins", "asset", "TEXT NOT NULL DEFAULT 'USDC'"], ["payins", "amount", "TEXT"], ["payins", "amountUnits", "TEXT"], ["payins", "usd", "TEXT"],

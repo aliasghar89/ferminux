@@ -492,6 +492,18 @@ chain 3961, RPC `https://rpc.ferminux.net`.
   skipped in this batch. An estimate that fails without the node running out
   of gas or reverting (the RPC unreachable or rate-limiting) counts nothing.
   Vouchers that have failed an attempt queue behind fresh ones.
+- `settleBatch` is sent with a gas limit of its estimate plus
+  `X402_SETTLE_GAS_MARGIN_PER_VOUCHER` = **75,000** gas per voucher, capped by
+  the block gas limit. The node estimates against the state of that moment,
+  and a voucher the vault skipped there (an EOA payer's deposit drained during
+  the estimate, then refilled) settles on chain for about 51k more gas, or 72k
+  when it also writes the fee recipient's credit from zero.
+- A batch that still reverts on chain counts nothing against its vouchers,
+  because nothing says which one was at fault. They are re-queued, each in
+  batches of at most half that size (`batchCap`, halved again on every
+  revert), until a voucher reverts alone. Only that voucher counts a settle
+  attempt (`failed` after `X402_MAX_SETTLE_ATTEMPTS`), and it is retried
+  alone.
 - The facilitator also refuses a voucher when the payer's vault deposit unlocks
   at or before `now + X402_MIN_EXPIRY_S` — the payer must re-lock (deposit) or
   wait out the withdrawal first, otherwise the balance can leave before the

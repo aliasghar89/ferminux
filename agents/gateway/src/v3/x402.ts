@@ -37,6 +37,14 @@ export const X402_MIN_EXPIRY_S = 90;
 export const X402_MAX_EXPIRY_S = 3900;
 export const X402_BATCH_SIZE = 50;
 export const X402_MAX_SETTLE_ATTEMPTS = 3;
+/**
+ * Gas added to settleBatch's estimate for each voucher in the batch, capped by the block gas limit. The node estimates
+ * against the state of that moment, and the vault settles a voucher it skipped there (an EOA payer's deposit drained
+ * during the estimate and refilled before inclusion, an ERC-1271 answer that differs on chain) for about 51k more gas:
+ * the used nonce and the payee's credit written from zero, and the Settled log. Writing the fee recipient's credit from
+ * zero too makes it 72k. Sent at the bare estimate (ethers' default), such a batch ran out of gas and reverted whole.
+ */
+export const X402_SETTLE_GAS_MARGIN_PER_VOUCHER = 75_000n;
 /** a `submitted` batch whose receipt never arrived is re-checked / re-queued after this long */
 export const X402_SUBMITTED_STALE_S = 600;
 /** facilitator balance below this is reported as `lowFunds` on /api/health and /api/x402/supported */
@@ -106,8 +114,10 @@ export interface VoucherRow {
   error: string | null;
   createdAt: number;
   settledAt: number | null;
-  /** settleBatch attempts so far (a reverted batch re-queues up to X402_MAX_SETTLE_ATTEMPTS) */
+  /** settleBatch attempts so far (a voucher that reverts or fails its estimate alone re-queues up to X402_MAX_SETTLE_ATTEMPTS) */
   attempts: number;
+  /** the most vouchers a batch carrying this one may hold: halved each time such a batch reverts on chain (null: no limit) */
+  batchCap: number | null;
 }
 
 declare module "fastify" {
@@ -407,11 +417,20 @@ export class X402Facilitator {
     return fixed;
   }
 
-  /** Applies a settleBatch receipt: Skipped logs → skipped, a reverted tx → re-queued (max attempts) — never a silent `failed`. */
+  /**
+   * Applies a settleBatch receipt: Skipped logs → skipped, a reverted tx → re-queued — never a silent `failed`. The node
+   * ran the batch as a whole at its estimate, so a revert on chain (settleBatch skips a bad voucher, it never reverts
+   * for one) is state that changed before inclusion, and nothing says which voucher it was. Counting an attempt on every
+   * voucher let one of them fail 49 honest ones at the cap. They are re-queued uncounted instead, each in batches of at
+   * most half this one (batchCap), until a voucher reverts alone: only that one counts an attempt, and it goes alone.
+   */
   private finalize(rows: VoucherRow[], txHash: string, status: number | null, logs: ReadonlyArray<{ topics: readonly string[]; data: string }>): void {
     const db = this.ctx.db;
     const t = this.ctx.nowS();
     const mark = db.prepare("UPDATE x402_vouchers SET status = ?, txHash = ?, error = ?, settledAt = ?, attempts = attempts + 1 WHERE payer = ? AND nonce = ?");
+    const split = db.prepare("UPDATE x402_vouchers SET status = 'queued', txHash = ?, error = ?, settledAt = NULL, batchCap = ? WHERE payer = ? AND nonce = ?");
+    const alone = db.prepare("UPDATE x402_vouchers SET status = ?, txHash = ?, error = ?, settledAt = ?, attempts = attempts + 1, batchCap = 1 WHERE payer = ? AND nonce = ?");
+    const half = Math.ceil(rows.length / 2);
     const skipped = new Map<string, string>();
     for (const log of logs) {
       try {
@@ -423,10 +442,11 @@ export class X402Facilitator {
     }
     for (const r of rows) {
       const key = `${r.payer}:${r.nonce}`;
-      if (status !== 1) {
-        // the whole batch reverted (never for a bad voucher — settleBatch skips those): retry, then park as unsettleable for review
+      if (status !== 1 && rows.length > 1) split.run(txHash, `batch of ${rows.length} reverted — re-queued in batches of at most ${half} to find the voucher at fault`, half, r.payer, r.nonce);
+      else if (status !== 1) {
+        // reverted alone: this voucher's own attempt. Retried alone, then parked for operator review at the cap
         const exhausted = r.attempts + 1 >= X402_MAX_SETTLE_ATTEMPTS;
-        mark.run(exhausted ? "failed" : "queued", txHash, exhausted ? `batch reverted ${X402_MAX_SETTLE_ATTEMPTS}× — needs operator review` : "batch reverted — re-queued", exhausted ? t : null, r.payer, r.nonce);
+        alone.run(exhausted ? "failed" : "queued", txHash, exhausted ? `settleBatch reverted with this voucher alone ${X402_MAX_SETTLE_ATTEMPTS}× — needs operator review` : "settleBatch reverted with this voucher alone — re-queued", exhausted ? t : null, r.payer, r.nonce);
         if (exhausted) console.error(`[x402] voucher ${key} failed ${X402_MAX_SETTLE_ATTEMPTS} settle attempts (last tx ${txHash})`);
       } else if (skipped.has(key)) mark.run("skipped", txHash, skipped.get(key)!, t, r.payer, r.nonce);
       else mark.run("settled", txHash, null, t, r.payer, r.nonce);
@@ -441,10 +461,10 @@ export class X402Facilitator {
    * the batch sent must be one the node ran as a whole. A voucher signed by its payer never reaches that call: those
    * go first (split as before should their batch fail), then each voucher that needs its payer's answer is added at
    * the end, where the gas its answer can take is only what nothing after it needs. One the node cannot run even
-   * there counts a settle attempt (failed after X402_MAX_SETTLE_ATTEMPTS, like a reverted batch). One that runs there
-   * but not behind the answers already added waits for the next flush, uncounted, with the rest: an answer before it
-   * took the gas, and that voucher is settled or skipped in this batch. An estimate that fails for any other reason
-   * (the RPC unreachable or rate-limiting) is no voucher's fault: it throws, and nothing is counted.
+   * there counts a settle attempt (failed after X402_MAX_SETTLE_ATTEMPTS, like one that reverts alone on chain). One
+   * that runs there but not behind the answers already added waits for the next flush, uncounted, with the rest: an
+   * answer before it took the gas, and that voucher is settled or skipped in this batch. An estimate that fails for any
+   * other reason (the RPC unreachable or rate-limiting) is no voucher's fault: it throws, and nothing is counted.
    */
   private async settleable(signer: Contract, queued: VoucherRow[]): Promise<VoucherRow[]> {
     // null when the node runs settleBatch with `rows`, its error when the batch fails (out of gas, reverted)
@@ -523,7 +543,14 @@ export class X402Facilitator {
       const t0 = this.ctx.nowS();
       // vouchers the vault would skip anyway (expired while queued) — don't spend gas on them
       db.prepare("UPDATE x402_vouchers SET status = 'skipped', error = 'expired before settlement', settledAt = ? WHERE status = 'queued' AND expiry <= ?").run(t0, t0);
-      const queued = this.queued.all(X402_BATCH_SIZE) as VoucherRow[];
+      // the batch holds no more vouchers than the batchCap of any voucher in it (a reverted batch halves it, see finalize)
+      const queued: VoucherRow[] = [];
+      let cap = X402_BATCH_SIZE;
+      for (const r of this.queued.all(X402_BATCH_SIZE) as VoucherRow[]) {
+        cap = Math.min(cap, r.batchCap ?? X402_BATCH_SIZE);
+        if (queued.length >= cap) break;
+        queued.push(r);
+      }
       if (!queued.length) return { submitted: 0, txHash: null };
       const signer = this.vault.connect(this.ctx.facilitator) as Contract;
       const mark = db.prepare("UPDATE x402_vouchers SET status = ?, txHash = ?, error = ?, settledAt = ? WHERE payer = ? AND nonce = ?");
@@ -542,7 +569,13 @@ export class X402Facilitator {
       const [vs, sigs] = batchArgs(rows);
       let tx;
       try {
-        tx = await signer.settleBatch(vs, sigs);
+        // padded per voucher for state that changes before inclusion (X402_SETTLE_GAS_MARGIN_PER_VOUCHER); the node
+        // refuses a transaction over the block gas limit
+        const estimate = (await signer.settleBatch.estimateGas(vs, sigs)) as bigint;
+        let gasLimit = estimate + X402_SETTLE_GAS_MARGIN_PER_VOUCHER * BigInt(rows.length);
+        const block = await this.ctx.provider.getBlock("latest");
+        if (block && gasLimit > block.gasLimit) gasLimit = block.gasLimit > estimate ? block.gasLimit : estimate;
+        tx = await signer.settleBatch(vs, sigs, { gasLimit });
       } catch (err) {
         const msg = (err as Error).message.slice(0, 200);
         for (const r of rows) mark.run("queued", null, msg, null, r.payer, r.nonce);
