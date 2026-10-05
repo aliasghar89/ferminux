@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/aliasghar89/ferminux/validator/internal/dirfd"
 	"golang.org/x/sys/unix"
 )
 
@@ -20,7 +21,8 @@ import (
 // directory was, and root then truncated the link's target and wrote its PID
 // into it. Here the directory is opened once with O_NOFOLLOW, the lock is
 // opened relative to it with O_NOFOLLOW, and anything but a regular file is
-// refused.
+// refused. A lock root creates takes the directory's owner (dirfd.OpenFile):
+// left root's 0600 file, it kept the service from ever opening its lock.
 func openLockFile(path string) (*os.File, error) {
 	dir, name := filepath.Dir(path), filepath.Base(path)
 	dfd, err := unix.Open(dir, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
@@ -31,28 +33,7 @@ func openLockFile(path string) (*os.File, error) {
 		return nil, &os.PathError{Op: "open", Path: dir, Err: err}
 	}
 	defer unix.Close(dfd)
-	// O_NONBLOCK so that a FIFO put there is refused below instead of waited on
-	fd, err := unix.Openat(dfd, name, unix.O_RDWR|unix.O_CREAT|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0o600)
-	switch {
-	case err == unix.ELOOP || err == unix.EMLINK:
-		return nil, fmt.Errorf("%s is a link; refusing to lock through it", path)
-	case err != nil:
-		return nil, &os.PathError{Op: "open", Path: path, Err: err}
-	}
-	var st unix.Stat_t
-	if err := unix.Fstat(fd, &st); err != nil {
-		unix.Close(fd)
-		return nil, &os.PathError{Op: "fstat", Path: path, Err: err}
-	}
-	if st.Mode&unix.S_IFMT != unix.S_IFREG {
-		unix.Close(fd)
-		return nil, fmt.Errorf("%s is not a regular file; refusing to lock it", path)
-	}
-	if err := unix.SetNonblock(fd, false); err != nil {
-		unix.Close(fd)
-		return nil, &os.PathError{Op: "fcntl", Path: path, Err: err}
-	}
-	return os.NewFile(uintptr(fd), path), nil
+	return dirfd.OpenFile(dfd, dir, name, os.O_RDWR|os.O_CREATE)
 }
 
 func lockFile(f *os.File) error {

@@ -105,6 +105,10 @@ func serviceMain(args []string) int {
 // and the dashboard up and says what is missing, so a service does not flap.
 func runValidator(ctx context.Context, o runOptions) (err error) {
 	dir := o.base.dir()
+	// before anything is made or written there, or config.json is read
+	if err := checkRunUser(o.base.dataDir, dir); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
