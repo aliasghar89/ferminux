@@ -727,6 +727,100 @@ contract X402VaultV2Test is Test {
         assertLt(before - gasleft(), 250_000); // the 200k allowance plus the batch's own work
     }
 
+    /// @dev What eth_estimateGas answers for `settleBatch(vs, sigs)` now, which the facilitator sends as its
+    ///      gas limit unpadded: the least gas the call succeeds with (state rolled back after each try).
+    function _estimate(X402VaultV2.Voucher[] memory vs, bytes[] memory sigs) internal returns (uint256 hi) {
+        bytes memory data = abi.encodeCall(X402VaultV2.settleBatch, (vs, sigs));
+        uint256 lo = 0;
+        hi = BLOCK_GAS;
+        while (hi - lo > 1) {
+            uint256 mid = (lo + hi) / 2;
+            uint256 snap = vm.snapshotState();
+            (bool ok,) = address(vault).call{gas: mid}(data);
+            vm.revertToState(snap);
+            if (ok) hi = mid;
+            else lo = mid;
+        }
+    }
+
+    /// @notice The facilitator's real path: the gas limit is an estimate taken while the burner still
+    ///         answered cheaply. Armed before inclusion, its voucher alone is skipped; the 49 honest ones
+    ///         settle within that estimate.
+    function test_v2_burnerArmedAfterEstimate_restSettleAtEstimatedGas() public {
+        GasBurnerPayer burner = new GasBurnerPayer();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(burner));
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        uint256 est = _estimate(vs2, sigs);
+        // the headroom (~325k for each voucher from the contract payer on) is in the estimate, within a block
+        assertGt(est, 16_000_000);
+        assertLt(est, BLOCK_GAS);
+        // below it the batch stops at the contract payer's call, before anything runs out of gas
+        vm.expectPartialRevert(X402VaultV2.InsufficientGas.selector);
+        vault.settleBatch{gas: est - 1}(vs2, sigs);
+
+        burner.arm();
+        (bool ok,) = address(vault).call{gas: est}(abi.encodeCall(X402VaultV2.settleBatch, (vs2, sigs)));
+        assertTrue(ok);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertFalse(vault.used(address(burner), 7));
+        assertEq(vault.balance(address(burner)), 1 ether);
+    }
+
+    /// @notice No arming needed: an answer that is cheap at gas price 0 — where eth_call and an estimate
+    ///         without fee fields run — and burns its allowance in the real transaction. It passes the
+    ///         facilitator's `verify` and its estimate, and still costs the batch only its own voucher.
+    function test_v2_gasPriceBurner_restSettleAtEstimatedGas() public {
+        address burner = address(new GasPriceBurnerPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), burner);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vm.txGasPrice(0);
+        (bool valid,) = vault.verify(vs2[0], sigs[0]);
+        assertTrue(valid);
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.txGasPrice(2 gwei);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(burner, 7, "bad signature");
+        vault.settleBatch{gas: est}(vs2, sigs);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertFalse(vault.used(burner, 7));
+    }
+
+    /// @notice A batch without a contract payer never reaches an ERC-1271 call: its estimate carries no
+    ///         headroom.
+    function test_v2_eoaOnlyBatch_estimateHasNoHeadroom() public {
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(1));
+        X402VaultV2.Voucher[] memory all = _asV2(vs);
+        X402VaultV2.Voucher[] memory honest = new X402VaultV2.Voucher[](49);
+        bytes[] memory honestSigs = new bytes[](49);
+        for (uint256 i = 0; i < 49; i++) {
+            honest[i] = all[i + 1];
+            honestSigs[i] = sigs[i + 1];
+        }
+        assertLt(_estimate(honest, honestSigs), 4_000_000); // ~60k a voucher
+    }
+
+    /// @notice The other way round: invalid and cheap while estimated, then valid after burning most of its
+    ///         allowance — so its voucher settles too, and the batch still fits the estimate.
+    function test_v2_answerValidOnlyOnChain_settlesAtEstimatedGas() public {
+        address odd = address(new GasPriceFlipPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), odd);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vm.txGasPrice(0);
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.txGasPrice(2 gwei);
+        vault.settleBatch{gas: est}(vs2, sigs);
+        assertTrue(vault.used(odd, 7));
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+    }
+
     function _asV2(X402Vault.Voucher[] memory vs) internal pure returns (X402VaultV2.Voucher[] memory out) {
         out = new X402VaultV2.Voucher[](vs.length);
         for (uint256 i = 0; i < vs.length; i++) {
@@ -782,6 +876,25 @@ contract GasBurnerPayer {
     function isValidSignature(bytes32, bytes calldata) external view returns (bytes4 magic) {
         if (!armed) return 0x1626ba7e;
         while (true) {}
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value at gas price 0 (eth_call, gas estimates without fee
+///      fields) and burning all the gas it is given in a real transaction.
+contract GasPriceBurnerPayer {
+    function isValidSignature(bytes32, bytes calldata) external view returns (bytes4 magic) {
+        if (tx.gasprice == 0) return 0x1626ba7e;
+        while (true) {}
+    }
+}
+
+/// @dev ERC-1271 payer answering "no" cheaply at gas price 0, and the magic value in a real transaction
+///      after burning all but a little of the gas it is given.
+contract GasPriceFlipPayer {
+    function isValidSignature(bytes32, bytes calldata) external view returns (bytes4 magic) {
+        if (tx.gasprice == 0) return 0xffffffff;
+        while (gasleft() > 5_000) {}
+        return 0x1626ba7e;
     }
 }
 

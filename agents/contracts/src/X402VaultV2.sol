@@ -21,7 +21,12 @@ import {Sig} from "./lib/Sig.sol";
 ///           The answer gets a fixed `ERC1271_GAS`, not all the gas: X402Vault forwarded 63/64 of what the
 ///           batch had left, so a payer whose answer burns gas starved every voucher after it and the
 ///           batch failed even at the block gas limit. Here such a voucher costs that allowance, and an
-///           answer that runs out of it is "bad signature" too.
+///           answer that runs out of it is "bad signature" too. And since an answer may change between the
+///           facilitator's gas estimate and inclusion (state, block.number, tx.gasprice), `settleBatch`
+///           requires, at each ERC-1271 call, the gas for that answer and for every voucher after it at its
+///           worst case (`InsufficientGas` otherwise): the estimate holds that headroom, so the batch
+///           still fits it whatever the answers do. A batch then needs a gas limit of about 325k for
+///           each voucher from its first contract payer on (16M for 50); the gas it uses is unchanged.
 ///
 /// MIGRATION — replaces the live `x402Vault` (agents/deployments-v3.3961.json). Nothing here is deployed:
 ///   1. Deploy `X402VaultV2(deployer, feeRecipient)`, then — last — `setGovernance(multisig)`.
@@ -29,7 +34,9 @@ import {Sig} from "./lib/Sig.sol";
 ///      and, an hour later, `withdraw`, then deposits into V2. Payee credits stay withdrawable there.
 ///   3. Point the gateway facilitator and the SDK / web `x402Vault` key at V2, but keep settling live-vault
 ///      vouchers already issued until they expire. The EIP-712 domain name and version are unchanged
-///      (signers need no update); `verifyingContract` keeps vouchers of the two vaults apart.
+///      (signers need no update); `verifyingContract` keeps vouchers of the two vaults apart. The
+///      facilitator's `settleBatch` gas limit must stay an estimate (or above it): a fixed limit below the
+///      headroom above reverts `InsufficientGas` for every batch with a contract payer.
 ///   4. Export the ABI then (`forge inspect X402VaultV2 abi --json > abi/X402VaultV2.json`).
 /// @dev Paris EVM (no PUSH0). Signature = EOA ecrecover OR ERC-1271 (AgentAccount clones can pay).
 ///      Domain: {name:"FerminuxX402", version:"1", chainId:block.chainid, verifyingContract:this}.
@@ -62,6 +69,15 @@ contract X402VaultV2 {
     ///      check when the owner is a multisig) needs a fraction of it, and a batch of 50 answers that each
     ///      burn all of it stays well inside the block gas limit.
     uint256 private constant ERC1271_GAS = 200_000;
+    /// @dev The most one voucher costs `settleBatch` besides its signature bytes, should its payer be a
+    ///      contract whose answer burns the whole allowance: that allowance, the 1/64 a call keeps back (so
+    ///      the answer is given all of it), and 120k for the rest — checks, digest, ecrecover, the payer's
+    ///      code size, settling into fresh storage slots and the log come to about 90k on the chain's gas
+    ///      schedule.
+    uint256 private constant VOUCHER_WORST_GAS = ERC1271_GAS + ERC1271_GAS / 63 + 120_000;
+    /// @dev The most one signature byte adds: its copy into the ERC-1271 call and the memory that takes
+    ///      (under 1 gas a byte for signatures up to 400 KB).
+    uint256 private constant SIG_BYTE_GAS = 2;
 
     // ───────────────────────────── storage ─────────────────────────────
 
@@ -104,6 +120,7 @@ contract X402VaultV2 {
     error NothingToWithdraw();
     error TransferFailed();
     error Reentrancy();
+    error InsufficientGas(uint256 required);
 
     // ───────────────────────────── modifiers ─────────────────────────────
 
@@ -184,17 +201,20 @@ contract X402VaultV2 {
 
     /// @notice Settle one voucher. Anyone may call. Reverts with `VoucherInvalid(reason)` on failure.
     function settle(Voucher calldata v, bytes calldata sig) external {
-        (bool ok, string memory reason) = _verify(v, sig);
+        (bool ok, string memory reason) = _verify(v, sig, 0);
         if (!ok) revert VoucherInvalid(reason);
         _settle(v);
     }
 
     /// @notice Settle many vouchers; invalid ones are skipped with `Skipped(payer, nonce, reason)`.
+    ///         Reverts `InsufficientGas` when, at a contract payer's ERC-1271 call, the batch no longer
+    ///         holds the gas for that answer and for every voucher after it at its worst case; a gas
+    ///         estimate includes it.
     /// @dev Balance is re-checked per voucher, so a payer running dry mid-batch only skips the rest.
     function settleBatch(Voucher[] calldata vs, bytes[] calldata sigs) external {
         if (vs.length != sigs.length) revert LengthMismatch();
         for (uint256 i = 0; i < vs.length; i++) {
-            (bool ok, string memory reason) = _verify(vs[i], sigs[i]);
+            (bool ok, string memory reason) = _verify(vs[i], sigs[i], vs.length - i);
             if (!ok) {
                 emit Skipped(vs[i].payer, vs[i].nonce, reason);
                 continue;
@@ -205,7 +225,7 @@ contract X402VaultV2 {
 
     /// @notice Facilitator pre-check: would `settle` succeed right now?
     function verify(Voucher calldata v, bytes calldata sig) external view returns (bool ok, string memory reason) {
-        return _verify(v, sig);
+        return _verify(v, sig, 0);
     }
 
     // ───────────────────────────── views ─────────────────────────────
@@ -257,26 +277,47 @@ contract X402VaultV2 {
         emit Relocked(payer);
     }
 
-    function _verify(Voucher calldata v, bytes calldata sig) internal view returns (bool, string memory) {
+    /// @param left vouchers of the batch from this one on (see `_isValidSig`); 0 outside `settleBatch`
+    function _verify(Voucher calldata v, bytes calldata sig, uint256 left) internal view returns (bool, string memory) {
         if (v.payer == address(0)) return (false, "zero payer");
         if (v.payee == address(0)) return (false, "zero payee");
         if (v.amount == 0) return (false, "zero amount");
         if (block.timestamp > v.expiry) return (false, "expired");
         if (used[v.payer][v.nonce]) return (false, "nonce used");
         if (balance[v.payer] < v.amount) return (false, "insufficient balance");
-        if (!_isValidSig(v.payer, hashVoucher(v), sig)) return (false, "bad signature");
+        if (!_isValidSig(v.payer, hashVoucher(v), sig, left)) return (false, "bad signature");
         return (true, "");
     }
 
     /// @dev Sig.isValid without its ways to revert: `signer`'s own EOA signature, or the ERC-1271 magic
     ///      value — exactly, clean padding included — from `signer` as a contract. A reverting, short or
     ///      dirty answer, or one that runs out of `ERC1271_GAS`, is simply not valid; only its first word
-    ///      is copied.
-    function _isValidSig(address signer, bytes32 digest, bytes calldata sig) internal view returns (bool valid) {
+    ///      is copied. In a batch (`left` != 0), reverts `InsufficientGas` unless the gas for `left` vouchers
+    ///      at their worst case is left for the answer.
+    function _isValidSig(address signer, bytes32 digest, bytes calldata sig, uint256 left)
+        internal
+        view
+        returns (bool valid)
+    {
         address rec = Sig.recover(digest, sig);
         if (rec != address(0) && rec == signer) return true;
         if (signer.code.length == 0) return false;
         bytes memory data = abi.encodeWithSelector(ERC1271_MAGIC, digest, sig);
+        if (left != 0) {
+            // The facilitator's gas limit is an estimate, taken while this answer may have been cheap or
+            // invalid: it can turn on state, block.number or tx.gasprice (0 in an estimate without fee
+            // fields). On chain it may burn its allowance, or settle where it was skipped, and the vouchers
+            // after it would run out of gas, the batch with them. A check of this answer's allowance alone
+            // never binds while later vouchers still need gas, so it covers every voucher left at its worst
+            // case: an estimate that passes here holds whatever the answers do. The later signatures follow
+            // this one in the calldata (ABI encoding lays them out in order): what is left bounds their bytes.
+            uint256 sigEnd;
+            assembly ("memory-safe") {
+                sigEnd := add(sig.offset, sig.length)
+            }
+            uint256 needed = left * VOUCHER_WORST_GAS + (msg.data.length - sigEnd) * SIG_BYTE_GAS;
+            if (gasleft() < needed) revert InsufficientGas(needed);
+        }
         assembly ("memory-safe") {
             // capped: with gas() a payer's answer could take 63/64 of the batch's gas and starve the rest
             let ok := staticcall(ERC1271_GAS, signer, add(data, 0x20), mload(data), 0, 0x20)
