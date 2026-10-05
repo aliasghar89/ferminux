@@ -39,14 +39,23 @@ import {ServiceEscrow} from "./ServiceEscrow.sol";
 ///      v1 is drained below, and it has no `caseStatus` to honour.
 ///   2. If `escrow.governance()` is still the multisig, the multisig calls `escrow.setGovernance(v2)`.
 ///   3. If `escrow.governance()` is the live pool (v1), drain v1 first: v1.close() reverts for good once
-///      governance leaves it, and its voters could then never leave (`pendingVotes` stays > 0).
-///      a. multisig: `v1.setParams(type(uint256).max, 1, v1.quorum())` — no joins or votes from now on,
-///         and every open case becomes closable (in-flight cases are decided on the votes already cast);
-///      b. anyone: `v1.close(id)` for every id in 1..v1.nextCaseId() with `!v1.getCase(id).closed`;
-///      c. multisig: `v1.forward(escrow, abi.encodeCall(ServiceEscrow.setGovernance, (v2)))`.
+///      governance leaves it, and its voters could then never leave (`pendingVotes` stays > 0). The
+///      multisig runs a, b and c as ONE batch (one transaction): v1.openCase checks neither the bond
+///      minimum nor governance, so between a and c any party to a Disputed job with no v1 case could open
+///      one and close it a second later — nobody can vote on it, and v1's zero-vote rule splits the job
+///      50/50 without arbitration.
+///      a. `v1.setParams(type(uint256).max, 1, v1.quorum())` — no joins or votes from now on, and every
+///         open case becomes closable (in-flight cases are decided on the votes already cast; none: 50/50);
+///      b. `v1.close(id)` for every id in 1..v1.nextCaseId() with `!v1.getCase(id).closed`, listed right
+///         before the batch executes;
+///      c. `v1.forward(escrow, abi.encodeCall(ServiceEscrow.setGovernance, (v2)))`.
 ///      v1 arbiters then leave (`leavePool` twice, 7-day cooldown — the raised minStake does not block
-///      it) and join v2; v1 credits stay withdrawable. A v1 case opened after step (a) can get no votes:
-///      its job stays Disputed and v2 takes it.
+///      it) and join v2; v1 credits stay withdrawable. A v1 case opened after the batch gets no votes and
+///      can never close (escrow.resolve reverts NotGovernance): its job stays Disputed and v2 takes it,
+///      but the opener's 1 FMX fee stays in v1. A case opened after the list in b was read is left the
+///      same way; if it has votes, its voters stay pinned until it closes, so close it in a second batch
+///      that lends governance back to v1 for that one transaction: `v2.forward(escrow, setGovernance(v1))`,
+///      `v1.close(id)`, `v1.forward(escrow, setGovernance(v2))`.
 ///      Never resolve a job through `v1.forward(escrow.resolve)` while a v1 case on it is open — v1 has
 ///      no way to release that case's voters.
 ///      From the hand-over on, any Disputed job with no open v2 case and a passed `disputeDeadline` —
