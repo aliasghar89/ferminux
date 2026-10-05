@@ -454,11 +454,9 @@ test('serialQueue: one call at a time, in order, and a throw does not wedge the 
   assert.deepEqual(results.map((r) => r.status), ['fulfilled', 'rejected', 'fulfilled']);
 });
 
-test('service: a watcher\'s onConfirmed never runs concurrently with the role tick', async () => {
-  // Both used to run free: the validator verified the same transfer twice and
-  // consumed its 24h capacity twice for one signature, and the submitter's two
-  // allocateNonce() calls could hand two transfers the same account nonce.
-  const doc = JSON.stringify({
+/** Two chains on unreachable hosts: enough for a RelayerService to construct. */
+const serviceDoc = () =>
+  JSON.stringify({
     network: 'test',
     chains: [CHAIN_A, CHAIN_B].map((chainId, i) => ({
       name: `c${i}`,
@@ -470,6 +468,12 @@ test('service: a watcher\'s onConfirmed never runs concurrently with the role ti
     })),
     insecure: { acknowledgement: INSECURE_ACKNOWLEDGEMENT, allowCountFinalityWithoutGadget: true },
   });
+
+test('service: a watcher\'s onConfirmed never runs concurrently with the role tick', async () => {
+  // Both used to run free: the validator verified the same transfer twice and
+  // consumed its 24h capacity twice for one signature, and the submitter's two
+  // allocateNonce() calls could hand two transfers the same account nonce.
+  const doc = serviceDoc();
   const dir = mkdtempSync(join(tmpdir(), 'svc-serial-'));
   const store = await openStore(join(dir, 'r.db'), 'journal');
   let active = 0;
@@ -495,6 +499,104 @@ test('service: a watcher\'s onConfirmed never runs concurrently with the role ti
     await Promise.all([onConfirmed({}), service.runTick(), onConfirmed({}), service.runTick()]);
     assert.equal(peak, 1, 'role work overlapped');
   } finally {
+    for (const c of service.chains.values()) dispose(c);
+    store.close?.();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('service: a confirmation is queued behind the role tick, never awaited by the scan', async () => {
+  // Awaiting the queued hook froze the source chain's poll for the rest of a
+  // tick — minutes, on a destination endpoint that passes the probe and hangs on
+  // eth_call — so lastSuccessAt went stale and /status published "Scanner
+  // behind" for every route out of that chain, not only the impaired one.
+  const dir = mkdtempSync(join(tmpdir(), 'svc-queue-'));
+  const store = await openStore(join(dir, 'r.db'), 'journal');
+  let release;
+  const gate = new Promise((r) => (release = r));
+  let active = 0;
+  let peak = 0;
+  const handled = [];
+  const service = new RelayerService({
+    cfg: parseConfig(serviceDoc(), 'x'),
+    role: 'validator',
+    log: silent(),
+    alerts: alerter(),
+    store,
+    metrics: new Metrics(),
+    tickIntervalMs: 1_000,
+    hooks: {
+      onConfirmed: async (t) => {
+        active++;
+        peak = Math.max(peak, active);
+        handled.push(t.transferId);
+        active--;
+      },
+      tick: async () => {
+        active++;
+        peak = Math.max(peak, active);
+        await gate; // a tick stuck on a hung destination read
+        active--;
+      },
+    },
+  });
+  const chain = {
+    name: 'a',
+    chainId: CHAIN_A,
+    config: { confirmations: 3, startBlock: 0, pollIntervalMs: 500 },
+    healthyEndpoints: [{}],
+    healthCheck: async () => {},
+    getBlockNumber: async () => 200,
+    settledHeight: async () => 197,
+    scanSent: async () => [],
+    confirmSentAcrossEndpoints: async () => ({ status: 'ok', agreed: 1, checked: 1, reason: null }),
+  };
+  const id = `0x${'ab'.repeat(32)}`;
+  const now = Date.now();
+  store.putTransfer({
+    transferId: id,
+    transfer: {
+      srcChainId: CHAIN_A,
+      dstChainId: CHAIN_B,
+      nonce: 1,
+      srcToken: ZeroAddress,
+      dstToken: getAddress(`0x${'22'.repeat(20)}`),
+      sender: getAddress(`0x${'33'.repeat(20)}`),
+      recipient: getAddress(`0x${'44'.repeat(20)}`),
+      amount: 10n ** 18n,
+    },
+    fee: 0n,
+    srcBlockNumber: 100,
+    srcBlockHash: `0x${'aa'.repeat(32)}`,
+    srcTxHash: `0x${'bb'.repeat(32)}`,
+    srcLogIndex: 0,
+    status: 'seen',
+    reason: null,
+    firstSeenAt: now,
+    confirmedAt: null,
+    executedAt: null,
+    executedTxHash: null,
+    updatedAt: now,
+  });
+  store.setCursor(CHAIN_A, 199);
+  const tickDone = service.runTick();
+  try {
+    const w = new Watcher({ chain, store, log: silent(), alerts: alerter(), requireRpcQuorum: false, onConfirmed: service.watchers[0].onConfirmed });
+    const polled = await Promise.race([w.pollOnce().then(() => 'polled'), new Promise((r) => setTimeout(() => r('blocked'), 1_000))]);
+    assert.equal(polled, 'polled', 'the scan finished while the tick was still running');
+    assert.equal(w.stats.lastError, null);
+    assert.ok(w.stats.lastSuccessAt > 0, 'and counts as a completed scan');
+    assert.equal(store.getTransfer(id)?.status, 'confirmed');
+    assert.deepEqual(handled, [], 'the role work waits for the tick in flight');
+
+    release();
+    await tickDone;
+    await service.runTick(); // FIFO: settles after everything queued before it
+    assert.deepEqual(handled, [id], 'and then runs, once');
+    assert.equal(peak, 1, 'never beside the tick');
+  } finally {
+    release();
+    await tickDone;
     for (const c of service.chains.values()) dispose(c);
     store.close?.();
     rmSync(dir, { recursive: true, force: true });

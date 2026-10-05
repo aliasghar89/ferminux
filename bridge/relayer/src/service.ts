@@ -148,7 +148,21 @@ export class RelayerService {
           log: this.log,
           alerts: this.alerts,
           requireRpcQuorum: this.cfg.validator.requireRpcQuorum,
-          onConfirmed: (t) => this.exclusive(() => this.hooks.onConfirmed(t)),
+          // Queued, not awaited: the scan must never wait for role work. A tick
+          // can run for minutes on a destination endpoint that passes the probe
+          // and hangs on eth_call (ethers' default request timeout is 300 s), and
+          // a poll stuck behind it stales lastSuccessAt and publishes "Scanner
+          // behind" for every route out of this chain, not only the impaired one.
+          // FIFO still runs it after the tick in flight, never beside it, and a
+          // failure leaves the row 'confirmed' for the next tick to retry.
+          onConfirmed: (t) => {
+            this.exclusive(() => this.hooks.onConfirmed(t)).catch((err) => {
+              this.log.error('role work for a confirmed transfer failed — the next tick retries it', {
+                transferId: t.transferId,
+                err: (err as Error).message,
+              });
+            });
+          },
         }),
       );
     }
