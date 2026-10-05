@@ -3,9 +3,11 @@
 // explorer/k8s/40-frontend.yaml loads every frontend variable from the
 // explorer-frontend-env ConfigMap (15-configmaps.yaml), a hand-kept copy of
 // explorer/envs/frontend.env plus the public origin. Nothing kept the two
-// equal, and the copy fell behind: compose moved to
+// equal, and the copy fell behind twice: compose moved to
 // NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE=validation while k8s kept "mining",
-// which is what makes Blockscout label every block "Mined by" its "Miner".
+// which is what makes Blockscout label every block "Mined by" its "Miner";
+// and compose turned the gas tracker off while k8s kept showing its 0.01 gwei
+// figure, a tip no signer includes. Every key both files set must now agree.
 //
 //   node --test explorer/scripts/k8s-frontend.test.mjs
 
@@ -70,4 +72,30 @@ test('both deployments label the block producer as a validator, never a miner', 
   for (const [where, env] of [['k8s explorer-frontend-env', k8sFrontendEnv()], ['envs/frontend.env', composeFrontendEnv()]]) {
     assert.equal(env.get('NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE'), 'validation', where);
   }
+});
+
+// envs/frontend.env has the full reason: with so few transactions Blockscout's
+// oracle falls back to 0.01 gwei, and signers only include a tip of at least
+// 1 gwei, so a user who copies the tracker's number sends a transaction that
+// stays pending for ever.
+test('both deployments keep the gas tracker off', () => {
+  for (const [where, env] of [['k8s explorer-frontend-env', k8sFrontendEnv()], ['envs/frontend.env', composeFrontendEnv()]]) {
+    assert.equal(env.get('NEXT_PUBLIC_GAS_TRACKER_ENABLED'), 'false', where);
+  }
+});
+
+// The public origin and the favicon master are compose `environment:` entries,
+// not frontend.env, so they are outside this comparison.
+test('every key the k8s ConfigMap shares with envs/frontend.env has the same value', () => {
+  const k8s = k8sFrontendEnv();
+  const compose = composeFrontendEnv();
+  const shared = [...compose.keys()].filter((key) => k8s.has(key));
+  // Guards the parsers: an empty intersection would pass vacuously.
+  for (const key of ['NEXT_PUBLIC_NETWORK_ID', 'NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE', 'NEXT_PUBLIC_GAS_TRACKER_ENABLED', 'NEXT_PUBLIC_HOMEPAGE_HERO_BANNER_CONFIG']) {
+    assert.ok(shared.includes(key), `${key} is set in both files`);
+  }
+  const differ = shared
+    .filter((key) => k8s.get(key) !== compose.get(key))
+    .map((key) => `${key}: k8s ${JSON.stringify(k8s.get(key))}, compose ${JSON.stringify(compose.get(key))}`);
+  assert.deepEqual(differ, []);
 });
