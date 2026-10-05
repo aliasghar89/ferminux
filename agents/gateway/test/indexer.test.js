@@ -457,26 +457,48 @@ test("indexer: a reorg takes back the arena award link and the referral eligibil
   assert.equal(await payout.tick(), 0);
   assert.deepEqual(sent, []);
 
-  // completed on the winning branch: earned again, and paid
+  // completed on the winning branch: earned again, and paid once the completion is REORG_DEPTH blocks under the
+  // indexed head, where no reorg the indexer follows can take it back
   chain.jobs.set(6, paidJob(3));
   chain.block(107, [completed("c2")]);
   await indexOnce(ctx);
   assert.deepEqual(referral(), { eligibleAt: ts(107), jobId: 6, paid: 0, reorgFlag: null });
+  assert.equal(await payout.tick(), 0);
+  chain.block(107 + REORG_DEPTH - 1);
+  await indexOnce(ctx);
+  assert.equal(await payout.tick(), 0);
+  assert.deepEqual(sent, []);
+  chain.block(107 + REORG_DEPTH);
+  await indexOnce(ctx);
   assert.equal(await payout.tick(), 1);
   assert.deepEqual(sent, [ALICE, CAROL]);
 
-  // reorged out after the payout: the FMX is on chain, so the row stays paid and is flagged for review...
-  chain.reorgFrom(107);
-  chain.jobs.set(6, paidJob(2));
-  chain.block(108);
+  // A payout a gateway sent at once, before it waited for that depth (agent 9, DAVE's, also referred by CAROL's agent
+  // 8), reorged out after it: the FMX is on chain, so the row stays paid and is flagged for review...
+  const DAVE = "0x000000000000000000000000000000000000DA7E";
+  db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts) VALUES (9, 8, ?, ?, 1)").run(DAVE, CAROL);
+  const referral9 = () => db.prepare("SELECT eligibleAt, jobId, paid, reorgFlag FROM referrals WHERE newAgentId = 9").get();
+  const job10 = (status) => ({ ...paidJob(status), agentId: 9n });
+  const completed10 = (txTag) => log(escIface, ESC, "JobCompleted", [10, 9, 1, 5], tx(txTag));
+  const at = 107 + REORG_DEPTH + 1;
+  chain.jobs.set(10, job10(3));
+  chain.block(at, [completed10("d1")]);
   await indexOnce(ctx);
-  assert.equal(referral().paid, 1);
-  assert.match(referral().reorgFlag, /completion of job 6 \(block 107\) was reorged out after this payout was sent/);
+  db.prepare("UPDATE referrals SET paid = 1, paidAt = 1, txNew = '0xearly1', txRef = '0xearly2' WHERE newAgentId = 9").run();
+  chain.reorgFrom(at);
+  chain.jobs.set(10, job10(2));
+  chain.block(at + 1);
+  await indexOnce(ctx);
+  assert.equal(referral9().paid, 1);
+  assert.match(referral9().reorgFlag, new RegExp(`completion of job 10 \\(block ${at}\\) was reorged out after this payout was sent`));
   // ...until the job completes again
-  chain.jobs.set(6, paidJob(3));
-  chain.block(109, [completed("c3")]);
+  chain.jobs.set(10, job10(3));
+  chain.block(at + 2, [completed10("d2")]);
   await indexOnce(ctx);
-  assert.deepEqual(referral(), { eligibleAt: ts(107), jobId: 6, paid: 1, reorgFlag: null });
+  assert.deepEqual(referral9(), { eligibleAt: ts(at), jobId: 10, paid: 1, reorgFlag: null });
+  chain.block(at + 2 + REORG_DEPTH);
+  await indexOnce(ctx);
+  assert.equal(await payout.tick(), 0);
   assert.deepEqual(sent, [ALICE, CAROL], "paid once");
 });
 

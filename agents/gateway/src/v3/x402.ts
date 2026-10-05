@@ -434,30 +434,67 @@ export class X402Facilitator {
   }
 
   /**
-   * The vouchers of `queued` settleBatch can run with. The deployed vault calls an ERC-1271 payer's
-   * isValidSignature with all the gas left, so a contract payer that burns it (or answers with a huge return) fails
-   * the estimate of any batch it is in, and the oldest queued voucher is in every batch. A batch the node rejects is
-   * split in two until each voucher it cannot run with alone is found: that one counts a settle attempt (failed after
-   * X402_MAX_SETTLE_ATTEMPTS, like a reverted batch) and the rest settle without it. An estimate that fails for any
-   * other reason (the RPC unreachable or rate-limiting) is no voucher's fault: it throws, and nothing is counted.
+   * The vouchers of `queued` settleBatch can run with, in the order to send them. The deployed vault calls an
+   * ERC-1271 payer's isValidSignature with 63/64 of the gas left (Sig.isValid), so an answer that burns it leaves the
+   * vouchers after it 1/64: such a voucher passes its estimate alone, or with a few vouchers behind it, and fails the
+   * estimate of a full batch. Parts of a batch that each pass do not pass together, so a split cannot find it, and
+   * the batch sent must be one the node ran as a whole. A voucher signed by its payer never reaches that call: those
+   * go first (split as before should their batch fail), then each voucher that needs its payer's answer is added at
+   * the end, where the gas its answer can take is only what nothing after it needs. One the node cannot run even
+   * there counts a settle attempt (failed after X402_MAX_SETTLE_ATTEMPTS, like a reverted batch). One that runs there
+   * but not behind the answers already added waits for the next flush, uncounted, with the rest: an answer before it
+   * took the gas, and that voucher is settled or skipped in this batch. An estimate that fails for any other reason
+   * (the RPC unreachable or rate-limiting) is no voucher's fault: it throws, and nothing is counted.
    */
   private async settleable(signer: Contract, queued: VoucherRow[]): Promise<VoucherRow[]> {
-    const ok: VoucherRow[] = [];
-    const isolate = async (part: VoucherRow[]): Promise<void> => {
+    // null when the node runs settleBatch with `rows`, its error when the batch fails (out of gas, reverted)
+    const fails = async (rows: VoucherRow[]): Promise<Error | null> => {
       try {
-        await signer.settleBatch.estimateGas(...batchArgs(part));
-        ok.push(...part);
-        return;
+        await signer.settleBatch.estimateGas(...batchArgs(rows));
+        return null;
       } catch (err) {
         if (!batchFailed(err)) throw err;
-        if (part.length === 1) return this.failAlone(part[0]!, err as Error);
+        return err as Error;
       }
+    };
+    if (!(await fails(queued))) return queued;
+    const signed = queued.filter((r) => this.signedByPayer(r));
+    const ok: VoucherRow[] = [];
+    // a voucher signed by its payer costs the same gas wherever it is in the batch: parts of them that pass also pass together
+    const isolate = async (part: VoucherRow[]): Promise<void> => {
+      const err = part.length ? await fails(part) : null;
+      if (!err) {
+        ok.push(...part);
+        return;
+      }
+      if (part.length === 1) return this.failAlone(part[0]!, err);
       const half = Math.ceil(part.length / 2);
       await isolate(part.slice(0, half));
       await isolate(part.slice(half));
     };
-    await isolate(queued);
+    await isolate(signed);
+    const plain = ok.length;
+    for (const r of queued) {
+      if (signed.includes(r)) continue;
+      const err = await fails([...ok, r]);
+      if (!err) {
+        ok.push(r);
+        continue;
+      }
+      const alone = ok.length === plain ? err : await fails([...ok.slice(0, plain), r]);
+      if (!alone) break;
+      this.failAlone(r, alone);
+    }
     return ok;
+  }
+
+  /** The voucher's signature recovers to its payer (EIP-712): the vault settles it without calling the payer. */
+  private signedByPayer(r: VoucherRow): boolean {
+    try {
+      return verifyTypedData(this.domain, X402_VOUCHER_TYPES, { payer: r.payer, payee: r.payee, amount: BigInt(r.amount), nonce: BigInt(r.nonce), expiry: r.expiry, ref: r.ref }, r.sig) === r.payer;
+    } catch {
+      return false;
+    }
   }
 
   /** A voucher settleBatch cannot run with on its own: re-queued behind fresh ones, or parked for review at the cap. */

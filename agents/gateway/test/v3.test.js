@@ -699,6 +699,100 @@ test("x402: a voucher settleBatch cannot be estimated with is isolated, the rest
   assert.equal(fac.queuedCount(), 0);
 });
 
+// The deployed X402Vault gives an ERC-1271 payer's isValidSignature 63/64 of the gas left (Sig.isValid), so an answer
+// that burns it passes an estimate alone, or with a few vouchers after it, and leaves a full batch 1/64. Every part the
+// split tried passed, the batch of all of them did not, and flush() sent that batch anyway: ethers' own estimate failed
+// and every voucher was re-queued without counting an attempt, each flush, until the burning one expired.
+test("x402: a voucher whose ERC-1271 answer burns the gas it is given cannot stall a batch it passes alone", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const { v3Interface } = await import("../dist/abi-v3.js");
+  const { getAddress } = await import("ethers");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const domain = { name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr };
+  const iface = v3Interface("x402Vault");
+  const nowS = 1_758_400_000;
+  const burner = getAddress("0x00000000000000000000000000000000000000b1"); // contract payer whose answer burns its gas
+  const honest = getAddress("0x00000000000000000000000000000000000000a1"); // contract payer that answers in 60k
+  // settleBatch at the 30M block gas limit, as the vault spends it: 60k a voucher; an answer that burns takes 63/64 of
+  // what is left after the 15k before its call, and the vault then needs 4k to skip that voucher
+  const runs = (vs) => {
+    let left = 30_000_000 - 25_000;
+    for (const v of vs) {
+      left = v[0] === burner ? Math.floor((left - 15_000) / 64) - 4_000 : left - 60_000;
+      if (left < 0) return false;
+    }
+    return true;
+  };
+  const rpcError = (message) => Object.assign(new Error("missing revert data (action=\"estimateGas\")"), { code: "CALL_EXCEPTION", info: { error: { code: -32000, message } } });
+  const estimate = async (vs) => {
+    if (!runs(vs)) throw rpcError("gas required exceeds allowance (30000000)");
+    return 100_000n;
+  };
+  const batches = [];
+  const settleBatch = async (vs) => {
+    await estimate(vs); // ethers estimates before it sends
+    batches.push(vs.map((v) => String(v[3])));
+    // the answer ran out of gas: "bad signature", and the vault skips that voucher
+    const logs = vs.filter((v) => v[0] === burner).map((v) => iface.encodeEventLog("Skipped", [v[0], v[3], "bad signature"]));
+    return { hash: "0x" + String(batches.length).padStart(64, "0"), wait: async () => ({ status: 1, logs }) };
+  };
+  settleBatch.estimateGas = estimate;
+  const vault = { interface: iface, connect: () => ({ settleBatch }) };
+  const ctx = {
+    db,
+    cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" },
+    address: (k) => (k === "x402Vault" ? vaultAddr : undefined),
+    contract: (k) => (k === "x402Vault" ? vault : undefined),
+    facilitator: { address: alice.address },
+    provider: { getBalance: async () => 10n ** 18n, getTransactionReceipt: async () => null },
+    now: () => nowS * 1000,
+    nowS: () => nowS,
+  };
+  const fac = new X402Facilitator(ctx);
+  let createdAt = nowS - 1000;
+  // `wallet` signs the voucher as its payer; a contract payer's signature is whatever its isValidSignature reads
+  const queue = async (payer, nonce, wallet) => {
+    const v = { payer, payee: alice.address, amount: 1000n, nonce: BigInt(nonce), expiry: nowS + 600, ref: "0x" + "00".repeat(32) };
+    const sig = wallet ? await wallet.signTypedData(domain, X402_VOUCHER_TYPES, v) : "0x" + "11".repeat(65);
+    db.prepare("INSERT INTO x402_vouchers (payer, nonce, payee, amount, ref, expiry, sig, resource, status, createdAt) VALUES (?, ?, ?, '1000', ?, ?, ?, '', 'queued', ?)").run(payer, String(nonce), alice.address, v.ref, v.expiry, sig, createdAt++);
+  };
+  const states = (nonces) => nonces.map((n) => {
+    const r = db.prepare("SELECT status, attempts FROM x402_vouchers WHERE nonce = ?").get(String(n));
+    return `${r.status}/${r.attempts}`;
+  });
+  const range = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+
+  // the burning voucher is the oldest, 49 vouchers signed by their payers are queued behind it
+  await queue(burner, 1);
+  for (const n of range(101, 149)) await queue(bob.address, n, bob);
+  assert.equal(runs([[burner]]), true, "alone, the burning voucher passes its estimate");
+  assert.equal((await fac.flush()).submitted, 50);
+  assert.deepEqual(batches, [[...range(101, 149).map(String), "1"]], "one tx; the answer comes after every voucher that needs no answer");
+  assert.deepEqual(states(range(101, 149)), Array(49).fill("settled/1"));
+  assert.deepEqual(states([1]), ["skipped/1"]);
+
+  // three burning vouchers of the payer's own: any two pass, all three do not
+  for (const n of [2, 3, 4]) await queue(burner, n);
+  assert.equal((await fac.flush()).submitted, 2);
+  assert.deepEqual(batches.at(-1), ["2", "3"]);
+  assert.deepEqual(states([4]), ["queued/0"], "it ran on its own: an answer before it took the gas, nothing is counted");
+  assert.equal((await fac.flush()).submitted, 1);
+  assert.deepEqual(states([2, 3, 4]), Array(3).fill("skipped/1"));
+
+  // contract payers that answer honestly behind a burning answer: as many as its 1/64 leaves room for go with it, the
+  // rest in the next flush, and none of them is counted an attempt
+  await queue(burner, 5);
+  for (const n of range(201, 210)) await queue(honest, n);
+  assert.equal((await fac.flush()).submitted, 8);
+  assert.deepEqual(batches.at(-1), ["5", ...range(201, 207).map(String)]);
+  assert.deepEqual(states(range(208, 210)), Array(3).fill("queued/0"));
+  assert.equal((await fac.flush()).submitted, 3);
+  assert.deepEqual(states(range(201, 210)), Array(10).fill("settled/1"));
+  assert.deepEqual(states([5]), ["skipped/1"]);
+  assert.equal(fac.queuedCount(), 0);
+});
+
 test("x402: a voucher valid for longer than X402_MAX_EXPIRY_S is refused", async () => {
   const { X402Facilitator, X402_MAX_EXPIRY_S } = await import("../dist/v3/x402.js");
   assert.equal(typeof X402_MAX_EXPIRY_S, "number");

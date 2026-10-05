@@ -78,6 +78,9 @@ export function migrateGrowth(db: Db): void {
   for (const col of ["nonceNew", "nonceRef"]) if (!cols.some((c) => c.name === col)) db.exec(`ALTER TABLE referrals ADD COLUMN ${col} INTEGER`);
   // a payout whose job completion a reorg then removed: flagged for review, never reversed (revertJobOnReferrals)
   if (!cols.some((c) => c.name === "reorgFlag")) db.exec("ALTER TABLE referrals ADD COLUMN reorgFlag TEXT");
+  // block of the JobCompleted log behind the eligibility: the payout waits until the indexer can no longer roll it
+  // back (ReferralPayout.tick fills it in for rows made eligible before it existed)
+  if (!cols.some((c) => c.name === "eligibleBlock")) db.exec("ALTER TABLE referrals ADD COLUMN eligibleBlock INTEGER");
 }
 
 /**

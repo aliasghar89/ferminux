@@ -478,14 +478,20 @@ chain 3961, RPC `https://rpc.ferminux.net`.
   5 minutes absorb a payer's clock running ahead.
 - `GET /api/x402/supported` publishes these as
   `voucher: { maxTimeoutSeconds, minExpirySeconds, maxExpirySeconds }`.
-- The vault gives an ERC-1271 payer's signature check all the gas left, so one
-  voucher can make the whole `settleBatch` fail its gas estimate. Such a batch
-  is split until each voucher it cannot run with alone is found. That voucher
-  counts a settle attempt and is `failed` after `X402_MAX_SETTLE_ATTEMPTS`
-  (3), and the rest of the batch settles in the same flush. An estimate that
-  fails without the node running out of gas or reverting (the RPC unreachable
-  or rate-limiting) counts nothing. Vouchers that have failed an attempt queue
-  behind fresh ones.
+- The vault gives an ERC-1271 payer's signature check 63/64 of the gas left,
+  so a voucher whose answer burns it passes its gas estimate alone, or with a
+  few vouchers after it, and makes a full `settleBatch` fail. When the batch
+  fails its estimate, the facilitator sends one the node ran as a whole:
+  first the vouchers signed by their payer, which the vault settles without
+  calling the payer (a part of them that fails is split until each voucher
+  that fails alone is found), then each voucher that needs its payer's answer,
+  added one at a time at the end. A voucher that fails even there counts a
+  settle attempt and is `failed` after `X402_MAX_SETTLE_ATTEMPTS` (3). One
+  that passes there but not behind the answers already added waits for the
+  next flush with the rest, uncounted: the answer before it is settled or
+  skipped in this batch. An estimate that fails without the node running out
+  of gas or reverting (the RPC unreachable or rate-limiting) counts nothing.
+  Vouchers that have failed an attempt queue behind fresh ones.
 - The facilitator also refuses a voucher when the payer's vault deposit unlocks
   at or before `now + X402_MIN_EXPIRY_S` — the payer must re-lock (deposit) or
   wait out the withdrawal first, otherwise the balance can leave before the
@@ -530,6 +536,12 @@ list.
   `GROWTH_KEY`. A job qualifies when it was paid by a third party — the client
   is neither owner nor an `AgentAccount` of either — for at least
   `REFERRAL_MIN_JOB_FMX` (default 5 FMX).
+- The worker pays a row only once the block of the `JobCompleted` that made it
+  eligible (`eligibleBlock`) is at least `REORG_DEPTH` = **64** blocks under the
+  gateway's indexed head — counted in blocks, not time. The indexer re-checks
+  the 64 blocks under its head every tick, so a completion a reorg can still
+  remove takes its eligibility back before any FMX goes out. Until then the row
+  reads `pending`.
 - Caps: `REFERRAL_MAX_PAYOUTS_PER_REFERRER_PER_DAY` (default 5) and
   `REFERRAL_MAX_PAYOUTS_PER_DAY` (default 50), both per UTC day. Each transfer
   reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`) so a retry
@@ -537,9 +549,14 @@ list.
   and the worker is a no-op.
 - A reorg that removes the `JobCompleted` behind a row's eligibility takes the
   eligibility back while no transfer has been reserved; the row is earned again
-  if the winning branch completes the job. A payout that had started is not
-  reversed (its FMX is on chain): the row is flagged (`reorgFlag`) and logged
-  for review.
+  if the winning branch completes the job, and waits for that completion's
+  own depth. A payout that had started (one a gateway sent before it waited
+  for depth) is not reversed (a transfer already sent is on chain): the row
+  is flagged (`reorgFlag`), logged and held for review. Nothing more goes out
+  for it — neither a leg not sent yet nor a re-send on a reserved nonce —
+  unless the winning branch completes the job again, which clears the flag. A
+  reserved nonce that another transfer has since used is replaced, never
+  recorded as this payout's.
 - Reads: `GET /api/referrals/leaderboard` (top referrers plus `rewardFmx`,
   `payoutEnabled`, totals and the 10 most recent), `GET /api/referrals/:agentId`
   (the row for one referred agent), `GET /api/referrals/by/:agentId` (every
