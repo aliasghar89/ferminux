@@ -21,7 +21,6 @@ import (
 	"github.com/aliasghar89/ferminux/chain/accounts/keystore"
 	"github.com/aliasghar89/ferminux/chain/common"
 	"github.com/aliasghar89/ferminux/chain/crypto"
-	"github.com/aliasghar89/ferminux/validator/internal/dpapi"
 	"github.com/google/uuid"
 )
 
@@ -166,17 +165,8 @@ func write(datadir, dir, network string, chainID uint64, priv *ecdsa.PrivateKey,
 	if err != nil {
 		return common.Address{}, err
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return common.Address{}, err
-	}
-	if err := dpapi.RestrictDir(dir); err != nil {
-		return common.Address{}, fmt.Errorf("restricting %s to SYSTEM and Administrators: %w", dir, err)
-	}
-	if err := writeFileAtomic(filepath.Join(dir, KeyFile), enc); err != nil {
-		return common.Address{}, err
-	}
 	m, _ := json.MarshalIndent(Marker{Network: network, ChainID: chainID, Address: addr, Created: time.Now().UTC(), Imported: imported}, "", "  ")
-	if err := writeFileAtomic(filepath.Join(dir, MarkerFile), append(m, '\n')); err != nil {
+	if err := saveKey(dir, enc, append(m, '\n')); err != nil {
 		return common.Address{}, err
 	}
 	return addr, nil
@@ -201,26 +191,6 @@ func Load(dir string, password []byte) (*ecdsa.PrivateKey, common.Address, error
 		return nil, common.Address{}, errors.New("could not decrypt the attester key: wrong password or damaged file")
 	}
 	return k.PrivateKey, k.Address, nil
-}
-
-func writeFileAtomic(path string, data []byte) error {
-	tmp := path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
-	if err != nil {
-		return err
-	}
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	f.Close()
-	return os.Rename(tmp, path)
 }
 
 func zeroKey(k *ecdsa.PrivateKey) {
