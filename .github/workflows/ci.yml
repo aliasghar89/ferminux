@@ -218,7 +218,8 @@ jobs:
         run: node --test scripts/compose-secrets.test.mjs
 
       # The rewards CronJob runs three scripts in one shell; a failing reward
-      # script must still mark the Job Failed.
+      # script must still mark the Job Failed. The scripts reach it through a
+      # ConfigMap copy of explorer/seeder, which must stay byte-equal.
       - name: Kubernetes rewards seeder
         working-directory: explorer
         run: node --test scripts/k8s-seeder.test.mjs

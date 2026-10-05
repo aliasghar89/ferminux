@@ -46,8 +46,9 @@ spec:
                   sh /seeder/seed-signers.sh
                   exit "$rc"
               env:
-                # seed-signers.sh asks this node who sealed each authority block
-                # (clique_getSigner): the node the backend indexes from.
+                # seed-signers.sh asks this node which signer confirmed each
+                # authority block (clique_getSigner): the node the backend
+                # indexes from.
                 - name: FMX_RPC
                   valueFrom:
                     configMapKeyRef:

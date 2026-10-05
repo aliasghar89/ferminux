@@ -1,19 +1,19 @@
 #!/bin/sh
-# Attribute authority blocks to the signer that actually sealed them.
+# Attribute authority blocks to the signer that actually confirmed them.
 #
 # THE PROBLEM, which only appears at the fork and would appear on every block:
 # Clique's Prepare sets header.Coinbase to the zero address (it repurposes that
 # field for signer votes), and geth's RPC marshals "miner" straight from
 # header.Coinbase. Blockscout believes it. So from PosaBlock onward the explorer
-# would show EVERY block mined by 0x0000…0000, with the reward paid there, while
+# would attribute EVERY block to 0x0000…0000, with the reward paid there, while
 # the chain credits the ecrecovered signer — and during a signer vote it would
 # name the vote's subject as the miner, which is worse than a blank.
 #
 # The chain is right and the explorer is wrong, so this repairs the explorer:
-# for each post-fork block whose signer has not been confirmed yet, ask the
-# node who sealed it (clique_getSigner recovers it from the header seal — the
-# same source the consensus rules use) and rewrite blocks.miner_hash, carrying
-# the reward row with it.
+# for each post-fork block whose signer has not been recorded yet, ask the
+# node which signer confirmed it (clique_getSigner recovers it from the header
+# seal — the same source the consensus rules use) and rewrite blocks.miner_hash,
+# carrying the reward row with it.
 #
 # A vote block's coinbase is the vote's SUBJECT, not zero, so "still credited
 # to 0x0" cannot find it. Every post-fork block is therefore checked once, and
