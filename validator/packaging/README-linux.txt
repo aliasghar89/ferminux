@@ -102,6 +102,26 @@ Checking on it
 attesting, paused, and so on, with what to do next. If the service stopped,
 it also shows why its last run failed.
 
+Upgrading
+---------
+Extract the new release and run its installer the same way:
+
+    sudo ./install.sh
+
+It stops the service, replaces the programs and starts the service again,
+keeping the key, its password and the chain data.
+
+The installer never hands the service a file under
+/var/lib/fmx-validator/mainnet that belongs to root or another user while
+the directory holding it is the service's: it could be a file from
+elsewhere linked in. Running `sudo fmx-validator run` on an earlier release
+left logs and chain data like that. If it finds any, the installer names
+every one, starts the service again as it was, and exits. Check each file,
+give it to the service once you know what it is, and run the installer
+again:
+
+    sudo chown -h fmx-validator:fmx-validator <file>
+
 Uninstalling
 ------------
     sudo ./uninstall.sh                # keeps the data and the password
