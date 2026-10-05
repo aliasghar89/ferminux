@@ -1354,8 +1354,8 @@ class WorkAPI {
 
 /**
  * The chain's half of the bounty/arena double-hire guard. The gateway learns of a hire only once the requestJob
- * is mined AND indexed, or once hire() reaches its own award(): a retry after a timeout (the first requestJob
- * still pending, or mined but not yet indexed) saw no linked job and locked the reward a second time, at the
+ * is confirmed AND indexed, or once hire() reaches its own award(): a retry after a timeout (the first requestJob
+ * still pending, or confirmed but not yet indexed) saw no linked job and locked the reward a second time, at the
  * next nonce. So ask the chain: refuse while a transaction from this wallet is still pending, and while any
  * escrow job this client requested with the same inputURI is anything but Refunded.
  */

@@ -11,13 +11,13 @@ const ME = new Wallet(KEY).address;
 
 /**
  * A stub chain: the escrow (requestJob opens jobs 41, 42, … from this wallet) and the provider reads the hire
- * guard makes. With `mine = false` a requestJob stays pending and its tx.wait() rejects, as on a timeout.
+ * guard makes. With `confirms = false` a requestJob stays pending and its tx.wait() rejects, as on a timeout.
  */
 function stubChain(fmx, onRequest = () => {}) {
   const iface = new Interface(ESCROW_ABI);
-  const chain = { nonce: 0, pendingNonce: 0, nextId: 41, jobs: [], sent: [], mine: true };
+  const chain = { nonce: 0, pendingNonce: 0, nextId: 41, jobs: [], sent: [], confirms: true };
   chain.confirm = () => {
-    for (const j of chain.jobs) j.mined = true;
+    for (const j of chain.jobs) j.confirmed = true;
     chain.nonce = chain.pendingNonce;
   };
   Object.defineProperty(fmx, "provider", { value: { getTransactionCount: async (_addr, tag) => (tag === "pending" ? chain.pendingNonce : chain.nonce) } });
@@ -27,14 +27,14 @@ function stubChain(fmx, onRequest = () => {}) {
       interface: iface,
       filters: { JobRequested: (_jobId, _agentId, client) => ({ client }) },
       queryFilter: async (filter) =>
-        chain.jobs.filter((j) => j.mined && j.client === filter.client).map((j) => ({ args: { jobId: BigInt(j.id), inputURI: j.inputURI } })),
+        chain.jobs.filter((j) => j.confirmed && j.client === filter.client).map((j) => ({ args: { jobId: BigInt(j.id), inputURI: j.inputURI } })),
       getJob: async (id) => ({ status: BigInt(chain.jobs.find((j) => j.id === Number(id)).status) }),
       requestJob: async (agentId, hash, inputURI) => {
-        const job = { id: chain.nextId++, client: ME, inputURI, status: 1, mined: chain.mine };
+        const job = { id: chain.nextId++, client: ME, inputURI, status: 1, confirmed: chain.confirms };
         chain.jobs.push(job);
         chain.sent.push([agentId, hash, inputURI]);
         chain.pendingNonce++;
-        if (!chain.mine) return { wait: async () => { throw new Error("timeout waiting for the receipt"); } };
+        if (!chain.confirms) return { wait: async () => { throw new Error("timeout waiting for the receipt"); } };
         chain.nonce++;
         onRequest(job);
         const log = iface.encodeEventLog("JobRequested", [job.id, agentId, ME, 5n, hash, inputURI]);
@@ -83,36 +83,36 @@ test("arena.hire: refuses a challenge whose job is live, allows one whose job wa
   assert.equal(live.sent.length, 0);
 
   const refunded = setup(t, { ...challenge, jobStatus: "Refunded" });
-  refunded.chain.jobs.push({ id: 40, client: ME, inputURI: "fmx://arena/4", status: 4, mined: true });
+  refunded.chain.jobs.push({ id: 40, client: ME, inputURI: "fmx://arena/4", status: 4, confirmed: true });
   assert.equal((await refunded.fmx.arena.hire({ challengeId: 4 })).jobId, 41);
   assert.equal(refunded.sent.length, 1);
 
   // the gateway has not linked (or has lost) the live job: the chain still has it
   const unlinked = setup(t, { ...challenge, jobId: null, jobStatus: null });
-  unlinked.chain.jobs.push({ id: 40, client: ME, inputURI: "fmx://arena/4", status: 2, mined: true });
+  unlinked.chain.jobs.push({ id: 40, client: ME, inputURI: "fmx://arena/4", status: 2, confirmed: true });
   await assert.rejects(unlinked.fmx.arena.hire({ challengeId: 4 }), /fmx:\/\/arena\/4 is already settled by escrow job 40 \(Delivered\) on chain/);
   assert.equal(unlinked.sent.length, 0);
 });
 
-test("a retry while the first requestJob is pending, or mined but not yet indexed, is refused on chain evidence", async (t) => {
+test("a retry while the first requestJob is pending, or confirmed but not yet indexed, is refused on chain evidence", async (t) => {
   // The gateway never learns of the job here (indexer lagging), so its record says jobId null throughout.
   const s = setup(t, bounty);
-  s.chain.mine = false;
+  s.chain.confirms = false;
   await assert.rejects(s.fmx.bounties.hire({ bountyId: 9 }), /timeout/); // broadcast, then the wait gave up
   assert.equal(s.sent.length, 1);
 
   // retried at once: that requestJob is still pending
   await assert.rejects(s.fmx.bounties.hire({ bountyId: 9 }), /still pending/);
-  // retried once it is mined, before the gateway has indexed it
+  // retried once it is confirmed, before the gateway has indexed it
   s.chain.confirm();
   await assert.rejects(s.fmx.bounties.hire({ bountyId: 9 }), /fmx:\/\/bounty\/9 is already settled by escrow job 41 \(Open\) on chain/);
   assert.equal(s.sent.length, 1, "one escrow job for one reward");
   assert.equal(s.calls.filter((c) => c.endsWith("/payloads")).length, 1, "a refused retry uploads nothing");
 
   // a live job for another bounty does not block this one, and a refunded job frees it
-  s.chain.jobs.push({ id: 99, client: ME, inputURI: "fmx://bounty/8", status: 1, mined: true });
+  s.chain.jobs.push({ id: 99, client: ME, inputURI: "fmx://bounty/8", status: 1, confirmed: true });
   s.chain.jobs[0].status = 4;
-  s.chain.mine = true;
+  s.chain.confirms = true;
   assert.equal((await s.fmx.bounties.hire({ bountyId: 9 })).jobId, 42);
 });
 
