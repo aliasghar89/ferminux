@@ -1,6 +1,7 @@
 // Indexer reorg handling against a scripted chain: the window is the chain's 64-block reorg cap, a reorg rolls
-// back what was derived from the blocks it replaced (events, state rows, activity, unsent webhooks, v3_counted
-// increments), a tx re-included at another logIndex counts once, and a quiet tick re-runs no handler.
+// back what was derived from the blocks it replaced (events, state rows, activity, unsent webhooks, bounty
+// transitions, v3_counted increments), a tx re-included at another logIndex counts once, a quiet tick re-runs no
+// handler, and a state read that failed is made again.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Interface, ZeroAddress, getAddress } from "ethers";
@@ -265,6 +266,118 @@ test("revertV3Event: each v3 handler's rows go, set values fall back, counted in
   assert.equal(one("SELECT COUNT(*) AS c FROM memory_anchors").c, 0);
 
   assert.equal(one("SELECT COUNT(*) AS c FROM v3_counted").c, 1, "only the claim of a log still applied (the first Bought) remains");
+});
+
+// applyJobToBounties never moves a bounty out of 'completed' and only auto-links an unlinked one, so the re-read
+// job could not repair a bounty whose transition came from a job event the reorg removed.
+test("indexer: a reorg takes back the bounty transitions its removed job events made", async () => {
+  const { db, chain, ctx } = setup();
+  db.prepare("INSERT INTO bounties (id, poster, title, brief, rewardWei, createdAt, updatedAt) VALUES (1, ?, 'Index the archive', 'brief', '5', 1, 1)").run(BOB);
+  const bounty = () => db.prepare("SELECT status, jobId, awardedAgentId, completedAt FROM bounties WHERE id = 1").get();
+  const bountyActivity = () => db.prepare("SELECT type FROM activity WHERE type LIKE 'bounty.%' ORDER BY id").all().map((r) => r.type);
+  const job = (status) => ({ ...jobStruct(status), inputURI: "fmx://bounty/1" });
+  const hire = (id, txTag) => log(escIface, ESC, "JobRequested", [id, 7, BOB, 10, "0x" + "11".repeat(32), "fmx://bounty/1"], tx(txTag));
+  chain.agents.set(7, agentStruct(ALICE));
+  chain.jobs.set(3, job(1));
+  chain.block(101, [hire(3, "a3")]);
+  await indexOnce(ctx);
+  chain.jobs.set(3, job(3));
+  chain.block(102, [log(escIface, ESC, "JobCompleted", [3, 9, 1, 5], tx("b1"))]);
+  await indexOnce(ctx);
+  assert.equal(bounty().status, "completed");
+
+  // the completion is reorged out and not re-included: the job is open again, so is the award
+  chain.reorgFrom(102);
+  chain.jobs.set(3, job(1));
+  chain.block(103);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(), { status: "awarded", jobId: 3, awardedAgentId: 7, completedAt: null });
+  assert.deepEqual(bountyActivity(), ["bounty.award"]);
+
+  // a refund reopens the bounty; when the refund is reorged out the link comes back
+  chain.jobs.set(3, job(4));
+  chain.block(104, [log(escIface, ESC, "JobRefunded", [3, 10, false], tx("c1"))]);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(), { status: "open", jobId: null, awardedAgentId: null, completedAt: null });
+  chain.reorgFrom(104);
+  chain.jobs.set(3, job(1));
+  chain.block(105);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(), { status: "awarded", jobId: 3, awardedAgentId: 7, completedAt: null });
+  assert.deepEqual(bountyActivity(), ["bounty.award"]);
+
+  // the hire itself is reorged out: the job is gone, the link it made too, and the next hire can take the bounty
+  chain.reorgFrom(101);
+  chain.jobs.delete(3);
+  chain.block(106);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT 1 FROM jobs WHERE id = 3").get(), undefined);
+  assert.deepEqual(bounty(), { status: "open", jobId: null, awardedAgentId: null, completedAt: null });
+  assert.deepEqual(bountyActivity(), []);
+  chain.jobs.set(4, job(1));
+  chain.block(107, [hire(4, "d1")]);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(), { status: "awarded", jobId: 4, awardedAgentId: 7, completedAt: null });
+});
+
+// The 12-block re-scan used to retry a failed read as a side effect. Once a tick re-applies only diverging blocks,
+// the events row matches the chain and its log never reaches a handler again: the read has to be queued.
+test("indexer: an agent / job read that fails on a transient RPC error is made again on a later tick", async () => {
+  const { db, chain, ctx } = setup();
+  chain.agents.set(7, agentStruct(ALICE));
+  chain.jobs.set(3, jobStruct(1));
+  const failures = { agent: 2, job: 2 }; // the read at the event and the retry in the same tick both fail
+  const getAgent = ctx.registry.getAgent;
+  const getJob = ctx.escrow.getJob;
+  ctx.registry.getAgent = async (id, o) => {
+    if (failures.agent-- > 0) throw new Error("read ECONNRESET");
+    return getAgent(id, o);
+  };
+  ctx.escrow.getJob = async (id, o) => {
+    if (failures.job-- > 0) throw new Error("request timeout");
+    return getJob(id, o);
+  };
+  chain.block(100, [log(regIface, REG, "AgentRegistered", [7, ALICE, "Scribe", "https://scribe.example", "", 0, 0], tx("a1"))]);
+  chain.block(101, [log(escIface, ESC, "JobRequested", [3, 7, BOB, 10, "0x" + "11".repeat(32), "fmx://in"], tx("a3"))]);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT 1 FROM agents WHERE id = 7").get(), undefined);
+  assert.equal(db.prepare("SELECT 1 FROM jobs WHERE id = 3").get(), undefined);
+
+  chain.block(102);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT name FROM agents WHERE id = 7").get()?.name, "Scribe");
+  assert.deepEqual(db.prepare("SELECT status, txRequested FROM jobs WHERE id = 3").get(), { status: 1, txRequested: tx("a3") });
+  assert.deepEqual(db.prepare("SELECT type FROM activity ORDER BY id").all().map((r) => r.type), ["agent.registered", "job.requested"], "the hooks ran too");
+
+  const before = { ...chain.calls };
+  chain.block(103);
+  await indexOnce(ctx);
+  assert.deepEqual([chain.calls.getAgent, chain.calls.getJob], [before.getAgent, before.getJob], "nothing left to retry");
+});
+
+test("indexer: a re-read after a rollback that fails is made again on a later tick", async () => {
+  const { db, chain, ctx } = setup();
+  chain.agents.set(7, agentStruct(ALICE));
+  chain.block(100, [log(regIface, REG, "AgentRegistered", [7, ALICE, "Scribe", "https://scribe.example", "", 0, 0], tx("a1"))]);
+  chain.block(101);
+  await indexOnce(ctx);
+  assert.ok(db.prepare("SELECT 1 FROM agents WHERE id = 7").get());
+
+  // the registration is reorged out, and the read that should drop the row fails (twice: rederive and its retry)
+  chain.reorgFrom(100);
+  chain.agents.delete(7);
+  chain.block(102);
+  let failures = 2;
+  const getAgent = ctx.registry.getAgent;
+  ctx.registry.getAgent = async (id, o) => {
+    if (failures-- > 0) throw new Error("read ECONNRESET");
+    return getAgent(id, o);
+  };
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM events").get().c, 0);
+  chain.block(103);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT 1 FROM agents WHERE id = 7").get(), undefined, "the registry no longer knows agent 7");
 });
 
 test("indexer: rows indexed before block hashes were recorded are matched, filled in, and not rolled back", async () => {

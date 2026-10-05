@@ -25,6 +25,7 @@ import { applyV3Event } from "../dist/v3/indexer-v3.js";
 import { ActivityBus } from "../dist/commons/activity.js";
 import { WebhookBus } from "../dist/v3/webhooks.js";
 import { X402_MIN_EXPIRY_S } from "../dist/v3/x402.js";
+import { probeAgent } from "../dist/health.js";
 
 const cfg = {
   rpcUrl: "http://127.0.0.1:1",
@@ -199,6 +200,35 @@ test("net: safeFetch connects to the address it checked, never to a second resol
     process.env.ALLOW_PRIVATE_FETCH = "1";
   }
   assert.equal(seen.filter((s) => s.url === "/x").length, 0);
+});
+
+// The deadline used to stop at the headers, and the pinned node:http socket has no idle timeout: an endpoint that
+// sent 200 and then stalled kept readCapped pending for ever, and with it the health probe's Promise.all.
+test("net: safeFetch's deadline covers the body — a stalled body is cut off, an unread one loses its socket", async (t) => {
+  const server = createServer((req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.write("{"); // and never ends
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  const within = (p, ms) => Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error(`still pending after ${ms} ms`)), ms).unref())]);
+
+  const res = await safeFetch(`${base}/.well-known/ferminux-agent.json`, { timeoutMs: 300 });
+  assert.equal(res.status, 200);
+  await assert.rejects(within(readCapped(res, 1024), 3000), /aborted/);
+
+  const db = openMemoryDb();
+  db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, online) VALUES (1, ?, 'Staller', ?, 1, 1)").run("0x" + "11".repeat(20), base);
+  await within(probeAgent(db, 1, base, { timeoutMs: 300 }), 3000);
+  assert.equal(db.prepare("SELECT online FROM agents WHERE id = 1").get().online, 0, "the stalled agent is marked offline, the probe returns");
+
+  await safeFetch(`${base}/never-read`, { timeoutMs: 300 });
+  await new Promise((r) => setTimeout(r, 700));
+  assert.equal(await new Promise((r) => server.getConnections((_, n) => r(n))), 0, "no socket outlives the deadline");
 });
 
 test("net: readCapped stops reading past the cap", async () => {

@@ -179,7 +179,7 @@ function pinnedFetch(url: URL, pinned: PinnedAddress[], init: { method: string; 
 }
 
 export interface SafeFetchOptions extends RequestInit {
-  /** abort after this many ms (default 10 s) */
+  /** abort after this many ms (default 10 s) — the whole exchange, body included */
   timeoutMs?: number;
   /** max response bytes read by `readCapped` (callers that stream must cap themselves) */
   maxBytes?: number;
@@ -218,10 +218,43 @@ export async function readCapped(res: Response, maxBytes: number): Promise<Buffe
 }
 
 /**
+ * `res` with a body that keeps the deadline armed until it ends, errors or is cancelled. pinnedFetch's node:http
+ * socket has no idle timeout of its own (fetch()'s had 300 s), so a server that sent its headers and then stalled
+ * held the reader, and the socket, for ever. A body nobody reads is cut off when the deadline fires.
+ */
+function armedUntilRead(res: Response, release: () => void): Response {
+  if (!res.body) {
+    release();
+    return res;
+  }
+  const reader = res.body.getReader();
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          release();
+          controller.close();
+        } else controller.enqueue(value);
+      } catch (err) {
+        release();
+        controller.error(err);
+      }
+    },
+    cancel(reason) {
+      release();
+      return reader.cancel(reason);
+    },
+  });
+  return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
+/**
  * fetch() that only talks to public hosts, follows at most 3 redirects (each
  * re-checked; 307/308 keep the method+body, 301/302/303 become GET without a
  * body) and never forwards the request headers across an origin change. Every
  * hop is resolved once and connected to the addresses that passed the check.
+ * `timeoutMs` covers reading the body as well as getting the headers.
  */
 export async function safeFetch(url: string, opts: SafeFetchOptions = {}): Promise<Response> {
   const { timeoutMs = 10_000, trusted = false, fetchImpl = fetch, maxBytes: _m, ...init } = opts;
@@ -230,6 +263,10 @@ export async function safeFetch(url: string, opts: SafeFetchOptions = {}): Promi
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const onOuterAbort = () => controller.abort();
   init.signal?.addEventListener("abort", onOuterAbort);
+  const release = () => {
+    clearTimeout(timer);
+    init.signal?.removeEventListener("abort", onOuterAbort);
+  };
   try {
     let current = url;
     let method = (init.method ?? "GET").toUpperCase();
@@ -246,7 +283,7 @@ export async function safeFetch(url: string, opts: SafeFetchOptions = {}): Promi
         res = await fetchImpl(current, { ...init, method, body, headers, redirect: "manual", signal: controller.signal });
       }
       const loc = res.headers.get("location");
-      if (!(res.status >= 300 && res.status < 400 && loc)) return res;
+      if (!(res.status >= 300 && res.status < 400 && loc)) return armedUntilRead(res, release);
       try {
         await res.body?.cancel();
       } catch {
@@ -261,8 +298,8 @@ export async function safeFetch(url: string, opts: SafeFetchOptions = {}): Promi
       }
       current = next.toString();
     }
-  } finally {
-    clearTimeout(timer);
-    init.signal?.removeEventListener("abort", onOuterAbort);
+  } catch (err) {
+    release();
+    throw err;
   }
 }

@@ -599,3 +599,37 @@ test("x402: parallel vouchers from one payer cannot together spend more than the
   assert.match(res[1].errorReason, /insufficient vault balance/);
   assert.equal(db.prepare("SELECT COUNT(*) AS c FROM x402_vouchers").get().c, 1);
 });
+
+// The per-payer queue was keyed on the voucher's payer before its signature was checked: anyone could queue junk
+// vouchers in bob's name, each holding bob's lane for a vault.verify round trip while his real ones waited.
+test("x402: vouchers forged in a payer's name do not hold up that payer's settles", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const junk = "0x" + "ab".repeat(65);
+  let answerForged;
+  const forgedChecked = new Promise((r) => (answerForged = r)); // the vault's (ERC-1271) answer for the junk ones, held back
+  const tick = () => new Promise((r) => setTimeout(r, 5));
+  const vault = {
+    verify: async (_tuple, sig) => (sig === junk ? (await forgedChecked, [false, "invalid signature"]) : (await tick(), [true, ""])),
+    balance: async () => (await tick(), 10n ** 18n),
+    unlockAt: async () => (await tick(), 0n),
+  };
+  const ctx = { db, cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" }, address: (k) => (k === "x402Vault" ? vaultAddr : undefined), contract: (k) => (k === "x402Vault" ? vault : undefined), facilitator: null, now: () => nowS * 1000, nowS: () => nowS };
+  const fac = new X402Facilitator(ctx);
+  const voucher = (nonce) => ({ payer: bob.address, payee: alice.address, amount: "1000", nonce: String(nonce), expiry: nowS + 300, ref: "0x" + "00".repeat(32) });
+  const forged = Array.from({ length: 5 }, (_, i) => fac.settle({ scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: voucher(100 + i), signature: junk } }, "https://ferminux.net/x"));
+  const v = voucher(1);
+  const signature = await bob.signTypedData({ name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr }, X402_VOUCHER_TYPES, { ...v, amount: BigInt(v.amount), nonce: BigInt(v.nonce) });
+  let real;
+  try {
+    real = await Promise.race([fac.settle({ scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: v, signature } }, "https://ferminux.net/x"), new Promise((r) => setTimeout(() => r("stuck"), 2000))]);
+  } finally {
+    answerForged();
+  }
+  assert.notEqual(real, "stuck", "bob's real voucher waited behind the forged ones");
+  assert.equal(real.success, true);
+  assert.deepEqual((await Promise.all(forged)).map((r) => [r.success, r.errorReason]), Array(5).fill([false, "invalid signature"]));
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM x402_vouchers").get().c, 1);
+});
