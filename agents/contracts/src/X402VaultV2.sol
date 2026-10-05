@@ -42,7 +42,9 @@ import {Sig} from "./lib/Sig.sol";
 ///      headroom above reverts `InsufficientGas` for every batch with a contract payer. Ahead of a batch's
 ///      first contract payer (and in a batch without one) the estimate holds each voucher only at the cost
 ///      it had then: one skipped while estimated that settles on chain (its deposit refilled in between)
-///      takes its settlement, under 50k, beyond it, which the facilitator's margin has to cover.
+///      takes its settlement beyond it, which the facilitator's margin has to cover: under 75k, the cost
+///      of settling into fresh slots (its nonce, its payee's credits, and the fee recipient's once a
+///      `withdrawCredits` has emptied them).
 ///   4. Export the ABI then (`forge inspect X402VaultV2 abi --json > abi/X402VaultV2.json`).
 /// @dev Paris EVM (no PUSH0). Signature = EOA ecrecover OR ERC-1271 (AgentAccount clones can pay).
 ///      Domain: {name:"FerminuxX402", version:"1", chainId:block.chainid, verifyingContract:this}.

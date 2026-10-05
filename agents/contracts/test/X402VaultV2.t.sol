@@ -873,8 +873,10 @@ contract X402VaultV2Test is Test {
 
     /// @notice What the headroom leaves to the facilitator's margin: ahead of the first contract payer, the
     ///         estimate holds each voucher at the cost it had then. An EOA payer's voucher skipped while
-    ///         estimated (its deposit drained) that settles on chain (refilled) takes its settlement, under
-    ///         50k, beyond the estimate — and no more, though the contract payer after it flips the same way.
+    ///         estimated (its deposit drained) that settles on chain (refilled) takes its settlement beyond
+    ///         the estimate — under 75k at its worst, into fresh slots: its nonce, its payee's credits and
+    ///         the treasury's, emptied by a withdrawal — and no more, though the contract payer after it
+    ///         flips the same way.
     function test_v2_toppedUpAheadOfContractPayer_costsOnlyItsSettlement() public {
         address p = address(new MagicPayer());
         (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(1));
@@ -893,6 +895,12 @@ contract X402VaultV2Test is Test {
         X402VaultV2.Voucher memory drain = X402VaultV2.Voucher(mallory, mallory, 1 ether, 8, expiry, vs2[0].ref);
         vault.settle(drain, _sign(malloryPk, drain));
         vault.settle(X402VaultV2.Voucher(p, mallory, 1 ether, 8, expiry, vs2[0].ref), hex"00");
+        // the treasury collects its fees, so the flipped voucher's fee lands in an empty slot
+        vm.prank(treasury);
+        vault.withdrawCredits();
+        // forge runs a test as one transaction, which would leave the slots touched above warm; the estimate
+        // and the settleBatch are each a transaction of their own on chain
+        vm.cool(address(vault));
         uint256 est = _estimate(vs2, sigs);
 
         vm.deal(relayer, 2 ether);
@@ -900,10 +908,16 @@ contract X402VaultV2Test is Test {
         vault.depositFor{value: 1 ether}(mallory);
         vault.depositFor{value: 1 ether}(p);
         vm.stopPrank();
+        vm.cool(address(vault));
         // at the bare estimate the batch stops at the contract payer's check, before anything runs out of gas
         vm.expectPartialRevert(X402VaultV2.InsufficientGas.selector);
         vault.settleBatch{gas: est}(vs2, sigs);
+        // and still 50k above it: settling into fresh slots costs more than that
+        vm.cool(address(vault));
+        vm.expectPartialRevert(X402VaultV2.InsufficientGas.selector);
         vault.settleBatch{gas: est + 50_000}(vs2, sigs);
+        vm.cool(address(vault));
+        vault.settleBatch{gas: est + 75_000}(vs2, sigs);
         assertTrue(vault.used(mallory, 7));
         assertTrue(vault.used(p, 7));
         for (uint256 i = 2; i < 50; i++) {
