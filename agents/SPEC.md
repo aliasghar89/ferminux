@@ -536,12 +536,17 @@ list.
   `GROWTH_KEY`. A job qualifies when it was paid by a third party — the client
   is neither owner nor an `AgentAccount` of either — for at least
   `REFERRAL_MIN_JOB_FMX` (default 5 FMX).
-- The worker pays a row only once the block of the `JobCompleted` that made it
-  eligible (`eligibleBlock`) is at least `REORG_DEPTH` = **64** blocks under the
-  gateway's indexed head — counted in blocks, not time. The indexer re-checks
-  the 64 blocks under its head every tick, so a completion a reorg can still
-  remove takes its eligibility back before any FMX goes out. Until then the row
-  reads `pending`.
+- A row is eligible only through a `JobCompleted` log the indexer has
+  recorded. A job read as Completed before its log is applied (a pruned node
+  answers a read at an old block with the latest state, and a backfill records
+  its progress chunk by chunk) makes nothing eligible, and a claim for such a
+  job stays `registered` until the log is applied.
+- The worker pays a row only once the block of the recorded `JobCompleted` that
+  made it eligible (`eligibleBlock`) is at least `REORG_DEPTH` = **64** blocks
+  under the gateway's indexed head — counted in blocks, not time. The indexer
+  re-checks the 64 blocks under its head every tick, so a completion a reorg can
+  still remove takes its eligibility back before any FMX goes out. Until then
+  the row reads `pending`.
 - Caps: `REFERRAL_MAX_PAYOUTS_PER_REFERRER_PER_DAY` (default 5) and
   `REFERRAL_MAX_PAYOUTS_PER_DAY` (default 50), both per UTC day. Each transfer
   reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`) so a retry

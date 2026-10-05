@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Interface, ZeroAddress, getAddress } from "ethers";
-import { openMemoryDb } from "../dist/db.js";
+import { openMemoryDb, getMeta } from "../dist/db.js";
 import { indexOnce, REORG_DEPTH } from "../dist/indexer.js";
 import { REGISTRY_ABI, ESCROW_ABI } from "../dist/abi.js";
 import { v3Interface } from "../dist/abi-v3.js";
@@ -500,6 +500,45 @@ test("indexer: a reorg takes back the arena award link and the referral eligibil
   await indexOnce(ctx);
   assert.equal(await payout.tick(), 0);
   assert.deepEqual(sent, [ALICE, CAROL], "paid once");
+});
+
+// A pruned node answers a read at an old block with the latest state, so the JobRequested of a job completed at the
+// head made its referral eligible with that event's block, and a backfill records its progress after every chunk: the
+// payout timer, firing while a later chunk was fetched, paid both owners for a completion no recorded log backed and
+// a reorg could still drop.
+test("indexer: a referral is paid only on a JobCompleted log the indexer recorded, never on a latest-state read mid-backfill", async () => {
+  const { db, chain, ctx, activity } = setup(100);
+  const CAROL = "0x00000000000000000000000000000000000CA401";
+  chain.agents.set(7, agentStruct(ALICE));
+  db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts) VALUES (7, 8, ?, ?, 1)").run(ALICE, CAROL);
+  const referral = () => ({ ...db.prepare("SELECT eligibleAt IS NOT NULL AS eligible, eligibleBlock, paid FROM referrals WHERE newAgentId = 7").get() });
+  const sent = [];
+  const payout = new ReferralPayout({ db, activity, provider: null, nowS: () => 1_758_400_000, txCounts: async () => [sent.length, sent.length], send: async (to, _value, nonce) => (sent.push(to), `0xp${nonce}`) });
+
+  // job 6, requested at block 101 and completed at the head (700); every read answers the latest state: Completed
+  chain.jobs.set(6, { ...jobStruct(3), amount: 10n ** 19n });
+  chain.block(101, [log(escIface, ESC, "JobRequested", [6, 7, BOB, 10n ** 19n, "0x" + "11".repeat(32), "fmx://in"], tx("b6"))]);
+  chain.block(700, [log(escIface, ESC, "JobCompleted", [6, 9, 1, 5], tx("c6"))]);
+  // the payout timer fires while the backfill awaits each chunk's logs
+  const getLogs = chain.provider.getLogs;
+  const during = [];
+  chain.provider.getLogs = async (q) => {
+    during.push({ indexed: Number(getMeta(db, "indexedBlock")), ticked: await payout.tick(), ...referral() });
+    return getLogs(q);
+  };
+  await indexOnce(ctx);
+  chain.provider.getLogs = getLogs;
+  assert.ok(during.some((d) => d.indexed - REORG_DEPTH > 101), "the backfill recorded progress past block 101's depth before it reached the head");
+  assert.deepEqual(sent, [], "nothing went out before the JobCompleted log was recorded");
+  assert.deepEqual(during.at(-1), { indexed: 699, ticked: 0, eligible: 0, eligibleBlock: null, paid: 0 }, "the read alone made nothing eligible");
+
+  // the recorded log makes it eligible at its own block, and pays once that block is REORG_DEPTH under the head
+  assert.deepEqual(referral(), { eligible: 1, eligibleBlock: 700, paid: 0 });
+  assert.equal(await payout.tick(), 0);
+  chain.block(700 + REORG_DEPTH);
+  await indexOnce(ctx);
+  assert.equal(await payout.tick(), 1);
+  assert.deepEqual(sent, [ALICE, CAROL]);
 });
 
 // The 12-block re-scan used to retry a failed read as a side effect. Once a tick re-applies only diverging blocks,
