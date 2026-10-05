@@ -30,9 +30,16 @@ import (
 // protection.log.repair it could not open: the service never signed again
 // until someone chowned them by hand. The file is made O_EXCL first, so only
 // a file this call made is given away, never one already there.
+//
+// A file opened for writing that has other links and does not belong to the
+// directory's owner is refused: that owner could have linked it there from
+// anywhere on the filesystem (where fs.protected_hardlinks is off), and root
+// would truncate and write it. os.O_TRUNC is applied only after these checks;
+// open(2) would have cut the file before any of them.
 func OpenFile(dfd int, dir, name string, flag int) (*os.File, error) {
 	path := filepath.Join(dir, name)
-	flag |= unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
+	trunc := flag&unix.O_TRUNC != 0
+	flag = flag&^unix.O_TRUNC | unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
 	created := false
 	var fd int
 	var err error
@@ -63,13 +70,22 @@ func OpenFile(dfd int, dir, name string, flag int) (*os.File, error) {
 	if st.Mode&unix.S_IFMT != unix.S_IFREG {
 		return fail(fmt.Errorf("%s is not a regular file; refusing to open it", path))
 	}
-	if created {
+	if created || (flag&unix.O_ACCMODE != unix.O_RDONLY && st.Nlink > 1) {
 		var dst unix.Stat_t
 		if err := unix.Fstat(dfd, &dst); err != nil {
 			return fail(&os.PathError{Op: "fstat", Path: dir, Err: err})
 		}
-		if err := keepOwner(fd, dst.Uid, dst.Gid); err != nil {
-			return fail(&os.PathError{Op: "chown", Path: path, Err: err})
+		if created {
+			if err := keepOwner(fd, dst.Uid, dst.Gid); err != nil {
+				return fail(&os.PathError{Op: "chown", Path: path, Err: err})
+			}
+		} else if st.Uid != dst.Uid {
+			return fail(fmt.Errorf("%s has other links and belongs to uid %d, not to the owner of %s; refusing to write it", path, st.Uid, dir))
+		}
+	}
+	if trunc {
+		if err := unix.Ftruncate(fd, 0); err != nil {
+			return fail(&os.PathError{Op: "truncate", Path: path, Err: err})
 		}
 	}
 	if err := unix.SetNonblock(fd, false); err != nil {
