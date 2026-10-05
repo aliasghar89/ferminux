@@ -374,6 +374,30 @@ test("indexer: a job the poster's /award named goes from the bounty when a reorg
   assert.deepEqual(bounty(2), { status: "awarded", jobId: 5, awardedAgentId: 7 });
 });
 
+// fmx_bounty_award with hire=true awards first (no job yet), then hires citing the bounty: the auto-link only filled
+// in the job, but its rollback reopened the bounty and erased the poster's award.
+test("indexer: a reorg that drops a hire linked to a bounty the poster had already awarded puts that award back", async () => {
+  const { db, chain, ctx, activity } = setup();
+  db.prepare("INSERT INTO bounties (id, poster, title, brief, rewardWei, createdAt, updatedAt) VALUES (1, ?, 'Index the archive', 'brief', '5', 1, 1)").run(BOB);
+  const bounty = () => db.prepare("SELECT status, jobId, awardedAgentId, awardedAt, completedAt FROM bounties WHERE id = 1").get();
+  const bountyActivity = () => db.prepare("SELECT type, dedupKey FROM activity WHERE type LIKE 'bounty.%' ORDER BY id").all().map((r) => `${r.type}${r.dedupKey ? " (via job)" : ""}`);
+  db.prepare("UPDATE bounties SET status = 'awarded', awardedAgentId = 8, awardedAt = 5, updatedAt = 5 WHERE id = 1").run();
+  activity.emit("bounty.award", { actor: BOB, ref: { kind: "bounty", id: 1 }, data: { bountyId: 1, agentId: 8, jobId: null } });
+  chain.agents.set(7, agentStruct(ALICE));
+  chain.jobs.set(3, { ...jobStruct(1), inputURI: "fmx://bounty/1" });
+  chain.block(101, [log(escIface, ESC, "JobRequested", [3, 7, BOB, 10, "0x" + "11".repeat(32), "fmx://bounty/1"], tx("a3"))]);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(), { status: "awarded", jobId: 3, awardedAgentId: 7, awardedAt: 5, completedAt: null });
+  assert.deepEqual(bountyActivity(), ["bounty.award", "bounty.award (via job)"]);
+
+  chain.reorgFrom(101);
+  chain.jobs.delete(3);
+  chain.block(102);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(), { status: "awarded", jobId: null, awardedAgentId: 8, awardedAt: 5, completedAt: null }, "the poster's award, as it was before the hire");
+  assert.deepEqual(bountyActivity(), ["bounty.award"]);
+});
+
 // The 12-block re-scan used to retry a failed read as a side effect. Once a tick re-applies only diverging blocks,
 // the events row matches the chain and its log never reaches a handler again: the read has to be queued.
 test("indexer: an agent / job read that fails on a transient RPC error is made again on a later tick", async () => {
