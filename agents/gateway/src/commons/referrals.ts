@@ -78,6 +78,9 @@ export interface ReferralRow {
   /** GROWTH_KEY tx nonces reserved for the two transfers (crash-safe idempotency) */
   nonceNew: number | null;
   nonceRef: number | null;
+  /** GROWTH_KEY address each nonce was reserved on (null: reserved before this was recorded, or by an injected sender) */
+  fromNew: string | null;
+  fromRef: string | null;
   /** set when a reorg removed the job completion behind a payout that had already started (revertJobOnReferrals) */
   reorgFlag: string | null;
   /** block of the JobCompleted log that made the row eligible: the payout waits until it is REORG_DEPTH blocks deep */
@@ -393,19 +396,28 @@ export class ReferralPayout {
    * confirmed it (GROWTH_KEY is used by this worker only, sequentially) the
    * transfer happened and is recorded as recovered; otherwise it is re-sent
    * with the same nonce, which can never double-pay. A nonce another transfer
-   * has recorded its tx on was never this one's: it reserves a fresh one.
+   * from the same wallet has recorded its tx on was never this one's: it
+   * reserves a fresh one. A nonce reserved on another GROWTH_KEY is held.
    */
   private async transfer(r: ReferralRow, leg: "New" | "Ref", to: string, value: bigint): Promise<string> {
     const { db } = this.opts;
     const txCol = `tx${leg}`;
     const nonceCol = `nonce${leg}`;
+    const fromCol = `from${leg}`;
+    const wallet = this.wallet?.address ?? null;
     let nonce = leg === "New" ? r.nonceNew : r.nonceRef;
     if (nonce !== null && nonce !== undefined) {
+      // Nonces are per wallet. One reserved on another GROWTH_KEY (the key changed while this transfer was in flight)
+      // says nothing about this wallet's counts, and its transfer may be on chain or still pending there: nothing is
+      // sent for this leg until an operator has checked that wallet.
+      const from = (leg === "New" ? r.fromNew : r.fromRef) ?? null;
+      if (from !== null && from !== wallet) throw new Error(`nonce ${nonce} was reserved on GROWTH_KEY ${from}, not ${wallet}: held until that wallet's transfer is checked`);
       const [, latest] = await this.txCounts();
-      // Another transfer recorded its tx on this nonce: this one's send never reached the chain (it failed, and the
-      // next transfer read the same pending count), so it takes a fresh nonce rather than claim that tx as its own. A
-      // payout held for a reorg (reorgFlag) leaves its reserved nonce to the next transfer this way.
-      const taken = db.prepare("SELECT 1 FROM referrals WHERE (nonceNew = ? AND txNew IS NOT NULL) OR (nonceRef = ? AND txRef IS NOT NULL)").get(nonce, nonce);
+      // Another transfer from the same wallet recorded its tx on this nonce: this one's send never reached the chain
+      // (it failed, and the next transfer read the same pending count), so it takes a fresh nonce rather than claim
+      // that tx as its own. A payout held for a reorg (reorgFlag) leaves its reserved nonce to the next transfer this
+      // way. The same nonce number recorded by another wallet's transfer is no evidence either way.
+      const taken = db.prepare("SELECT 1 FROM referrals WHERE (nonceNew = ? AND fromNew IS ? AND txNew IS NOT NULL) OR (nonceRef = ? AND fromRef IS ? AND txRef IS NOT NULL)").get(nonce, from, nonce, from);
       if (taken) nonce = null;
       else if (latest > nonce) {
         const hash = `recovered:nonce:${nonce}`;
@@ -419,7 +431,7 @@ export class ReferralPayout {
     if (nonce === null || nonce === undefined) {
       const [pending] = await this.txCounts();
       nonce = pending;
-      const reserved = db.prepare(`UPDATE referrals SET ${nonceCol} = ? WHERE ${payable}`).run(nonce, r.newAgentId);
+      const reserved = db.prepare(`UPDATE referrals SET ${nonceCol} = ?, ${fromCol} = ? WHERE ${payable}`).run(nonce, wallet, r.newAgentId);
       if (!reserved.changes) throw new Error("not payable: the job completion behind it was reorged out");
     } else if (!db.prepare(`SELECT 1 FROM referrals WHERE ${payable}`).get(r.newAgentId)) {
       throw new Error("not payable: the job completion behind it was reorged out");

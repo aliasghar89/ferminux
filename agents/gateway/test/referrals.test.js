@@ -465,6 +465,78 @@ test("a referral claimed for a completed job is eligible only through its record
   assert.equal(db.prepare("SELECT eligibleBlock FROM referrals WHERE newAgentId = 14").get().eligibleBlock, 1050);
 });
 
+// Nonces are per wallet, and a row recorded only the nonce number: after GROWTH_KEY changed, a nonce the new wallet
+// reserved matched one the old wallet had paid on, so a transfer broadcast and then lost to a send() timeout (or a crash
+// before its hash was written) counted as never sent and went out again on a fresh nonce. A leg in flight when the key
+// changed was compared with the new wallet's counts and sent again from it.
+test("a GROWTH_KEY change never sends a leg twice: nonces are matched within the wallet that reserved them", async () => {
+  const { ActivityBus } = await import("../dist/commons/activity.js");
+  const db = openMemoryDb();
+  const activity = new ActivityBus(db, () => 1_758_400_000_000);
+  setMeta(db, "indexedBlock", String(1000 + REORG_DEPTH));
+  const owners = {};
+  for (const id of [7, 8, 9]) {
+    owners[id] = Wallet.createRandom().address;
+    db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts) VALUES (?, 1, ?, ?, 1)").run(id, owners[id], toolbox.address);
+    db.prepare("INSERT INTO events (txHash, logIndex, blockNumber, contractName, eventName, argsJSON, ts) VALUES (?, 0, 1000, 'escrow', 'JobCompleted', ?, 1)").run(`0xc${id}`, JSON.stringify({ jobId: String(id) }));
+  }
+  const earn = (id) => db.prepare("UPDATE referrals SET eligibleAt = ?, jobId = ?, eligibleBlock = 1000 WHERE newAgentId = ?").run(id, id, id);
+  const row = (id) => ({ ...db.prepare("SELECT paid, txNew, txRef, nonceNew, nonceRef FROM referrals WHERE newAgentId = ?").get(id) });
+  // every wallet's transfers are confirmed at once; `timesOut` makes send() throw after the node accepted the transfer
+  const counts = new Map();
+  const sent = [];
+  const payout = (wallet, timesOut = () => false) =>
+    new ReferralPayout({
+      db,
+      activity,
+      provider: { getBalance: async () => parseEther("1000") },
+      growthKey: wallet.privateKey,
+      nowS: () => 1_758_400_000,
+      txCounts: async () => [counts.get(wallet.address) ?? 0, counts.get(wallet.address) ?? 0],
+      send: async (to, _value, nonce) => {
+        sent.push([wallet.address, to, nonce]);
+        counts.set(wallet.address, nonce + 1);
+        if (timesOut(to)) throw new Error("request timeout");
+        return `0x${wallet.address.slice(2, 8)}${nonce}`;
+      },
+    });
+  const before = Wallet.createRandom();
+  const after = Wallet.createRandom();
+
+  // the first key pays agent 7 on its nonces 0 and 1; agent 9's first leg goes out on nonce 2 and its send times out
+  earn(7);
+  earn(9);
+  await payout(before, (to) => to === owners[9]).tick();
+  assert.deepEqual(sent, [[before.address, owners[7], 0], [before.address, toolbox.address, 1], [before.address, owners[9], 2]]);
+  assert.deepEqual(row(9), { paid: 0, txNew: null, txRef: null, nonceNew: 2, nonceRef: null });
+
+  // GROWTH_KEY changes. Agent 8's first leg goes out on the new wallet's nonce 0 and its send times out too.
+  earn(8);
+  await payout(after, (to) => to === owners[8]).tick();
+  assert.deepEqual(sent.slice(3), [[after.address, owners[8], 0]], "agent 9's leg in flight on the old wallet is not sent again from the new one");
+  assert.match(db.prepare("SELECT error FROM referrals WHERE newAgentId = 9").get().error, new RegExp(`reserved on GROWTH_KEY ${before.address}`));
+
+  // agent 7's tx on the old wallet's nonce 0 is not agent 8's: the new wallet's nonce 0 is confirmed, so it is agent 8's
+  assert.equal(await payout(after).tick(), 1);
+  assert.deepEqual(sent.slice(4), [[after.address, toolbox.address, 1]], "agent 8's first leg is not sent twice");
+  assert.deepEqual(row(8), { paid: 1, txNew: "recovered:nonce:0", txRef: `0x${after.address.slice(2, 8)}1`, nonceNew: 0, nonceRef: 1 });
+  assert.deepEqual(row(9), { paid: 0, txNew: null, txRef: null, nonceNew: 2, nonceRef: null }, "still held");
+});
+
+// fromNew / fromRef shipped after the referrals table: a database deployed before them gains the columns, and migrating twice is a no-op.
+test("migrateGrowth adds fromNew and fromRef to a referrals table created before they existed", async () => {
+  const { default: Database } = await import("better-sqlite3");
+  const { migrateGrowth } = await import("../dist/commons/schema.js");
+  const db = new Database(":memory:");
+  db.exec("CREATE TABLE referrals (newAgentId INTEGER PRIMARY KEY, refAgentId INTEGER NOT NULL, newOwner TEXT NOT NULL, refOwner TEXT NOT NULL, ts INTEGER NOT NULL, paid INTEGER NOT NULL DEFAULT 0, eligibleAt INTEGER, jobId INTEGER, paidAt INTEGER, txNew TEXT, txRef TEXT, rewardWei TEXT, error TEXT, nonceNew INTEGER, nonceRef INTEGER, reorgFlag TEXT, eligibleBlock INTEGER)");
+  db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts, nonceNew) VALUES (7, 8, '0xa', '0xb', 1, 3)").run();
+  migrateGrowth(db);
+  migrateGrowth(db);
+  const cols = db.prepare("PRAGMA table_info(referrals)").all().map((c) => c.name);
+  assert.ok(cols.includes("fromNew") && cols.includes("fromRef"));
+  assert.deepEqual({ ...db.prepare("SELECT nonceNew, fromNew, fromRef FROM referrals WHERE newAgentId = 7").get() }, { nonceNew: 3, fromNew: null, fromRef: null });
+});
+
 // eligibleBlock shipped after the referrals table: a database deployed before it gains the column, and migrating twice is a no-op.
 test("migrateGrowth adds eligibleBlock to a referrals table created before it existed", async () => {
   const { default: Database } = await import("better-sqlite3");
