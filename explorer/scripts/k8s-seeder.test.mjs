@@ -21,7 +21,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -170,10 +170,12 @@ test('the seeder ConfigMap carries explorer/seeder byte for byte, including ever
 
 // AGENTS.md, Terminology: blocks are confirmed by signers, never "sealed" or
 // "mined". The Go method Seal() and the header's seal (the signature bytes)
-// keep their names, so only the verbs are matched. seed-signers.sh is covered
-// in its ConfigMap copy by the test above.
-test('the rewards CronJob and seed-signers.sh say signers confirm blocks', () => {
-  for (const file of [CRONJOB, join(SEEDER, 'seed-signers.sh')]) {
+// keep their names, so only the verbs are matched. The seeder's files are
+// covered in their ConfigMap copies by the test above; docker-compose.yml is
+// the other deployment of the same seeder.
+test('the rewards CronJob, the seeder and its compose service say signers confirm blocks', () => {
+  const seeder = readdirSync(SEEDER).map((name) => join(SEEDER, name));
+  for (const file of [CRONJOB, join(EXPLORER, 'docker-compose.yml'), ...seeder]) {
     readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
       assert.doesNotMatch(line, /\b(sealed|sealer|sealers|sealing|mined|mining)\b/i, `${file}:${i + 1}: ${line.trim()}`);
     });

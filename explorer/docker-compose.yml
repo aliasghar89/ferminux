@@ -134,8 +134,8 @@ services:
       retries: 3
       start_period: 20s
 
-  # Ferminux-geth is a geth fork: Blockscout's geth variant cannot fetch PoW
-  # miner rewards over RPC (needs trace_block). This sidecar writes the exact
+  # Ferminux-geth is a geth fork: Blockscout's geth variant cannot fetch
+  # block rewards over RPC (needs trace_block). This sidecar writes the exact
   # consensus reward (6 FMX >> era, era = block/4,500,000; chain/consensus/
   # ethash/ferminux.go) plus tip fees into Blockscout's block_rewards table so
   # /api/v2/blocks and the UI show "Miner Reward". It only writes to the
@@ -155,7 +155,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       PGDATABASE: blockscout
       SEED_INTERVAL_SECONDS: "20"
-      # seed-signers.sh asks a node WHO SEALED each authority block, via
+      # seed-signers.sh asks a node for each authority block's SIGNER, via
       # clique_getSigner. The old default target (the miner) does not expose
       # the clique namespace, so attribution would have silently never run and
       # every block after the fork would have stayed credited to 0x0. Same
@@ -164,7 +164,7 @@ services:
       # Deliberately NOT ${FMX_RPC_HTTP}: that points at the miner, which does
       # not expose the clique namespace, so following it silently disables
       # signer attribution — every post-fork block would stay credited to 0x0.
-      # Asking a different node is safe here: the sealer of a PAST block is a
+      # Asking a different node is safe here: the signer of a PAST block is a
       # property of the block, identical on any synced node.
       FMX_RPC: http://rpc1:8545
     volumes:

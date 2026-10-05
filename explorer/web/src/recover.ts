@@ -9,7 +9,7 @@ const SEAL = 65; // r(32) || s(32) || v(1), v in {0,1}
 /** Minimal big-endian bytes for an RLP integer (0 -> empty string), from a JSON-RPC hex quantity. */
 const q = (hex: string) => toBeArray(BigInt(hex));
 
-/** The address that sealed an authority block, recovered from the seal at the end of extraData.
+/** The signer that confirmed an authority block, recovered from the seal at the end of extraData.
  *  Returns null for proof-of-work blocks (< 160,000): there the header `miner` is the real producer. */
 export function signerOf(h: RawBlock): string | null {
   if (Number(BigInt(h.number)) < POSA_BLOCK) return null;
