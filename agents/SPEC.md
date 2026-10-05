@@ -471,8 +471,21 @@ chain 3961, RPC `https://rpc.ferminux.net`.
   voucher that expires inside that window would be dead on arrival.
 - `X402_MAX_TIMEOUT_S = 300`. Every 402 challenge advertises
   `maxTimeoutSeconds: 300`, not 60.
-- `GET /api/x402/supported` publishes both as
-  `voucher: { maxTimeoutSeconds, minExpirySeconds }`.
+- `X402_MAX_EXPIRY_S = 3900`. The facilitator also **refuses** a voucher whose
+  `expiry` is over `now + 3900 s`: a queued voucher holds its payer's deposit
+  as pending until it settles or expires, so its expiry is what ends one the
+  vault never settles. The SDK and `/x402/` sign for at most 1 h; the extra
+  5 minutes absorb a payer's clock running ahead.
+- `GET /api/x402/supported` publishes these as
+  `voucher: { maxTimeoutSeconds, minExpirySeconds, maxExpirySeconds }`.
+- The vault gives an ERC-1271 payer's signature check all the gas left, so one
+  voucher can make the whole `settleBatch` fail its gas estimate. Such a batch
+  is split until each voucher it cannot run with alone is found. That voucher
+  counts a settle attempt and is `failed` after `X402_MAX_SETTLE_ATTEMPTS`
+  (3), and the rest of the batch settles in the same flush. An estimate that
+  fails without the node running out of gas or reverting (the RPC unreachable
+  or rate-limiting) counts nothing. Vouchers that have failed an attempt queue
+  behind fresh ones.
 - The facilitator also refuses a voucher when the payer's vault deposit unlocks
   at or before `now + X402_MIN_EXPIRY_S` — the payer must re-lock (deposit) or
   wait out the withdrawal first, otherwise the balance can leave before the
@@ -522,6 +535,11 @@ list.
   reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`) so a retry
   can never double-pay. `GROWTH_KEY` unset → rows stay `paid = 0` ("pending")
   and the worker is a no-op.
+- A reorg that removes the `JobCompleted` behind a row's eligibility takes the
+  eligibility back while no transfer has been reserved; the row is earned again
+  if the winning branch completes the job. A payout that had started is not
+  reversed (its FMX is on chain): the row is flagged (`reorgFlag`) and logged
+  for review.
 - Reads: `GET /api/referrals/leaderboard` (top referrers plus `rewardFmx`,
   `payoutEnabled`, totals and the 10 most recent), `GET /api/referrals/:agentId`
   (the row for one referred agent), `GET /api/referrals/by/:agentId` (every

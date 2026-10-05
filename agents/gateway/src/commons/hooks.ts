@@ -2,14 +2,16 @@
 // activity rows (deduplicated by tx hash + log index, so a log applied twice —
 // a resumed backfill — never double-posts) and drives bounty status transitions.
 // A reorg that removes the event takes its activity row, its unsent job.*
-// webhooks and the bounty transition it made back out (onRollback).
+// webhooks and the bounty, arena and referral transitions it made back out
+// (onRollback); a job the re-read then finds gone loses the bounty and arena
+// links that named it (onJobGone).
 import type { Db } from "../db.js";
 import { AgentStatusName, JobStatusName } from "../abi.js";
 import type { IndexerHooks, IndexedAgentEvent, IndexedJobEvent, RolledBackEvent } from "../indexer.js";
 import type { ActivityBus, ActivityType } from "./activity.js";
-import { applyJobToBounties, revertJobOnBounties } from "./bounties.js";
-import { applyJobToArena } from "./arena.js";
-import { applyJobToReferrals, referralRules, type ReferralRules } from "./referrals.js";
+import { applyJobToBounties, revertJobOnBounties, unlinkJobFromBounties } from "./bounties.js";
+import { applyJobToArena, revertJobOnArena, unlinkJobFromArena } from "./arena.js";
+import { applyJobToReferrals, referralRules, revertJobOnReferrals, type ReferralRules } from "./referrals.js";
 
 const JOB_EVENT_TYPES: Record<string, ActivityType> = {
   JobRequested: "job.requested",
@@ -85,7 +87,16 @@ export function makeIndexerHooks(db: Db, activity: ActivityBus, opts: { referral
       // job.* webhooks were queued from that activity row under `${type}:${tx}` (WebhookBus.attachActivity)
       const type = JOB_EVENT_TYPES[ev.eventName];
       if (type) opts.webhooks?.retract(`${type}:${ev.txHash}`);
-      if (type && ev.args.jobId !== undefined) revertJobOnBounties(db, activity, ev.eventName, Number(ev.args.jobId));
+      if (type && ev.args.jobId !== undefined) {
+        const jobId = Number(ev.args.jobId);
+        revertJobOnBounties(db, activity, ev.eventName, jobId);
+        revertJobOnArena(db, activity, ev.eventName, jobId);
+        revertJobOnReferrals(db, ev.eventName, jobId, ev.blockNumber);
+      }
+    },
+    onJobGone(jobId: number) {
+      unlinkJobFromBounties(db, jobId);
+      unlinkJobFromArena(db, jobId);
     },
   };
 }

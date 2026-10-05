@@ -313,6 +313,14 @@ export interface IndexedJob {
   status: number;
 }
 
+/** A bounty's award as it was before a job linked itself (the `prev` of that link's bounty.award row). */
+interface BountyLinkPrev {
+  status: BountyStatus;
+  agentId: number | null;
+  jobId: number | null;
+  awardedAt: number | null;
+}
+
 export function applyJobToBounties(db: Db, activity: ActivityBus, job: IndexedJob, ts: number): void {
   const t = ts;
   // 1) auto-link: a job whose inputURI cites a bounty by the bounty poster
@@ -334,19 +342,27 @@ export function applyJobToBounties(db: Db, activity: ActivityBus, job: IndexedJo
           bounty.id,
         );
         const name = (db.prepare("SELECT name FROM agents WHERE id = ?").get(job.agentId) as { name: string } | undefined)?.name ?? null;
+        // prev: the bounty before the link (the poster may have awarded it already), for revertJobOnBounties to restore
+        const prev: BountyLinkPrev = { status: bounty.status, agentId: bounty.awardedAgentId, jobId: bounty.jobId, awardedAt: bounty.awardedAt };
         activity.emit("bounty.award", {
           actor: job.client,
           ref: { kind: "bounty", id: bounty.id },
-          data: { bountyId: bounty.id, title: bounty.title, agentId: job.agentId, agentName: name, jobId: job.id, rewardWei: bounty.rewardWei, viaJob: true },
+          data: { bountyId: bounty.id, title: bounty.title, agentId: job.agentId, agentName: name, jobId: job.id, rewardWei: bounty.rewardWei, viaJob: true, prev },
           dedupKey: `bounty.award:${bounty.id}:${job.id}`,
           ts: t,
         });
       }
     }
   }
-  // 2) status machine for linked bounties
+  // 2) status machine for linked bounties, driven only by the poster's hire of the awarded agent. A link to any other
+  // job is stale: /award stored the id before the job was indexed (and refuses it once it is), or a reorg gave the id
+  // to someone else's job. It goes and the award stays, so the poster's own hire can link.
   const linked = db.prepare("SELECT * FROM bounties WHERE jobId = ? AND status <> 'completed'").all(job.id) as BountyRow[];
   for (const bounty of linked) {
+    if (bounty.poster.toLowerCase() !== job.client.toLowerCase() || bounty.awardedAgentId !== job.agentId) {
+      db.prepare("UPDATE bounties SET jobId = NULL, updatedAt = ? WHERE id = ?").run(t, bounty.id);
+      continue;
+    }
     const name = (db.prepare("SELECT name FROM agents WHERE id = ?").get(bounty.awardedAgentId ?? -1) as { name: string } | undefined)?.name ?? null;
     if (job.status === JobStatusEnum.Completed) {
       db.prepare("UPDATE bounties SET status = 'completed', completedAt = ?, updatedAt = ? WHERE id = ?").run(t, t, bounty.id);
@@ -392,13 +408,31 @@ export function revertJobOnBounties(db: Db, activity: ActivityBus, eventName: st
       activity.retract(r.dedupKey);
     }
   } else if (eventName === "JobRequested") {
-    // the job is gone: a link it made (its inputURI cited the bounty) goes too; a poster's own award names the job itself
+    // the job is gone: a link it made (its inputURI cited the bounty) goes too, back to the bounty it found — open, or
+    // the poster's award it only added the job to. A poster's own award that named the job stays while the winning
+    // branch may still have it: unlinkJobFromBounties drops it if the re-read finds it gone.
     for (const { id } of db.prepare("SELECT id FROM bounties WHERE jobId = ?").all(jobId) as Array<{ id: number }>) {
-      if (activity.retract(`bounty.award:${id}:${jobId}`)) {
+      const key = `bounty.award:${id}:${jobId}`;
+      const link = db.prepare("SELECT data FROM activity WHERE dedupKey = ?").get(key) as { data: string } | undefined;
+      if (!link) continue;
+      const prev = (JSON.parse(link.data) as { prev?: BountyLinkPrev }).prev; // absent on rows from before it was recorded
+      if (prev?.status === "awarded") {
+        db.prepare("UPDATE bounties SET status = 'awarded', awardedAgentId = ?, jobId = ?, awardedAt = ?, completedAt = NULL WHERE id = ?").run(prev.agentId, prev.jobId, prev.awardedAt, id);
+      } else {
         db.prepare("UPDATE bounties SET status = 'open', awardedAgentId = NULL, jobId = NULL, awardedAt = NULL, completedAt = NULL WHERE id = ?").run(id);
       }
+      activity.retract(key);
     }
   }
+}
+
+/**
+ * The indexer's onJobGone: a job the chain no longer has loses the bounties linked to it by id (bounties.hire() sends
+ * /award {jobId} before the indexer sees the job, so the poster's award made that link, not the job). The award
+ * stays. Left in place, the next job to take the id would drive the bounty, and hire() would refuse to hire again.
+ */
+export function unlinkJobFromBounties(db: Db, jobId: number): void {
+  db.prepare("UPDATE bounties SET jobId = NULL WHERE jobId = ? AND status <> 'completed'").run(jobId);
 }
 
 export function openBountyCount(db: Db): number {

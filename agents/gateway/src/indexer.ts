@@ -63,6 +63,11 @@ export interface IndexerHooks {
    * inside the rollback's transaction, while the event's own row is still in `events`.
    */
   onRollback?: (ev: RolledBackEvent) => void;
+  /**
+   * Called when the re-read after a rollback finds a job the chain no longer has (its row was just deleted): drop
+   * what still names it that no rolled-back event could take back, such as a link a poster made by its id.
+   */
+  onJobGone?: (jobId: number) => void;
   /** The same for an Addendum v3 event: undo what onV3Event derived from it. */
   onV3Rollback?: (ev: RolledBackEvent) => void;
 }
@@ -334,8 +339,15 @@ async function rederiveOne(ctx: IndexerContext, kind: RetryKind, id: number, hea
     else await refreshAgent(ctx, BigInt(id), head);
   } else {
     const job = await readAtBlock(`getJob(${id})`, head, (o) => ctx.escrow.getJob(BigInt(id), o));
-    if (String(job.client).toLowerCase() === ZERO_ADDRESS) ctx.db.prepare("DELETE FROM jobs WHERE id = ?").run(id);
-    else await refreshJob(ctx, BigInt(id), head, "", "");
+    if (String(job.client).toLowerCase() === ZERO_ADDRESS) {
+      ctx.db.prepare("DELETE FROM jobs WHERE id = ?").run(id);
+      try {
+        ctx.hooks?.onJobGone?.(id);
+      } catch (err) {
+        // reading again would not change it: logged like any other hook
+        console.error(`[indexer] hook failed for gone job ${id}:`, err);
+      }
+    } else await refreshJob(ctx, BigInt(id), head, "", "");
   }
 }
 

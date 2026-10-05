@@ -24,7 +24,7 @@ import { safeContentType } from "../dist/v3/a2a.js";
 import { applyV3Event } from "../dist/v3/indexer-v3.js";
 import { ActivityBus } from "../dist/commons/activity.js";
 import { WebhookBus } from "../dist/v3/webhooks.js";
-import { X402_MIN_EXPIRY_S } from "../dist/v3/x402.js";
+import { X402_MAX_EXPIRY_S, X402_MIN_EXPIRY_S } from "../dist/v3/x402.js";
 import { probeAgent } from "../dist/health.js";
 
 const cfg = {
@@ -265,7 +265,7 @@ test("x402: vouchers that expire inside the settlement horizon are refused; supp
   const ok = await voucher(bob, { payee: acc.payTo, amount: acc.maxAmountRequired, nonce: 1, expiry: clock.s() + X402_MIN_EXPIRY_S });
   assert.equal((await inject("POST", "/a/7/invoke", { text: "hi" }, { PAYMENT: b64(ok) })).statusCode, 200);
   const sup = (await inject("GET", "/api/x402/supported")).json();
-  assert.deepEqual(sup.voucher, { maxTimeoutSeconds: 300, minExpirySeconds: X402_MIN_EXPIRY_S });
+  assert.deepEqual(sup.voucher, { maxTimeoutSeconds: 300, minExpirySeconds: X402_MIN_EXPIRY_S, maxExpirySeconds: X402_MAX_EXPIRY_S });
   assert.equal(sup.batch.queued, 0); // vault not deployed → unsettleable, nothing queued
   const health = (await inject("GET", "/api/health")).json();
   assert.equal(health.v3.facilitatorLowFunds, false);
