@@ -204,6 +204,7 @@ export async function indexOnce(ctx: IndexerContext): Promise<{ head: number; in
     }
   }
   if (touched.agents.size || touched.jobs.size) await rederive(ctx, touched, head);
+  await retryReads(ctx, head);
 
   setMeta(ctx.db, "indexedBlock", String(head));
   return { head, indexedBlock: head };
@@ -282,6 +283,7 @@ function rollbackFrom(ctx: IndexerContext, fromBlock: number): { agents: Set<num
   }>;
   if (!rows.length) return touched;
   const del = ctx.db.prepare("DELETE FROM events WHERE txHash = ? AND logIndex = ?");
+  const unqueue = ctx.db.prepare("DELETE FROM indexer_retry WHERE txHash = ? AND logIndex = ?");
   ctx.db.transaction(() => {
     for (const r of rows) {
       let args: Record<string, unknown> = {};
@@ -303,6 +305,7 @@ function rollbackFrom(ctx: IndexerContext, fromBlock: number): { agents: Set<num
         console.error(`[indexer] rollback of ${r.contractName}.${r.eventName} @ block ${r.blockNumber} failed:`, err);
       }
       del.run(r.txHash, r.logIndex);
+      unqueue.run(r.txHash, r.logIndex); // its agent / job is re-read by rederive instead
     }
     // jobs.tx* name the latest event of each kind: point them at what is left (a re-applied log moves them again)
     for (const id of touched.jobs) repointJobTxs(ctx.db, id);
@@ -322,25 +325,79 @@ function repointJobTxs(db: Db, id: number): void {
   db.prepare("UPDATE jobs SET txRequested = ?, txDelivered = ?, txClosed = ? WHERE id = ?").run(latest(["JobRequested"]), latest(["JobDelivered"]), latest(["JobCompleted", "JobRefunded", "JobResolved"]), id);
 }
 
-/** Agents / jobs a rollback touched, re-read from the chain at head; one the chain no longer has loses its row. */
+/** One agent / job re-read from the chain at head; one the chain no longer has loses its row. */
+async function rederiveOne(ctx: IndexerContext, kind: RetryKind, id: number, head: number): Promise<void> {
+  if (kind === "agent") {
+    // the registry answers an empty struct for an id it never registered: the registration was reorged out
+    const agent = await readAtBlock(`getAgent(${id})`, head, (o) => ctx.registry.getAgent(BigInt(id), o));
+    if (String(agent.owner).toLowerCase() === ZERO_ADDRESS) ctx.db.prepare("DELETE FROM agents WHERE id = ?").run(id);
+    else await refreshAgent(ctx, BigInt(id), head);
+  } else {
+    const job = await readAtBlock(`getJob(${id})`, head, (o) => ctx.escrow.getJob(BigInt(id), o));
+    if (String(job.client).toLowerCase() === ZERO_ADDRESS) ctx.db.prepare("DELETE FROM jobs WHERE id = ?").run(id);
+    else await refreshJob(ctx, BigInt(id), head, "", "");
+  }
+}
+
+/** Agents / jobs a rollback touched, re-read from the chain at head. A read that fails is queued for retryReads. */
 async function rederive(ctx: IndexerContext, touched: { agents: Set<number>; jobs: Set<number> }, head: number): Promise<void> {
-  for (const id of touched.agents) {
-    try {
-      // the registry answers an empty struct for an id it never registered: the registration was reorged out
-      const agent = await readAtBlock(`getAgent(${id})`, head, (o) => ctx.registry.getAgent(BigInt(id), o));
-      if (String(agent.owner).toLowerCase() === ZERO_ADDRESS) ctx.db.prepare("DELETE FROM agents WHERE id = ?").run(id);
-      else await refreshAgent(ctx, BigInt(id), head);
-    } catch (err) {
-      console.error(`[indexer] re-reading agent ${id} after a reorg failed:`, err);
+  for (const [kind, ids] of [["agent", touched.agents], ["job", touched.jobs]] as const) {
+    for (const id of ids) {
+      try {
+        await rederiveOne(ctx, kind, id, head);
+      } catch (err) {
+        // the events behind this id are deleted already: nothing else would bring it back for another look
+        console.error(`[indexer] re-reading ${kind} ${id} after a reorg failed (retried next tick):`, err);
+        queueRetry(ctx.db, kind, id);
+      }
     }
   }
-  for (const id of touched.jobs) {
+}
+
+type RetryKind = "agent" | "job";
+
+/** A recorded registry / escrow event: enough to derive its agent / job row and run its hook again. */
+interface RecordedEvent {
+  contractName: string;
+  eventName: string;
+  /** parsed event args (bigints as strings) */
+  args: Record<string, unknown>;
+  blockNumber: number;
+  txHash: string;
+  logIndex: number;
+  ts: number;
+}
+
+/** Queues a state read to make again: an event's (`txHash`, `logIndex`), or a bare re-read after a rollback. */
+function queueRetry(db: Db, kind: RetryKind, id: number, txHash = "", logIndex = -1): void {
+  db.prepare("INSERT OR IGNORE INTO indexer_retry (kind, id, txHash, logIndex) VALUES (?, ?, ?, ?)").run(kind, id, txHash, logIndex);
+}
+
+/**
+ * Makes the queued agent / job reads again, at head, every tick until each succeeds. A read fails on a timeout,
+ * an ECONNRESET or a 429 as easily as on anything real, and by then the event's row already matches the chain,
+ * so no later tick hands its log back to handleLog: without this the row stayed missing or stale for good, and
+ * the event's hook (activity, bounties, webhooks) never ran.
+ */
+async function retryReads(ctx: IndexerContext, head: number): Promise<void> {
+  const queued = ctx.db.prepare("SELECT kind, id, txHash, logIndex FROM indexer_retry ORDER BY rowid").all() as Array<{ kind: RetryKind; id: number; txHash: string; logIndex: number }>;
+  if (!queued.length) return;
+  const done = ctx.db.prepare("DELETE FROM indexer_retry WHERE kind = ? AND id = ? AND txHash = ? AND logIndex = ?");
+  const recorded = ctx.db.prepare("SELECT contractName, eventName, argsJSON, blockNumber, ts FROM events WHERE txHash = ? AND logIndex = ?");
+  for (const q of queued) {
     try {
-      const job = await readAtBlock(`getJob(${id})`, head, (o) => ctx.escrow.getJob(BigInt(id), o));
-      if (String(job.client).toLowerCase() === ZERO_ADDRESS) ctx.db.prepare("DELETE FROM jobs WHERE id = ?").run(id);
-      else await refreshJob(ctx, BigInt(id), head, "", "");
+      if (!q.txHash) await rederiveOne(ctx, q.kind, q.id, head);
+      else {
+        const row = recorded.get(q.txHash, q.logIndex) as { contractName: string; eventName: string; argsJSON: string; blockNumber: number; ts: number | null } | undefined;
+        if (row) {
+          const ts = row.ts ?? (await blockTimestamp(ctx.provider, row.blockNumber));
+          const args = JSON.parse(row.argsJSON) as Record<string, unknown>;
+          await derive(ctx, { contractName: row.contractName, eventName: row.eventName, args, blockNumber: row.blockNumber, txHash: q.txHash, logIndex: q.logIndex, ts }, head);
+        }
+      }
+      done.run(q.kind, q.id, q.txHash, q.logIndex);
     } catch (err) {
-      console.error(`[indexer] re-reading job ${id} after a reorg failed:`, err);
+      console.error(`[indexer] retried read of ${q.kind} ${q.id} failed again:`, err);
     }
   }
 }
@@ -425,35 +482,39 @@ async function handleLog(ctx: IndexerContext, log: Log): Promise<void> {
       log.blockHash ?? null,
     );
 
+  const ev: RecordedEvent = { contractName: isRegistry ? "registry" : "escrow", eventName: parsed.name, args: serializeArgs(parsed), blockNumber: log.blockNumber, txHash: log.transactionHash, logIndex: log.index, ts };
   try {
-    if (isRegistry) {
-      const idArg = parsed.args.id as bigint | undefined;
-      if (idArg !== undefined) {
-        await refreshAgent(ctx, idArg, log.blockNumber);
-        if (ctx.hooks?.onAgentEvent) {
-          ctx.hooks.onAgentEvent({ eventName: parsed.name, id: Number(idArg), blockNumber: log.blockNumber, txHash: log.transactionHash, logIndex: log.index, ts });
-        }
-      }
-    } else {
-      const jobIdArg = parsed.args.jobId as bigint | undefined;
-      if (jobIdArg !== undefined) {
-        await refreshJob(ctx, jobIdArg, log.blockNumber, log.transactionHash, parsed.name);
-        if (ctx.hooks?.onJobEvent) {
-          ctx.hooks.onJobEvent({
-            eventName: parsed.name,
-            jobId: Number(jobIdArg),
-            blockNumber: log.blockNumber,
-            txHash: log.transactionHash,
-            logIndex: log.index,
-            ts,
-            args: serializeArgs(parsed),
-          });
-        }
-      }
-    }
+    await derive(ctx, ev, log.blockNumber);
   } catch (err) {
-    // Never let a single bad event kill the indexing loop.
+    // Never let a single bad event kill the indexing loop; the read is made again at head (retryReads).
     console.error(`[indexer] failed to refresh state for ${parsed.name} @ block ${log.blockNumber}:`, err);
+    queueRetry(ctx.db, isRegistry ? "agent" : "job", Number(isRegistry ? ev.args.id : ev.args.jobId), log.transactionHash, log.index);
+  }
+}
+
+/**
+ * Reads the agent / job a registry / escrow event names (at `readAt`) into its row, then runs the event's hook.
+ * Throws only when the read fails: a hook that throws is logged, since reading again would not change it.
+ */
+async function derive(ctx: IndexerContext, ev: RecordedEvent, readAt: number): Promise<void> {
+  const { eventName, blockNumber, txHash, logIndex, ts } = ev;
+  const hook = (run: () => void) => {
+    try {
+      run();
+    } catch (err) {
+      console.error(`[indexer] hook failed for ${ev.contractName}.${eventName} @ block ${blockNumber}:`, err);
+    }
+  };
+  if (ev.contractName === "registry") {
+    if (ev.args.id === undefined) return;
+    const id = Number(ev.args.id);
+    await refreshAgent(ctx, BigInt(String(ev.args.id)), readAt);
+    hook(() => ctx.hooks?.onAgentEvent?.({ eventName, id, blockNumber, txHash, logIndex, ts }));
+  } else {
+    if (ev.args.jobId === undefined) return;
+    const jobId = Number(ev.args.jobId);
+    await refreshJob(ctx, BigInt(String(ev.args.jobId)), readAt, txHash, eventName);
+    hook(() => ctx.hooks?.onJobEvent?.({ eventName, jobId, blockNumber, txHash, logIndex, ts, args: ev.args }));
   }
 }
 

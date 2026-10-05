@@ -88,6 +88,15 @@ function migrate(db: Db): void {
     CREATE INDEX IF NOT EXISTS idx_events_block ON events(blockNumber);
     CREATE INDEX IF NOT EXISTS idx_events_contract ON events(contractName, eventName);
 
+    -- agent / job state reads the indexer failed to make (txHash '' = a re-read after a rollback); retried every tick
+    CREATE TABLE IF NOT EXISTS indexer_retry (
+      kind TEXT NOT NULL,
+      id INTEGER NOT NULL,
+      txHash TEXT NOT NULL DEFAULT '',
+      logIndex INTEGER NOT NULL DEFAULT -1,
+      PRIMARY KEY (kind, id, txHash, logIndex)
+    );
+
     CREATE TABLE IF NOT EXISTS payloads (
       hash TEXT PRIMARY KEY,
       contentType TEXT NOT NULL,

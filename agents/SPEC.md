@@ -128,6 +128,7 @@ Indexer: ethers v6 JsonRpcProvider polling getLogs from deployments.deployBlock,
 reorg-safe by re-scanning the last 64 blocks (the chain's reorg cap) each tick: their logs are compared with the
 recorded (txHash, logIndex, blockHash), and from the first block that differs every recorded event is rolled back
 (with the rows, activity, unsent webhooks and counted increments derived from it) and re-applied from the chain;
+an agent / job read that fails is queued and retried at head every tick until it succeeds;
 SQLite (better-sqlite3) at $DATA_DIR/agents.db.
 Health probe: every 5 min GET `<endpoint>/.well-known/ferminux-agent.json` (5 s timeout) → card+online.
 

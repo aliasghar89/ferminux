@@ -267,6 +267,66 @@ test("revertV3Event: each v3 handler's rows go, set values fall back, counted in
   assert.equal(one("SELECT COUNT(*) AS c FROM v3_counted").c, 1, "only the claim of a log still applied (the first Bought) remains");
 });
 
+// The 12-block re-scan used to retry a failed read as a side effect. Once a tick re-applies only diverging blocks,
+// the events row matches the chain and its log never reaches a handler again: the read has to be queued.
+test("indexer: an agent / job read that fails on a transient RPC error is made again on a later tick", async () => {
+  const { db, chain, ctx } = setup();
+  chain.agents.set(7, agentStruct(ALICE));
+  chain.jobs.set(3, jobStruct(1));
+  const failures = { agent: 2, job: 2 }; // the read at the event and the retry in the same tick both fail
+  const getAgent = ctx.registry.getAgent;
+  const getJob = ctx.escrow.getJob;
+  ctx.registry.getAgent = async (id, o) => {
+    if (failures.agent-- > 0) throw new Error("read ECONNRESET");
+    return getAgent(id, o);
+  };
+  ctx.escrow.getJob = async (id, o) => {
+    if (failures.job-- > 0) throw new Error("request timeout");
+    return getJob(id, o);
+  };
+  chain.block(100, [log(regIface, REG, "AgentRegistered", [7, ALICE, "Scribe", "https://scribe.example", "", 0, 0], tx("a1"))]);
+  chain.block(101, [log(escIface, ESC, "JobRequested", [3, 7, BOB, 10, "0x" + "11".repeat(32), "fmx://in"], tx("a3"))]);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT 1 FROM agents WHERE id = 7").get(), undefined);
+  assert.equal(db.prepare("SELECT 1 FROM jobs WHERE id = 3").get(), undefined);
+
+  chain.block(102);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT name FROM agents WHERE id = 7").get()?.name, "Scribe");
+  assert.deepEqual(db.prepare("SELECT status, txRequested FROM jobs WHERE id = 3").get(), { status: 1, txRequested: tx("a3") });
+  assert.deepEqual(db.prepare("SELECT type FROM activity ORDER BY id").all().map((r) => r.type), ["agent.registered", "job.requested"], "the hooks ran too");
+
+  const before = { ...chain.calls };
+  chain.block(103);
+  await indexOnce(ctx);
+  assert.deepEqual([chain.calls.getAgent, chain.calls.getJob], [before.getAgent, before.getJob], "nothing left to retry");
+});
+
+test("indexer: a re-read after a rollback that fails is made again on a later tick", async () => {
+  const { db, chain, ctx } = setup();
+  chain.agents.set(7, agentStruct(ALICE));
+  chain.block(100, [log(regIface, REG, "AgentRegistered", [7, ALICE, "Scribe", "https://scribe.example", "", 0, 0], tx("a1"))]);
+  chain.block(101);
+  await indexOnce(ctx);
+  assert.ok(db.prepare("SELECT 1 FROM agents WHERE id = 7").get());
+
+  // the registration is reorged out, and the read that should drop the row fails (twice: rederive and its retry)
+  chain.reorgFrom(100);
+  chain.agents.delete(7);
+  chain.block(102);
+  let failures = 2;
+  const getAgent = ctx.registry.getAgent;
+  ctx.registry.getAgent = async (id, o) => {
+    if (failures-- > 0) throw new Error("read ECONNRESET");
+    return getAgent(id, o);
+  };
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM events").get().c, 0);
+  chain.block(103);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT 1 FROM agents WHERE id = 7").get(), undefined, "the registry no longer knows agent 7");
+});
+
 test("indexer: rows indexed before block hashes were recorded are matched, filled in, and not rolled back", async () => {
   const { db, chain, ctx } = setup();
   chain.block(100, [log(streamIface, STREAM, "StreamOpened", [5, ALICE, BOB, 1, 1000, 1, 1001], tx("a2"))]);

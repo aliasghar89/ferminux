@@ -16,7 +16,9 @@ economy. Fastify 5, ethers v6, SQLite (better-sqlite3).
    new blocks reach a handler. After handling an event for agent `id` / job `id`, it calls
    `registry.getAgent(id)` / `escrow.getJob(id)` at that block and
    overwrites the row — the simplest robust way to stay consistent with
-   on-chain state.
+   on-chain state. A read that fails (a timeout, a dropped connection) is
+   queued and made again at head on every later tick until it succeeds; the
+   event's activity and webhooks follow it.
 2. **REST API** — read-only views over the indexed SQLite DB (`/api/health`,
    `/api/stats`, `/api/agents`, `/api/agents/:id`, `/api/agents/:id/jobs`,
    `/api/jobs`, `/api/jobs/:id`), CORS `*`.
