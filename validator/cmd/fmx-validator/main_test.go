@@ -105,6 +105,44 @@ func TestResumeNeverRemovesThroughALink(t *testing.T) {
 	}
 }
 
+// Operators run `sudo fmx-validator status` (and install.sh runs it as root):
+// with the sidecar unreachable it opens the protection database in a network
+// directory the service user owns. The lock was opened by path, so a link the
+// user planted at protection.log.lock had root truncate the link's target and
+// write a PID into it. The protection commands open the database the same way.
+func TestStatusNeverWritesThroughAPlantedLink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the Windows data directory is SYSTEM and Administrators only")
+	}
+	dd := t.TempDir()
+	pw := filepath.Join(t.TempDir(), "pw")
+	os.WriteFile(pw, []byte("a long enough password\n"), 0o600)
+	if out, code := cli(t, "init", "--data-dir", dd, "--chain-id", "31337", "--node-ipc", "http://127.0.0.1:8545"); code != 0 {
+		t.Fatal(out)
+	}
+	if out, code := cli(t, "keys", "new", "--data-dir", dd, "--chain-id", "31337", "--password-file", pw); code != 0 {
+		t.Fatal(out)
+	}
+	net := filepath.Join(dd, "devnet")
+	if err := os.WriteFile(filepath.Join(net, "protection.log"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	const victimText = "a file only root may change\n"
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte(victimText), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(net, "protection.log.lock")); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	for _, args := range [][]string{{"status"}, {"protection", "show"}, {"protection", "export"}} {
+		out, _ := cli(t, append(args, "--data-dir", dd, "--network", "devnet")...)
+		if b, err := os.ReadFile(victim); err != nil || string(b) != victimText {
+			t.Fatalf("%s wrote through the link planted at protection.log.lock: %q %v\n%s", strings.Join(args, " "), b, err, out)
+		}
+	}
+}
+
 // With no hub address yet the sidecar stays up, serves the dashboard and says what is missing.
 func TestRunWaitsForSetup(t *testing.T) {
 	dd := t.TempDir()
