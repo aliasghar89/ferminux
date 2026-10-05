@@ -320,6 +320,60 @@ test("indexer: a reorg takes back the bounty transitions its removed job events 
   assert.deepEqual(bounty(), { status: "awarded", jobId: 4, awardedAgentId: 7, completedAt: null });
 });
 
+// bounties.hire() sends /award {agentId, jobId} as soon as its receipt is in, usually before the indexer has seen the
+// job: that award, not the job, made the link, so retracting the job's activity row kept it. The id then belonged to
+// nothing, or to whoever's job took it on the winning branch, and that job drove the poster's bounty.
+test("indexer: a job the poster's /award named goes from the bounty when a reorg drops it or gives its id to another job", async () => {
+  const { db, chain, ctx, activity } = setup();
+  const CAROL = "0x00000000000000000000000000000000000CA401";
+  for (const id of [1, 2]) db.prepare("INSERT INTO bounties (id, poster, title, brief, rewardWei, createdAt, updatedAt) VALUES (?, ?, 'Index the archive', 'brief', '5', 1, 1)").run(id, BOB);
+  const bounty = (id) => db.prepare("SELECT status, jobId, awardedAgentId FROM bounties WHERE id = ?").get(id);
+  // what POST /api/bounties/:id/award writes for a job it cannot see yet
+  const award = (id, agentId, jobId) => {
+    db.prepare("UPDATE bounties SET status = 'awarded', awardedAgentId = ?, jobId = ?, awardedAt = 5, completedAt = NULL, updatedAt = 5 WHERE id = ?").run(agentId, jobId, id);
+    activity.emit("bounty.award", { actor: BOB, ref: { kind: "bounty", id }, data: { bountyId: id, agentId, jobId } });
+  };
+  const job = (bountyId, status, client = BOB) => ({ ...jobStruct(status, client), inputURI: `fmx://bounty/${bountyId}` });
+  const hire = (id, bountyId, txTag, client = BOB) => log(escIface, ESC, "JobRequested", [id, 7, client, 10, "0x" + "11".repeat(32), `fmx://bounty/${bountyId}`], tx(txTag));
+  chain.agents.set(7, agentStruct(ALICE));
+
+  award(1, 7, 3);
+  chain.jobs.set(3, job(1, 1));
+  chain.block(101, [hire(3, 1, "a3")]);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(1), { status: "awarded", jobId: 3, awardedAgentId: 7 });
+
+  // the winning branch gives id 3 to CAROL's unrelated job and BOB's hire comes back as job 4
+  chain.reorgFrom(101);
+  chain.jobs.set(3, jobStruct(1, CAROL));
+  chain.jobs.set(4, job(1, 1));
+  chain.block(101, [log(escIface, ESC, "JobRequested", [3, 7, CAROL, 10, "0x" + "11".repeat(32), "fmx://in"], tx("c3")), hire(4, 1, "a3")]);
+  chain.block(102);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(1), { status: "awarded", jobId: 4, awardedAgentId: 7 }, "BOB's re-included hire is the link, not CAROL's job 3");
+  chain.jobs.set(3, jobStruct(3, CAROL));
+  chain.block(103, [log(escIface, ESC, "JobCompleted", [3, 9, 1, 5], tx("c4"))]);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(1), { status: "awarded", jobId: 4, awardedAgentId: 7 }, "CAROL's completed job does not complete BOB's bounty");
+
+  // a hire the chain drops for good: the poster's award stays, without the job, and the next hire links
+  award(2, 7, 5);
+  chain.jobs.set(5, job(2, 1));
+  chain.block(104, [hire(5, 2, "b5")]);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(2), { status: "awarded", jobId: 5, awardedAgentId: 7 });
+  chain.reorgFrom(104);
+  chain.jobs.delete(5);
+  chain.block(105);
+  await indexOnce(ctx);
+  assert.equal(db.prepare("SELECT 1 FROM jobs WHERE id = 5").get(), undefined);
+  assert.deepEqual(bounty(2), { status: "awarded", jobId: null, awardedAgentId: 7 });
+  chain.jobs.set(5, job(2, 1));
+  chain.block(106, [hire(5, 2, "b6")]);
+  await indexOnce(ctx);
+  assert.deepEqual(bounty(2), { status: "awarded", jobId: 5, awardedAgentId: 7 });
+});
+
 // The 12-block re-scan used to retry a failed read as a side effect. Once a tick re-applies only diverging blocks,
 // the events row matches the chain and its log never reaches a handler again: the read has to be queued.
 test("indexer: an agent / job read that fails on a transient RPC error is made again on a later tick", async () => {
