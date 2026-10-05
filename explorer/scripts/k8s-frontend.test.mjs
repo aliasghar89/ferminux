@@ -7,7 +7,8 @@
 // NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE=validation while k8s kept "mining",
 // which is what makes Blockscout label every block "Mined by" its "Miner";
 // and compose turned the gas tracker off while k8s kept showing its 0.01 gwei
-// figure, a tip no signer includes. Every key both files set must now agree.
+// figure, a tip no signer includes. Every key frontend.env sets must now be in
+// the ConfigMap too, with the same value.
 //
 //   node --test explorer/scripts/k8s-frontend.test.mjs
 
@@ -98,4 +99,16 @@ test('every key the k8s ConfigMap shares with envs/frontend.env has the same val
     .filter((key) => k8s.get(key) !== compose.get(key))
     .map((key) => `${key}: k8s ${JSON.stringify(k8s.get(key))}, compose ${JSON.stringify(compose.get(key))}`);
   assert.deepEqual(differ, []);
+});
+
+// The value check above only sees keys both files have. A key that never
+// reached the ConfigMap is the same drift, and for these keys Blockscout's
+// default is what frontend.env sets them to avoid: third-party ad providers,
+// a POST to bigs.services.blockscout.com for the social preview, "| Blockscout"
+// in every title. The ConfigMap may set more (the origin, the RPC URL and
+// FAVICON_MASTER_URL, which compose sets under `environment:`), never less.
+test('every key envs/frontend.env sets is also set in the k8s ConfigMap', () => {
+  const k8s = k8sFrontendEnv();
+  const missing = [...composeFrontendEnv().keys()].filter((key) => !k8s.has(key));
+  assert.deepEqual(missing, []);
 });
