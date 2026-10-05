@@ -1196,3 +1196,40 @@ test("BREAK #9: an EscrowJob proved by a JobRequested log cannot state a settled
   const res2 = await offline(() => verifyCv(second.doc, { provider: rpc }));
   assert.equal(res2.claims.find((c) => c.id === honest.id).status, "verified", res2.errors.join("; "));
 });
+
+test("BREAK #10: a settled job cannot state a client or an amount its escrow job does not have", async () => {
+  // A JobCompleted / JobResolved log carries neither, yet paidJobs counts `amountWei > 0` and the payers set
+  // takes `client`: a zero-value job requested from one address verified as a paid job from a stranger.
+  const TX_FREE = "0x" + "55".repeat(32);
+  const zeroLog = escrowIface.encodeEventLog("JobCompleted", [2, 0n, 0n, 5]);
+  const free = (over) => {
+    const c = jobClaim();
+    Object.assign(c, { id: "fmx:1:job:2", jobId: 2, payoutWei: "0", feeWei: "0", rating: 5 }, over);
+    Object.assign(c.evidence, { tx: TX_FREE, block: 349300 });
+    return c;
+  };
+  const rpcWith = (wallet) =>
+    makeRpc({
+      owner: wallet.address,
+      jobs: { 2: { ...JOB, amount: 0n } },
+      receipts: { [TX_FREE]: { blockNumber: 349300, status: 1, logs: [{ address: ESCROW, topics: zeroLog.topics, data: zeroLog.data, index: 0 }] } },
+    });
+  for (const [over, why] of [
+    [{ client: "0x000000000000000000000000000000000000dEaD", amountWei: "120000000000000000000" }, /amountWei|client/],
+    [{ amountWei: "120000000000000000000" }, /amountWei = 120000000000000000000, escrow\.getJob\(uint256\)\.amount is 0/],
+    [{ client: "0x000000000000000000000000000000000000dEaD", amountWei: "0" }, /client = 0x000000000000000000000000000000000000dEaD, escrow\.getJob\(uint256\)\.client is/],
+  ]) {
+    const { doc, wallet } = await makeCv({ claims: [free(over)] });
+    const res = await offline(() => verifyCv(doc, { provider: rpcWith(wallet) }));
+    assert.equal(res.ok, false);
+    assert.equal(res.claims[0].status, "rejected");
+    assert.match(res.claims[0].reason, why);
+    assert.equal(res.verifiedEarned.paidJobs, 0);
+    assert.equal(res.verifiedEarned.payers, 0, "no payer is counted from a claim that failed");
+  }
+  // the honest terms of the same job still verify (as a zero-value job)
+  const { doc, wallet } = await makeCv({ claims: [free({ amountWei: "0" })] });
+  const res = await offline(() => verifyCv(doc, { provider: rpcWith(wallet) }));
+  assert.equal(res.claims[0].status, "verified", res.errors.join("; "));
+  assert.equal(res.verifiedEarned.zeroValueJobs, 1);
+});
