@@ -57,3 +57,15 @@ test("buy-fmx pays through the guard: both sends carry the quote's chain id, and
   const raw = wallet.slice(wallet.indexOf("export async function sendRawTransaction"), wallet.indexOf("export async function ethCall"));
   assert.match(raw, /sendOnChain\(eth, tx\.chainId, params\)/);
 });
+
+test("wallet.ts reads every eth_chainId reply through parseChainId, so switchToChain accepts a WalletConnect wallet", () => {
+  // switchToChain and waitForChain run before the guard; read as hex, WalletConnect's numeric 56 never matched chain
+  // 56 and the pay-in stopped at "not on BNB Smart Chain yet". wallet.ts needs a browser, so this checks its source.
+  const wallet = readFileSync(new URL("../src/wallet.ts", import.meta.url), "utf8");
+  const reads = wallet.split("\n").filter((l) => /request\(\{ method: "eth_chainId" \}\)/.test(l));
+  assert.ok(reads.length >= 3, reads.join("\n"));
+  for (const l of reads) {
+    assert.match(l, /parseChainId\(await [\w.()]+\.request\(\{ method: "eth_chainId" \}\)\)/, l);
+    assert.doesNotMatch(l, /parseInt/, l);
+  }
+});
