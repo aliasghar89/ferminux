@@ -217,6 +217,12 @@ jobs:
         working-directory: explorer
         run: node --test scripts/compose-secrets.test.mjs
 
+      # The rewards CronJob runs three scripts in one shell; a failing reward
+      # script must still mark the Job Failed.
+      - name: Kubernetes rewards seeder
+        working-directory: explorer
+        run: node --test scripts/k8s-seeder.test.mjs
+
       # The ABI check reads agents/contracts/out, which is not committed: build
       # it here (forge-std through contracts/lib, as in the contracts job).
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
