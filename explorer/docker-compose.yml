@@ -136,10 +136,15 @@ services:
 
   # Ferminux-geth is a geth fork: Blockscout's geth variant cannot fetch
   # block rewards over RPC (needs trace_block). This sidecar writes the exact
-  # consensus reward (6 FMX >> era, era = block/4,500,000; chain/consensus/
-  # ethash/ferminux.go) plus tip fees into Blockscout's block_rewards table so
-  # /api/v2/blocks and the UI show "Miner Reward". It only writes to the
-  # explorer's own Postgres — never to the chain.
+  # consensus reward plus tip fees into Blockscout's block_rewards table so
+  # /api/v2/blocks and the UI show them. The subsidy is
+  # chain/consensus/powhash/ferminux.go:FerminuxBlockReward: 6 FMX below block
+  # 20,000, then 1 FMX >> era (era = block / 4,500,000). From the authority
+  # fork at 160,000, chain/consensus/posa quarters it and splits it: the signer
+  # keeps the remainder (40%) with the tips, Blockscout's "Miner Reward" row;
+  # the reward sink's 50% and the treasury's 10% are "Emission Reward" rows.
+  # seeder/*.sql mirrors it. It only writes to the explorer's own Postgres —
+  # never to the chain.
   rewards-sidecar:
     image: postgres:17.5-alpine
     container_name: fmx-explorer-rewards

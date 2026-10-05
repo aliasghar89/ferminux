@@ -70,9 +70,13 @@ data:
   NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL: "FMX"
   NEXT_PUBLIC_NETWORK_CURRENCY_DECIMALS: "18"
   NEXT_PUBLIC_NETWORK_RPC_URL: "https://rpc.ferminux.net"
-  NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE: "mining"
+  # Picks Blockscout's block-producer labels: "Validator" and "Validated by",
+  # for blocks confirmed by signers. As in envs/frontend.env.
+  NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE: "validation"
   NEXT_PUBLIC_IS_TESTNET: "false"
-  NEXT_PUBLIC_GAS_TRACKER_ENABLED: "true"
+  # Off: its 0.01 gwei fallback is a tip no signer includes (1 gwei minimum).
+  # The full reason is in envs/frontend.env.
+  NEXT_PUBLIC_GAS_TRACKER_ENABLED: "false"
   NEXT_PUBLIC_AD_BANNER_PROVIDER: "none"
   NEXT_PUBLIC_AD_TEXT_PROVIDER: "none"
   NEXT_PUBLIC_HOMEPAGE_CHARTS: "[]"
