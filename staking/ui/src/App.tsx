@@ -5,6 +5,7 @@ import { shortAddress, formatFMX } from './lib/format.ts';
 import { useChain } from './state/useChain.ts';
 import { useWallet } from './state/useWallet.ts';
 import { useVaultData, usePositions, useRoster, useBalance } from './state/useStakingData.ts';
+import { isVisiblePosition } from './lib/staking.ts';
 import { StatsHeader } from './views/StatsHeader.tsx';
 import { StakePanel } from './views/StakePanel.tsx';
 import { PositionsPanel } from './views/PositionsPanel.tsx';
@@ -44,7 +45,7 @@ export function App() {
     balance.refresh();
   };
 
-  const openPositions = positions.data?.filter((p) => p.state !== 'withdrawn') ?? null;
+  const openPositions = positions.data?.filter(isVisiblePosition) ?? null;
 
   return (
     <>

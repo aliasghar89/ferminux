@@ -293,7 +293,8 @@ jobs:
           # AMM from dex/contracts, AZNT from contracts/
           - package: dex/ui
             contracts: contracts dex/contracts
-          # compiles its own fixtures (staking/ui/fixtures) during the e2e
+          # the e2e builds and deploys the real staking/contracts itself (that
+          # project vendors its own forge-std, so nothing to fetch here)
           - package: staking/ui
             contracts: ''
           - package: bridge/ui
@@ -328,9 +329,9 @@ jobs:
             dex/contracts/out
             bridge/contracts/cache
             bridge/contracts/out
-            staking/ui/fixtures/cache
-            staking/ui/fixtures/out
-          key: dapp-forge-${{ matrix.package }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('contracts/src/**', 'contracts/script/**', 'dex/contracts/src/**', 'dex/contracts/script/**', 'bridge/contracts/src/**', 'staking/ui/fixtures/src/**') }}
+            staking/contracts/cache
+            staking/contracts/out
+          key: dapp-forge-${{ matrix.package }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('contracts/src/**', 'contracts/script/**', 'dex/contracts/src/**', 'dex/contracts/script/**', 'bridge/contracts/src/**', 'staking/contracts/src/**') }}
           restore-keys: dapp-forge-${{ matrix.package }}-${{ env.FOUNDRY_VERSION }}-
 
       - name: Compile the contracts the e2e deploys

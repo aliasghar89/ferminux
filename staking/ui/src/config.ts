@@ -37,10 +37,11 @@ export const NATIVE_DECIMALS = 18;
 export const STAKING_VAULT_ADDRESS: string = env.VITE_STAKING_VAULT ?? '';
 export const NODE_REGISTRY_ADDRESS: string = env.VITE_NODE_REGISTRY ?? '';
 
-/** Chain-schedule facts for countdowns. Blocks are 7 s apart under authority consensus (since block 160,000). */
+/**
+ * Chain-schedule facts for countdowns. Blocks are 7 s apart under authority consensus (since block 160,000).
+ * The validator track's lock block itself is read from the vault (VALIDATOR_LOCK_BLOCK), not configured here.
+ */
 export const SECONDS_PER_BLOCK = 7;
-/** The staking contract's VALIDATOR_LOCK_BLOCK (FMXStaking.sol): validator-tier bonds stay locked until it. */
-export const VALIDATOR_LOCK_END_BLOCK = 4_680_000;
 export const EMISSION_FORK_BLOCK = 20_000;
 
 /** Dashboard refresh cadence. */
