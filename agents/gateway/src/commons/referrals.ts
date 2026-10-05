@@ -76,6 +76,8 @@ export interface ReferralRow {
   /** GROWTH_KEY tx nonces reserved for the two transfers (crash-safe idempotency) */
   nonceNew: number | null;
   nonceRef: number | null;
+  /** set when a reorg removed the job completion behind a payout that had already started (revertJobOnReferrals) */
+  reorgFlag: string | null;
 }
 
 export type ReferralStatus = "registered" | "pending" | "paid";
@@ -264,12 +266,37 @@ export function registerReferrals(app: FastifyInstance, ctx: CommonsContext, opt
 // ---------------------------------------------------------------------------
 export function applyJobToReferrals(db: Db, activity: ActivityBus, job: { id: number; agentId: number; status: number; client?: string; amount?: string }, ts: number, rules: ReferralRules = referralRules()): void {
   if (job.status !== JobStatusEnum.Completed) return;
-  const row = db.prepare("SELECT * FROM referrals WHERE newAgentId = ? AND eligibleAt IS NULL").get(job.agentId) as ReferralRow | undefined;
-  if (!row) return;
   const full = job.client !== undefined && job.amount !== undefined ? (job as { client: string; amount: string; status: number }) : (db.prepare("SELECT client, amount, status FROM jobs WHERE id = ?").get(job.id) as { client: string; amount: string; status: number } | undefined);
-  if (!full || !jobQualifies(db, row, full, rules)) return;
+  if (!full) return;
+  // the winning branch of a reorg completed the job again (the same agent's qualifying job: ids are reused after a
+  // reorg): the payout revertJobOnReferrals flagged stands
+  const flagged = db.prepare("SELECT * FROM referrals WHERE newAgentId = ? AND jobId = ? AND reorgFlag IS NOT NULL").get(job.agentId, job.id) as ReferralRow | undefined;
+  if (flagged && jobQualifies(db, flagged, full, rules)) db.prepare("UPDATE referrals SET reorgFlag = NULL WHERE newAgentId = ?").run(flagged.newAgentId);
+  const row = db.prepare("SELECT * FROM referrals WHERE newAgentId = ? AND eligibleAt IS NULL").get(job.agentId) as ReferralRow | undefined;
+  if (!row || !jobQualifies(db, row, full, rules)) return;
   db.prepare("UPDATE referrals SET eligibleAt = ?, jobId = ? WHERE newAgentId = ? AND eligibleAt IS NULL").run(ts, job.id, job.agentId);
   void activity; // payout emits referral.paid; eligibility is visible via the leaderboard "pending" count
+}
+
+/**
+ * Reorg rollback of a JobCompleted (the indexer's onRollback; Completed comes from no other event): a referral it
+ * made eligible is not any more. Neither the re-read nor a later event could take it back (eligibility is set once,
+ * behind `eligibleAt IS NULL`), and the payout worker would pay both owners for a job the chain never completed. If
+ * the winning branch completes the job again, that log is applied afterwards and makes the row eligible again.
+ * A payout that has started is not undone (its transfers are on chain or hold a reserved nonce): the row is flagged.
+ */
+export function revertJobOnReferrals(db: Db, eventName: string, jobId: number, blockNumber: number): void {
+  if (eventName !== "JobCompleted") return;
+  for (const r of db.prepare("SELECT * FROM referrals WHERE jobId = ? AND eligibleAt IS NOT NULL").all(jobId) as ReferralRow[]) {
+    const started = r.paid === 1 || r.txNew !== null || r.txRef !== null || r.nonceNew !== null || r.nonceRef !== null;
+    if (!started) {
+      db.prepare("UPDATE referrals SET eligibleAt = NULL, jobId = NULL, error = NULL WHERE newAgentId = ?").run(r.newAgentId);
+      continue;
+    }
+    const flag = `the completion of job ${jobId} (block ${blockNumber}) was reorged out after this payout ${r.paid === 1 ? "was sent" : "started"}`;
+    db.prepare("UPDATE referrals SET reorgFlag = ? WHERE newAgentId = ?").run(flag, r.newAgentId);
+    console.error(`[referrals] agent ${r.newAgentId}: ${flag} — flagged for review unless the new branch completes it again`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -341,7 +368,9 @@ export class ReferralPayout {
     if (nonce === null || nonce === undefined) {
       const [pending] = await this.txCounts();
       nonce = pending;
-      db.prepare(`UPDATE referrals SET ${nonceCol} = ? WHERE newAgentId = ?`).run(nonce, r.newAgentId);
+      // a reorg can take the eligibility back while this tick awaits (revertJobOnReferrals): then nothing is reserved or sent
+      const reserved = db.prepare(`UPDATE referrals SET ${nonceCol} = ? WHERE newAgentId = ? AND eligibleAt IS NOT NULL`).run(nonce, r.newAgentId);
+      if (!reserved.changes) throw new Error("no longer eligible: the job completion behind it was reorged out");
     } else {
       const [, latest] = await this.txCounts();
       if (latest > nonce) {

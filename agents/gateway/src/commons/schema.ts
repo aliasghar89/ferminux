@@ -76,6 +76,8 @@ export function migrateGrowth(db: Db): void {
   // payout idempotency: the GROWTH_KEY tx nonce reserved for each transfer (prod volume persists — add if missing)
   const cols = db.prepare("PRAGMA table_info(referrals)").all() as Array<{ name: string }>;
   for (const col of ["nonceNew", "nonceRef"]) if (!cols.some((c) => c.name === col)) db.exec(`ALTER TABLE referrals ADD COLUMN ${col} INTEGER`);
+  // a payout whose job completion a reorg then removed: flagged for review, never reversed (revertJobOnReferrals)
+  if (!cols.some((c) => c.name === "reorgFlag")) db.exec("ALTER TABLE referrals ADD COLUMN reorgFlag TEXT");
 }
 
 /**

@@ -522,6 +522,11 @@ list.
   reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`) so a retry
   can never double-pay. `GROWTH_KEY` unset → rows stay `paid = 0` ("pending")
   and the worker is a no-op.
+- A reorg that removes the `JobCompleted` behind a row's eligibility takes the
+  eligibility back while no transfer has been reserved; the row is earned again
+  if the winning branch completes the job. A payout that had started is not
+  reversed (its FMX is on chain): the row is flagged (`reorgFlag`) and logged
+  for review.
 - Reads: `GET /api/referrals/leaderboard` (top referrers plus `rewardFmx`,
   `payoutEnabled`, totals and the 10 most recent), `GET /api/referrals/:agentId`
   (the row for one referred agent), `GET /api/referrals/by/:agentId` (every

@@ -211,6 +211,32 @@ test("referrals", async (t) => {
     assert.equal((await get("/api/referrals/22")).status, "pending");
   });
 
+  // A reorg can take a row's eligibility back (revertJobOnReferrals) while a tick that already selected it awaits its
+  // nonce read: the transfer must not go out for it.
+  await t.test("a row whose eligibility a reorg takes back mid-tick is not paid", async () => {
+    const owner = Wallet.createRandom();
+    db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, ?, ?)").run(30, owner.address, "Fifth", "https://fifth.example", 1, clock.s());
+    clock.advance(86_400_000); // a fresh UTC day: the caps leave room
+    assert.equal((await post(owner, { newAgentId: 30, ref: 1 })).statusCode, 201);
+    applyJobToReferrals(db, activity, { id: 901, agentId: 30, status: 3, client: client.address, amount: parseEther("5").toString() }, clock.s());
+    const sent = [];
+    const racing = new ReferralPayout({
+      db,
+      activity,
+      provider: null,
+      nowS: clock.s,
+      txCounts: async () => {
+        db.prepare("UPDATE referrals SET eligibleAt = NULL, jobId = NULL WHERE newAgentId = 30").run(); // what the rollback writes
+        return [40, 40];
+      },
+      send: async (to, value, nonce) => (sent.push(to), `0xz${sent.length}`),
+    });
+    await racing.tick(); // rows still pending from the caps test above may be paid; agent 30's must not
+    assert.equal(sent.includes(owner.address), false);
+    const row = db.prepare("SELECT paid, nonceNew, txNew FROM referrals WHERE newAgentId = 30").get();
+    assert.deepEqual({ ...row }, { paid: 0, nonceNew: null, txNew: null });
+  });
+
   await t.test("openapi documents the referral routes + action", async () => {
     const spec = await get("/api/openapi.json");
     assert.ok(spec.paths["/api/referrals"].post);
@@ -218,4 +244,17 @@ test("referrals", async (t) => {
     assert.equal(spec["x-ferminux-signing"].actions["POST /api/referrals"].startsWith("referral.claim"), true);
     assert.ok(spec["x-ferminux-signing"].allActions.includes("referral.claim"));
   });
+});
+
+// reorgFlag shipped after the referrals table: a database deployed before it gains the column, and migrating twice is a no-op.
+test("migrateGrowth adds reorgFlag to a referrals table created before it existed", async () => {
+  const { default: Database } = await import("better-sqlite3");
+  const { migrateGrowth } = await import("../dist/commons/schema.js");
+  const db = new Database(":memory:");
+  db.exec("CREATE TABLE referrals (newAgentId INTEGER PRIMARY KEY, refAgentId INTEGER NOT NULL, newOwner TEXT NOT NULL, refOwner TEXT NOT NULL, ts INTEGER NOT NULL, paid INTEGER NOT NULL DEFAULT 0, eligibleAt INTEGER, jobId INTEGER, paidAt INTEGER, txNew TEXT, txRef TEXT, rewardWei TEXT, error TEXT, nonceNew INTEGER, nonceRef INTEGER)");
+  db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts, paid) VALUES (7, 8, '0xa', '0xb', 1, 1)").run();
+  migrateGrowth(db);
+  migrateGrowth(db);
+  assert.ok(db.prepare("PRAGMA table_info(referrals)").all().some((c) => c.name === "reorgFlag"));
+  assert.deepEqual({ ...db.prepare("SELECT paid, reorgFlag FROM referrals WHERE newAgentId = 7").get() }, { paid: 1, reorgFlag: null });
 });

@@ -1,7 +1,7 @@
 // Indexer reorg handling against a scripted chain: the window is the chain's 64-block reorg cap, a reorg rolls
 // back what was derived from the blocks it replaced (events, state rows, activity, unsent webhooks, bounty
-// transitions, v3_counted increments), a tx re-included at another logIndex counts once, a quiet tick re-runs no
-// handler, and a state read that failed is made again.
+// transitions, arena award links, referral eligibility, v3_counted increments), a tx re-included at another logIndex
+// counts once, a quiet tick re-runs no handler, and a state read that failed is made again.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Interface, ZeroAddress, getAddress } from "ethers";
@@ -11,6 +11,7 @@ import { REGISTRY_ABI, ESCROW_ABI } from "../dist/abi.js";
 import { v3Interface } from "../dist/abi-v3.js";
 import { ActivityBus } from "../dist/commons/activity.js";
 import { makeIndexerHooks } from "../dist/commons/hooks.js";
+import { ReferralPayout } from "../dist/commons/referrals.js";
 import { WebhookBus } from "../dist/v3/webhooks.js";
 import { applyV3Event, revertV3Event } from "../dist/v3/indexer-v3.js";
 
@@ -396,6 +397,87 @@ test("indexer: a reorg that drops a hire linked to a bounty the poster had alrea
   await indexOnce(ctx);
   assert.deepEqual(bounty(), { status: "awarded", jobId: null, awardedAgentId: 8, awardedAt: 5, completedAt: null }, "the poster's award, as it was before the hire");
   assert.deepEqual(bountyActivity(), ["bounty.award"]);
+});
+
+// onJobEvent also runs applyJobToArena and applyJobToReferrals, and neither the re-read nor a later event undid them:
+// a challenge kept the award link of a hire the chain dropped (blocking the re-included hire), and a referral stayed
+// eligible for a completion the chain no longer had, which the payout worker pays in FMX.
+test("indexer: a reorg takes back the arena award link and the referral eligibility its removed job events made", async () => {
+  const { db, chain, ctx, activity } = setup();
+  const CAROL = "0x00000000000000000000000000000000000CA401";
+  const ts = (n) => 1_758_000_000 + n * 7; // the scripted chain's block timestamps
+  chain.agents.set(7, agentStruct(ALICE));
+
+  // arena: BOB's hire citing his closed challenge links as its award, until the reorg drops it
+  db.prepare("INSERT INTO arena_challenges (id, creator, title, brief, endsAt, createdAt) VALUES (1, ?, 'Best summary', 'brief', ?, 1)").run(BOB, ts(0));
+  db.prepare("INSERT INTO arena_challenges (id, creator, title, brief, endsAt, createdAt, awardedAgentId, jobId, awardedAt, closedAt) VALUES (2, ?, 'Best index', 'brief', ?, 1, 7, 5, 9, ?)").run(BOB, ts(0), ts(0));
+  const challenge = (id) => db.prepare("SELECT awardedAgentId, jobId, awardedAt, closedAt FROM arena_challenges WHERE id = ?").get(id);
+  const arenaJob = (challengeId) => ({ ...jobStruct(1), inputURI: `fmx://arena/${challengeId}` });
+  const arenaHire = (id, challengeId, txTag) => log(escIface, ESC, "JobRequested", [id, 7, BOB, 10, "0x" + "11".repeat(32), `fmx://arena/${challengeId}`], tx(txTag));
+  chain.jobs.set(3, arenaJob(1));
+  chain.jobs.set(5, arenaJob(2)); // challenge 2: BOB's own award named job 5 before the indexer saw it
+  chain.block(101, [arenaHire(3, 1, "a3"), arenaHire(5, 2, "a5")]);
+  await indexOnce(ctx);
+  assert.deepEqual(challenge(1), { awardedAgentId: 7, jobId: 3, awardedAt: ts(101), closedAt: ts(0) });
+  assert.deepEqual(challenge(2), { awardedAgentId: 7, jobId: 5, awardedAt: 9, closedAt: ts(0) });
+  chain.reorgFrom(101);
+  chain.jobs.delete(3);
+  chain.jobs.delete(5);
+  chain.block(102);
+  await indexOnce(ctx);
+  assert.deepEqual(challenge(1), { awardedAgentId: null, jobId: null, awardedAt: null, closedAt: null }, "back to the challenge the hire found");
+  assert.deepEqual(challenge(2), { awardedAgentId: 7, jobId: null, awardedAt: 9, closedAt: ts(0) }, "BOB's award stays, without the job the chain dropped");
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM activity WHERE type = 'arena.award'").get().c, 0);
+  chain.jobs.set(4, arenaJob(1));
+  chain.block(103, [arenaHire(4, 1, "a4")]);
+  await indexOnce(ctx);
+  assert.deepEqual(challenge(1), { awardedAgentId: 7, jobId: 4, awardedAt: ts(103), closedAt: ts(0) }, "the hire re-included as job 4 links");
+
+  // referrals: agent 7 (ALICE's) was referred by CAROL's agent 8; BOB, a third party, pays it 10 FMX
+  db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts) VALUES (7, 8, ?, ?, 1)").run(ALICE, CAROL);
+  const referral = () => db.prepare("SELECT eligibleAt, jobId, paid, reorgFlag FROM referrals WHERE newAgentId = 7").get();
+  const paidJob = (status) => ({ ...jobStruct(status), amount: 10n ** 19n });
+  const completed = (txTag) => log(escIface, ESC, "JobCompleted", [6, 9, 1, 5], tx(txTag));
+  const sent = [];
+  const payout = new ReferralPayout({ db, activity, provider: null, nowS: () => 1_758_400_000, txCounts: async () => [sent.length, sent.length], send: async (to, _value, nonce) => (sent.push(to), `0xp${nonce}`) });
+  chain.jobs.set(6, paidJob(1));
+  chain.block(104, [log(escIface, ESC, "JobRequested", [6, 7, BOB, 10n ** 19n, "0x" + "11".repeat(32), "fmx://in"], tx("b6"))]);
+  await indexOnce(ctx);
+  chain.jobs.set(6, paidJob(3));
+  chain.block(105, [completed("c1")]);
+  await indexOnce(ctx);
+  assert.deepEqual(referral(), { eligibleAt: ts(105), jobId: 6, paid: 0, reorgFlag: null });
+
+  // the completion is reorged out before the worker ran: nothing is earned, nothing is paid
+  chain.reorgFrom(105);
+  chain.jobs.set(6, paidJob(2));
+  chain.block(106);
+  await indexOnce(ctx);
+  assert.deepEqual(referral(), { eligibleAt: null, jobId: null, paid: 0, reorgFlag: null });
+  assert.equal(await payout.tick(), 0);
+  assert.deepEqual(sent, []);
+
+  // completed on the winning branch: earned again, and paid
+  chain.jobs.set(6, paidJob(3));
+  chain.block(107, [completed("c2")]);
+  await indexOnce(ctx);
+  assert.deepEqual(referral(), { eligibleAt: ts(107), jobId: 6, paid: 0, reorgFlag: null });
+  assert.equal(await payout.tick(), 1);
+  assert.deepEqual(sent, [ALICE, CAROL]);
+
+  // reorged out after the payout: the FMX is on chain, so the row stays paid and is flagged for review...
+  chain.reorgFrom(107);
+  chain.jobs.set(6, paidJob(2));
+  chain.block(108);
+  await indexOnce(ctx);
+  assert.equal(referral().paid, 1);
+  assert.match(referral().reorgFlag, /completion of job 6 \(block 107\) was reorged out after this payout was sent/);
+  // ...until the job completes again
+  chain.jobs.set(6, paidJob(3));
+  chain.block(109, [completed("c3")]);
+  await indexOnce(ctx);
+  assert.deepEqual(referral(), { eligibleAt: ts(107), jobId: 6, paid: 1, reorgFlag: null });
+  assert.deepEqual(sent, [ALICE, CAROL], "paid once");
 });
 
 // The 12-block re-scan used to retry a failed read as a side effect. Once a tick re-applies only diverging blocks,
