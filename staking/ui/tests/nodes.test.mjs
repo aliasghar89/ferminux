@@ -1,8 +1,8 @@
 // enode parsing, the node identity and possession proof NodeRegistry checks,
-// and register-form validation.
+// register-form validation, and the own-node lookup behind Deregister.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SigningKey, Wallet, concat, getBytes, keccak256, toBeHex, toUtf8Bytes, zeroPadValue } from 'ethers';
+import { Interface, SigningKey, Wallet, concat, getBytes, keccak256, toBeHex, toUtf8Bytes, zeroPadValue } from 'ethers';
 import {
   parseEnode,
   enodePubkeyBytes,
@@ -10,7 +10,10 @@ import {
   registrationDigest,
   checkPossessionSignature,
   checkConsensusAddress,
+  fetchOwnNodes,
+  nodesOutsideRoster,
 } from '../src/lib/nodes.ts';
+import { NODE_REGISTRY_ABI } from '../src/lib/abi.ts';
 
 const PUBKEY =
   'a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c';
@@ -121,4 +124,57 @@ test('nodes: consensus-address validation enforces checksum', () => {
   assert.equal(checkConsensusAddress('0xC0a5eb613f859f072554f29f1ab7400265af15ab').ok, false);
   assert.equal(checkConsensusAddress('').ok, false);
   assert.equal(checkConsensusAddress('0x1234').ok, false);
+});
+
+// A stand-in NodeRegistry that answers eth_call by decoding the calldata —
+// enough to drive the lib's reads without a chain.
+function fakeRegistry({ byPosition, nodes }) {
+  const iface = new Interface(NODE_REGISTRY_ABI);
+  return {
+    provider: null,
+    async call(tx) {
+      const { name, args } = iface.parseTransaction({ data: tx.data });
+      if (name === 'nodeIdByPosition') {
+        return iface.encodeFunctionResult(name, [byPosition.get(args[0]) ?? 0n]);
+      }
+      if (name === 'getNode') return iface.encodeFunctionResult(name, [nodes.get(args[0])]);
+      throw new Error(`unexpected call ${name}`);
+    },
+  };
+}
+
+const OTHER_OPERATOR = '0x90F79bf6EB2c4f870365E785982E1f101E93b906';
+function rawNode({ operator = OPERATOR, active = true, positionId }) {
+  return [operator, CONSENSUS, NODE_ADDRESS, 1n, 0n, 0, active, positionId];
+}
+
+test('nodes: fetchOwnNodes finds a registered node through its position, in any position state', async () => {
+  // Position 3's bond exited, so listActiveNodes() leaves node 5 out — but
+  // nodeIdByPosition still binds it, and that is how its operator reaches it.
+  const runner = fakeRegistry({
+    byPosition: new Map([
+      [3n, 5n],
+      [9n, 6n],
+    ]),
+    nodes: new Map([
+      [5n, rawNode({ positionId: 3n })],
+      [6n, rawNode({ operator: OTHER_OPERATOR, positionId: 9n })], // not this wallet's: never offered
+    ]),
+  });
+  const own = await fetchOwnNodes(runner, REGISTRY, OPERATOR.toLowerCase(), [2n, 3n, 9n]);
+  assert.deepEqual(own, [{ id: 5n, nodeAddress: NODE_ADDRESS, consensusAddr: CONSENSUS, positionId: 3n }]);
+  assert.deepEqual(await fetchOwnNodes(runner, REGISTRY, OPERATOR, []), []);
+});
+
+test('nodes: own nodes the live roster omits are the ones offered for deregistration outside it', () => {
+  const own = [
+    { id: 1n, nodeAddress: NODE_ADDRESS, consensusAddr: CONSENSUS, positionId: 1n },
+    { id: 4n, nodeAddress: NODE_ADDRESS, consensusAddr: CONSENSUS, positionId: 3n },
+  ];
+  const roster = [
+    { id: 1n, operator: OPERATOR, consensusAddr: CONSENSUS, nodeAddress: NODE_ADDRESS, bondWei: 1n, boosted: false, lastSeen: 0, uptimeBps: 0n },
+  ];
+  assert.deepEqual(nodesOutsideRoster(own, roster).map((n) => n.id), [4n]);
+  assert.deepEqual(nodesOutsideRoster(own, []).map((n) => n.id), [1n, 4n]);
+  assert.deepEqual(nodesOutsideRoster([], roster), []);
 });

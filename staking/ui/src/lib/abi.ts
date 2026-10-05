@@ -44,6 +44,7 @@ export const NODE_REGISTRY_ABI = [
   'function DISPUTE_WINDOW() view returns (uint256)',
   'function listActiveNodes() view returns (tuple(uint256 nodeId, address operator, address consensusAddr, address nodeAddress, uint256 stake, bool boosted, uint64 lastSeen, uint16 lastUptimeBps)[])',
   'function nodeIdByPosition(uint256 positionId) view returns (uint256)',
+  'function getNode(uint256 nodeId) view returns (tuple(address operator, address consensusAddr, address nodeAddress, uint64 registeredAt, uint64 lastSeen, uint16 lastUptimeBps, bool active, uint256 positionId))',
   'function registerNode(bytes pubkey, address consensusAddr, uint256 positionId, uint8 v, bytes32 r, bytes32 s) returns (uint256 nodeId)',
   'function deregisterNode(uint256 nodeId)',
 ] as const;

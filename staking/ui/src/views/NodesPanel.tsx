@@ -18,15 +18,24 @@ import {
   registerNode,
   deregisterNode,
   fetchBondedPositions,
+  fetchOwnNodes,
+  nodesOutsideRoster,
   registrationDigest,
   checkPossessionSignature,
   enodePubkeyBytes,
   enodeToNodeAddress,
   checkConsensusAddress,
-  type NetworkNode,
+  type OwnNode,
 } from '../lib/nodes.ts';
 import { formatFMX, formatBps, formatAgo, formatDuration, shortAddress } from '../lib/format.ts';
 import { CopyButton, Modal, Spinner, Skeleton } from '../components/ui.tsx';
+
+/** What the Deregister modal needs. bondWei null: the bond is no longer live. */
+interface DeregTarget {
+  id: bigint;
+  nodeAddress: string;
+  bondWei: bigint | null;
+}
 
 export function NodesPanel({
   chain,
@@ -50,11 +59,44 @@ export function NodesPanel({
   onGoStake: () => void;
 }) {
   const [registerOpen, setRegisterOpen] = useState(false);
-  const [deregFor, setDeregFor] = useState<NetworkNode | null>(null);
+  const [deregFor, setDeregFor] = useState<DeregTarget | null>(null);
+  const [ownNodes, setOwnNodes] = useState<OwnNode[]>([]);
 
   // listActiveNodes() already leaves out nodes whose bond exited or fell below the minimum.
   const activeNodes = roster.data?.nodes ?? null;
   const me = wallet.address?.toLowerCase() ?? null;
+
+  // Such a node stays registered — key, consensus address and position bound —
+  // until its operator deregisters it, so find the wallet's own nodes through
+  // its validator-track positions in every state, not through the roster.
+  // Re-asked on each roster answer, which every exit and deregistration refreshes.
+  const ownPositionIds = (positions.data ?? [])
+    .filter((p) => p.tier === TIER_IDS.Validator)
+    .map((p) => p.id.toString())
+    .join(',');
+  useEffect(() => {
+    if (!chain.provider || !deployed || me === null || ownPositionIds === '' || !roster.data) {
+      setOwnNodes([]);
+      return;
+    }
+    let alive = true;
+    fetchOwnNodes(
+      chain.provider,
+      NODE_REGISTRY_ADDRESS,
+      me,
+      ownPositionIds.split(',').map((id) => BigInt(id)),
+    )
+      .then((nodes) => {
+        if (alive) setOwnNodes(nodes);
+      })
+      .catch(() => {
+        // Keep the last answer on screen; the next roster refresh asks again.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [chain.provider, deployed, me, ownPositionIds, roster.data]);
+  const unlisted = activeNodes === null ? [] : nodesOutsideRoster(ownNodes, activeNodes);
 
   // Validator-track positions big enough to bond a node; whether one already
   // bonds a node is asked of the registry when the form opens.
@@ -167,6 +209,42 @@ export function NodesPanel({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {unlisted.length > 0 && (
+            <div className="notice notice-warn" style={{ marginTop: 12 }}>
+              <strong>Your nodes outside the roster.</strong> Their bonding position is no longer an active
+              validator-track bond of at least {formatFMX(roster.data!.minBondWei, 0)} FMX, so they are not listed
+              above — but each still holds its node key and consensus address until you deregister it.
+              <div className="table-scroll" style={{ marginTop: 8 }}>
+                <table className="roster-table">
+                  <thead>
+                    <tr>
+                      <th>Node address</th>
+                      <th className="r">Position</th>
+                      <th className="r" aria-label="Actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unlisted.map((n) => (
+                      <tr key={n.id.toString()}>
+                        <td className="mono" title={n.nodeAddress}>
+                          {shortAddress(n.nodeAddress)}
+                        </td>
+                        <td className="r num">#{n.positionId.toString()}</td>
+                        <td className="r">
+                          <button
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => setDeregFor({ id: n.id, nodeAddress: n.nodeAddress, bondWei: null })}
+                          >
+                            Deregister
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
           <p className="small muted" style={{ marginTop: 12, marginBottom: 0 }}>
@@ -496,7 +574,7 @@ function DeregisterModal({
 }: {
   chain: ChainState;
   wallet: WalletState;
-  node: NetworkNode;
+  node: DeregTarget;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -532,11 +610,19 @@ function DeregisterModal({
         </>
       ) : (
         <>
-          <p className="small">
-            Deregistering node <span className="mono">{shortAddress(node.nodeAddress)}</span> frees its node key,
-            consensus address and bonding position for a new registration, and drops any uptime boost on the bond
-            — it earns 2.0× again. The {formatFMX(node.bondWei, 0)} FMX bond itself stays staked.
-          </p>
+          {node.bondWei === null ? (
+            <p className="small">
+              Deregistering node <span className="mono">{shortAddress(node.nodeAddress)}</span> frees its node key
+              and consensus address, so the node can be registered again on an active validator-track bond. Any
+              uptime boost left on its old bond is dropped; the FMX in that position is not touched.
+            </p>
+          ) : (
+            <p className="small">
+              Deregistering node <span className="mono">{shortAddress(node.nodeAddress)}</span> frees its node key,
+              consensus address and bonding position for a new registration, and drops any uptime boost on the bond
+              — it earns 2.0× again. The {formatFMX(node.bondWei, 0)} FMX bond itself stays staked.
+            </p>
+          )}
           {phase === 'error' && message && (
             <div className="notice notice-danger" role="alert">
               {message}
