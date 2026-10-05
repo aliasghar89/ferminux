@@ -155,8 +155,19 @@ export class RelayerService {
           // behind" for every route out of this chain, not only the impaired one.
           // FIFO still runs it after the tick in flight, never beside it, and a
           // failure leaves the row 'confirmed' for the next tick to retry.
+          //
+          // Re-read the row when the work finally runs: `t` was read when the
+          // watcher confirmed it, and the tick in flight may since have listed it
+          // and rejected, signed or executed it. The sqlite store hands out a
+          // copy, so `t.status` still says 'confirmed', and the role hooks guard
+          // on the status they are given: a final refusal would be verified
+          // again — and could be signed — with no operator in the loop.
           onConfirmed: (t) => {
-            this.exclusive(() => this.hooks.onConfirmed(t)).catch((err) => {
+            this.exclusive(async () => {
+              const current = this.store.getTransfer(t.transferId);
+              if (current?.status !== 'confirmed') return;
+              await this.hooks.onConfirmed(current);
+            }).catch((err) => {
               this.log.error('role work for a confirmed transfer failed — the next tick retries it', {
                 transferId: t.transferId,
                 err: (err as Error).message,
