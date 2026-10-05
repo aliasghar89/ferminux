@@ -544,8 +544,12 @@ list.
 - A reorg that removes the `JobCompleted` behind a row's eligibility takes the
   eligibility back while no transfer has been reserved; the row is earned again
   if the winning branch completes the job. A payout that had started is not
-  reversed (its FMX is on chain): the row is flagged (`reorgFlag`) and logged
-  for review.
+  reversed (a transfer already sent is on chain): the row is flagged
+  (`reorgFlag`), logged and held for review. Nothing more goes out for it —
+  neither a leg not sent yet nor a re-send on a reserved nonce — unless the
+  winning branch completes the job again, which clears the flag. A reserved
+  nonce that another transfer has since used is replaced, never recorded as
+  this payout's.
 - Reads: `GET /api/referrals/leaderboard` (top referrers plus `rewardFmx`,
   `payoutEnabled`, totals and the 10 most recent), `GET /api/referrals/:agentId`
   (the row for one referred agent), `GET /api/referrals/by/:agentId` (every

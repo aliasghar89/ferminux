@@ -6,7 +6,7 @@ import { Wallet, parseEther } from "ethers";
 import { buildServer } from "../dist/server.js";
 import { openMemoryDb } from "../dist/db.js";
 import { canonicalMessage } from "../dist/commons/sign.js";
-import { ReferralPayout, applyJobToReferrals } from "../dist/commons/referrals.js";
+import { ReferralPayout, applyJobToReferrals, revertJobOnReferrals } from "../dist/commons/referrals.js";
 
 const cfg = {
   rpcUrl: "http://127.0.0.1:1",
@@ -235,6 +235,66 @@ test("referrals", async (t) => {
     assert.equal(sent.includes(owner.address), false);
     const row = db.prepare("SELECT paid, nonceNew, txNew FROM referrals WHERE newAgentId = 30").get();
     assert.deepEqual({ ...row }, { paid: 0, nonceNew: null, txNew: null });
+  });
+
+  // A reorg that removes the completion behind a payout that has started only flags the row (revertJobOnReferrals),
+  // and the worker went on to send what it had not sent yet: the second leg, or both legs again on a reserved nonce
+  // whose send had failed, all for a job the winning branch does not complete.
+  await t.test("a payout a reorg flags is held: no leg it has not sent goes out until the job is completed again", async () => {
+    clock.advance(86_400_000); // a fresh UTC day: the caps leave room
+    const owners = {};
+    for (const id of [31, 32, 33]) {
+      owners[id] = Wallet.createRandom();
+      db.prepare("INSERT INTO agents (id, owner, name, endpoint, status, registeredAt) VALUES (?, ?, ?, ?, ?, ?)").run(id, owners[id].address, `Agent ${id}`, "https://a.example", 1, clock.s());
+      assert.equal((await post(owners[id], { newAgentId: id, ref: 1 })).statusCode, 201);
+    }
+    const complete = (agentId, jobId) => applyJobToReferrals(db, activity, { id: jobId, agentId, status: 3, client: client.address, amount: parseEther("5").toString() }, clock.s());
+    const row = (id) => ({ ...db.prepare("SELECT paid, txNew, txRef, nonceNew, nonceRef, reorgFlag IS NOT NULL AS flagged FROM referrals WHERE newAgentId = ?").get(id) });
+    let next = 50; // growth wallet's next nonce: a send that returns is confirmed at once
+    const sent = [];
+    const payout = (hooks = {}) =>
+      new ReferralPayout({
+        db,
+        activity,
+        provider: null,
+        nowS: clock.s,
+        txCounts: async () => (hooks.txCounts?.(), [next, next]),
+        send: async (to, value, nonce) => {
+          if (hooks.fails?.(to)) throw new Error("rpc timeout");
+          sent.push([to, nonce]);
+          next++;
+          return `0xh${nonce}`;
+        },
+      });
+
+    // the reorg lands while the second leg awaits its nonce: the first leg is on chain, the second does not go out
+    complete(31, 931);
+    await payout({ txCounts: () => row(31).txNew && !row(31).flagged && revertJobOnReferrals(db, "JobCompleted", 931, 500) }).tick();
+    assert.deepEqual(sent, [[owners[31].address, 50]]);
+    assert.deepEqual(row(31), { paid: 0, txNew: "0xh50", txRef: null, nonceNew: 50, nonceRef: null, flagged: 1 });
+
+    // the first leg's send failed (nothing on chain) with its nonce reserved, then the reorg: neither leg goes out
+    complete(32, 932);
+    await payout({ fails: (to) => to === owners[32].address }).tick();
+    assert.deepEqual(row(32), { paid: 0, txNew: null, txRef: null, nonceNew: 51, nonceRef: null, flagged: 0 });
+    revertJobOnReferrals(db, "JobCompleted", 932, 501);
+    assert.equal(row(32).flagged, 1);
+    await payout().tick();
+    await payout().tick();
+    assert.deepEqual(sent, [[owners[31].address, 50]], "a flagged payout is held for review");
+
+    // another payout takes the nonce the held one never used
+    complete(33, 933);
+    assert.equal(await payout().tick(), 1);
+    assert.deepEqual(sent.slice(1), [[owners[33].address, 51], [toolbox.address, 52]]);
+
+    // the winning branch completes job 932 again: the held payout resumes on a fresh nonce, not on the one row 33 used
+    complete(32, 932);
+    assert.equal(row(32).flagged, 0);
+    assert.equal(await payout().tick(), 1);
+    assert.deepEqual(sent.slice(3), [[owners[32].address, 53], [toolbox.address, 54]]);
+    assert.deepEqual(row(32), { paid: 1, txNew: "0xh53", txRef: "0xh54", nonceNew: 53, nonceRef: 54, flagged: 0 });
+    assert.deepEqual(row(31), { paid: 0, txNew: "0xh50", txRef: null, nonceNew: 50, nonceRef: null, flagged: 1 }, "still held");
   });
 
   await t.test("openapi documents the referral routes + action", async () => {

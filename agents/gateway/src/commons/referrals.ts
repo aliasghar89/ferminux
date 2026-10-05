@@ -283,7 +283,9 @@ export function applyJobToReferrals(db: Db, activity: ActivityBus, job: { id: nu
  * made eligible is not any more. Neither the re-read nor a later event could take it back (eligibility is set once,
  * behind `eligibleAt IS NULL`), and the payout worker would pay both owners for a job the chain never completed. If
  * the winning branch completes the job again, that log is applied afterwards and makes the row eligible again.
- * A payout that has started is not undone (its transfers are on chain or hold a reserved nonce): the row is flagged.
+ * A payout that has started is not undone (its transfers are on chain or hold a reserved nonce): the row is flagged,
+ * and the payout worker sends nothing more for it (no leg it has not sent, no re-send on a reserved nonce) unless the
+ * winning branch completes the job again.
  */
 export function revertJobOnReferrals(db: Db, eventName: string, jobId: number, blockNumber: number): void {
   if (eventName !== "JobCompleted") return;
@@ -358,26 +360,37 @@ export class ReferralPayout {
    * record, the next tick sees the reserved nonce: if the chain has already
    * confirmed it (GROWTH_KEY is used by this worker only, sequentially) the
    * transfer happened and is recorded as recovered; otherwise it is re-sent
-   * with the same nonce, which can never double-pay.
+   * with the same nonce, which can never double-pay. A nonce another transfer
+   * has recorded its tx on was never this one's: it reserves a fresh one.
    */
   private async transfer(r: ReferralRow, leg: "New" | "Ref", to: string, value: bigint): Promise<string> {
     const { db } = this.opts;
     const txCol = `tx${leg}`;
     const nonceCol = `nonce${leg}`;
     let nonce = leg === "New" ? r.nonceNew : r.nonceRef;
-    if (nonce === null || nonce === undefined) {
-      const [pending] = await this.txCounts();
-      nonce = pending;
-      // a reorg can take the eligibility back while this tick awaits (revertJobOnReferrals): then nothing is reserved or sent
-      const reserved = db.prepare(`UPDATE referrals SET ${nonceCol} = ? WHERE newAgentId = ? AND eligibleAt IS NOT NULL`).run(nonce, r.newAgentId);
-      if (!reserved.changes) throw new Error("no longer eligible: the job completion behind it was reorged out");
-    } else {
+    if (nonce !== null && nonce !== undefined) {
       const [, latest] = await this.txCounts();
-      if (latest > nonce) {
+      // Another transfer recorded its tx on this nonce: this one's send never reached the chain (it failed, and the
+      // next transfer read the same pending count), so it takes a fresh nonce rather than claim that tx as its own. A
+      // payout held for a reorg (reorgFlag) leaves its reserved nonce to the next transfer this way.
+      const taken = db.prepare("SELECT 1 FROM referrals WHERE (nonceNew = ? AND txNew IS NOT NULL) OR (nonceRef = ? AND txRef IS NOT NULL)").get(nonce, nonce);
+      if (taken) nonce = null;
+      else if (latest > nonce) {
         const hash = `recovered:nonce:${nonce}`;
         db.prepare(`UPDATE referrals SET ${txCol} = ?, error = NULL WHERE newAgentId = ?`).run(hash, r.newAgentId);
         return hash;
       }
+    }
+    // A reorg can take the eligibility back, or flag a payout that has started, while this tick awaits
+    // (revertJobOnReferrals): then nothing is reserved or sent. Checked with no await between it and the send.
+    const payable = `newAgentId = ? AND eligibleAt IS NOT NULL AND reorgFlag IS NULL`;
+    if (nonce === null || nonce === undefined) {
+      const [pending] = await this.txCounts();
+      nonce = pending;
+      const reserved = db.prepare(`UPDATE referrals SET ${nonceCol} = ? WHERE ${payable}`).run(nonce, r.newAgentId);
+      if (!reserved.changes) throw new Error("not payable: the job completion behind it was reorged out");
+    } else if (!db.prepare(`SELECT 1 FROM referrals WHERE ${payable}`).get(r.newAgentId)) {
+      throw new Error("not payable: the job completion behind it was reorged out");
     }
     const hash = await this.send(to, value, nonce);
     db.prepare(`UPDATE referrals SET ${txCol} = ?, error = NULL WHERE newAgentId = ?`).run(hash, r.newAgentId);
@@ -388,7 +401,8 @@ export class ReferralPayout {
   async tick(): Promise<number> {
     if (!this.enabled) return 0;
     const { db, activity, nowS } = this.opts;
-    const rows = db.prepare("SELECT * FROM referrals WHERE paid = 0 AND eligibleAt IS NOT NULL ORDER BY eligibleAt ASC LIMIT 20").all() as ReferralRow[];
+    // a payout flagged for a reorg is held for review: nothing more goes out for it unless the new branch completes the job again
+    const rows = db.prepare("SELECT * FROM referrals WHERE paid = 0 AND eligibleAt IS NOT NULL AND reorgFlag IS NULL ORDER BY eligibleAt ASC LIMIT 20").all() as ReferralRow[];
     const day = dayStart(nowS());
     const paidTodayAll = db.prepare("SELECT COUNT(*) AS c FROM referrals WHERE paid = 1 AND paidAt >= ?").get(day) as { c: number };
     const paidTodayBy = db.prepare("SELECT COUNT(*) AS c FROM referrals WHERE paid = 1 AND paidAt >= ? AND lower(refOwner) = lower(?)");
