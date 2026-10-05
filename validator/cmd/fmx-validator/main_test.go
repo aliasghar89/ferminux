@@ -275,6 +275,28 @@ func TestInitForceKeepsTheOwner(t *testing.T) {
 	reinit("--force", "--hub", "0x00000000000000000000000000000000000000bb")
 }
 
+// The service user owns the data directory, so it can put a link where its
+// network directory was before the operator runs `sudo fmx-validator init
+// --force`. Removing config.json by path followed that link: root deleted the
+// config.json in the link's target, and only then did Save refuse the link.
+func TestInitForceNeverRemovesThroughALink(t *testing.T) {
+	dd := t.TempDir()
+	victim := t.TempDir() // stands in for a directory only root may change
+	const victimText = "{\"another\": \"service\"}\n"
+	if err := os.WriteFile(filepath.Join(victim, "config.json"), []byte(victimText), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(dd, "devnet")); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	if out, code := cli(t, "init", "--force", "--data-dir", dd, "--chain-id", "31337", "--node-ipc", "http://127.0.0.1:8545"); code == 0 {
+		t.Fatalf("init --force went through a linked network directory: %s", out)
+	}
+	if b, err := os.ReadFile(filepath.Join(victim, "config.json")); err != nil || string(b) != victimText {
+		t.Fatalf("init --force removed or changed config.json in the link's target: %q %v", b, err)
+	}
+}
+
 func TestSecureWindowsDataDirGuard(t *testing.T) {
 	// only a directory holding nothing but network folders is re-permissioned
 	dd := filepath.Join(t.TempDir(), "FerminuxValidator")

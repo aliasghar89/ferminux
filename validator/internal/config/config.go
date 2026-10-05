@@ -339,6 +339,17 @@ func Save(dir string, c Config) error {
 	return writeConfig(dir, append(b, '\n'))
 }
 
+// Remove deletes dir/config.json, if there is one, so init --force starts
+// from defaults. It runs as root in the same directory as Save, and removing
+// by path would follow a link put where the directory was: unlink(2) follows
+// links in every component but the last, so root would delete the config.json
+// in the link's target. A link in place of the directory is refused, and
+// config.json is unlinked relative to the directory that was checked
+// (removeConfig).
+func Remove(dir string) error {
+	return removeConfig(dir)
+}
+
 // CheckLoopback refuses any dashboard bind address that is not 127.0.0.1/::1.
 func CheckLoopback(addr string) error {
 	host, _, err := net.SplitHostPort(addr)

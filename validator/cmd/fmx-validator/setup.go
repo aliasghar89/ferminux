@@ -188,7 +188,9 @@ func cmdInit(args []string, out io.Writer) error {
 	if cm.network == "devnet" && cm.chainID == 0 {
 		return errors.New("devnet needs --chain-id")
 	}
-	os.Remove(path)
+	if err := config.Remove(cm.dir()); err != nil {
+		return err
+	}
 	c, _, err := loadOrCreate(cm, &nf, true)
 	if err != nil {
 		return err
