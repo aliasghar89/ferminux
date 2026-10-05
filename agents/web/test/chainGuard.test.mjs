@@ -27,6 +27,19 @@ test("sendOnChain: sends while the wallet is still on the quoted chain", async (
   assert.deepEqual(w.calls, ["eth_chainId", "eth_sendTransaction"], "the chain is read immediately before the send");
 });
 
+test("sendOnChain: reads the chain as a number or decimal string too, as the WalletConnect provider returns it", async () => {
+  // @walletconnect/universal-provider answers eth_chainId with parseInt(defaultChain): 56, not "0x38". Read as hex,
+  // 56 became 0x56 = 86 and 8453 became 0x8453 = 33875, so every WalletConnect pay-in was refused.
+  for (const [chain, quoted] of [[56, 56], [8453, 8453], ["56", 56], ["0x2105", 8453]]) {
+    const w = wallet(chain);
+    assert.equal(await sendOnChain(w, quoted, TX), HASH, `eth_chainId ${JSON.stringify(chain)} is chain ${quoted}`);
+    assert.deepEqual(w.calls, ["eth_chainId", "eth_sendTransaction"]);
+  }
+  const w = wallet(8453);
+  await assert.rejects(sendOnChain(w, 56, TX), (e) => e instanceof ChainMovedError && e.actual === 8453);
+  assert.deepEqual(w.calls, ["eth_chainId"]);
+});
+
 test("sendOnChain: a wallet that moved, or whose chain cannot be read, sends nothing", async () => {
   for (const [chain, actual] of [["0x2105", 8453], ["0x1", 1], [new Error("disconnected"), null], ["garbage", null]]) {
     const w = wallet(chain);
