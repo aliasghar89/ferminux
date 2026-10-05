@@ -243,6 +243,11 @@ func TestRunRefusesRootInAnotherUsersDirectory(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "refusing to run as root") {
 				t.Fatalf("run as root in the service user's %s: %v", owned, err)
 			}
+			// that user's own default data directory is under its home, not
+			// root's default: a hint without --data-dir sends it elsewhere
+			if !strings.Contains(err.Error(), "--data-dir "+dd) {
+				t.Fatalf("the refusal does not name --data-dir %s: %v", dd, err)
+			}
 		})
 	}
 }
@@ -396,11 +401,32 @@ func TestChownForServiceRefusesALinkedInFile(t *testing.T) {
 		if uid := owner(secret); uid != 0 {
 			t.Fatalf("a reinstall gave %s, linked in at %s, to uid %d", secret, at, uid)
 		}
-		if err == nil || !strings.Contains(err.Error(), "other links") {
+		if err == nil || !strings.Contains(err.Error(), "refusing to give it away") {
 			t.Fatalf("a file linked in at %s: %v, want it refused", at, err)
 		}
 		os.Remove(at)
 	}
+	// passwd replaces /etc/shadow by renaming a new copy over its name: the
+	// inode linked in then has one link, its only name the user's, and is
+	// still root's, as a file root wrote there itself would be
+	at := filepath.Join(net, "keys", "s")
+	if err := os.Link(secret, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(secret+"+", []byte("root:y:0:0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(secret+"+", secret); err != nil {
+		t.Fatal(err)
+	}
+	err = chownForService(svc.Username, dd, true, net)
+	if uid := owner(at); uid != 0 {
+		t.Fatalf("a reinstall gave the old %s, linked in at %s, to uid %d once its name was replaced", secret, at, uid)
+	}
+	if err == nil || !strings.Contains(err.Error(), "refusing to give it away") {
+		t.Fatalf("a file linked in at %s, its other name replaced: %v, want it refused", at, err)
+	}
+	os.Remove(at)
 	// the user's own file with other links is the user's already
 	own := filepath.Join(net, "keys", "own")
 	os.WriteFile(own, nil, 0o600)

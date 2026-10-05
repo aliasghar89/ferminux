@@ -31,11 +31,16 @@ func statOwner(st os.FileInfo) (uid, gid int, ok bool) {
 // logs and node data that the service could not open at its next start.
 // Every directory is checked as itself and, if it is a link, as what the link
 // leads to. A missing one is fine: run makes it, as root's own.
-func checkRunUser(dirs ...string) error {
+//
+// The refusal names --data-dir: root's default data directory is no other
+// user's default (theirs is under their home, which install.sh sets to this
+// very directory), so `sudo -u fmx-validator fmx-validator run` without it
+// started an unconfigured sidecar in <dataDir>/.fmx-validator.
+func checkRunUser(dataDir, netDir string) error {
 	if os.Geteuid() != 0 {
 		return nil
 	}
-	for _, d := range dirs {
+	for _, d := range []string{dataDir, netDir} {
 		for _, stat := range []func(string) (os.FileInfo, error){os.Lstat, os.Stat} {
 			st, err := stat(d)
 			if err != nil {
@@ -46,7 +51,7 @@ func checkRunUser(dirs ...string) error {
 				if u, err := user.LookupId(strconv.Itoa(uid)); err == nil {
 					name = u.Username
 				}
-				return fmt.Errorf("refusing to run as root in %s, which belongs to %s: start the installed service (systemctl start %s) or run fmx-validator as that user", d, name, service.UnitName)
+				return fmt.Errorf("refusing to run as root in %s, which belongs to %s: start the installed service (systemctl start %s) or run fmx-validator as that user with --data-dir %s (that user's default data directory is another one)", d, name, service.UnitName, dataDir)
 			}
 		}
 	}
