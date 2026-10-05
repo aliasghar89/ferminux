@@ -9,6 +9,8 @@ import {AgentAccountFactory} from "../src/AgentAccountFactory.sol";
 import {AgentRegistry} from "../src/AgentRegistry.sol";
 import {ServiceEscrow} from "../src/ServiceEscrow.sol";
 import {X402Vault} from "../src/X402Vault.sol";
+import {MemoryAnchor} from "../src/MemoryAnchor.sol";
+import {IAccountFactoryLike} from "../src/lib/IAccount.sol";
 import {Target, Wallet1271} from "./AgentAccount.t.sol";
 
 /// @dev The AgentAccount suite, run against AgentAccountV2 (same behaviour unless a test says otherwise),
@@ -649,6 +651,45 @@ contract AgentAccountV2Test is Test {
         assertTrue(acct.canSign(key));
         assertFalse(acct.isMessageSigner(key));
         assertEq(acct.isValidSignature(h, keySig), bytes4(0xffffffff));
+    }
+
+    /// @notice MIGRATION step 2: a live account that owns an agent, with its X402Vault deposit gone and a
+    ///         key re-added execute-only (0.1 FMX a day, one target). The key still signs, through the
+    ///         account's ERC-1271, a MemoryAnchor batch for the agent that anyone relays — so step 2 does
+    ///         not re-add such keys on the old account. Moved as step 3 says, agent and key, it cannot.
+    function test_attack_v1_reAddedExecuteOnlyKeyAnchorsForOwnedAgent() public {
+        AgentRegistry registry = new AgentRegistry(owner, 0);
+        AgentAccountFactory f1 = new AgentAccountFactory();
+        MemoryAnchor anchors = new MemoryAnchor(registry, IAccountFactoryLike(address(f1)), owner);
+        AgentAccount v1 = AgentAccount(payable(f1.create(owner, bytes32("v1"))));
+        vm.prank(owner);
+        bytes memory ret =
+            v1.execute(address(registry), 0, abi.encodeCall(AgentRegistry.register, ("Bot", "https://bot", "", 0)));
+        uint256 agentId = abi.decode(ret, (uint256));
+        address[] memory ts = new address[](1);
+        ts[0] = address(target);
+        vm.prank(owner);
+        v1.addSession(key, 0.1 ether, uint64(block.timestamp + 7 days), ts);
+        assertFalse(anchors.canAnchor(agentId, key));
+
+        bytes32 evil = keccak256("not the agent's memory");
+        uint64 deadline = uint64(block.timestamp + 600);
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(keyPk, anchors.hashAnchor(agentId, evil, bytes32(0), 7, "ipfs://evil", 0, deadline));
+        vm.prank(relayer);
+        anchors.anchorFor(agentId, evil, bytes32(0), 7, "ipfs://evil", deadline, abi.encodePacked(r, s, v));
+        (bytes32 head,,,) = anchors.head(agentId);
+        assertEq(head, evil);
+
+        // step 3: the agent moves to the V2 account, and the key gets its execute-only session there
+        vm.prank(owner);
+        v1.execute(address(registry), 0, abi.encodeCall(AgentRegistry.transferOwnership, (agentId, address(acct))));
+        _narrowSession(address(acct));
+        bytes32 next = keccak256("still not the agent's memory");
+        (v, r, s) = vm.sign(keyPk, anchors.hashAnchor(agentId, next, evil, 1, "", 1, deadline));
+        vm.prank(relayer);
+        vm.expectRevert(MemoryAnchor.BadSignature.selector);
+        anchors.anchorFor(agentId, next, evil, 1, "", deadline, abi.encodePacked(r, s, v));
     }
 
     /// @notice An opted-in key is the account's signer: its voucher settles, beyond its cap — which is

@@ -18,12 +18,17 @@ import {Sig} from "./lib/Sig.sol";
 /// MIGRATION — replaces the live `agentAccountFactory` / `agentAccountImpl` (agents/deployments-v3.3961.json).
 ///   Nothing here is deployed, and no governance or owner call touches a live contract:
 ///   1. Deploy `AgentAccountFactoryV2` (it deploys and bricks its own AgentAccountV2 implementation).
-///   2. Live accounts are EIP-1167 clones of a fixed implementation and cannot be upgraded. Until each
-///      owner moves, the exposure is closed by `revokeSession` on keys that should not be able to sign
-///      for the account (execute-only keys may be re-added after any X402Vault deposit is withdrawn).
+///   2. Live accounts are EIP-1167 clones of a fixed implementation and cannot be upgraded. On them every
+///      live session key signs whatever the account signs: X402Vault and X402VaultV2 vouchers (against
+///      any deposit, including one a third party tops up through `depositFor`), and for an agent the
+///      account owns, MemoryAnchor `anchorFor` batches and Endorsements `endorseFor` / `revokeFor`, as
+///      well as anything else that takes the account's ERC-1271 answer. Until each owner moves, only
+///      `revokeSession` closes that: revoke every key not trusted with all of it, and give execute-only
+///      keys their session on the V2 account (step 3), never back on the old one.
 ///   3. Each owner creates a V2 account (`factoryV2.create(owner, salt)`), re-adds its sessions, opts in
 ///      only the keys meant to sign messages, and moves funds: `v1.execute(v2, balance, "")`; an X402Vault
-///      deposit held by the old account leaves through `requestUnlock` and, an hour later, `withdraw`.
+///      deposit held by the old account leaves through `requestUnlock` and, an hour later, `withdraw`. An
+///      agent the old account owns moves with `v1.execute(registry, 0, transferOwnership(agentId, v2))`.
 ///   4. Point the gateway / SDK / web `accountFactory` / `accountImpl` keys at V2 and export the ABIs then
 ///      (`forge inspect AgentAccountV2 abi --json > abi/AgentAccountV2.json`, same for the factory).
 ///   Caveat: MemoryAnchor and Endorsements hold the live factory as an immutable and only recognise

@@ -16,7 +16,7 @@ contract ArbiterPoolV2Test is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        pool = new ArbiterPoolV2(escrow, multisig);
+        pool = new ArbiterPoolV2(escrow, multisig, ArbiterPoolV2(address(0)));
         // hand escrow governance to the pool (as the multisig tx would)
         vm.prank(gov);
         escrow.setGovernance(address(pool));
@@ -70,14 +70,15 @@ contract ArbiterPoolV2Test is BaseTest {
         assertEq(pool.minVotingPeriod(), 1 days);
         assertEq(pool.disputeTimeout(), 7 days);
         assertEq(pool.CASE_FEE(), 1 ether);
+        assertEq(address(pool.predecessor()), address(0));
         assertEq(escrow.governance(), address(pool));
     }
 
     function test_constructor_revertsZero() public {
         vm.expectRevert(ArbiterPoolV2.ZeroAddress.selector);
-        new ArbiterPoolV2(ServiceEscrow(address(0)), multisig);
+        new ArbiterPoolV2(ServiceEscrow(address(0)), multisig, ArbiterPoolV2(address(0)));
         vm.expectRevert(ArbiterPoolV2.ZeroAddress.selector);
-        new ArbiterPoolV2(escrow, address(0));
+        new ArbiterPoolV2(escrow, address(0), ArbiterPoolV2(address(0)));
     }
 
     // ───────────────────────────── pool membership ─────────────────────────────
@@ -405,10 +406,10 @@ contract ArbiterPoolV2Test is BaseTest {
     /// @dev V2: ArbiterPool reverted here (NotGovernance) for as long as governance stayed away; V2
     ///      voids the case at its normal close time instead. See the fix-2 section below.
     function test_close_voidsWhenEscrowGovernanceNotPool() public {
+        uint256 caseId = _openCase(_disputedJob(), bob);
         vm.prank(multisig);
         pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (gov)));
         assertEq(escrow.governance(), gov);
-        uint256 caseId = _openCase(_disputedJob(), bob);
         vm.expectRevert(ArbiterPoolV2.NotClosable.selector); // not before the normal close time
         pool.close(caseId);
         vm.warp(block.timestamp + 3 days);
@@ -957,7 +958,7 @@ contract ArbiterPoolV2Test is BaseTest {
     /// @notice Hand-over to a successor pool needs no drain: the successor decides the job, the old case voids.
     function test_v2_migrationToSuccessorPool() public {
         _joinAll();
-        ArbiterPoolV2 next = new ArbiterPoolV2(escrow, multisig);
+        ArbiterPoolV2 next = new ArbiterPoolV2(escrow, multisig, pool);
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(arbs[i]);
             next.joinPool{value: 500 ether}();
@@ -981,6 +982,102 @@ contract ArbiterPoolV2Test is BaseTest {
         pool.close(caseId);
         assertTrue(pool.voided(caseId));
         assertEq(pool.pendingVotes(arbs[0]), 0);
+    }
+
+    /// @notice The v1 drain run as separate transactions: after step a, a party to a stale disputed job
+    ///         opens a v1 case and closes it a second later. No arbiter can vote, so v1's zero-vote rule
+    ///         splits the job 50/50 — where v2 would have refunded the client in full at the hand-over.
+    function test_attack_v1_drainStepsApartSplitUnarbitrated() public {
+        ArbiterPool v1 = new ArbiterPool(escrow, multisig);
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(v1))));
+        uint256 jobId = _disputedJob();
+        vm.warp(block.timestamp + 30 days); // a dispute nobody took to v1
+
+        uint8 quorum = v1.quorum();
+        vm.prank(multisig);
+        v1.setParams(type(uint256).max, 1, quorum); // step a, on its own
+        vm.prank(alice);
+        uint256 caseId = v1.openCase{value: 1 ether}(jobId, "");
+        vm.warp(block.timestamp + 1);
+        v1.close(caseId);
+        assertEq(v1.getCase(caseId).result, 5000);
+        assertEq(escrow.credits(bob), 5 ether);
+
+        vm.prank(multisig);
+        v1.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(pool))));
+        vm.expectRevert(ArbiterPoolV2.JobNotDisputed.selector);
+        pool.resolveUnarbitrated(jobId);
+    }
+
+    /// @notice The drain as the MIGRATION note runs it, steps a–c in one multisig batch: the in-flight case
+    ///         is decided on its votes, nothing can be opened and closed in between, and a v1 case opened
+    ///         afterwards never closes — v2 takes its job.
+    function test_v1DrainInOneBatch() public {
+        uint256 stale = _disputedJob();
+        vm.warp(block.timestamp + 30 days); // a dispute nobody took to v1
+        (ArbiterPool v1, uint256 jobId, uint256 caseId) = _v1CaseWithVotes(); // in flight: 3 × 5000
+        vm.warp(block.timestamp + 1 hours);
+
+        vm.startPrank(multisig);
+        v1.setParams(type(uint256).max, 1, v1.quorum());
+        uint256 n = v1.nextCaseId();
+        for (uint256 id = 1; id <= n; id++) {
+            if (!v1.getCase(id).closed) v1.close(id);
+        }
+        v1.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(pool))));
+        vm.stopPrank();
+
+        assertEq(v1.getCase(caseId).result, 5000);
+        assertEq(uint8(escrow.getJob(jobId).status), uint8(ServiceEscrow.JobStatus.Resolved));
+
+        vm.prank(alice);
+        uint256 late = v1.openCase{value: 1 ether}(stale, "");
+        vm.warp(block.timestamp + 1);
+        vm.expectRevert(ServiceEscrow.NotGovernance.selector);
+        v1.close(late);
+        pool.resolveUnarbitrated(stale);
+        assertEq(escrow.credits(bob), 5 ether + 10 ether);
+
+        // v1's voters are free to leave
+        vm.prank(arbs[0]);
+        v1.leavePool();
+        vm.warp(block.timestamp + 7 days);
+        vm.prank(arbs[0]);
+        v1.leavePool();
+        assertEq(v1.stake(arbs[0]), 0);
+    }
+
+    /// @notice A v1 case opened after the batch's list was read stays open past the hand-over; when it has
+    ///         votes, a second batch lends governance back to v1 for one transaction to close it.
+    function test_v1Drain_missedCaseClosedByGovernanceLoan() public {
+        (ArbiterPool v1,,) = _v1CaseWithVotes();
+        uint256 listed = v1.nextCaseId(); // the list for step b is read here …
+        uint256 missedJob = _disputedJob();
+        vm.prank(alice);
+        uint256 missed = v1.openCase{value: 1 ether}(missedJob, ""); // … and this case comes after it
+        vm.prank(arbs[0]);
+        v1.vote(missed, 0);
+        vm.warp(block.timestamp + 1 hours);
+
+        vm.startPrank(multisig);
+        v1.setParams(type(uint256).max, 1, v1.quorum());
+        for (uint256 id = 1; id <= listed; id++) {
+            if (!v1.getCase(id).closed) v1.close(id);
+        }
+        v1.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(pool))));
+        vm.stopPrank();
+        assertFalse(v1.getCase(missed).closed);
+        assertEq(v1.pendingVotes(arbs[0]), 1);
+
+        vm.startPrank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(v1))));
+        v1.close(missed);
+        v1.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(pool))));
+        vm.stopPrank();
+        assertEq(escrow.governance(), address(pool));
+        assertEq(v1.getCase(missed).result, 0); // decided on the vote it had
+        assertEq(v1.pendingVotes(arbs[0]), 0);
     }
 
     // ═════════════════════════════ V2 fix 3: dispute timeout (ServiceEscrow) ═════════════════════════════
@@ -1056,6 +1153,8 @@ contract ArbiterPoolV2Test is BaseTest {
         pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (gov)));
         vm.warp(block.timestamp + 3 days);
         pool.close(caseId); // voided: governance was elsewhere
+        assertEq(pool.lastVoidAt(jobId), block.timestamp);
+        assertEq(pool.disputeDeadline(jobId), block.timestamp + 7 days); // the void restarts the clock
         // still not the pool's to resolve
         vm.warp(pool.disputeDeadline(jobId));
         vm.expectRevert(ServiceEscrow.NotGovernance.selector);
@@ -1114,5 +1213,164 @@ contract ArbiterPoolV2Test is BaseTest {
             pool.resolveUnarbitrated(jobId);
             assertEq(escrow.credits(bob), 10 ether);
         }
+    }
+
+    // ═════════════════════════════ V2 fix 3, continued: a timely defence outlives a void or a hand-over ═════════════════════════════
+
+    /// @notice The agent owner defends two hours before the deadline and the arbiters side with it.
+    ///         Escrow governance leaves and comes back, so the case voids at its close time. The refund
+    ///         still waits `disputeTimeout` after the void, and the owner's new case decides the job.
+    function test_v2_resolveUnarbitrated_voidRestartsTheClock() public {
+        _joinAll();
+        uint256 jobId = _disputedJob();
+        vm.warp(pool.disputeDeadline(jobId) - 2 hours);
+        uint256 caseId = _openCase(jobId, alice);
+        for (uint256 i = 0; i < 3; i++) {
+            _vote(caseId, i, 0);
+        }
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (gov)));
+        vm.warp(block.timestamp + 3 days);
+        pool.close(caseId); // voided: governance was elsewhere at its close time
+        assertTrue(pool.voided(caseId));
+        uint256 again = block.timestamp + 7 days;
+        vm.prank(gov);
+        escrow.setGovernance(address(pool));
+
+        // the review-window deadline passed days ago, but the void restarted the clock
+        assertEq(pool.disputeDeadline(jobId), again);
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.TooEarly.selector, again));
+        pool.resolveUnarbitrated(jobId);
+
+        // in which the agent owner brings the job back to a case, and the arbiters decide it
+        uint256 caseId2 = _openCase(jobId, alice);
+        for (uint256 i = 0; i < 3; i++) {
+            _vote(caseId2, i, 0);
+        }
+        vm.warp(block.timestamp + 3 days);
+        pool.close(caseId2);
+        assertEq(escrow.credits(bob), 0);
+        assertEq(registry.getAgent(agentId).jobsCompleted, 1);
+        assertEq(registry.getAgent(agentId).jobsFailed, 0);
+    }
+
+    /// @notice The agent owner defends two hours before the deadline, three arbiters vote for it, and the
+    ///         multisig hands governance to a successor two hours after the deadline. The successor
+    ///         honours the open case, then `disputeTimeout` after its void, in which the owner brings the
+    ///         job to the new pool.
+    function test_v2_successorHonoursPredecessorCase() public {
+        _joinAll();
+        ArbiterPoolV2 next = new ArbiterPoolV2(escrow, multisig, pool);
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(arbs[i]);
+            next.joinPool{value: 500 ether}();
+        }
+        uint256 jobId = _disputedJob();
+        uint256 deadline = pool.disputeDeadline(jobId);
+        vm.warp(deadline - 2 hours);
+        uint256 caseId = _openCase(jobId, alice);
+        for (uint256 i = 0; i < 3; i++) {
+            _vote(caseId, i, 0);
+        }
+        vm.warp(deadline + 2 hours);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.CaseExists.selector, caseId));
+        pool.resolveUnarbitrated(jobId);
+
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(next))));
+        // same block: the successor sees the old pool's case
+        (bool open,) = next.caseStatus(jobId);
+        assertTrue(open);
+        vm.prank(bob);
+        vm.expectRevert(ArbiterPoolV2.CaseOpenInPredecessor.selector);
+        next.resolveUnarbitrated(jobId);
+
+        // the old case voids at its close time, and the clock restarts there
+        vm.warp(uint256(pool.getCase(caseId).openedAt) + 3 days);
+        pool.close(caseId);
+        assertTrue(pool.voided(caseId));
+        uint256 again = block.timestamp + 7 days;
+        assertEq(next.disputeDeadline(jobId), again);
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.TooEarly.selector, again));
+        next.resolveUnarbitrated(jobId);
+
+        // the agent owner brings the job to the successor, whose arbiters decide it
+        vm.prank(alice);
+        uint256 nextCase = next.openCase{value: 1 ether}(jobId, "");
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(arbs[i]);
+            next.vote(nextCase, 0);
+        }
+        vm.warp(block.timestamp + 3 days);
+        next.close(nextCase);
+        assertEq(escrow.credits(bob), 0);
+        assertEq(registry.getAgent(agentId).jobsCompleted, 1);
+        assertEq(registry.getAgent(agentId).jobsFailed, 0);
+    }
+
+    /// @notice Two hand-overs inside one restarted clock: the third pool still sees the first one's void,
+    ///         and refunds the client once nobody brought the job to it in that time.
+    function test_v2_successorChainHonoursEveryPredecessor() public {
+        ArbiterPoolV2 next = new ArbiterPoolV2(escrow, multisig, pool);
+        ArbiterPoolV2 last = new ArbiterPoolV2(escrow, multisig, next);
+        uint256 jobId = _disputedJob();
+        vm.warp(pool.disputeDeadline(jobId) - 1 hours);
+        uint256 caseId = _openCase(jobId, alice);
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(next))));
+        vm.warp(block.timestamp + 3 days);
+        pool.close(caseId); // voided in the first pool
+        uint256 again = block.timestamp + 7 days;
+        vm.prank(multisig);
+        next.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(last))));
+
+        assertEq(last.disputeDeadline(jobId), again);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPoolV2.TooEarly.selector, again));
+        last.resolveUnarbitrated(jobId);
+        vm.warp(again);
+        vm.prank(carol);
+        last.resolveUnarbitrated(jobId);
+        assertEq(escrow.credits(bob), 10 ether);
+        assertEq(registry.getAgent(agentId).jobsFailed, 1);
+    }
+
+    /// @notice A pool takes cases only while it is escrow governance: a successor not yet handed over
+    ///         cannot, and a retired pool cannot either, so nobody can hold a successor's timeout off by
+    ///         opening cases that could only ever void.
+    function test_v2_openCase_onlyWhileEscrowGovernance() public {
+        ArbiterPoolV2 next = new ArbiterPoolV2(escrow, multisig, pool);
+        uint256 jobId = _disputedJob();
+        vm.prank(alice);
+        vm.expectRevert(ArbiterPoolV2.NotEscrowGovernance.selector);
+        next.openCase{value: 1 ether}(jobId, "");
+
+        vm.prank(multisig);
+        pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(next))));
+        vm.prank(alice);
+        vm.expectRevert(ArbiterPoolV2.NotEscrowGovernance.selector);
+        pool.openCase{value: 1 ether}(jobId, "");
+        (bool open,) = next.caseStatus(jobId);
+        assertFalse(open);
+
+        vm.prank(alice);
+        uint256 caseId = next.openCase{value: 1 ether}(jobId, "");
+        assertEq(next.caseOf(jobId), caseId);
+    }
+
+    function test_v2_constructor_predecessorChecks() public {
+        // a pool on another escrow: the same job id is another job there
+        ServiceEscrow other = new ServiceEscrow(registry, gov, treasury);
+        ArbiterPoolV2 foreign = new ArbiterPoolV2(other, multisig, ArbiterPoolV2(address(0)));
+        vm.expectRevert(ArbiterPoolV2.InvalidParams.selector);
+        new ArbiterPoolV2(escrow, multisig, foreign);
+        // the live ArbiterPool has no caseStatus to honour
+        ArbiterPool v1 = new ArbiterPool(escrow, multisig);
+        vm.expectRevert();
+        new ArbiterPoolV2(escrow, multisig, ArbiterPoolV2(address(v1)));
+
+        ArbiterPoolV2 next = new ArbiterPoolV2(escrow, multisig, pool);
+        assertEq(address(next.predecessor()), address(pool));
     }
 }

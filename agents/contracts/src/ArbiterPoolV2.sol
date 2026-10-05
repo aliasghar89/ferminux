@@ -23,31 +23,52 @@ import {ServiceEscrow} from "./ServiceEscrow.sol";
 ///           Refund is the conservative default: the client gets back FMX for a delivery it contested
 ///           and the agent owner did not defend. The escrow records it as a failed job for the agent
 ///           (its rule: success = clientBps < 5000); an agent owner who disagrees opens a case in time.
+///           A case opened in time keeps the refund off when it ends without a decision: its void
+///           restarts the timeout (`disputeTimeout` again from the void), and a pool deployed with a
+///           `predecessor` honours that pool's open and voided cases the same way — so handing escrow
+///           governance to a successor never turns a timely defence into a refund anyone can claim in the
+///           same block. A pool takes new cases only while it is escrow governance: one it could never
+///           decide would only void, and would hold a successor's timeout off.
 ///           Done here rather than in a new escrow: AgentRegistry.setEscrow is one-shot, so a second
 ///           escrow could never record outcomes in the live registry, and every client, gateway and
 ///           FRC-8004 adapter reads the live escrow. This pool is escrow governance, so no escrow change
 ///           is needed.
 ///
 /// MIGRATION — replaces the live `arbiterPool` (agents/deployments-v3.3961.json). Nothing here is deployed:
-///   1. Deploy `ArbiterPoolV2(escrow, multisig)` against the live `escrow`.
+///   1. Deploy `ArbiterPoolV2(escrow, multisig, address(0))` against the live `escrow` — no predecessor:
+///      v1 is drained below, and it has no `caseStatus` to honour.
 ///   2. If `escrow.governance()` is still the multisig, the multisig calls `escrow.setGovernance(v2)`.
 ///   3. If `escrow.governance()` is the live pool (v1), drain v1 first: v1.close() reverts for good once
-///      governance leaves it, and its voters could then never leave (`pendingVotes` stays > 0).
-///      a. multisig: `v1.setParams(type(uint256).max, 1, v1.quorum())` — no joins or votes from now on,
-///         and every open case becomes closable (in-flight cases are decided on the votes already cast);
-///      b. anyone: `v1.close(id)` for every id in 1..v1.nextCaseId() with `!v1.getCase(id).closed`;
-///      c. multisig: `v1.forward(escrow, abi.encodeCall(ServiceEscrow.setGovernance, (v2)))`.
+///      governance leaves it, and its voters could then never leave (`pendingVotes` stays > 0). The
+///      multisig runs a, b and c as ONE batch (one transaction): v1.openCase checks neither the bond
+///      minimum nor governance, so between a and c any party to a Disputed job with no v1 case could open
+///      one and close it a second later — nobody can vote on it, and v1's zero-vote rule splits the job
+///      50/50 without arbitration.
+///      a. `v1.setParams(type(uint256).max, 1, v1.quorum())` — no joins or votes from now on, and every
+///         open case becomes closable (in-flight cases are decided on the votes already cast; none: 50/50);
+///      b. `v1.close(id)` for every id in 1..v1.nextCaseId() with `!v1.getCase(id).closed`, listed right
+///         before the batch executes;
+///      c. `v1.forward(escrow, abi.encodeCall(ServiceEscrow.setGovernance, (v2)))`.
 ///      v1 arbiters then leave (`leavePool` twice, 7-day cooldown — the raised minStake does not block
-///      it) and join v2; v1 credits stay withdrawable. A v1 case opened after step (a) can get no votes:
-///      its job stays Disputed and v2 takes it.
+///      it) and join v2; v1 credits stay withdrawable. A v1 case opened after the batch gets no votes and
+///      can never close (escrow.resolve reverts NotGovernance): its job stays Disputed and v2 takes it,
+///      but the opener's 1 FMX fee stays in v1. A case opened after the list in b was read is left the
+///      same way; if it has votes, its voters stay pinned until it closes, so close it in a second batch
+///      that lends governance back to v1 for that one transaction: `v2.forward(escrow, setGovernance(v1))`,
+///      `v1.close(id)`, `v1.forward(escrow, setGovernance(v2))`.
 ///      Never resolve a job through `v1.forward(escrow.resolve)` while a v1 case on it is open — v1 has
 ///      no way to release that case's voters.
 ///      From the hand-over on, any Disputed job with no open v2 case and a passed `disputeDeadline` —
 ///      including jobs stuck since before v2 — can be refunded to its client through `resolveUnarbitrated`.
 ///   4. Point the gateway / SDK / web `arbiterPool` key at v2 and export its ABI then
 ///      (`forge inspect ArbiterPoolV2 abi --json > abi/ArbiterPoolV2.json`).
-///   v2's own successor needs no drain: once governance has moved, each open v2 case voids at its close
-///   time and its job, still Disputed, can be brought to the new pool.
+///   v2's own successor needs no drain: deploy it as `ArbiterPoolV2(escrow, multisig, v2)` and hand
+///   governance over. Each open v2 case voids at its close time; until then, and for `disputeTimeout`
+///   after the void, the successor's `resolveUnarbitrated` leaves the job alone, so its parties can bring
+///   it to the new pool. A successor deployed without `predecessor` would refund every such job at once.
+///   Move escrow governance only from a pool straight to its successor: while it is anywhere else no pool
+///   takes cases, and a case voided meanwhile holds the timeout off for `disputeTimeout` after its void
+///   only, however long governance stays away.
 /// @dev Paris EVM. Pull payments: bonds, rewards and the case-fee remainder land in `credits`.
 ///      Design decisions carried over from ArbiterPool:
 ///      - `leavePool` is two-step: first call starts the 7-day cooldown (and blocks new votes), second
@@ -85,6 +106,9 @@ contract ArbiterPoolV2 {
 
     ServiceEscrow public immutable escrow;
     AgentRegistry public immutable registry;
+    /// @notice The pool this one took escrow governance over from (zero if none): its cases hold this
+    ///         pool's dispute timeout off as if they were this pool's own.
+    ArbiterPoolV2 public immutable predecessor;
     address public owner;
 
     uint256 public minStake = 500 ether;
@@ -110,6 +134,8 @@ contract ArbiterPoolV2 {
     mapping(uint256 => uint256) public caseOf; // jobId => latest caseId
     /// @notice Closed without a decision because the pool could no longer resolve the job.
     mapping(uint256 => bool) public voided;
+    /// @notice jobId => when a case on it here was last voided (0 = never); the timeout restarts there.
+    mapping(uint256 => uint64) public lastVoidAt;
     mapping(uint256 => address[]) private _voters;
     mapping(uint256 => mapping(address => Vote)) private _votes;
     mapping(uint256 => string[]) private _evidence;
@@ -163,6 +189,8 @@ contract ArbiterPoolV2 {
     error Reentrancy();
     error JoinedAfterCaseOpened(uint64 activeSince, uint64 openedAt);
     error TooEarly(uint256 availableAt);
+    error NotEscrowGovernance();
+    error CaseOpenInPredecessor();
 
     // ───────────────────────────── modifiers ─────────────────────────────
 
@@ -180,10 +208,18 @@ contract ArbiterPoolV2 {
 
     // ───────────────────────────── constructor ─────────────────────────────
 
-    constructor(ServiceEscrow escrow_, address owner_) {
+    /// @param predecessor_ the ArbiterPoolV2 this pool takes escrow governance over from, or address(0)
+    constructor(ServiceEscrow escrow_, address owner_, ArbiterPoolV2 predecessor_) {
         if (address(escrow_) == address(0) || owner_ == address(0)) revert ZeroAddress();
+        if (address(predecessor_) != address(0)) {
+            // its job ids must be this escrow's; ArbiterPool (v1) has no caseStatus and reverts here,
+            // instead of leaving a resolveUnarbitrated that always reverts
+            if (predecessor_.escrow() != escrow_) revert InvalidParams();
+            predecessor_.caseStatus(0);
+        }
         escrow = escrow_;
         registry = escrow_.registry();
+        predecessor = predecessor_;
         owner = owner_;
         emit OwnershipTransferred(address(0), owner_);
     }
@@ -241,10 +277,14 @@ contract ArbiterPoolV2 {
     // ───────────────────────────── cases ─────────────────────────────
 
     /// @notice Open a case on a Disputed job. Client or agent owner; fee = 1 FMX (msg.value) → rewards.
-    ///         A job whose previous case was voided may be opened again.
+    ///         A job whose previous case was voided may be opened again. Only while this pool is escrow
+    ///         governance.
     function openCase(uint256 jobId, string calldata evidenceURI) external payable returns (uint256 caseId) {
         if (msg.value != CASE_FEE) revert WrongFee(msg.value, CASE_FEE);
         if (bytes(evidenceURI).length > 256) revert StringTooLong();
+        // A case here could never be decided, only voided — and a successor honours this pool's cases,
+        // so a retired pool taking new ones would let a party hold the successor's timeout off for ever.
+        if (escrow.governance() != address(this)) revert NotEscrowGovernance();
         uint256 prev = caseOf[jobId];
         if (prev != 0 && !voided[prev]) revert CaseExists(prev);
         ServiceEscrow.Job memory j = escrow.getJob(jobId);
@@ -377,21 +417,43 @@ contract ArbiterPoolV2 {
 
     // ───────────────────────────── dispute timeout ─────────────────────────────
 
-    /// @notice When `resolveUnarbitrated` becomes available for `jobId`: its review window's end plus
-    ///         `disputeTimeout`. The dispute itself fell inside that review window, so a party always
-    ///         has at least `disputeTimeout` after it. Reads escrow.reviewWindow live.
+    /// @notice When `resolveUnarbitrated` becomes available for `jobId`, once no case on it is open here
+    ///         or in a predecessor pool: its review window's end plus `disputeTimeout`, or the latest void
+    ///         of a case on it (here or in a predecessor pool) plus `disputeTimeout`, whichever is later.
+    ///         The dispute itself fell inside that review window, so a party always has at least
+    ///         `disputeTimeout` after it — and again after a case ends without a decision, to bring the
+    ///         job to a pool that can decide it. Reads escrow.reviewWindow live.
     function disputeDeadline(uint256 jobId) public view returns (uint256) {
-        return uint256(escrow.getJob(jobId).deliveredAt) + escrow.reviewWindow() + disputeTimeout;
+        (, uint64 lastVoid) = caseStatus(jobId);
+        return _deadline(jobId, lastVoid);
+    }
+
+    /// @notice Whether a case on `jobId` is open here or in a predecessor pool and, when none is, the
+    ///         latest time one of them was voided (0 if none was). A successor pool reads it to honour
+    ///         this pool's cases.
+    function caseStatus(uint256 jobId) public view returns (bool open, uint64 lastVoid) {
+        uint256 caseId = caseOf[jobId];
+        if (caseId != 0 && !_cases[caseId].closed) return (true, 0);
+        lastVoid = lastVoidAt[jobId];
+        if (address(predecessor) != address(0)) {
+            (bool prevOpen, uint64 prevVoid) = predecessor.caseStatus(jobId);
+            if (prevOpen) return (true, 0);
+            if (prevVoid > lastVoid) lastVoid = prevVoid;
+        }
     }
 
     /// @notice Settle a Disputed job that nobody brought to arbitration in time: full refund to the
     ///         client. Anyone may call once `disputeDeadline(jobId)` has passed and no case on the job is
-    ///         open (a voided case does not count).
+    ///         open, here or in a predecessor pool (a voided case does not count, but restarts the clock).
     function resolveUnarbitrated(uint256 jobId) external {
         uint256 caseId = caseOf[jobId];
         if (caseId != 0 && !voided[caseId]) revert CaseExists(caseId);
         if (escrow.getJob(jobId).status != ServiceEscrow.JobStatus.Disputed) revert JobNotDisputed();
-        uint256 at = disputeDeadline(jobId);
+        (bool open, uint64 lastVoid) = caseStatus(jobId);
+        // ours was checked above, so this one is the predecessor's: it voids at its close time, and the
+        // void restarts the clock for its parties to bring the job here
+        if (open) revert CaseOpenInPredecessor();
+        uint256 at = _deadline(jobId, lastVoid);
         if (block.timestamp < at) revert TooEarly(at);
         emit DisputeTimedOut(jobId, msg.sender);
         escrow.resolve(jobId, BPS);
@@ -455,12 +517,19 @@ contract ArbiterPoolV2 {
 
     // ───────────────────────────── internals ─────────────────────────────
 
+    function _deadline(uint256 jobId, uint64 lastVoid) internal view returns (uint256 at) {
+        at = uint256(escrow.getJob(jobId).deliveredAt) + escrow.reviewWindow() + disputeTimeout;
+        uint256 again = uint256(lastVoid) + disputeTimeout;
+        if (again > at) at = again;
+    }
+
     function _decidable(Case storage c) internal view returns (bool) {
         if (block.timestamp >= uint256(c.openedAt) + votingWindow) return true;
         return c.votes >= uint256(quorum) + 2 && block.timestamp >= uint256(c.openedAt) + minVotingPeriod;
     }
 
-    /// @dev No decision: release every voter, return the fee to the opener, let the job be reopened.
+    /// @dev No decision: release every voter, return the fee to the opener, let the job be reopened —
+    ///      and give its parties `disputeTimeout` to do so before `resolveUnarbitrated` may refund it.
     function _void(uint256 caseId, Case storage c) internal {
         address[] storage voters = _voters[caseId];
         for (uint256 i = 0; i < voters.length; i++) {
@@ -468,6 +537,7 @@ contract ArbiterPoolV2 {
         }
         c.closed = true;
         voided[caseId] = true;
+        lastVoidAt[c.jobId] = uint64(block.timestamp);
         credits[c.opener] += CASE_FEE;
         emit CaseVoided(caseId, c.jobId);
     }
