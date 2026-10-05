@@ -248,8 +248,8 @@ func TestRunRefusesRootInAnotherUsersDirectory(t *testing.T) {
 }
 
 func TestChownForService(t *testing.T) {
-	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
-		t.Skip("POSIX, unprivileged user")
+	if runtime.GOOS != "linux" || os.Geteuid() == 0 {
+		t.Skip("Linux, unprivileged user")
 	}
 	me, err := user.Current()
 	if err != nil {
@@ -270,8 +270,8 @@ func TestChownForService(t *testing.T) {
 // chownForService runs as root over a tree the service user can change while
 // it runs: a directory replaced by a link mid-walk must not lead it outside.
 func TestChownForServiceStaysInTheTree(t *testing.T) {
-	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
-		t.Skip("POSIX, root")
+	if runtime.GOOS != "linux" || os.Geteuid() != 0 {
+		t.Skip("Linux, root")
 	}
 	svc, err := user.Lookup("nobody")
 	if err != nil {
@@ -312,14 +312,18 @@ func TestChownForServiceStaysInTheTree(t *testing.T) {
 	first := "" // the directory the walk entered first
 	go func() {
 		defer close(swapped)
-		// once one is chowned, net has been listed with the other as a directory
+		// once a file in one is chowned, the walk is inside it and net has
+		// been listed with the other as a directory (a directory itself is
+		// chowned only after what is in it)
 	poll:
 		for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); {
 			for _, d := range dirs {
-				if st, err := os.Lstat(filepath.Join(net, d)); err == nil {
-					if uid, _, _ := statOwner(st); uid == svcUID {
-						first = d
-						break poll
+				for i := 0; i < 100; i++ {
+					if st, err := os.Lstat(filepath.Join(net, d, fmt.Sprint(i))); err == nil {
+						if uid, _, _ := statOwner(st); uid == svcUID {
+							first = d
+							break poll
+						}
 					}
 				}
 			}
@@ -346,6 +350,77 @@ func TestChownForServiceStaysInTheTree(t *testing.T) {
 	}
 	if err == nil && (owner(filepath.Join(net, first, "4999")) != svcUID || owner(filepath.Join(net, "planted")) != svcUID) {
 		t.Fatal("the network directory was not handed over")
+	}
+}
+
+// install hands the network directory over again on every run, as root, when
+// the service user already owns it. Where fs.protected_hardlinks is off, that
+// user can hard-link any file on its filesystem into it (/etc/shadow, a binary
+// root runs): chowning that name gives the user the file itself.
+func TestChownForServiceRefusesALinkedInFile(t *testing.T) {
+	if runtime.GOOS != "linux" || os.Geteuid() != 0 {
+		t.Skip("Linux, root")
+	}
+	svc, err := user.Lookup("nobody")
+	if err != nil {
+		t.Skip(err)
+	}
+	svcUID, _ := strconv.Atoi(svc.Uid)
+	owner := func(p string) int {
+		st, err := os.Lstat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		uid, _, _ := statOwner(st)
+		return uid
+	}
+	base := t.TempDir()
+	secret := filepath.Join(base, "shadow")
+	if err := os.WriteFile(secret, []byte("root:x:0:0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dd := filepath.Join(base, "fmx")
+	net := filepath.Join(dd, "mainnet")
+	if err := os.MkdirAll(filepath.Join(net, "keys"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(net, "config.json"), []byte("{}"), 0o600)
+	if err := chownForService(svc.Username, dd, false, net); err != nil {
+		t.Fatal(err)
+	}
+	for _, at := range []string{filepath.Join(net, "x"), filepath.Join(net, "keys", "x")} {
+		if err := os.Link(secret, at); err != nil {
+			t.Fatal(err)
+		}
+		err := chownForService(svc.Username, dd, true, net)
+		if uid := owner(secret); uid != 0 {
+			t.Fatalf("a reinstall gave %s, linked in at %s, to uid %d", secret, at, uid)
+		}
+		if err == nil || !strings.Contains(err.Error(), "other links") {
+			t.Fatalf("a file linked in at %s: %v, want it refused", at, err)
+		}
+		os.Remove(at)
+	}
+	// the user's own file with other links is the user's already
+	own := filepath.Join(net, "keys", "own")
+	os.WriteFile(own, nil, 0o600)
+	os.Chown(own, svcUID, svcUID)
+	os.Link(own, own+".bak")
+	if err := chownForService(svc.Username, dd, true, net); err != nil {
+		t.Fatalf("the service user's own linked file: %v", err)
+	}
+	// links root made in a directory only root could write (a first install
+	// over a tree root built) are handed over as before
+	dd2 := filepath.Join(base, "fmx2")
+	net2 := filepath.Join(dd2, "mainnet")
+	os.MkdirAll(net2, 0o700)
+	os.WriteFile(filepath.Join(net2, "a"), nil, 0o600)
+	os.Link(filepath.Join(net2, "a"), filepath.Join(net2, "a.bak"))
+	if err := chownForService(svc.Username, dd2, false, net2); err != nil {
+		t.Fatalf("root's own links in root's own directory: %v", err)
+	}
+	if uid := owner(filepath.Join(net2, "a")); uid != svcUID {
+		t.Fatalf("root's linked file was not handed over: uid %d", uid)
 	}
 }
 
