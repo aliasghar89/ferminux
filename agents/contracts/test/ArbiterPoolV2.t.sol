@@ -984,9 +984,9 @@ contract ArbiterPoolV2Test is BaseTest {
         assertEq(pool.pendingVotes(arbs[0]), 0);
     }
 
-    /// @notice The v1 drain run as separate transactions: after step a, a party to a stale disputed job
-    ///         opens a v1 case and closes it a second later. No arbiter can vote, so v1's zero-vote rule
-    ///         splits the job 50/50 — where v2 would have refunded the client in full at the hand-over.
+    /// @notice The v1 drain with b sent apart from c and d: a party to a stale disputed job opens a v1 case
+    ///         and closes it a second later. No arbiter can vote, so v1's zero-vote rule splits the job
+    ///         50/50 — where v2 would have refunded the client in full at the hand-over.
     function test_attack_v1_drainStepsApartSplitUnarbitrated() public {
         ArbiterPool v1 = new ArbiterPool(escrow, multisig);
         vm.prank(multisig);
@@ -996,7 +996,7 @@ contract ArbiterPoolV2Test is BaseTest {
 
         uint8 quorum = v1.quorum();
         vm.prank(multisig);
-        v1.setParams(type(uint256).max, 1, quorum); // step a, on its own
+        v1.setParams(type(uint256).max, 1, quorum); // step b, on its own
         vm.prank(alice);
         uint256 caseId = v1.openCase{value: 1 ether}(jobId, "");
         vm.warp(block.timestamp + 1);
@@ -1010,18 +1010,22 @@ contract ArbiterPoolV2Test is BaseTest {
         pool.resolveUnarbitrated(jobId);
     }
 
-    /// @notice The drain as the MIGRATION note runs it, steps a–c in one multisig batch: the in-flight case
-    ///         is decided on its votes, nothing can be opened and closed in between, and a v1 case opened
-    ///         afterwards never closes — v2 takes its job.
+    /// @notice The drain as the MIGRATION note runs it: the vote freeze (a) on its own, then b–d in one
+    ///         multisig batch. The in-flight case is decided on its votes, nothing can be opened and closed
+    ///         in between, and a v1 case opened afterwards never closes — v2 takes its job.
     function test_v1DrainInOneBatch() public {
         uint256 stale = _disputedJob();
         vm.warp(block.timestamp + 30 days); // a dispute nobody took to v1
         (ArbiterPool v1, uint256 jobId, uint256 caseId) = _v1CaseWithVotes(); // in flight: 3 × 5000
+        uint64 window = v1.votingWindow();
+        uint8 quorum = v1.quorum();
+        vm.prank(multisig);
+        v1.setParams(type(uint256).max, window, quorum);
+        uint256 n = v1.nextCaseId();
         vm.warp(block.timestamp + 1 hours);
 
         vm.startPrank(multisig);
         v1.setParams(type(uint256).max, 1, v1.quorum());
-        uint256 n = v1.nextCaseId();
         for (uint256 id = 1; id <= n; id++) {
             if (!v1.getCase(id).closed) v1.close(id);
         }
@@ -1048,16 +1052,19 @@ contract ArbiterPoolV2Test is BaseTest {
         assertEq(v1.stake(arbs[0]), 0);
     }
 
-    /// @notice A v1 case opened after the batch's list was read stays open past the hand-over; when it has
-    ///         votes, a second batch lends governance back to v1 for one transaction to close it.
-    function test_v1Drain_missedCaseClosedByGovernanceLoan() public {
-        (ArbiterPool v1,,) = _v1CaseWithVotes();
-        uint256 listed = v1.nextCaseId(); // the list for step b is read here …
+    /// @notice The drain with the vote freeze inside the batch: a v1 case opened and voted on after the
+    ///         batch's list was read outlives the hand-over. v2 does not see it, so anyone refunds its stale
+    ///         job through v2 in the next transaction; a governance loan to close the case then comes too
+    ///         late — v1.close reverts for good and the voter's bond can never leave v1.
+    function test_attack_v1Drain_freezeInBatchStrandsLateVoter() public {
         uint256 missedJob = _disputedJob();
+        vm.warp(block.timestamp + 30 days); // a dispute nobody took to v1 so far
+        (ArbiterPool v1,,) = _v1CaseWithVotes();
+        uint256 listed = v1.nextCaseId(); // the list for the batch is read here …
         vm.prank(alice);
         uint256 missed = v1.openCase{value: 1 ether}(missedJob, ""); // … and this case comes after it
         vm.prank(arbs[0]);
-        v1.vote(missed, 0);
+        v1.vote(missed, 0); // votes are still open: the freeze is in the batch
         vm.warp(block.timestamp + 1 hours);
 
         vm.startPrank(multisig);
@@ -1070,14 +1077,79 @@ contract ArbiterPoolV2Test is BaseTest {
         assertFalse(v1.getCase(missed).closed);
         assertEq(v1.pendingVotes(arbs[0]), 1);
 
+        vm.prank(carol);
+        pool.resolveUnarbitrated(missedJob);
+        assertEq(uint8(escrow.getJob(missedJob).status), uint8(ServiceEscrow.JobStatus.Resolved));
+
         vm.startPrank(multisig);
         pool.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(v1))));
+        vm.expectRevert(abi.encodeWithSelector(ServiceEscrow.WrongStatus.selector, ServiceEscrow.JobStatus.Resolved));
         v1.close(missed);
+        vm.stopPrank();
+
+        vm.prank(arbs[0]);
+        v1.leavePool();
+        vm.warp(block.timestamp + 365 days);
+        vm.prank(arbs[0]);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPool.VotesPending.selector, 1));
+        v1.leavePool();
+        assertEq(v1.stake(arbs[0]), 500 ether); // stranded
+    }
+
+    /// @notice The drain as the MIGRATION note runs it, freeze first: a v1 case opened after it — after the
+    ///         batch's list was read, too — can get no vote and cannot close early. The batch leaves it
+    ///         open, v2 refunds its stale job at once, and every v1 arbiter can still leave.
+    function test_v1Drain_caseOpenedAfterFreezePinsNobody() public {
+        uint256 missedJob = _disputedJob();
+        vm.warp(block.timestamp + 30 days); // a dispute nobody took to v1 so far
+        (ArbiterPool v1,, uint256 caseId) = _v1CaseWithVotes(); // in flight: 3 × 5000
+        uint64 window = v1.votingWindow();
+        uint8 quorum = v1.quorum();
+        vm.prank(multisig);
+        v1.setParams(type(uint256).max, window, quorum); // a, on its own
+        uint256 n = v1.nextCaseId();
+
+        vm.prank(alice);
+        uint256 missed = v1.openCase{value: 1 ether}(missedJob, "");
+        for (uint256 i = 0; i < 5; i++) {
+            vm.prank(arbs[i]);
+            vm.expectRevert(ArbiterPool.NotArbiter.selector);
+            v1.vote(missed, 0);
+        }
+        vm.prank(arbs[3]);
+        vm.expectRevert(abi.encodeWithSelector(ArbiterPool.BelowMinStake.selector, 500 ether, type(uint256).max));
+        v1.joinPool{value: 500 ether}();
+        vm.warp(block.timestamp + 1);
+        vm.expectRevert(ArbiterPool.NotClosable.selector);
+        v1.close(missed);
+        vm.warp(block.timestamp + 1 hours);
+
+        vm.startPrank(multisig);
+        v1.setParams(type(uint256).max, 1, quorum);
+        for (uint256 id = 1; id <= n; id++) {
+            if (!v1.getCase(id).closed) v1.close(id);
+        }
         v1.forward(address(escrow), abi.encodeCall(ServiceEscrow.setGovernance, (address(pool))));
         vm.stopPrank();
-        assertEq(escrow.governance(), address(pool));
-        assertEq(v1.getCase(missed).result, 0); // decided on the vote it had
-        assertEq(v1.pendingVotes(arbs[0]), 0);
+        assertEq(v1.getCase(caseId).result, 5000); // decided on the votes cast before the freeze
+        assertFalse(v1.getCase(missed).closed);
+        assertEq(v1.getCase(missed).votes, 0);
+
+        vm.prank(carol);
+        pool.resolveUnarbitrated(missedJob);
+        assertEq(uint8(escrow.getJob(missedJob).status), uint8(ServiceEscrow.JobStatus.Resolved));
+
+        for (uint256 i = 0; i < 3; i++) {
+            assertEq(v1.pendingVotes(arbs[i]), 0);
+            vm.prank(arbs[i]);
+            v1.leavePool();
+        }
+        vm.warp(block.timestamp + 7 days);
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(arbs[i]);
+            v1.leavePool();
+            assertEq(v1.stake(arbs[i]), 0);
+        }
     }
 
     // ═════════════════════════════ V2 fix 3: dispute timeout (ServiceEscrow) ═════════════════════════════
