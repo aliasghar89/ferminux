@@ -164,6 +164,12 @@ export function paymentFromRequest(req: FastifyRequest): Payment | null {
   return parsePayment(decoded);
 }
 
+/** A vault read that threw: its own reason when it says why the voucher is bad, otherwise a vault-check failure. */
+function vaultFailure(fail: (invalidReason: string) => VerifyResult, err: unknown): VerifyResult {
+  if (err instanceof Error && /insufficient|rejected|expired|used/i.test(err.message)) return fail(err.message);
+  return fail(`vault check failed: ${(err as Error).message.slice(0, 120)}`);
+}
+
 export class X402Facilitator {
   readonly vault?: Contract;
   readonly vaultAddress: string | null;
@@ -243,6 +249,11 @@ export class X402Facilitator {
    * balance ≥ amount + pending when the vault is deployed.
    */
   async verify(payment: Payment, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<VerifyResult> {
+    return (await this.authenticate(payment, requirement)) ?? (await this.checkFunds(payment));
+  }
+
+  /** verify() without the funds check: null when the voucher is well-formed, current, unused and signed by its payer. */
+  private async authenticate(payment: Payment, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<VerifyResult | null> {
     const v = payment.payload.voucher;
     const fail = (invalidReason: string): VerifyResult => ({ isValid: false, invalidReason, payer: v.payer, voucher: v });
     if (payment.scheme !== X402_SCHEME) return fail(`unsupported scheme "${payment.scheme}" (want ${X402_SCHEME})`);
@@ -273,6 +284,22 @@ export class X402Facilitator {
           const [ok, reason] = (await this.vault.verify(tuple, payment.payload.signature)) as [boolean, string];
           if (!ok) return fail(reason || "vault.verify rejected the voucher");
         }
+      } catch (err) {
+        return vaultFailure(fail, err);
+      }
+    } else if (!sigOk) {
+      return fail("invalid signature (EIP-712 FerminuxX402 voucher by payer)");
+    }
+    return null;
+  }
+
+  /** The payer's vault deposit covers this voucher on top of everything pending, and does not unlock before settlement. */
+  private async checkFunds(payment: Payment): Promise<VerifyResult> {
+    const v = payment.payload.voucher;
+    const fail = (invalidReason: string): VerifyResult => ({ isValid: false, invalidReason, payer: v.payer, voucher: v });
+    const nowS = this.ctx.nowS();
+    if (this.vault) {
+      try {
         const balance = (await this.vault.balance(v.payer)) as bigint;
         let pending = 0n;
         for (const r of this.pendingSum.all(v.payer) as Array<{ amount: string }>) pending += BigInt(r.amount);
@@ -282,11 +309,8 @@ export class X402Facilitator {
         const unlockAt = Number((await this.vault.unlockAt(v.payer)) as bigint);
         if (unlockAt !== 0 && unlockAt <= nowS + X402_MIN_EXPIRY_S) return fail(`payer's vault deposit unlocks at ${unlockAt} — a deposit does not re-lock it: call withdraw() once that time has passed (it re-locks the vault), or requestUnlock() again to move the unlock 1 h out, before paying`);
       } catch (err) {
-        if (err instanceof Error && /insufficient|rejected|expired|used/i.test(err.message)) return fail(err.message);
-        return fail(`vault check failed: ${(err as Error).message.slice(0, 120)}`);
+        return vaultFailure(fail, err);
       }
-    } else if (!sigOk) {
-      return fail("invalid signature (EIP-712 FerminuxX402 voucher by payer)");
     }
     return { isValid: true, payer: v.payer, voucher: v };
   }
@@ -296,8 +320,12 @@ export class X402Facilitator {
    * balance ≥ pending + amount across several awaited vault reads, and the voucher only counts as pending
    * once inserted, so two vouchers with different nonces settled in parallel each saw the other as absent —
    * a payer with a 1 FMX deposit was served N resources for 1 FMX each and the vault skipped all but one.
+   * The signature is checked before the voucher joins the queue: until then its payer is only the caller's word,
+   * and vouchers forged in someone else's name each held that payer's queue for a vault.verify round trip.
    */
   async settle(payment: Payment, resource: string, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<{ success: boolean; nonce: string; txHash: string | null; queued: boolean; errorReason?: string; payer: string }> {
+    const rejected = await this.authenticate(payment, requirement);
+    if (rejected) return { success: false, nonce: payment.payload.voucher.nonce, txHash: null, queued: false, errorReason: rejected.invalidReason, payer: payment.payload.voucher.payer };
     const key = payment.payload.voucher.payer.toLowerCase();
     const prev = this.payerTail.get(key) ?? Promise.resolve();
     let release!: () => void;
@@ -306,16 +334,17 @@ export class X402Facilitator {
     this.payerTail.set(key, tail);
     await prev;
     try {
-      return await this.settleLocked(payment, resource, requirement);
+      return await this.settleLocked(payment, resource);
     } finally {
       release();
       if (this.payerTail.get(key) === tail) this.payerTail.delete(key);
     }
   }
 
-  private async settleLocked(payment: Payment, resource: string, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<{ success: boolean; nonce: string; txHash: string | null; queued: boolean; errorReason?: string; payer: string }> {
-    const res = await this.verify(payment, requirement);
+  private async settleLocked(payment: Payment, resource: string): Promise<{ success: boolean; nonce: string; txHash: string | null; queued: boolean; errorReason?: string; payer: string }> {
     const v = payment.payload.voucher;
+    // the same voucher sent twice passes authenticate() twice: the copy that waited behind the other is refused here
+    const res = this.getVoucher.get(v.payer, v.nonce) ? { isValid: false, invalidReason: "nonce already used" } : await this.checkFunds(payment);
     if (!res.isValid) return { success: false, nonce: v.nonce, txHash: null, queued: false, errorReason: res.invalidReason, payer: v.payer };
     const status = this.vault ? "queued" : "unsettleable";
     try {
