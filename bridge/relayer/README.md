@@ -329,7 +329,9 @@ In order, in `src/verify.ts`. Every one is a refusal, not a warning.
 5. **The destination bridge is the one we think it is** — the live
    `DOMAIN_SEPARATOR()` must equal a local derivation from `(chainId, bridgeAddress)`
    and the optional pin in config. This is the anti-phishing check: a validator that
-   skips it can be talked into signing for an attacker's deployment.
+   skips it can be talked into signing for an attacker's deployment. A separator
+   that cannot be read at all (no healthy endpoint, a timeout, a rate limit) is
+   `rpc_error` and retried; only one that is read and differs is `domain_mismatch`.
 6. **Destination state** — not already `processed`, bridge not paused, `dstToken`
    registered and unpaused, and the registry's `remoteChainId`/`remoteToken` must
    mirror the transfer exactly. Amount within the contract's `maxPerTransfer`.
