@@ -41,3 +41,34 @@ func TestSaveKeepsTheOwner(t *testing.T) {
 		t.Fatalf("config.json mode %v, want 0600", fi.Mode().Perm())
 	}
 }
+
+// `sudo fmx-validator init --force` removes config.json before it saves, so
+// there is no file to take the owner from: a config.json root creates in the
+// service user's directory must be the service user's all the same.
+func TestSaveNewFileTakesTheDirectoryOwner(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("only root can give a file to another user")
+	}
+	const uid, gid = 65534, 65534
+	dir := NetworkDir(t.TempDir(), "devnet")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chown(dir, uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(dir, base()); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Lstat(filepath.Join(dir, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := fi.Sys().(*syscall.Stat_t)
+	if st.Uid != uid || st.Gid != gid {
+		t.Fatalf("config.json is %d:%d, want its directory's %d:%d", st.Uid, st.Gid, uid, gid)
+	}
+	if fi.Mode().Perm() != 0o600 {
+		t.Fatalf("config.json mode %v, want 0600", fi.Mode().Perm())
+	}
+}

@@ -323,15 +323,18 @@ func Resolve(c Config, dir string) (*Resolved, error) {
 // directory, is refused. The file is written under a fresh name (O_EXCL, so
 // never through anything planted) and renamed over config.json, which
 // replaces whatever directory entry is there by then and follows no link.
-// The new file keeps the replaced one's owner (keepOwner), so root saving in
-// that directory leaves the service a config.json it can still read.
+// The new file keeps the replaced one's owner (keepOwner), or takes the
+// directory's when there is none (init --force removes it first), so root
+// saving in that directory leaves the service a config.json it can still read.
 func Save(dir string, c Config) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	if fi, err := os.Lstat(dir); err != nil {
+	dirInfo, err := os.Lstat(dir)
+	if err != nil {
 		return err
-	} else if !fi.IsDir() {
+	}
+	if !dirInfo.IsDir() {
 		return fmt.Errorf("config: %s is a link or not a directory; refusing to write config.json through it", dir)
 	}
 	path := filepath.Join(dir, "config.json")
@@ -362,13 +365,15 @@ func Save(dir string, c Config) error {
 		os.Remove(tmp)
 		return err
 	}
-	if old != nil {
-		// through the descriptor: chowning by name would act on whatever is there by then
-		if err := keepOwner(f, old); err != nil {
-			f.Close()
-			os.Remove(tmp)
-			return err
-		}
+	owner := old
+	if owner == nil {
+		owner = dirInfo
+	}
+	// through the descriptor: chowning by name would act on whatever is there by then
+	if err := keepOwner(f, owner); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
 	}
 	if err := f.Close(); err != nil {
 		os.Remove(tmp)

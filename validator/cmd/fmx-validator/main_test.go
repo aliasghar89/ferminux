@@ -220,6 +220,43 @@ func TestChownForServiceStaysInTheTree(t *testing.T) {
 	}
 }
 
+// `sudo fmx-validator init --force` on an installed node removes config.json
+// and writes a new one: it must stay the service user's, or the service
+// cannot read its own config at the next start.
+func TestInitForceKeepsTheOwner(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
+		t.Skip("POSIX, root")
+	}
+	const uid, gid = 65534, 65534
+	dd := t.TempDir()
+	net := filepath.Join(dd, "devnet")
+	path := filepath.Join(net, "config.json")
+	reinit := func(extra ...string) {
+		t.Helper()
+		args := append([]string{"init", "--data-dir", dd, "--chain-id", "31337", "--node-ipc", "http://127.0.0.1:8545"}, extra...)
+		if out, code := cli(t, args...); code != 0 {
+			t.Fatal(out)
+		}
+		st, err := os.Lstat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if u, g, _ := statOwner(st); u != uid || g != gid || st.Mode().Perm() != 0o600 {
+			t.Fatalf("init %v left config.json %d:%d %v, want %d:%d 0600", extra, u, g, st.Mode().Perm(), uid, gid)
+		}
+	}
+	if out, code := cli(t, "init", "--data-dir", dd, "--chain-id", "31337", "--node-ipc", "http://127.0.0.1:8545"); code != 0 {
+		t.Fatal(out)
+	}
+	for _, p := range []string{net, path} { // as install leaves them
+		if err := os.Chown(p, uid, gid); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reinit("--hub", "0x00000000000000000000000000000000000000aa")
+	reinit("--force", "--hub", "0x00000000000000000000000000000000000000bb")
+}
+
 func TestSecureWindowsDataDirGuard(t *testing.T) {
 	// only a directory holding nothing but network folders is re-permissioned
 	dd := filepath.Join(t.TempDir(), "FerminuxValidator")
