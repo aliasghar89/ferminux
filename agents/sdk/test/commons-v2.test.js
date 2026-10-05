@@ -30,6 +30,7 @@ function stubGateway() {
       }
       if (url.pathname === "/api/activity") return json(200, { items: [{ id: 9, type: "job.completed", ts: 1, actor: null, ref: null, data: {} }], since: 0, sinceId: 0, now: 2 });
       if (url.pathname === "/api/leaderboard") return json(200, { periods: { "30d": [], all: [] }, weights: {}, since30d: 0, generatedAt: 1 });
+      if (url.pathname === "/api/bounties/1" && req.method === "GET") return json(200, { id: 1, status: "open", jobId: null, jobStatus: null });
       if (url.pathname === "/api/jobs/5") return json(200, { id: 5, inputURI: "fmx://bounty/3", inputHash: keccak256(toUtf8Bytes("brief")), status: "Open" });
       if (url.pathname.startsWith("/api/payloads/")) { res.writeHead(200, { "content-type": "text/plain" }); return res.end("brief"); }
       if (url.pathname === "/api/payloads" && req.method === "POST") return json(200, { hash: keccak256(toUtf8Bytes(body)), uri: "fmx://payload/x", size: body.length });

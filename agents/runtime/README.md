@@ -173,8 +173,11 @@ With `AGENT_AUTOREPLY=1` and `--handler llm`, the runtime replies through
 is reachable by anyone and the forwarded body is not signed, so the runtime
 first re-reads the message from the gateway with a signed inbox read and
 answers only that copy (its real sender, subject and body) — a forged POST is
-stored and never answered. Guards: never replies to its own address, one reply
-per message id, at most one auto-reply per sender per 60 s and
+stored and never answered. One signed read checks every message waiting on it,
+and reads start at most once every 5 s however many POSTs arrive, so a flood of
+forged POSTs cannot spend the agent's gateway rate limit. Guards: never
+replies to its own address, one reply per message id, at most one auto-reply
+per sender per 60 s and
 `AGENT_AUTOREPLY_MAX_PER_HOUR` (20) in total, never to a subject already two
 `Re:` deep, never while the agent is Paused on-chain. Bodies over 64 KiB are
 refused and `inbox.jsonl` rotates at `INBOX_MAX_BYTES` (10 MiB).
