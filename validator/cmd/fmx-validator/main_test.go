@@ -193,6 +193,60 @@ func TestRunWaitsForSetup(t *testing.T) {
 	}
 }
 
+// Root's default data directory is the one install hands to the service user,
+// so `sudo fmx-validator run` ran the sidecar as root there: it would start
+// the node binary named in a config.json the service user can rewrite, and it
+// left root-owned logs, lock and node data the service could not open.
+func TestRunRefusesRootInAnotherUsersDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
+		t.Skip("POSIX, root")
+	}
+	const uid, gid = 65534, 65534
+	for _, owned := range []string{"network directory", "data directory", "linked data directory"} {
+		t.Run(owned, func(t *testing.T) {
+			dd := t.TempDir()
+			net := filepath.Join(dd, "devnet")
+			var chown []string
+			switch owned {
+			case "network directory": // as install leaves it
+				if out, code := cli(t, "init", "--data-dir", dd, "--chain-id", "31337", "--node-ipc", "http://127.0.0.1:1"); code != 0 {
+					t.Fatal(out)
+				}
+				chown = []string{net, filepath.Join(net, "config.json")}
+			case "data directory": // the README's `install -d -o fmx-validator`, before anything else
+				chown = []string{dd}
+			case "linked data directory": // root's own link to it
+				target := t.TempDir()
+				chown = []string{target}
+				dd = filepath.Join(dd, "fmx")
+				if err := os.Symlink(target, dd); err != nil {
+					t.Skipf("symlinks unavailable here: %v", err)
+				}
+				net = filepath.Join(dd, "devnet")
+			}
+			for _, p := range chown {
+				if err := os.Chown(p, uid, gid); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, _ := os.ReadDir(net)
+			o, err := parseRun([]string{"--data-dir", dd, "--chain-id", "31337"}, &bytes.Buffer{}, &bytes.Buffer{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel() // were it to start, stop at once
+			err = runValidator(ctx, o)
+			if after, _ := os.ReadDir(net); len(after) != len(before) {
+				t.Fatalf("run as root wrote in the %s: %v, was %v", owned, after, before)
+			}
+			if err == nil || !strings.Contains(err.Error(), "refusing to run as root") {
+				t.Fatalf("run as root in the service user's %s: %v", owned, err)
+			}
+		})
+	}
+}
+
 func TestChownForService(t *testing.T) {
 	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
 		t.Skip("POSIX, unprivileged user")
