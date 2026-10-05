@@ -15,4 +15,4 @@ func chownTree(string, int, int) error { return errors.New("no file owners to se
 
 // checkRunUser: the Windows data directory is SYSTEM and Administrators only,
 // and the service runs as LocalSystem; no less privileged account owns it.
-func checkRunUser(...string) error { return nil }
+func checkRunUser(string, string) error { return nil }

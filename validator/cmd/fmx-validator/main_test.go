@@ -243,6 +243,11 @@ func TestRunRefusesRootInAnotherUsersDirectory(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "refusing to run as root") {
 				t.Fatalf("run as root in the service user's %s: %v", owned, err)
 			}
+			// that user's own default data directory is under its home, not
+			// root's default: a hint without --data-dir sends it elsewhere
+			if !strings.Contains(err.Error(), "--data-dir "+dd) {
+				t.Fatalf("the refusal does not name --data-dir %s: %v", dd, err)
+			}
 		})
 	}
 }
