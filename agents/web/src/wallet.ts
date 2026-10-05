@@ -4,6 +4,7 @@ import { CUSTOM_ERROR_TEXT, ESCROW_ABI, NFT_ABI, REGISTRY_ABI } from "./abi";
 import type { TypedDataDomain, TypedDataField } from "ethers";
 import { createWalletConnector, type Connection, type Eip1193Provider, type WalletConnector } from "../../../shared/fxwallet/connector.ts";
 import { ChainSetupError, FERMINUX_ADD_CHAIN_PARAMS, ensureFerminuxChain } from "../../../shared/fxwallet/network.ts";
+import { parseChainId } from "../../../shared/fxwallet/chains.ts";
 import { openWalletChooser } from "./walletChooser";
 import { ChainMovedError, sendOnChain } from "./chainGuard";
 
@@ -155,11 +156,15 @@ function waitForInjected(ms = 1500): Promise<boolean> {
 
 function errCode(e: any): number | undefined { return e?.code ?? e?.data?.originalError?.code ?? e?.error?.code; }
 
-/** Poll until the wallet reports the target chain (mobile wallets switch a beat after they say they did). */
+/**
+ * Poll until the wallet reports the target chain (mobile wallets switch a beat after they say they did). Every
+ * eth_chainId read in this file goes through parseChainId: the WalletConnect provider answers with a number
+ * (56, not "0x38"), which read as hex is 0x56 = 86, so a WalletConnect wallet never "reached" BNB Chain or Base.
+ */
 async function waitForChain(target: number, ms = 8000): Promise<number> {
   const until = Date.now() + ms; let c = 0;
   while (Date.now() < until) {
-    try { c = parseInt(String(await requireActive().request({ method: "eth_chainId" })), 16); } catch { /* retry */ }
+    try { c = parseChainId(await requireActive().request({ method: "eth_chainId" })) ?? 0; } catch { /* retry */ }
     if (c === target) return c;
     await new Promise((r) => setTimeout(r, 300));
   }
@@ -232,7 +237,7 @@ export async function connectAnyChain(): Promise<string> {
   if (!conn.accounts.length) throw new WalletError("The wallet returned no account.");
   state.hasProvider = true;
   state.address = conn.accounts[0]!;
-  try { state.chainId = parseInt(String(await conn.provider.request({ method: "eth_chainId" })), 16); } catch { /* ignore */ }
+  try { state.chainId = parseChainId(await conn.provider.request({ method: "eth_chainId" })); } catch { /* ignore */ }
   browserProvider = new BrowserProvider(conn.provider as never);
   emit(); return state.address;
 }
@@ -245,7 +250,7 @@ export async function switchToChain(chainId: number, params: AddChainParams): Pr
   const eth = requireActive();
   const hex = "0x" + chainId.toString(16);
   let current = 0;
-  try { current = parseInt(String(await eth.request({ method: "eth_chainId" })), 16); } catch { /* ask anyway */ }
+  try { current = parseChainId(await eth.request({ method: "eth_chainId" })) ?? 0; } catch { /* ask anyway */ }
   if (current !== chainId) {
     try {
       await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] });

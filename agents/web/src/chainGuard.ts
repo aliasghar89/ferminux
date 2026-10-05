@@ -1,8 +1,10 @@
 // A pay-in sends on another chain (BNB Chain, Base…) after switchToChain and a balance check: awaits during which the
 // user, or the wallet itself, can move to another network. eth_sendTransaction signs on whatever chain the wallet is
 // on at that instant, and a quote's deposit address and token exist only on the chain the quote was made for — so the
-// chain is read again immediately before the send, and the send is refused if it moved. Imports nothing, so the
-// tests run it under plain Node.
+// chain is read again immediately before the send, and the send is refused if it moved. Imports only the pure
+// shared/fxwallet/chains.ts, so the tests run it under plain Node.
+
+import { parseChainId } from "../../../shared/fxwallet/chains.ts";
 
 /** The one EIP-1193 call this needs. */
 export interface Requester {
@@ -23,10 +25,9 @@ export class ChainMovedError extends Error {
 /** eth_sendTransaction, only while the wallet reports `chainId`; resolves to what the wallet returned (the tx hash). */
 export async function sendOnChain(eth: Requester, chainId: number, tx: Record<string, string>): Promise<unknown> {
   let actual: number | null = null;
-  try {
-    const n = parseInt(String(await eth.request({ method: "eth_chainId" })), 16);
-    actual = Number.isNaN(n) ? null : n;
-  } catch { /* unreadable: refused below like a move */ }
+  // parseChainId, not parseInt(…, 16): the WalletConnect provider answers eth_chainId with a number (56, not "0x38"),
+  // which read as hex is 0x56 = 86 and refused every WalletConnect pay-in.
+  try { actual = parseChainId(await eth.request({ method: "eth_chainId" })); } catch { /* unreadable: refused below like a move */ }
   if (actual !== chainId) throw new ChainMovedError(chainId, actual);
   return eth.request({ method: "eth_sendTransaction", params: [tx] });
 }
