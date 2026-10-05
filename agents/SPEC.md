@@ -565,7 +565,9 @@ list.
   address it was reserved on (`fromNew`, `fromRef`), so a retry can never
   double-pay. A leg whose nonce was reserved on another `GROWTH_KEY` (the key
   changed while it was in flight) is held with an error until an operator has
-  checked that wallet's transfer. `GROWTH_KEY` unset → rows stay `paid = 0`
+  checked that wallet's transfer. A nonce reserved before the address was
+  recorded counts as reserved on the current `GROWTH_KEY`, and is recorded
+  with it when re-sent. `GROWTH_KEY` unset → rows stay `paid = 0`
   ("pending") and the worker is a no-op.
 - A reorg that removes the `JobCompleted` behind a row's eligibility takes the
   eligibility back while no transfer has been reserved; the row is earned again

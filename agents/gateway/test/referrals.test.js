@@ -523,6 +523,73 @@ test("a GROWTH_KEY change never sends a leg twice: nonces are matched within the
   assert.deepEqual(row(9), { paid: 0, txNew: null, txRef: null, nonceNew: 2, nonceRef: null }, "still held");
 });
 
+// A nonce reserved before fromNew / fromRef existed reads null, but it was reserved on the key in use then. Matched only
+// with other null rows, it missed the transfers that key recorded on the same nonce after the upgrade (and they missed
+// its own re-send), so a leg claimed another row's transfer as `recovered` and its owner was never paid.
+test("a nonce reserved before its wallet was recorded is matched with that wallet's later transfers", async () => {
+  const { ActivityBus } = await import("../dist/commons/activity.js");
+  const growth = Wallet.createRandom(); // the same GROWTH_KEY before and after the upgrade
+  const scenario = async (unsentOnce) => {
+    const db = openMemoryDb();
+    const activity = new ActivityBus(db, () => 1_758_400_000_000);
+    setMeta(db, "indexedBlock", String(1000 + REORG_DEPTH));
+    const owners = {};
+    // agent 8 was earned first (deferred by a daily cap, say), so it is paid first
+    for (const [id, at] of [[7, 2], [8, 1]]) {
+      owners[id] = Wallet.createRandom().address;
+      db.prepare("INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts, eligibleAt, jobId, eligibleBlock) VALUES (?, 1, ?, ?, 1, ?, ?, 1000)").run(id, owners[id], toolbox.address, at, id);
+      db.prepare("INSERT INTO events (txHash, logIndex, blockNumber, contractName, eventName, argsJSON, ts) VALUES (?, 0, 1000, 'escrow', 'JobCompleted', ?, 1)").run(`0xc${id}`, JSON.stringify({ jobId: String(id) }));
+    }
+    // before the upgrade, agent 7's first leg reserved nonce 0 and its send never reached the node
+    db.prepare("UPDATE referrals SET nonceNew = 0, fromNew = NULL WHERE newAgentId = 7").run();
+    // the node confirms each transfer at once and refuses a nonce it has confirmed; the first send to agent `unsentOnce`'s
+    // owner fails before it reaches the node
+    let count = 0;
+    const sent = [];
+    let failed = false;
+    const payout = new ReferralPayout({
+      db,
+      activity,
+      provider: { getBalance: async () => parseEther("1000") },
+      growthKey: growth.privateKey,
+      nowS: () => 1_758_400_000,
+      txCounts: async () => [count, count],
+      send: async (to, _value, nonce) => {
+        if (to === owners[unsentOnce] && !failed) {
+          failed = true;
+          throw new Error("connection refused");
+        }
+        if (nonce < count) throw new Error("nonce too low");
+        sent.push([to, nonce]);
+        count = nonce + 1;
+        return `0x${nonce}`;
+      },
+    });
+    const row = (id) => ({ ...db.prepare("SELECT paid, txNew, nonceNew, fromNew FROM referrals WHERE newAgentId = ?").get(id) });
+    return { payout, owners, sent, row };
+  };
+
+  // agent 8 reserves the wallet's nonce 0 and is paid on it: agent 7's leg reserved there was never sent, and takes a fresh nonce
+  {
+    const { payout, owners, sent, row } = await scenario(null);
+    assert.equal(await payout.tick(), 2);
+    assert.deepEqual(sent, [[owners[8], 0], [toolbox.address, 1], [owners[7], 2], [toolbox.address, 3]], "agent 7's owner is paid");
+    assert.deepEqual(row(7), { paid: 1, txNew: "0x2", nonceNew: 2, fromNew: growth.address });
+  }
+
+  // agent 8 reserves nonce 0 and its send fails; agent 7's leg goes out on nonce 0 from the same wallet, which is
+  // recorded with it: agent 8's leg finds that transfer on its nonce and takes a fresh one
+  {
+    const { payout, owners, sent, row } = await scenario(8);
+    assert.equal(await payout.tick(), 1);
+    assert.deepEqual(sent, [[owners[7], 0], [toolbox.address, 1]]);
+    assert.deepEqual(row(7), { paid: 1, txNew: "0x0", nonceNew: 0, fromNew: growth.address });
+    assert.equal(await payout.tick(), 1);
+    assert.deepEqual(sent.slice(2), [[owners[8], 2], [toolbox.address, 3]], "agent 8's owner is paid");
+    assert.deepEqual(row(8), { paid: 1, txNew: "0x2", nonceNew: 2, fromNew: growth.address });
+  }
+});
+
 // fromNew / fromRef shipped after the referrals table: a database deployed before them gains the columns, and migrating twice is a no-op.
 test("migrateGrowth adds fromNew and fromRef to a referrals table created before they existed", async () => {
   const { default: Database } = await import("better-sqlite3");
