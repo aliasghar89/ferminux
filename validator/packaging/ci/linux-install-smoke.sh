@@ -3,8 +3,9 @@
 # GitHub runner). It runs the staged release's install.sh, checks what it
 # set up, starts the service against a devnet configuration that talks to no
 # network at all, checks the password reaches the sidecar through systemd's
-# LoadCredential=, breaks the configuration to check a failed start says why,
-# and uninstalls everything.
+# LoadCredential=, checks an upgrade that install refuses names every file and
+# leaves the service running, breaks the configuration to check a failed start
+# says why, and uninstalls everything.
 #
 # Nothing here joins chain 3961 or any public network: the mainnet install is
 # registered with --no-start, and the service that does run is a devnet
@@ -69,6 +70,24 @@ if [ "${SKIP_CREDENTIAL_CHECK:-0}" != 1 ]; then
   ok "password delivered by LoadCredential="
 fi
 ok "devnet service running"
+
+echo "==> an upgrade over root-owned leftovers: all named, the service started again"
+# what a root run of an earlier release left in the service user's directories
+left=("$DATA_DIR/mainnet/root-leftover" "$DATA_DIR/mainnet/keys/root-leftover")
+for f in "${left[@]}"; do printf x > "$f"; done
+if out="$("$rel/install.sh" 2>&1)"; then
+  echo "$out"
+  fail "install.sh handed over root-owned files"
+fi
+echo "$out"
+for f in "${left[@]}"; do
+  grep -qF "$f (uid 0)" <<<"$out" || fail "install.sh did not name $f"
+  [ "$(stat -c '%u' "$f")" = 0 ] || fail "$f was handed over"
+done
+sleep 3
+systemctl is-active --quiet "$UNIT" || fail "a failed upgrade left $UNIT stopped"
+rm -f "${left[@]}"
+ok "failed upgrade named every leftover and started the service again"
 
 echo "==> a broken config.json: the start fails and says why"
 systemctl stop "$UNIT"
