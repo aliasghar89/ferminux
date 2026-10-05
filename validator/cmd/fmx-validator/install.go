@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"os/user"
@@ -239,26 +238,15 @@ func copyPasswordFile(src, netDir string) (string, error) {
 		return "", err
 	}
 	defer keys.Zero(pw)
-	dst := filepath.Join(netDir, "attester-password")
 	// This runs as root in a directory the service user owns (a reinstall):
-	// never write through whatever is at dst, which could be a link the
-	// service user planted. Remove it and create a fresh file; O_EXCL refuses
-	// a link put back in between.
-	if err := os.Remove(dst); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	// never write through whatever is at <netDir>/attester-password, which
+	// could be a link the service user planted, nor through a link put where
+	// netDir was. createIn removes it and creates a fresh file, both relative
+	// to netDir opened once; O_EXCL refuses a link put back in between.
+	if err := createIn(netDir, "attester-password", append(append([]byte(nil), pw...), '\n')); err != nil {
 		return "", err
 	}
-	f, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		return "", err
-	}
-	if _, err := f.Write(append(append([]byte(nil), pw...), '\n')); err != nil {
-		f.Close()
-		return "", err
-	}
-	if err := f.Close(); err != nil {
-		return "", err
-	}
-	return dst, nil
+	return filepath.Join(netDir, "attester-password"), nil
 }
 
 // systemdVersion is systemd's major version, or 0 when unknown.
