@@ -125,7 +125,7 @@ test("POST /inbox never auto-replies to a forged message: unknown id, or a body/
   registerInbox(app, {
     fmx, inboxPath: join(dir, "inbox.jsonl"), agentName: () => "Scribe", agentId: 7, handlerName: "llm",
     handler: async (input) => { prompts.push(input.messages[1].content); return { ok: true, output: "ok" }; },
-    autoreply: true, isActive: () => active, maxRepliesPerHour: 3, maxInboxBytes: 400,
+    autoreply: true, isActive: () => active, maxRepliesPerHour: 3, maxInboxBytes: 400, verifyIntervalMs: 0,
   });
   await app.ready();
   t.after(() => app.close());
@@ -169,7 +169,7 @@ test("POST /inbox: forged messages spend neither the hourly budget nor a future 
   registerInbox(app, {
     fmx, inboxPath: join(dir, "inbox.jsonl"), agentName: () => "Scribe", agentId: 7, handlerName: "llm",
     handler: async () => ({ ok: true, output: "ok" }),
-    autoreply: true, maxRepliesPerHour: 2,
+    autoreply: true, maxRepliesPerHour: 2, verifyIntervalMs: 0,
   });
   await app.ready();
   t.after(() => app.close());
@@ -192,4 +192,42 @@ test("POST /inbox: forged messages spend neither the hourly budget nor a future 
   await post({ id: 20, from: { address: other }, subject: "a", body: "first" });
   await wait();
   assert.equal(sent.length, 2);
+});
+
+test("POST /inbox: a flood of forged ids costs at most one signed gateway read per interval", async (t) => {
+  // Each read shares the gateway's per-IP rate limit with the job loop (jobs.input): one read per forged POST
+  // let a stranger push the agent into 429s and get its paid jobs declined.
+  const dir = mkdtempSync(join(tmpdir(), "fmx-inbox-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const sent = [];
+  const reads = [];
+  const gatewayItems = [];
+  const fmx = {
+    requireSigner: () => ({ address: own.address }),
+    messages: { send: async (m) => sent.push(m), inbox: async () => { reads.push(Date.now()); return { items: gatewayItems.slice() }; } },
+  };
+  const app = Fastify({ logger: false });
+  const INTERVAL = 200;
+  registerInbox(app, {
+    fmx, inboxPath: join(dir, "inbox.jsonl"), agentName: () => "Scribe", agentId: 7, handlerName: "llm",
+    handler: async () => ({ ok: true, output: "ok" }), autoreply: true, verifyIntervalMs: INTERVAL,
+  });
+  await app.ready();
+  t.after(() => app.close());
+  const post = (payload) => app.inject({ method: "POST", url: "/inbox", payload });
+  const forged = (i) => ({ id: 1000 + i, from: { address: `0x${(i + 1).toString(16).padStart(40, "0")}` }, subject: "x", body: "hi" });
+
+  const start = Date.now();
+  for (let i = 0; i < 150; i++) assert.equal((await post(forged(i))).json().autoreply, true);
+  // a real message arrives in the middle of the flood, and is still answered
+  gatewayItems.push({ id: 500, from: { address: other }, to: { address: own.address }, subject: "q", body: "real" });
+  await post({ id: 500, from: { address: other }, subject: "q", body: "real" });
+  for (let i = 150; i < 300; i++) await post(forged(i));
+  const elapsed = Date.now() - start;
+  await new Promise((r) => setTimeout(r, 2 * INTERVAL + 100));
+
+  assert.ok(reads.length <= Math.ceil(elapsed / INTERVAL) + 2, `${reads.length} reads for 301 POSTs in ${elapsed} ms`);
+  for (let i = 1; i < reads.length; i++) assert.ok(reads[i] - reads[i - 1] >= INTERVAL - 5, "reads start at least an interval apart");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, other);
 });
