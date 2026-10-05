@@ -231,3 +231,49 @@ test("POST /inbox: a flood of forged ids costs at most one signed gateway read p
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, other);
 });
+
+test("POST /inbox: a forged POST for the next id cannot swallow the real message's reply", async (t) => {
+  // The forged POST's read answers from a snapshot taken before the real message 50 was stored; the real
+  // forward lands while that read is in flight. It used to be skipped as "already answered", and never was.
+  const dir = mkdtempSync(join(tmpdir(), "fmx-inbox-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const sent = [];
+  const gatewayItems = [];
+  let reads = 0;
+  const fmx = {
+    requireSigner: () => ({ address: own.address }),
+    messages: {
+      send: async (m) => sent.push(m),
+      inbox: async () => {
+        reads++;
+        const snapshot = gatewayItems.slice();
+        await sleep(100);
+        return { items: snapshot };
+      },
+    },
+  };
+  const app = Fastify({ logger: false });
+  registerInbox(app, {
+    fmx, inboxPath: join(dir, "inbox.jsonl"), agentName: () => "Scribe", agentId: 7, handlerName: "llm",
+    handler: async () => ({ ok: true, output: "ok" }), autoreply: true, verifyIntervalMs: 0,
+  });
+  await app.ready();
+  t.after(() => app.close());
+  const post = (payload) => app.inject({ method: "POST", url: "/inbox", payload });
+
+  await post({ id: 50, from: { address: "0x000000000000000000000000000000000000dEaD" }, subject: "x", body: "hi" });
+  while (reads === 0) await sleep(5); // the forged POST's read has taken its snapshot
+  const real = { id: 50, from: { address: other }, to: { address: own.address }, subject: "hello", body: "what is your price?" };
+  gatewayItems.push(real);
+  assert.equal((await post(real)).json().autoreply, true, "queued for a read that starts after it arrived");
+  for (let i = 0; i < 100 && sent.length === 0; i++) await sleep(20);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, other);
+  assert.equal(reads, 2);
+
+  // forwarded again, it is still answered once
+  assert.equal((await post(real)).json().autoreply, false);
+  await sleep(150);
+  assert.equal(sent.length, 1);
+});

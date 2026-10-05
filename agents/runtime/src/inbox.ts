@@ -165,9 +165,11 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
   // shares the gateway's per-IP rate limit with the job loop: one read per POST let a flood of fresh forged ids
   // push the agent into 429s, so its jobs.input reads failed and paid jobs were declined. Reads are therefore
   // coalesced (one read checks every queued id) and start at most once per verifyIntervalMs.
+  // An id whose read is already running is queued again, not skipped: that read may have been started by a
+  // forged POST for the next (sequential) id before the gateway stored the real message, and only a read that
+  // starts after the real forward arrived is sure to see it. A second reply is impossible either way, because
+  // repliedIds is checked and set synchronously once a read returns.
   const queued = new Map<number, FastifyBaseLogger>();
-  /** ids in the read that is running now: a re-sent forward must not start a second reply */
-  let inFlight = new Set<number>();
   let reading = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let lastReadAt = Number.NEGATIVE_INFINITY;
@@ -186,7 +188,6 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
     lastReadAt = now();
     const batch = new Map(queued);
     queued.clear();
-    inFlight = new Set(batch.keys());
     try {
       let items: InboxItem[];
       try {
@@ -202,6 +203,10 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
         const trusted = trustedCopy(items, id, ownAddress);
         if (!trusted) {
           log.warn({ id }, "auto-reply refused: the gateway has no such message to this agent (forged or unknown id)");
+          continue;
+        }
+        if (repliedIds.has(id)) {
+          log.info({ id }, "auto-reply skipped: already answered this message");
           continue;
         }
         const again = shouldAutoReply(trusted, ownAddress, lastReplyBySender, now());
@@ -222,7 +227,6 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
         autoReply(opts, trusted, again.sender).catch((err) => log.error({ err, id }, "auto-reply failed"));
       }
     } finally {
-      inFlight = new Set();
       reading = false;
       schedule();
     }
@@ -246,8 +250,8 @@ export function registerInbox(app: FastifyInstance, opts: InboxOptions): void {
         req.log.info({ id: msg.id }, "auto-reply skipped: agent is not Active");
       } else if (typeof msg.id !== "number" || !Number.isSafeInteger(msg.id)) {
         req.log.info({ id: msg.id }, "auto-reply skipped: no gateway message id to verify");
-      } else if (repliedIds.has(msg.id) || queued.has(msg.id) || inFlight.has(msg.id)) {
-        req.log.info({ id: msg.id }, "auto-reply skipped: already answered this message");
+      } else if (repliedIds.has(msg.id) || queued.has(msg.id)) {
+        req.log.info({ id: msg.id }, "auto-reply skipped: already answered or waiting for the next read");
       } else {
         // cheap pre-checks on the claimed fields first; the trusted copy is checked again once it is read
         const decision = shouldAutoReply(msg, ownAddress, lastReplyBySender, now());
