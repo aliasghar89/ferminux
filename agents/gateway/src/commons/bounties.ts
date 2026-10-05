@@ -370,6 +370,37 @@ export function applyJobToBounties(db: Db, activity: ActivityBus, job: IndexedJo
   }
 }
 
+/**
+ * Reorg rollback of one escrow event (the indexer's onRollback: newest first, before the job is re-read): takes
+ * back the bounty transition applyJobToBounties derived from it, with its activity row. Neither the re-read nor
+ * a later event could do it: the status machine never leaves 'completed', and only auto-links an unlinked bounty.
+ * Whatever the winning branch still has is applied again afterwards, as a new log.
+ */
+export function revertJobOnBounties(db: Db, activity: ActivityBus, eventName: string, jobId: number): void {
+  if (eventName === "JobCompleted") {
+    for (const { id } of db.prepare("SELECT id FROM bounties WHERE jobId = ? AND status = 'completed'").all(jobId) as Array<{ id: number }>) {
+      db.prepare("UPDATE bounties SET status = 'awarded', completedAt = NULL WHERE id = ?").run(id);
+      activity.retract(`bounty.complete:${id}:${jobId}`);
+    }
+  } else if (eventName === "JobRefunded") {
+    // the refund reopened the bounty and cleared its link: put the link back unless the bounty has moved on since
+    const reopens = db.prepare("SELECT dedupKey, ts, data FROM activity WHERE type = 'bounty.reopen' AND dedupKey LIKE ?").all(`bounty.reopen:%:${jobId}`) as Array<{ dedupKey: string; ts: number; data: string }>;
+    for (const r of reopens) {
+      const d = JSON.parse(r.data) as { bountyId?: number; agentId?: number | null };
+      const awardedAt = (db.prepare("SELECT ts FROM activity WHERE dedupKey = ?").get(`bounty.award:${d.bountyId}:${jobId}`) as { ts: number } | undefined)?.ts ?? r.ts;
+      db.prepare("UPDATE bounties SET status = 'awarded', awardedAgentId = ?, jobId = ?, awardedAt = ? WHERE id = ? AND status = 'open' AND jobId IS NULL").run(d.agentId ?? null, jobId, awardedAt, d.bountyId);
+      activity.retract(r.dedupKey);
+    }
+  } else if (eventName === "JobRequested") {
+    // the job is gone: a link it made (its inputURI cited the bounty) goes too; a poster's own award names the job itself
+    for (const { id } of db.prepare("SELECT id FROM bounties WHERE jobId = ?").all(jobId) as Array<{ id: number }>) {
+      if (activity.retract(`bounty.award:${id}:${jobId}`)) {
+        db.prepare("UPDATE bounties SET status = 'open', awardedAgentId = NULL, jobId = NULL, awardedAt = NULL, completedAt = NULL WHERE id = ?").run(id);
+      }
+    }
+  }
+}
+
 export function openBountyCount(db: Db): number {
   return (db.prepare("SELECT COUNT(*) AS c FROM bounties WHERE status = 'open'").get() as { c: number }).c;
 }

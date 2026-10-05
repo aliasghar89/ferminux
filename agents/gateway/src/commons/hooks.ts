@@ -1,13 +1,13 @@
 // Indexer → Commons bridge: turns on-chain registry/escrow events into
 // activity rows (deduplicated by tx hash + log index, so a log applied twice —
 // a resumed backfill — never double-posts) and drives bounty status transitions.
-// A reorg that removes the event takes its activity row and its unsent job.*
-// webhooks back out (onRollback).
+// A reorg that removes the event takes its activity row, its unsent job.*
+// webhooks and the bounty transition it made back out (onRollback).
 import type { Db } from "../db.js";
 import { AgentStatusName, JobStatusName } from "../abi.js";
 import type { IndexerHooks, IndexedAgentEvent, IndexedJobEvent, RolledBackEvent } from "../indexer.js";
 import type { ActivityBus, ActivityType } from "./activity.js";
-import { applyJobToBounties } from "./bounties.js";
+import { applyJobToBounties, revertJobOnBounties } from "./bounties.js";
 import { applyJobToArena } from "./arena.js";
 import { applyJobToReferrals, referralRules, type ReferralRules } from "./referrals.js";
 
@@ -85,6 +85,7 @@ export function makeIndexerHooks(db: Db, activity: ActivityBus, opts: { referral
       // job.* webhooks were queued from that activity row under `${type}:${tx}` (WebhookBus.attachActivity)
       const type = JOB_EVENT_TYPES[ev.eventName];
       if (type) opts.webhooks?.retract(`${type}:${ev.txHash}`);
+      if (type && ev.args.jobId !== undefined) revertJobOnBounties(db, activity, ev.eventName, Number(ev.args.jobId));
     },
   };
 }
