@@ -416,8 +416,10 @@ export class ReferralPayout {
       // Another transfer from the same wallet recorded its tx on this nonce: this one's send never reached the chain
       // (it failed, and the next transfer read the same pending count), so it takes a fresh nonce rather than claim
       // that tx as its own. A payout held for a reorg (reorgFlag) leaves its reserved nonce to the next transfer this
-      // way. The same nonce number recorded by another wallet's transfer is no evidence either way.
-      const taken = db.prepare("SELECT 1 FROM referrals WHERE (nonceNew = ? AND fromNew IS ? AND txNew IS NOT NULL) OR (nonceRef = ? AND fromRef IS ? AND txRef IS NOT NULL)").get(nonce, from, nonce, from);
+      // way. The same nonce number recorded by another wallet's transfer is no evidence either way. A nonce reserved
+      // before the address was recorded (from is null) was reserved on the key in use then: this wallet's transfers
+      // recorded since count as well as those recorded without an address.
+      const taken = db.prepare("SELECT 1 FROM referrals WHERE (nonceNew = ? AND (fromNew IS ? OR fromNew IS ?) AND txNew IS NOT NULL) OR (nonceRef = ? AND (fromRef IS ? OR fromRef IS ?) AND txRef IS NOT NULL)").get(nonce, from, from ?? wallet, nonce, from, from ?? wallet);
       if (taken) nonce = null;
       else if (latest > nonce) {
         const hash = `recovered:nonce:${nonce}`;
@@ -433,8 +435,11 @@ export class ReferralPayout {
       nonce = pending;
       const reserved = db.prepare(`UPDATE referrals SET ${nonceCol} = ?, ${fromCol} = ? WHERE ${payable}`).run(nonce, wallet, r.newAgentId);
       if (!reserved.changes) throw new Error("not payable: the job completion behind it was reorged out");
-    } else if (!db.prepare(`SELECT 1 FROM referrals WHERE ${payable}`).get(r.newAgentId)) {
-      throw new Error("not payable: the job completion behind it was reorged out");
+    } else {
+      // A nonce reserved before the address was recorded is re-sent from this wallet: record it, so a transfer from
+      // this wallet that later reserved the same nonce finds this one's tx, and a key change holds this leg.
+      const resent = db.prepare(`UPDATE referrals SET ${fromCol} = COALESCE(${fromCol}, ?) WHERE ${payable}`).run(wallet, r.newAgentId);
+      if (!resent.changes) throw new Error("not payable: the job completion behind it was reorged out");
     }
     const hash = await this.send(to, value, nonce);
     db.prepare(`UPDATE referrals SET ${txCol} = ?, error = NULL WHERE newAgentId = ?`).run(hash, r.newAgentId);
