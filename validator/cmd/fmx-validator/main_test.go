@@ -186,24 +186,42 @@ func TestChownForServiceStaysInTheTree(t *testing.T) {
 	os.WriteFile(filepath.Join(outside, "root-only"), []byte("x"), 0o600)
 	// a link planted beforehand is chowned as a link, never followed
 	os.Symlink(outside, filepath.Join(net, "planted"))
-	// enough entries before zzz that the swap below lands while the walk runs
-	for i := 0; i < 5000; i++ {
-		os.WriteFile(filepath.Join(net, "aaa", fmt.Sprint(i)), nil, 0o600)
+	// The walk takes entries in readdir order, which is not sorted (ext4 lists
+	// by hash, often zzz before aaa). Both directories get enough entries that
+	// whichever it enters first keeps it busy while the other is swapped below;
+	// swapping a fixed one would land after the walk had passed it.
+	dirs := []string{"aaa", "zzz"}
+	for _, d := range dirs {
+		for i := 0; i < 5000; i++ {
+			os.WriteFile(filepath.Join(net, d, fmt.Sprint(i)), nil, 0o600)
+		}
 	}
 	svcUID, _ := strconv.Atoi(svc.Uid)
 	swapped := make(chan struct{})
+	first := "" // the directory the walk entered first
 	go func() {
 		defer close(swapped)
-		// once aaa is chowned, net has been listed with zzz as a directory
+		// once one is chowned, net has been listed with the other as a directory
+	poll:
 		for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); {
-			if st, err := os.Lstat(filepath.Join(net, "aaa")); err == nil {
-				if uid, _, _ := statOwner(st); uid == svcUID {
-					break
+			for _, d := range dirs {
+				if st, err := os.Lstat(filepath.Join(net, d)); err == nil {
+					if uid, _, _ := statOwner(st); uid == svcUID {
+						first = d
+						break poll
+					}
 				}
 			}
 		}
-		os.Rename(filepath.Join(net, "zzz"), filepath.Join(net, "zzz.was"))
-		os.Symlink(outside, filepath.Join(net, "zzz"))
+		if first == "" {
+			return
+		}
+		other := filepath.Join(net, "zzz")
+		if first == "zzz" {
+			other = filepath.Join(net, "aaa")
+		}
+		os.Rename(other, other+".was")
+		os.Symlink(outside, other)
 	}()
 	err = chownForService(svc.Username, dd, true, net)
 	<-swapped
@@ -215,7 +233,7 @@ func TestChownForServiceStaysInTheTree(t *testing.T) {
 			t.Fatalf("%s, outside the network directory, was given to uid %d", p, uid)
 		}
 	}
-	if err == nil && (owner(filepath.Join(net, "aaa", "4999")) != svcUID || owner(filepath.Join(net, "planted")) != svcUID) {
+	if err == nil && (owner(filepath.Join(net, first, "4999")) != svcUID || owner(filepath.Join(net, "planted")) != svcUID) {
 		t.Fatal("the network directory was not handed over")
 	}
 }
