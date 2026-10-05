@@ -5,7 +5,8 @@
 // `referral.claim` {newAgentId, ref} (Commons EIP-191 recipe) and POSTs it here.
 // When the referred agent completes its first QUALIFYING escrow job
 // (JobCompleted, seen by the indexer), the payout worker pays
-// REFERRAL_REWARD_FMX to BOTH owners from GROWTH_KEY. With GROWTH_KEY unset the
+// REFERRAL_REWARD_FMX to BOTH owners from GROWTH_KEY, once that completion is
+// REORG_DEPTH blocks under the indexed head. With GROWTH_KEY unset the
 // row stays paid=0 and the leaderboard shows it as "pending" — nothing is
 // lost, the worker picks it up once funded.
 //
@@ -16,8 +17,9 @@
 // the cap simply wait for the next day.
 import type { FastifyInstance } from "fastify";
 import { JsonRpcProvider, Wallet, formatEther, parseEther } from "ethers";
-import type { Db } from "../db.js";
+import { getMeta, type Db } from "../db.js";
 import { JobStatusEnum } from "../abi.js";
+import { REORG_DEPTH } from "../indexer.js";
 import { HttpError, type Author, type CommonsContext } from "./context.js";
 import type { ActivityBus } from "./activity.js";
 import { dayStart } from "../v3/context.js";
@@ -78,6 +80,8 @@ export interface ReferralRow {
   nonceRef: number | null;
   /** set when a reorg removed the job completion behind a payout that had already started (revertJobOnReferrals) */
   reorgFlag: string | null;
+  /** block of the JobCompleted log that made the row eligible: the payout waits until it is REORG_DEPTH blocks deep */
+  eligibleBlock: number | null;
 }
 
 export type ReferralStatus = "registered" | "pending" | "paid";
@@ -90,7 +94,7 @@ export interface ReferralView {
   newOwner: Author;
   refOwner: Author;
   ts: number;
-  /** registered = waiting for the referred agent's first completed job · pending = earned, payout not sent yet (GROWTH_KEY unset or underfunded) · paid */
+  /** registered = waiting for the referred agent's first completed job · pending = earned, payout not sent yet (the completion is under REORG_DEPTH blocks deep, or GROWTH_KEY unset or underfunded) · paid */
   status: ReferralStatus;
   eligibleAt: number | null;
   jobId: number | null;
@@ -178,8 +182,8 @@ export function registerReferrals(app: FastifyInstance, ctx: CommonsContext, opt
         jobQualifies(db, { newOwner: address, refOwner: refAgent.owner }, j, rules),
       );
       db.prepare(
-        "INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts, paid, eligibleAt, jobId, rewardWei) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)",
-      ).run(agent.id, refId, address, refAgent.owner, t, done ? t : null, done?.id ?? null, rewardWei);
+        "INSERT INTO referrals (newAgentId, refAgentId, newOwner, refOwner, ts, paid, eligibleAt, jobId, rewardWei, eligibleBlock) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
+      ).run(agent.id, refId, address, refAgent.owner, t, done ? t : null, done?.id ?? null, rewardWei, done ? completionBlock(db, done.id) : null);
       const row = getStmt.get(agent.id) as ReferralRow;
       activity.emit("referral.claim", {
         actor: address,
@@ -260,11 +264,27 @@ export function registerReferrals(app: FastifyInstance, ctx: CommonsContext, opt
   });
 }
 
+/** The block up to which the indexer has applied every log (0 before its first tick). */
+function indexedHead(db: Db): number {
+  return Number(getMeta(db, "indexedBlock") ?? 0);
+}
+
+/**
+ * The block of the JobCompleted log behind a job's completion: the latest one the indexer recorded, or `seenAt` (the
+ * block of the event being applied) when later. With neither, the indexed head: the job row was read from the chain.
+ */
+function completionBlock(db: Db, jobId: number, seenAt?: number): number {
+  const logged = (db.prepare("SELECT MAX(blockNumber) AS b FROM events WHERE contractName = 'escrow' AND eventName = 'JobCompleted' AND json_extract(argsJSON, '$.jobId') = ?").get(String(jobId)) as { b: number | null }).b;
+  if (logged === null && seenAt === undefined) return indexedHead(db);
+  return Math.max(logged ?? 0, seenAt ?? 0);
+}
+
 // ---------------------------------------------------------------------------
 // Indexer hook: the referred agent's first QUALIFYING Completed job (third-party
 // client, ≥ REFERRAL_MIN_JOB_FMX) makes the row eligible. Idempotent.
+// `blockNumber` is the block of the event being applied.
 // ---------------------------------------------------------------------------
-export function applyJobToReferrals(db: Db, activity: ActivityBus, job: { id: number; agentId: number; status: number; client?: string; amount?: string }, ts: number, rules: ReferralRules = referralRules()): void {
+export function applyJobToReferrals(db: Db, activity: ActivityBus, job: { id: number; agentId: number; status: number; client?: string; amount?: string }, ts: number, rules: ReferralRules = referralRules(), blockNumber?: number): void {
   if (job.status !== JobStatusEnum.Completed) return;
   const full = job.client !== undefined && job.amount !== undefined ? (job as { client: string; amount: string; status: number }) : (db.prepare("SELECT client, amount, status FROM jobs WHERE id = ?").get(job.id) as { client: string; amount: string; status: number } | undefined);
   if (!full) return;
@@ -272,9 +292,18 @@ export function applyJobToReferrals(db: Db, activity: ActivityBus, job: { id: nu
   // reorg): the payout revertJobOnReferrals flagged stands
   const flagged = db.prepare("SELECT * FROM referrals WHERE newAgentId = ? AND jobId = ? AND reorgFlag IS NOT NULL").get(job.agentId, job.id) as ReferralRow | undefined;
   if (flagged && jobQualifies(db, flagged, full, rules)) db.prepare("UPDATE referrals SET reorgFlag = NULL WHERE newAgentId = ?").run(flagged.newAgentId);
+  // Already eligible through this job: the payout waits on its latest completion log. An event before that log can
+  // make the row eligible when the job was read at the latest state (an archive read failed), and a completion on
+  // the winning branch of a reorg can land later than the one it replaced.
+  const earned = db.prepare("SELECT eligibleBlock FROM referrals WHERE newAgentId = ? AND jobId = ? AND eligibleAt IS NOT NULL AND paid = 0").get(job.agentId, job.id) as { eligibleBlock: number | null } | undefined;
+  if (earned) {
+    const block = completionBlock(db, job.id, blockNumber);
+    if (earned.eligibleBlock === null || earned.eligibleBlock < block) db.prepare("UPDATE referrals SET eligibleBlock = ? WHERE newAgentId = ?").run(block, job.agentId);
+    return;
+  }
   const row = db.prepare("SELECT * FROM referrals WHERE newAgentId = ? AND eligibleAt IS NULL").get(job.agentId) as ReferralRow | undefined;
   if (!row || !jobQualifies(db, row, full, rules)) return;
-  db.prepare("UPDATE referrals SET eligibleAt = ?, jobId = ? WHERE newAgentId = ? AND eligibleAt IS NULL").run(ts, job.id, job.agentId);
+  db.prepare("UPDATE referrals SET eligibleAt = ?, jobId = ?, eligibleBlock = ? WHERE newAgentId = ? AND eligibleAt IS NULL").run(ts, job.id, completionBlock(db, job.id, blockNumber), job.agentId);
   void activity; // payout emits referral.paid; eligibility is visible via the leaderboard "pending" count
 }
 
@@ -292,7 +321,7 @@ export function revertJobOnReferrals(db: Db, eventName: string, jobId: number, b
   for (const r of db.prepare("SELECT * FROM referrals WHERE jobId = ? AND eligibleAt IS NOT NULL").all(jobId) as ReferralRow[]) {
     const started = r.paid === 1 || r.txNew !== null || r.txRef !== null || r.nonceNew !== null || r.nonceRef !== null;
     if (!started) {
-      db.prepare("UPDATE referrals SET eligibleAt = NULL, jobId = NULL, error = NULL WHERE newAgentId = ?").run(r.newAgentId);
+      db.prepare("UPDATE referrals SET eligibleAt = NULL, jobId = NULL, eligibleBlock = NULL, error = NULL WHERE newAgentId = ?").run(r.newAgentId);
       continue;
     }
     const flag = `the completion of job ${jobId} (block ${blockNumber}) was reorged out after this payout ${r.paid === 1 ? "was sent" : "started"}`;
@@ -401,8 +430,14 @@ export class ReferralPayout {
   async tick(): Promise<number> {
     if (!this.enabled) return 0;
     const { db, activity, nowS } = this.opts;
-    // a payout flagged for a reorg is held for review: nothing more goes out for it unless the new branch completes the job again
-    const rows = db.prepare("SELECT * FROM referrals WHERE paid = 0 AND eligibleAt IS NOT NULL AND reorgFlag IS NULL ORDER BY eligibleAt ASC LIMIT 20").all() as ReferralRow[];
+    // rows made eligible before the block of their completion was recorded with them
+    for (const r of db.prepare("SELECT newAgentId, jobId FROM referrals WHERE paid = 0 AND eligibleAt IS NOT NULL AND eligibleBlock IS NULL").all() as Array<{ newAgentId: number; jobId: number | null }>) {
+      db.prepare("UPDATE referrals SET eligibleBlock = ? WHERE newAgentId = ?").run(r.jobId === null ? indexedHead(db) : completionBlock(db, r.jobId), r.newAgentId);
+    }
+    // A completion the indexer can still roll back (fewer than REORG_DEPTH blocks under its head) is not paid yet: a
+    // reorg there takes the eligibility back, while FMX already sent for it could only be flagged. A payout flagged
+    // for a reorg is held for review: nothing more goes out for it unless the new branch completes the job again.
+    const rows = db.prepare("SELECT * FROM referrals WHERE paid = 0 AND eligibleAt IS NOT NULL AND reorgFlag IS NULL AND eligibleBlock <= ? ORDER BY eligibleAt ASC LIMIT 20").all(indexedHead(db) - REORG_DEPTH) as ReferralRow[];
     const day = dayStart(nowS());
     const paidTodayAll = db.prepare("SELECT COUNT(*) AS c FROM referrals WHERE paid = 1 AND paidAt >= ?").get(day) as { c: number };
     const paidTodayBy = db.prepare("SELECT COUNT(*) AS c FROM referrals WHERE paid = 1 AND paidAt >= ? AND lower(refOwner) = lower(?)");

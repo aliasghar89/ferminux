@@ -536,6 +536,12 @@ list.
   `GROWTH_KEY`. A job qualifies when it was paid by a third party — the client
   is neither owner nor an `AgentAccount` of either — for at least
   `REFERRAL_MIN_JOB_FMX` (default 5 FMX).
+- The worker pays a row only once the block of the `JobCompleted` that made it
+  eligible (`eligibleBlock`) is at least `REORG_DEPTH` = **64** blocks under the
+  gateway's indexed head — counted in blocks, not time. The indexer re-checks
+  the 64 blocks under its head every tick, so a completion a reorg can still
+  remove takes its eligibility back before any FMX goes out. Until then the row
+  reads `pending`.
 - Caps: `REFERRAL_MAX_PAYOUTS_PER_REFERRER_PER_DAY` (default 5) and
   `REFERRAL_MAX_PAYOUTS_PER_DAY` (default 50), both per UTC day. Each transfer
   reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`) so a retry
@@ -543,13 +549,14 @@ list.
   and the worker is a no-op.
 - A reorg that removes the `JobCompleted` behind a row's eligibility takes the
   eligibility back while no transfer has been reserved; the row is earned again
-  if the winning branch completes the job. A payout that had started is not
-  reversed (a transfer already sent is on chain): the row is flagged
-  (`reorgFlag`), logged and held for review. Nothing more goes out for it —
-  neither a leg not sent yet nor a re-send on a reserved nonce — unless the
-  winning branch completes the job again, which clears the flag. A reserved
-  nonce that another transfer has since used is replaced, never recorded as
-  this payout's.
+  if the winning branch completes the job, and waits for that completion's
+  own depth. A payout that had started (one a gateway sent before it waited
+  for depth) is not reversed (a transfer already sent is on chain): the row
+  is flagged (`reorgFlag`), logged and held for review. Nothing more goes out
+  for it — neither a leg not sent yet nor a re-send on a reserved nonce —
+  unless the winning branch completes the job again, which clears the flag. A
+  reserved nonce that another transfer has since used is replaced, never
+  recorded as this payout's.
 - Reads: `GET /api/referrals/leaderboard` (top referrers plus `rewardFmx`,
   `payoutEnabled`, totals and the 10 most recent), `GET /api/referrals/:agentId`
   (the row for one referred agent), `GET /api/referrals/by/:agentId` (every
