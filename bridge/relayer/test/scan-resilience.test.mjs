@@ -469,6 +469,36 @@ const serviceDoc = () =>
     insecure: { acknowledgement: INSECURE_ACKNOWLEDGEMENT, allowCountFinalityWithoutGadget: true },
   });
 
+/** A stored transfer from CHAIN_A to CHAIN_B, as the watcher records it. */
+const transferRow = (n, status) => {
+  const now = Date.now();
+  return {
+    transferId: `0x${n.toString(16).padStart(64, '0')}`,
+    transfer: {
+      srcChainId: CHAIN_A,
+      dstChainId: CHAIN_B,
+      nonce: n,
+      srcToken: ZeroAddress,
+      dstToken: getAddress(`0x${'22'.repeat(20)}`),
+      sender: getAddress(`0x${'33'.repeat(20)}`),
+      recipient: getAddress(`0x${'44'.repeat(20)}`),
+      amount: 10n ** 18n,
+    },
+    fee: 0n,
+    srcBlockNumber: 100,
+    srcBlockHash: `0x${'aa'.repeat(32)}`,
+    srcTxHash: `0x${'bb'.repeat(32)}`,
+    srcLogIndex: n,
+    status,
+    reason: null,
+    firstSeenAt: now,
+    confirmedAt: null,
+    executedAt: null,
+    executedTxHash: null,
+    updatedAt: now,
+  };
+};
+
 test('service: a watcher\'s onConfirmed never runs concurrently with the role tick', async () => {
   // Both used to run free: the validator verified the same transfer twice and
   // consumed its 24h capacity twice for one signature, and the submitter's two
@@ -478,6 +508,7 @@ test('service: a watcher\'s onConfirmed never runs concurrently with the role ti
   const store = await openStore(join(dir, 'r.db'), 'journal');
   let active = 0;
   let peak = 0;
+  let confirmedRuns = 0;
   const busy = async () => {
     active++;
     peak = Math.max(peak, active);
@@ -492,11 +523,23 @@ test('service: a watcher\'s onConfirmed never runs concurrently with the role ti
     store,
     metrics: new Metrics(),
     tickIntervalMs: 1_000,
-    hooks: { onConfirmed: busy, tick: busy },
+    hooks: {
+      onConfirmed: async () => {
+        confirmedRuns++;
+        await busy();
+      },
+      tick: busy,
+    },
   });
   try {
+    // Real 'confirmed' rows: the queued work re-reads the row and skips one
+    // that is gone or no longer confirmed, which an empty object would be.
+    const [a, b] = [1, 2].map((n) => transferRow(n, 'confirmed'));
+    store.putTransfer(a);
+    store.putTransfer(b);
     const onConfirmed = service.watchers[0].onConfirmed;
-    await Promise.all([onConfirmed({}), service.runTick(), onConfirmed({}), service.runTick()]);
+    await Promise.all([onConfirmed(a), service.runTick(), onConfirmed(b), service.runTick()]);
+    assert.equal(confirmedRuns, 2, 'both confirmations ran');
     assert.equal(peak, 1, 'role work overlapped');
   } finally {
     for (const c of service.chains.values()) dispose(c);
@@ -602,3 +645,80 @@ test('service: a confirmation is queued behind the role tick, never awaited by t
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+for (const driver of ['sqlite', 'journal']) {
+  test(`[${driver}] service: queued role work re-reads the row and skips a transfer the tick in flight already decided`, async () => {
+    // The watcher hands over the row it read at confirm time and no longer
+    // waits for the role work, so a tick stuck before it lists its rows (in the
+    // contract-cap revisit, on a hung destination read) also picks up every
+    // transfer confirmed meanwhile. The queued call then ran on that old copy —
+    // under sqlite a separate object still saying 'confirmed' — and the
+    // validator verified a transfer it had already refused, and could sign it.
+    const dir = mkdtempSync(join(tmpdir(), `svc-reread-${driver}-`));
+    const store = await openStore(join(dir, 'r.db'), driver);
+    assert.equal(store.driver, driver);
+    let release;
+    const gate = new Promise((r) => (release = r));
+    const handled = [];
+    const [rejected, signed, deferred] = [1, 2, 3].map((n) => transferRow(n, 'seen'));
+    const service = new RelayerService({
+      cfg: parseConfig(serviceDoc(), 'x'),
+      role: 'validator',
+      log: silent(),
+      alerts: alerter(),
+      store,
+      metrics: new Metrics(),
+      tickIntervalMs: 1_000,
+      hooks: {
+        onConfirmed: async (t) => {
+          handled.push({ id: t.transferId, given: t.status, stored: store.getTransfer(t.transferId)?.status });
+        },
+        tick: async () => {
+          await gate; // stuck before it lists its rows
+          for (const t of store.listTransfers({ status: ['confirmed'] })) {
+            if (t.transferId === rejected.transferId) store.setTransferStatus(t.transferId, 'rejected', 'domain_mismatch: final');
+            if (t.transferId === signed.transferId) store.setTransferStatus(t.transferId, 'signed');
+            // `deferred` is a retryable refusal: it stays 'confirmed'.
+          }
+        },
+      },
+    });
+    const chain = {
+      name: 'a',
+      chainId: CHAIN_A,
+      config: { confirmations: 3, startBlock: 0, pollIntervalMs: 500 },
+      healthyEndpoints: [{}],
+      healthCheck: async () => {},
+      getBlockNumber: async () => 200,
+      settledHeight: async () => 197,
+      scanSent: async () => [],
+      confirmSentAcrossEndpoints: async () => ({ status: 'ok', agreed: 1, checked: 1, reason: null }),
+    };
+    for (const row of [rejected, signed, deferred]) store.putTransfer(row);
+    store.setCursor(CHAIN_A, 199);
+    const tickDone = service.runTick();
+    try {
+      const w = new Watcher({ chain, store, log: silent(), alerts: alerter(), requireRpcQuorum: false, onConfirmed: service.watchers[0].onConfirmed });
+      await w.pollOnce();
+      for (const row of [rejected, signed, deferred]) assert.equal(store.getTransfer(row.transferId)?.status, 'confirmed');
+      assert.deepEqual(handled, [], 'queued behind the tick in flight');
+
+      release();
+      await tickDone;
+      await service.runTick(); // FIFO: settles after everything queued before it
+      assert.equal(store.getTransfer(rejected.transferId)?.status, 'rejected', 'a final refusal stays final');
+      assert.equal(store.getTransfer(signed.transferId)?.status, 'signed');
+      assert.deepEqual(
+        handled,
+        [{ id: deferred.transferId, given: 'confirmed', stored: 'confirmed' }],
+        'only the transfer still confirmed is handed to the role, as it is now',
+      );
+    } finally {
+      release();
+      await tickDone;
+      for (const c of service.chains.values()) dispose(c);
+      store.close?.();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
