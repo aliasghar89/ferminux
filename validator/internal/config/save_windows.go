@@ -53,3 +53,22 @@ func writeConfig(dir string, b []byte) error {
 	}
 	return nil
 }
+
+// removeConfig deletes dir/config.json, refusing a link in place of dir as
+// writeConfig does. A missing directory or file is not an error.
+func removeConfig(dir string) error {
+	dirInfo, err := os.Lstat(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !dirInfo.IsDir() {
+		return fmt.Errorf("config: %s is a link or not a directory; refusing to remove config.json through it", dir)
+	}
+	if err := os.Remove(filepath.Join(dir, "config.json")); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}

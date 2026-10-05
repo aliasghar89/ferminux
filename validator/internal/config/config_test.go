@@ -188,6 +188,46 @@ func TestSaveRefusesLinks(t *testing.T) {
 	}
 }
 
+// init --force calls Remove as root in the same directory as Save: a link put
+// in place of the network directory must not have root delete the config.json
+// in the link's target.
+func TestRemoveRefusesALinkedDirectory(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := Remove(dir); err != nil {
+		t.Fatalf("no network directory yet: %v", err)
+	}
+	if err := Save(dir, base()); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(dir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "config.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("config.json was not removed: %v", err)
+	}
+	if err := Remove(dir); err != nil {
+		t.Fatalf("no config.json to remove: %v", err)
+	}
+
+	elsewhere := t.TempDir()
+	const victimText = "a file the service user may not remove\n"
+	victim := filepath.Join(elsewhere, "config.json")
+	if err := os.WriteFile(victim, []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(dd, "testnet")
+	if err := os.Symlink(elsewhere, linked); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	if err := Remove(linked); err == nil {
+		t.Fatal("Remove went through a linked network directory")
+	}
+	if b, err := os.ReadFile(victim); err != nil || string(b) != victimText {
+		t.Fatalf("config.json in the link's target was removed or changed: %q %v", b, err)
+	}
+}
+
 // A hard link is a regular file to Lstat, so it is not refused: the new
 // config.json replaces the directory entry and the other name keeps its data.
 func TestSaveDoesNotWriteThroughAHardLink(t *testing.T) {
