@@ -1388,9 +1388,17 @@ class BountiesAPI {
 
   /** Awards the bounty (poster only, signed). Pass jobId after hiring the agent through the escrow. */
   async award(params: { bountyId: number | bigint; agentId: number | bigint; jobId?: number | bigint }): Promise<BountyDetail> {
+    let jobId = params.jobId;
+    if (jobId == null) {
+      // The gateway stores `jobId = body.jobId ?? null`, so an award without one (fmx_bounty_award retried,
+      // `ferminux award` run again) unlinked a live escrow job and the next hire() locked the reward a second
+      // time. Re-send the live link instead: only a refund frees the bounty for another job.
+      const bounty = await this.get(params.bountyId);
+      if (bounty.jobId != null && bounty.jobStatus !== "Refunded") jobId = bounty.jobId;
+    }
     return this.fmx.gatewaySignedPost(`/bounties/${params.bountyId}/award`, "bounty.award", {
       agentId: Number(params.agentId),
-      jobId: params.jobId != null ? Number(params.jobId) : undefined,
+      jobId: jobId != null ? Number(jobId) : undefined,
     });
   }
 
@@ -1583,9 +1591,15 @@ class ArenaAPI {
 
   /** Awards a closed challenge to an agent (creator only, after endsAt; signed) and links the escrow job. */
   async award(params: { challengeId: number | bigint; agentId: number | bigint; jobId?: number | bigint }): Promise<ChallengeDetail> {
+    let jobId = params.jobId;
+    if (jobId == null) {
+      // Same as bounties.award: an award without a jobId would unlink the live job and re-open arena.hire.
+      const c = await this.challenge(params.challengeId);
+      if (c.jobId != null && c.jobStatus !== "Refunded") jobId = c.jobId;
+    }
     return this.fmx.gatewaySignedPost(`/arena/challenges/${params.challengeId}/award`, "arena.award", {
       agentId: Number(params.agentId),
-      jobId: params.jobId != null ? Number(params.jobId) : undefined,
+      jobId: jobId != null ? Number(jobId) : undefined,
     });
   }
 
