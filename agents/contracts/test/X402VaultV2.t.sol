@@ -821,11 +821,108 @@ contract X402VaultV2Test is Test {
         }
     }
 
+    /// @notice Nor does the headroom hang on the payer's deposit. The contract payer's deposit is drained
+    ///         by a direct `settle` of another of its vouchers, so its voucher is skipped for its balance
+    ///         while estimated; anyone's `depositFor` tops it up before inclusion, and on chain the voucher
+    ///         reaches its call. The estimate holds the headroom all the same, and the batch settles at it.
+    function test_v2_contractPayerToppedUpAfterEstimate_settlesAtEstimatedGas() public {
+        address p = address(new MagicPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), p);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vault.settle(X402VaultV2.Voucher(p, mallory, 1 ether, 8, vs2[0].expiry, vs2[0].ref), hex"00");
+        (bool valid, string memory reason) = vault.verify(vs2[0], sigs[0]);
+        assertFalse(valid);
+        assertEq(reason, "insufficient balance");
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.prank(relayer);
+        vault.depositFor{value: 1 ether}(p);
+        vault.settleBatch{gas: est}(vs2, sigs);
+        assertTrue(vault.used(p, 7));
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertGt(est, 16_000_000);
+    }
+
+    /// @notice Nor on the payer's code. A payer with none while estimated (self-destructed, say, to be
+    ///         deployed again at its address by CREATE2) has it back before inclusion, here with the worst
+    ///         answer: one that burns its whole allowance in a real transaction. Its voucher alone is
+    ///         skipped, and the 49 honest ones settle at the estimate.
+    function test_v2_payerCodeBackAfterEstimate_restSettleAtEstimatedGas() public {
+        address p = makeAddr("counterfactual");
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), p);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        (bool valid, string memory reason) = vault.verify(vs2[0], sigs[0]);
+        assertFalse(valid);
+        assertEq(reason, "bad signature");
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.etch(p, address(new GasPriceBurnerPayer()).code);
+        vm.txGasPrice(2 gwei);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(p, 7, "bad signature");
+        vault.settleBatch{gas: est}(vs2, sigs);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertFalse(vault.used(p, 7));
+        assertEq(vault.balance(p), 1 ether);
+        assertGt(est, 16_000_000);
+    }
+
+    /// @notice What the headroom leaves to the facilitator's margin: ahead of the first contract payer, the
+    ///         estimate holds each voucher at the cost it had then. An EOA payer's voucher skipped while
+    ///         estimated (its deposit drained) that settles on chain (refilled) takes its settlement, under
+    ///         50k, beyond the estimate — and no more, though the contract payer after it flips the same way.
+    function test_v2_toppedUpAheadOfContractPayer_costsOnlyItsSettlement() public {
+        address p = address(new MagicPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(1));
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        uint64 expiry = uint64(block.timestamp + 60);
+        vm.deal(mallory, 2 ether);
+        vm.startPrank(mallory);
+        vault.deposit{value: 1 ether}();
+        vault.depositFor{value: 1 ether}(p);
+        vm.stopPrank();
+        vs2[0] = X402VaultV2.Voucher(mallory, payee, 1 ether, 7, expiry, keccak256("resource"));
+        sigs[0] = _sign(malloryPk, vs2[0]);
+        vs2[1] = X402VaultV2.Voucher(p, payee, 1 ether, 7, expiry, keccak256("resource"));
+        sigs[1] = hex"00";
+        // both deposits drained to mallory by direct settles
+        X402VaultV2.Voucher memory drain = X402VaultV2.Voucher(mallory, mallory, 1 ether, 8, expiry, vs2[0].ref);
+        vault.settle(drain, _sign(malloryPk, drain));
+        vault.settle(X402VaultV2.Voucher(p, mallory, 1 ether, 8, expiry, vs2[0].ref), hex"00");
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.deal(relayer, 2 ether);
+        vm.startPrank(relayer);
+        vault.depositFor{value: 1 ether}(mallory);
+        vault.depositFor{value: 1 ether}(p);
+        vm.stopPrank();
+        // at the bare estimate the batch stops at the contract payer's check, before anything runs out of gas
+        vm.expectPartialRevert(X402VaultV2.InsufficientGas.selector);
+        vault.settleBatch{gas: est}(vs2, sigs);
+        vault.settleBatch{gas: est + 50_000}(vs2, sigs);
+        assertTrue(vault.used(mallory, 7));
+        assertTrue(vault.used(p, 7));
+        for (uint256 i = 2; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+    }
+
     function _asV2(X402Vault.Voucher[] memory vs) internal pure returns (X402VaultV2.Voucher[] memory out) {
         out = new X402VaultV2.Voucher[](vs.length);
         for (uint256 i = 0; i < vs.length; i++) {
             out[i] = X402VaultV2.Voucher(vs[i].payer, vs[i].payee, vs[i].amount, vs[i].nonce, vs[i].expiry, vs[i].ref);
         }
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value to everything.
+contract MagicPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        return 0x1626ba7e;
     }
 }
 
