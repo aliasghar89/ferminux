@@ -31,14 +31,24 @@ spec:
             - name: psql
               image: postgres:17.5-alpine
               command: ["/bin/sh", "-c"]
+              # All three run every pass, as in run.sh: a failed reward table
+              # must not also stop signer attribution. But a script's status
+              # is its last command's, and seed-signers.sh exits 0 on every
+              # path, so each psql status is kept and returned at the end.
+              # Otherwise a broken seed-rewards.sql would leave the Job marked
+              # Succeeded, its error only in a log kept for one minute, while
+              # the explorer publishes stale reward figures.
               args:
                 - |
-                  psql -q -v ON_ERROR_STOP=1 -f /seeder/emission-ranges.sql
-                  psql -q -v ON_ERROR_STOP=1 -f /seeder/seed-rewards.sql
+                  rc=0
+                  psql -q -v ON_ERROR_STOP=1 -f /seeder/emission-ranges.sql || rc=$?
+                  psql -q -v ON_ERROR_STOP=1 -f /seeder/seed-rewards.sql || rc=$?
                   sh /seeder/seed-signers.sh
+                  exit "$rc"
               env:
-                # seed-signers.sh asks this node who sealed each authority block
-                # (clique_getSigner): the node the backend indexes from.
+                # seed-signers.sh asks this node which signer confirmed each
+                # authority block (clique_getSigner): the node the backend
+                # indexes from.
                 - name: FMX_RPC
                   valueFrom:
                     configMapKeyRef:
