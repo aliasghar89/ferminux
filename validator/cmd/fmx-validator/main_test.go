@@ -567,6 +567,35 @@ func TestCopyPasswordFileRefusesALinkedNetworkDirectory(t *testing.T) {
 	}
 }
 
+// install copies the password into the service user's network directory
+// before it renders the unit and hands the tree over; a reinstall that stopped
+// in between left the running service a root-owned copy it could not read.
+func TestCopyPasswordFileTakesTheDirectoryOwner(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
+		t.Skip("POSIX, root")
+	}
+	const uid, gid = 65534, 65534
+	p := filepath.Join(t.TempDir(), "pw")
+	if err := os.WriteFile(p, []byte("a long enough password\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	netDir := t.TempDir()
+	if err := os.Chown(netDir, uid, gid); err != nil {
+		t.Fatal(err)
+	}
+	dst, err := copyPasswordFile(p, netDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := os.Lstat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u, g, _ := statOwner(st); u != uid || g != gid || st.Mode().Perm() != 0o600 {
+		t.Fatalf("the copy is %d:%d %v, want its directory's %d:%d 0600", u, g, st.Mode().Perm(), uid, gid)
+	}
+}
+
 // A run that fails says why in last-error.txt, which status prints while nothing runs;
 // the next run that starts removes it.
 func TestLastErrorRecorded(t *testing.T) {

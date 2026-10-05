@@ -29,7 +29,8 @@ import (
 // user a root-owned 0600 protection.log, protection.log.lock or
 // protection.log.repair it could not open: the service never signed again
 // until someone chowned them by hand. The file is made O_EXCL first, so only
-// a file this call made is given away, never one already there.
+// a file this call made is given away, never one already there; with
+// os.O_EXCL in flag, one already there is refused, as open(2) would.
 //
 // A file opened for writing that has other links and does not belong to the
 // directory's owner is refused: that owner could have linked it there from
@@ -47,7 +48,7 @@ func OpenFile(dfd int, dir, name string, flag int) (*os.File, error) {
 		// O_CREAT|O_EXCL never follows a link at name either: EEXIST
 		fd, err = unix.Openat(dfd, name, flag|unix.O_EXCL, 0o600)
 		created = err == nil
-		if err == unix.EEXIST {
+		if err == unix.EEXIST && flag&unix.O_EXCL == 0 {
 			fd, err = unix.Openat(dfd, name, flag&^unix.O_CREAT, 0)
 		}
 	} else {

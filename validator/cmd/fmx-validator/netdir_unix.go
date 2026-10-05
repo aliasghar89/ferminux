@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/aliasghar89/ferminux/validator/internal/dirfd"
 	"golang.org/x/sys/unix"
 )
 
@@ -17,6 +18,11 @@ import (
 // link in any component but the last, and O_EXCL refuses one only there, so
 // root deleted and created the file in the link's target. Here dir is opened
 // once with O_NOFOLLOW and the remove and the create are relative to it.
+// The new file takes the directory's owner (dirfd.OpenFile): install hands
+// the tree to the service user only after it has rendered the unit, so a
+// reinstall that stopped in between (an fmx-validator under /home, which the
+// unit refuses) left the running service a root-owned attester-password it
+// could not read at its next start.
 func createIn(dir, name string, data []byte) error {
 	dfd, err := openDirNoFollow(dir, "write "+name)
 	if err != nil {
@@ -27,11 +33,10 @@ func createIn(dir, name string, data []byte) error {
 	if err := unix.Unlinkat(dfd, name, 0); err != nil && err != unix.ENOENT {
 		return &os.PathError{Op: "remove", Path: path, Err: err}
 	}
-	fd, err := unix.Openat(dfd, name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0o600)
+	f, err := dirfd.OpenFile(dfd, dir, name, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
 	if err != nil {
-		return &os.PathError{Op: "open", Path: path, Err: err}
+		return err
 	}
-	f := os.NewFile(uintptr(fd), path)
 	if _, err := f.Write(data); err != nil {
 		f.Close()
 		return err
