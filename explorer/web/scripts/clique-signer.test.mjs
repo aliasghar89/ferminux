@@ -13,7 +13,7 @@ const SEAL = 65;                  // r(32) || s(32) || v(1), v in {0,1}
 const q = (hex) => toBeArray(BigInt(hex));
 
 /**
- * The address that sealed an authority block, recovered from the 65-byte seal at the end of
+ * The signer that confirmed an authority block, recovered from the 65-byte seal at the end of
  * extraData. `h` is the raw eth_getBlockByNumber / eth_getBlockByHash result (hex fields).
  * Returns null for proof-of-work blocks (number < POSA_BLOCK): there the header `miner` is real.
  */

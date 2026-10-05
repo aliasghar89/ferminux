@@ -154,7 +154,7 @@ data:
     --
     -- and, from the authority fork at block 160,000, the engine in
     -- chain/consensus/posa quarters that reward and splits it 40/50/10 between the
-    -- sealing signer, the reward sink and the treasury. What this table holds is
+    -- confirming signer, the reward sink and the treasury. What this table holds is
     -- the MINER'S share, because that is what Blockscout attributes to the block's
     -- miner; the sink and treasury appear separately as 'emission_funds'.
     --
@@ -163,7 +163,7 @@ data:
     -- 6 FMX for every block after 20,000 while the chain was actually paying 1 —
     -- a six-fold public overstatement of emission, on the page people would use to
     -- check supply. Blockscout derives miner rewards purely from this table for a
-    -- geth-variant PoW chain, so a wrong row here is not cosmetic: it is the number.
+    -- geth-variant chain, so a wrong row here is not cosmetic: it is the number.
     --
     -- Ranges must partition [0, ∞) with no gap and no overlap, so era 0 is split at
     -- the fork block rather than starting at zero.
