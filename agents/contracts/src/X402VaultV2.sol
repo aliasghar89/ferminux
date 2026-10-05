@@ -22,11 +22,14 @@ import {Sig} from "./lib/Sig.sol";
 ///           batch had left, so a payer whose answer burns gas starved every voucher after it and the
 ///           batch failed even at the block gas limit. Here such a voucher costs that allowance, and an
 ///           answer that runs out of it is "bad signature" too. And since an answer may change between the
-///           facilitator's gas estimate and inclusion (state, block.number, tx.gasprice), `settleBatch`
-///           requires, at each ERC-1271 call, the gas for that answer and for every voucher after it at its
-///           worst case (`InsufficientGas` otherwise): the estimate holds that headroom, so the batch
-///           still fits it whatever the answers do. A batch then needs a gas limit of about 325k for
-///           each voucher from its first contract payer on (16M for 50); the gas it uses is unchanged.
+///           facilitator's gas estimate and inclusion (state, block.number, tx.gasprice), and so may whether
+///           a voucher comes to its call at all (its payer's deposit, its payer's code), `settleBatch`
+///           requires, at each voucher that is not its payer's own EOA signature — decided by the calldata
+///           alone, ahead of every check on state — the gas for that voucher and for every voucher after it
+///           at its worst case (`InsufficientGas` otherwise): the estimate holds that headroom, so the batch
+///           still fits it whatever the answers, deposits and code do. A batch then needs a gas limit of
+///           about 325k for each voucher from its first contract payer on (16M for 50); the gas it uses is
+///           unchanged.
 ///
 /// MIGRATION — replaces the live `x402Vault` (agents/deployments-v3.3961.json). Nothing here is deployed:
 ///   1. Deploy `X402VaultV2(deployer, feeRecipient)`, then — last — `setGovernance(multisig)`.
@@ -36,7 +39,10 @@ import {Sig} from "./lib/Sig.sol";
 ///      vouchers already issued until they expire. The EIP-712 domain name and version are unchanged
 ///      (signers need no update); `verifyingContract` keeps vouchers of the two vaults apart. The
 ///      facilitator's `settleBatch` gas limit must stay an estimate (or above it): a fixed limit below the
-///      headroom above reverts `InsufficientGas` for every batch with a contract payer.
+///      headroom above reverts `InsufficientGas` for every batch with a contract payer. Ahead of a batch's
+///      first contract payer (and in a batch without one) the estimate holds each voucher only at the cost
+///      it had then: one skipped while estimated that settles on chain (its deposit refilled in between)
+///      takes its settlement, under 50k, beyond it, which the facilitator's margin has to cover.
 ///   4. Export the ABI then (`forge inspect X402VaultV2 abi --json > abi/X402VaultV2.json`).
 /// @dev Paris EVM (no PUSH0). Signature = EOA ecrecover OR ERC-1271 (AgentAccount clones can pay).
 ///      Domain: {name:"FerminuxX402", version:"1", chainId:block.chainid, verifyingContract:this}.
@@ -207,9 +213,9 @@ contract X402VaultV2 {
     }
 
     /// @notice Settle many vouchers; invalid ones are skipped with `Skipped(payer, nonce, reason)`.
-    ///         Reverts `InsufficientGas` when, at a contract payer's ERC-1271 call, the batch no longer
-    ///         holds the gas for that answer and for every voucher after it at its worst case; a gas
-    ///         estimate includes it.
+    ///         Reverts `InsufficientGas` when, at a voucher that is not its payer's own EOA signature (a
+    ///         contract payer's), the batch no longer holds the gas for it and for every voucher after it
+    ///         at its worst case, whatever the payer's deposit and code; a gas estimate includes it.
     /// @dev Balance is re-checked per voucher, so a payer running dry mid-batch only skips the rest.
     function settleBatch(Voucher[] calldata vs, bytes[] calldata sigs) external {
         if (vs.length != sigs.length) revert LengthMismatch();
@@ -277,47 +283,53 @@ contract X402VaultV2 {
         emit Relocked(payer);
     }
 
-    /// @param left vouchers of the batch from this one on (see `_isValidSig`); 0 outside `settleBatch`
+    /// @param left vouchers of the batch from this one on (see `_requireHeadroom`); 0 outside `settleBatch`
     function _verify(Voucher calldata v, bytes calldata sig, uint256 left) internal view returns (bool, string memory) {
         if (v.payer == address(0)) return (false, "zero payer");
         if (v.payee == address(0)) return (false, "zero payee");
         if (v.amount == 0) return (false, "zero amount");
+        bytes32 digest = hashVoucher(v);
+        address rec = Sig.recover(digest, sig);
+        // recovered ahead of every check on state, so that whether this voucher may come to an ERC-1271
+        // call (and needs the headroom) is decided by the calldata alone: the same in an estimate as on chain
+        bool eoa = rec != address(0) && rec == v.payer;
+        if (!eoa && left != 0) _requireHeadroom(sig, left);
         if (block.timestamp > v.expiry) return (false, "expired");
         if (used[v.payer][v.nonce]) return (false, "nonce used");
         if (balance[v.payer] < v.amount) return (false, "insufficient balance");
-        if (!_isValidSig(v.payer, hashVoucher(v), sig, left)) return (false, "bad signature");
+        if (!eoa && !_isValid1271(v.payer, digest, sig)) return (false, "bad signature");
         return (true, "");
     }
 
-    /// @dev Sig.isValid without its ways to revert: `signer`'s own EOA signature, or the ERC-1271 magic
-    ///      value — exactly, clean padding included — from `signer` as a contract. A reverting, short or
-    ///      dirty answer, or one that runs out of `ERC1271_GAS`, is simply not valid; only its first word
-    ///      is copied. In a batch (`left` != 0), reverts `InsufficientGas` unless the gas for `left` vouchers
-    ///      at their worst case is left for the answer.
-    function _isValidSig(address signer, bytes32 digest, bytes calldata sig, uint256 left)
-        internal
-        view
-        returns (bool valid)
-    {
-        address rec = Sig.recover(digest, sig);
-        if (rec != address(0) && rec == signer) return true;
+    /// @dev In a batch, at each voucher that is not its payer's own EOA signature: reverts `InsufficientGas`
+    ///      unless the gas for `left` vouchers at their worst case, and for this and every later signature's
+    ///      bytes, is left.
+    function _requireHeadroom(bytes calldata sig, uint256 left) internal view {
+        // The facilitator's gas limit is an estimate, taken while this voucher's answer may have been cheap
+        // or invalid — it can turn on state, block.number or tx.gasprice (0 in an estimate without fee
+        // fields) — or while the voucher never came to its call: its payer's deposit was short, or the payer
+        // had no code (anyone may `depositFor` it, and a CREATE2 account be deployed, in between). On chain
+        // it may burn its allowance, or settle where it was skipped, and the vouchers after it would run out
+        // of gas, the batch with them. A check reached only past the state checks would leave such a voucher
+        // out of the estimate, so this one turns on the calldata alone. A check of this answer's allowance
+        // alone never binds while later vouchers still need gas, so it covers every voucher left at its worst
+        // case: an estimate that passes here holds whatever the answers, deposits and code do. The later
+        // signatures follow this one in the calldata (ABI encoding lays them out in order): what is left from
+        // its first byte bounds the bytes still to copy.
+        uint256 sigStart;
+        assembly ("memory-safe") {
+            sigStart := sig.offset
+        }
+        uint256 needed = left * VOUCHER_WORST_GAS + (msg.data.length - sigStart) * SIG_BYTE_GAS;
+        if (gasleft() < needed) revert InsufficientGas(needed);
+    }
+
+    /// @dev Sig.isValid's ERC-1271 half without its ways to revert: the magic value — exactly, clean padding
+    ///      included — from `signer` as a contract. A reverting, short or dirty answer, or one that runs out
+    ///      of `ERC1271_GAS`, is simply not valid; only its first word is copied.
+    function _isValid1271(address signer, bytes32 digest, bytes calldata sig) internal view returns (bool valid) {
         if (signer.code.length == 0) return false;
         bytes memory data = abi.encodeWithSelector(ERC1271_MAGIC, digest, sig);
-        if (left != 0) {
-            // The facilitator's gas limit is an estimate, taken while this answer may have been cheap or
-            // invalid: it can turn on state, block.number or tx.gasprice (0 in an estimate without fee
-            // fields). On chain it may burn its allowance, or settle where it was skipped, and the vouchers
-            // after it would run out of gas, the batch with them. A check of this answer's allowance alone
-            // never binds while later vouchers still need gas, so it covers every voucher left at its worst
-            // case: an estimate that passes here holds whatever the answers do. The later signatures follow
-            // this one in the calldata (ABI encoding lays them out in order): what is left bounds their bytes.
-            uint256 sigEnd;
-            assembly ("memory-safe") {
-                sigEnd := add(sig.offset, sig.length)
-            }
-            uint256 needed = left * VOUCHER_WORST_GAS + (msg.data.length - sigEnd) * SIG_BYTE_GAS;
-            if (gasleft() < needed) revert InsufficientGas(needed);
-        }
         assembly ("memory-safe") {
             // capped: with gas() a payer's answer could take 63/64 of the batch's gas and starve the rest
             let ok := staticcall(ERC1271_GAS, signer, add(data, 0x20), mload(data), 0, 0x20)
