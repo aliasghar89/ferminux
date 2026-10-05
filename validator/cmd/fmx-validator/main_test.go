@@ -401,7 +401,7 @@ func TestChownForServiceRefusesALinkedInFile(t *testing.T) {
 		if uid := owner(secret); uid != 0 {
 			t.Fatalf("a reinstall gave %s, linked in at %s, to uid %d", secret, at, uid)
 		}
-		if err == nil || !strings.Contains(err.Error(), "refusing to give it away") {
+		if err == nil || !strings.Contains(err.Error(), "refusing to give away") || !strings.Contains(err.Error(), at) {
 			t.Fatalf("a file linked in at %s: %v, want it refused", at, err)
 		}
 		os.Remove(at)
@@ -423,7 +423,7 @@ func TestChownForServiceRefusesALinkedInFile(t *testing.T) {
 	if uid := owner(at); uid != 0 {
 		t.Fatalf("a reinstall gave the old %s, linked in at %s, to uid %d once its name was replaced", secret, at, uid)
 	}
-	if err == nil || !strings.Contains(err.Error(), "refusing to give it away") {
+	if err == nil || !strings.Contains(err.Error(), "refusing to give away") || !strings.Contains(err.Error(), at) {
 		t.Fatalf("a file linked in at %s, its other name replaced: %v, want it refused", at, err)
 	}
 	os.Remove(at)
