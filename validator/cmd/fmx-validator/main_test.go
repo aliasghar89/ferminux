@@ -332,6 +332,45 @@ func TestInitForceKeepsTheOwner(t *testing.T) {
 	reinit("--force", "--hub", "0x00000000000000000000000000000000000000bb")
 }
 
+// A key moved to an installed node brings its database: `sudo fmx-validator
+// protection import` runs before the service has ever opened it (the service
+// waits for a hub address and a key first). It created protection.log and its
+// lock as root's 0600 files in the network directory the service user owns,
+// and the service could never open its slashing-protection database.
+func TestProtectionImportKeepsTheServiceOwner(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
+		t.Skip("POSIX, root")
+	}
+	const uid, gid = 65534, 65534
+	dd := t.TempDir()
+	if out, code := cli(t, "init", "--data-dir", dd, "--chain-id", "31337", "--node-ipc", "http://127.0.0.1:8545"); code != 0 {
+		t.Fatal(out)
+	}
+	net := filepath.Join(dd, "devnet")
+	for _, p := range []string{net, filepath.Join(net, "config.json")} { // as install leaves them
+		if err := os.Chown(p, uid, gid); err != nil {
+			t.Fatal(err)
+		}
+	}
+	export := filepath.Join(t.TempDir(), "export.json")
+	rec := `[{"chainId":31337,"hub":"0x00000000000000000000000000000000000000aa","attester":"0x00000000000000000000000000000000000000bb","height":200,"blockHash":"0x00000000000000000000000000000000000000000000000000000000000000cc","time":1}]`
+	if err := os.WriteFile(export, []byte(rec), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, code := cli(t, "protection", "import", export, "--data-dir", dd, "--network", "devnet"); code != 0 || !strings.Contains(out, "1 record(s) added") {
+		t.Fatal(out)
+	}
+	for _, name := range []string{"protection.log", "protection.log.lock"} {
+		st, err := os.Lstat(filepath.Join(net, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if u, g, _ := statOwner(st); u != uid || g != gid || st.Mode().Perm() != 0o600 {
+			t.Fatalf("protection import left %s %d:%d %v, want the service user's %d:%d 0600", name, u, g, st.Mode().Perm(), uid, gid)
+		}
+	}
+}
+
 // The service user owns the data directory, so it can put a link where its
 // network directory was before the operator runs `sudo fmx-validator init
 // --force`. Removing config.json by path followed that link: root deleted the

@@ -5,6 +5,7 @@ package protect
 import (
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -66,4 +67,67 @@ func TestOpenRefusesALinkedDirectory(t *testing.T) {
 	if entries, _ := os.ReadDir(target); len(entries) != 0 {
 		t.Fatalf("files written in the link's target: %v", entries)
 	}
+}
+
+// The service opens its database only once it has a hub address and a key, so
+// on an installed node `sudo fmx-validator protection import` (a key moved
+// with its database), `protection show` or `export` is often the first to open
+// it; and `sudo fmx-validator status` cuts a torn record the service left
+// before the service reopens the database. Root created protection.log, its
+// lock and the repair marker as its own 0600 files in the network directory
+// the service user owns, and the service could never open its database again.
+func TestOpenGivesNewFilesTheDirectoryOwner(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("only root can give a file to another user")
+	}
+	const uid, gid = 65534, 65534
+	check := func(t *testing.T, p string) {
+		t.Helper()
+		fi, err := os.Lstat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		st := fi.Sys().(*syscall.Stat_t)
+		if st.Uid != uid || st.Gid != gid || fi.Mode().Perm() != 0o600 {
+			t.Fatalf("%s is %d:%d %v, want its directory's %d:%d 0600", filepath.Base(p), st.Uid, st.Gid, fi.Mode().Perm(), uid, gid)
+		}
+	}
+	serviceDir := func(t *testing.T) string {
+		dir := t.TempDir()
+		if err := os.Chown(dir, uid, gid); err != nil {
+			t.Fatal(err)
+		}
+		return dir
+	}
+	t.Run("new database", func(t *testing.T) {
+		p := filepath.Join(serviceDir(t), "protection.log")
+		db, err := Open(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		db.Close()
+		check(t, p)
+		check(t, p+".lock")
+	})
+	t.Run("torn record cut", func(t *testing.T) {
+		p := filepath.Join(serviceDir(t), "protection.log")
+		// as the service left them: its own database and lock, a torn last line
+		for name, b := range map[string]string{p: "A1 3961 0x5fbdb2315678afecb367f032d93f642f64180aa3 0x67d4f9", p + ".lock": ""} {
+			if err := os.WriteFile(name, []byte(b), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chown(name, uid, gid); err != nil {
+				t.Fatal(err)
+			}
+		}
+		db, err := Open(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if db.Repaired() == 0 {
+			t.Fatal("torn tail not reported")
+		}
+		db.Close()
+		check(t, p+".repair")
+	})
 }

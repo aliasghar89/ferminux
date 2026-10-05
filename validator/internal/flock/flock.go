@@ -22,7 +22,8 @@ type Lock struct {
 
 // Acquire locks path (creating it with mode 0600) and writes this process's
 // PID into it for diagnostics. A link at path, or in place of its directory,
-// is refused on Linux and the other Unix systems (see openLockFile).
+// is refused on Linux and the other Unix systems, and a lock root creates
+// there takes its directory's owner (see openLockFile).
 func Acquire(path string) (*Lock, error) {
 	f, err := openLockFile(path)
 	if err != nil {

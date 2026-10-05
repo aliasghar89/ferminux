@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/aliasghar89/ferminux/validator/internal/dirfd"
 	"golang.org/x/sys/unix"
 )
 
@@ -19,7 +20,8 @@ import (
 // was. Opening them by path had root cut protection.log's torn tail, and
 // truncate and write the repair marker, in the link's target. A link at a
 // name, or in place of the directory, is refused, and so is anything but a
-// regular file.
+// regular file. A file root creates there takes the directory's owner, so the
+// service can still open it (dirfd.OpenFile).
 type dbDir struct {
 	fd   int
 	path string
@@ -36,31 +38,10 @@ func openDBDir(path string) (*dbDir, error) {
 	return &dbDir{fd: fd, path: path}, nil
 }
 
-// open opens name with flag, creating it 0600 when flag says so.
+// open opens name with flag, creating it 0600, with the directory's owner,
+// when flag says so.
 func (d *dbDir) open(name string, flag int) (*os.File, error) {
-	path := filepath.Join(d.path, name)
-	// O_NONBLOCK so that a FIFO put there is refused below instead of waited on
-	fd, err := unix.Openat(d.fd, name, flag|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0o600)
-	switch {
-	case err == unix.ELOOP || err == unix.EMLINK:
-		return nil, fmt.Errorf("%s is a link; refusing to open it", path)
-	case err != nil:
-		return nil, &os.PathError{Op: "open", Path: path, Err: err}
-	}
-	var st unix.Stat_t
-	if err := unix.Fstat(fd, &st); err != nil {
-		unix.Close(fd)
-		return nil, &os.PathError{Op: "fstat", Path: path, Err: err}
-	}
-	if st.Mode&unix.S_IFMT != unix.S_IFREG {
-		unix.Close(fd)
-		return nil, fmt.Errorf("%s is not a regular file; refusing to open it", path)
-	}
-	if err := unix.SetNonblock(fd, false); err != nil {
-		unix.Close(fd)
-		return nil, &os.PathError{Op: "fcntl", Path: path, Err: err}
-	}
-	return os.NewFile(uintptr(fd), path), nil
+	return dirfd.OpenFile(d.fd, d.path, name, flag)
 }
 
 func (d *dbDir) readFile(name string) ([]byte, error) {
