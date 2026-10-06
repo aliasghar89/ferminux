@@ -164,8 +164,12 @@
     chainVitals: function (blocks) {
       if (!blocks || blocks.length < 3) return { avgInterval: null, hashrate: null };
       var span = blocks[blocks.length - 1].timestamp - blocks[0].timestamp;
-      if (span <= 0) return { avgInterval: null, hashrate: null };
-      var avgInterval = span / (blocks.length - 1);
+      /* Divide by the block-number span, not the header count: the buffer can
+         skip blocks (a background tab polls rarely), and counting headers
+         would then inflate the average. */
+      var count = blocks[blocks.length - 1].number - blocks[0].number;
+      if (span <= 0 || !(count > 0)) return { avgInterval: null, hashrate: null };
+      var avgInterval = span / count;
       var dsum = 0, dcount = 0;
       blocks.forEach(function (b) {
         if (b.difficulty != null && isFinite(b.difficulty)) { dsum += b.difficulty; dcount++; }
@@ -422,9 +426,15 @@
           state.blocks = bs;
         });
       }
+      if (stats.height - h > TAPE_SEED) {
+        /* too far behind to bridge: reseed rather than leave a hole the tape
+           would draw as one long link */
+        return FMX.fetchBlocks(rpcUrl, stats.height - TAPE_SEED + 1, stats.height).then(function (bs) {
+          state.blocks = bs;
+        });
+      }
       if (stats.height > h) {
-        var start = stats.height - h > TAPE_SEED ? stats.height - TAPE_SEED + 1 : h + 1;
-        return FMX.fetchBlocks(rpcUrl, start, stats.height).then(mergeBlocks);
+        return FMX.fetchBlocks(rpcUrl, h + 1, stats.height).then(mergeBlocks);
       }
       return Promise.resolve();
     }

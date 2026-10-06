@@ -560,11 +560,41 @@ added to `scripts/check-dist.mjs`, or the build fails.
 `wallet.ferminux.net` and `https://ferminux.net/wallet/` — copy `dist/` to the
 web root (or the `/wallet/` subpath) behind nginx. No server-side code.
 
-**Security headers.** Both origins get the same headers from
-`infra/compose/nginx/nginx.conf` (values in the `$fxw_*` maps of the http
-block, the `add_header` lines in the `wallet.ferminux.net` server and in
-`location ^~ /wallet/` of `ferminux.net`; `add_header` in a location replaces
-the inherited set, so every location that sets its own repeats them):
+**Security headers.** Both origins get the same headers, defined in two files
+committed here that the edge nginx **must include** — the wallet is not safe to
+serve without them:
+
+- [`deploy/csp.conf`](deploy/csp.conf) — the `$fxw_*` maps (the CSP, the
+  Permissions-Policy, and the `connect.html` exceptions). Include it **once,
+  inside `http {}`**.
+- [`deploy/security-headers.inc`](deploy/security-headers.inc) — the
+  `add_header` lines that send them. Include it in the `wallet.ferminux.net`
+  server **and** in every location that serves the wallet and sets an
+  `add_header` of its own (that server's static-asset location, and
+  `location ^~ /wallet/` on `ferminux.net`): in nginx, a location that sets any
+  `add_header` drops every one it would have inherited.
+
+```nginx
+http {
+    include /etc/nginx/wallet/csp.conf;
+    server {
+        server_name wallet.ferminux.net;
+        include /etc/nginx/wallet/security-headers.inc;
+        location /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable" always;
+            include /etc/nginx/wallet/security-headers.inc;
+        }
+    }
+    server {
+        server_name ferminux.net;
+        location ^~ /wallet/ {
+            include /etc/nginx/wallet/security-headers.inc;
+        }
+    }
+}
+```
+
+The policy they produce:
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self';
@@ -585,7 +615,8 @@ base-uri 'none'; form-action 'none'; object-src 'none'; upgrade-insecure-request
 
 plus `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`,
 `Strict-Transport-Security: max-age=31536000`, `Permissions-Policy` with
-everything off except `camera=(self)` on the wallet page (the QR scanner), and,
+`camera=(self)` on the wallet page (the QR scanner; `camera=()` on
+`connect.html`) and the microphone, geolocation, payment and USB off, and,
 on every page except `connect.html`, `X-Frame-Options: DENY` and
 `Cross-Origin-Opener-Policy: same-origin-allow-popups`. `connect.html` gets
 neither: it answers the dApp that opened it through `window.opener`, and the
@@ -603,9 +634,13 @@ one INIT event WalletKit posts to `pulse.walletconnect.org` regardless is
 skipped in `src/state/useWalletConnect.ts`.
 
 **A new endpoint in the code needs its host in three places**: the code,
-`scripts/check-dist.mjs` (or the build fails) and `connect-src` in nginx.conf
-(or browsers block it in production). `tests/csp.test.mjs` fails when
-nginx.conf is missing an RPC, explorer or WalletConnect host the code uses.
+`scripts/check-dist.mjs` (or the build fails) and `connect-src` in
+`deploy/csp.conf` (or browsers block it in production). `tests/csp.test.mjs`
+fails when `deploy/csp.conf` is missing an RPC, explorer or WalletConnect host
+the code uses, and, where `nginx` is installed, serves both files and checks the
+headers on the wire for the wallet page and `connect.html` at both origins. A
+change to either file reaches production only when the edge copy is updated
+from it.
 
 Two things the **QR scanner** needs from the deployment:
 

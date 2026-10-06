@@ -22,7 +22,7 @@
     <section class="hero-sm">
       <p class="kicker">Chain 3961 · the record</p>
       <h1>Ferminux switched consensus at block 160,000</h1>
-      <p class="lede">At block 160,000 proof-of-work ended and a set of foundation-operated signers (five at the switch) took over confirming blocks. This page records what changed, the release, and how to verify it yourself.</p>
+      <p class="lede">At block 160,000 proof-of-work ended and a set of authorised signers, operated by the foundation, took over confirming blocks under Clique proof-of-authority. This page records what changed, the release, and how to verify it yourself.</p>
     </section>
 
     <div class="doc">
@@ -86,9 +86,9 @@
         <p>Start the node and read its startup banner: it lists the authority switch at block 160000. Dump its genesis and compare the hash to the chain's: both must be <code>0x1b62e052ee210c433440b9cd21b93b3e6cdc813fe63674c842bca3967d92fadf</code>. The signer set is readable from any node with <code>clique_getSigners</code>, and the <a class="link-inline" href="/consensus.html">consensus page</a> shows how many are confirming right now.</p>
       </section>
 
-      <section id="not">
-        <h2>What this is not</h2>
-        <p>It is not proof of stake, and it is not decentralised: one operator runs every signer. The <a class="link-inline" href="/consensus.html">consensus page</a> and the <a class="link-inline" href="/security.html">security page</a> say so in full, including what history is secured by and what happens if signers are lost.</p>
+      <section id="signers">
+        <h2>Who confirms blocks</h2>
+        <p>The authorised signer set confirms every block under Clique proof-of-authority, and the foundation operates every signer today. The live list is <code>clique_getSigners</code> on any node. The <a class="link-inline" href="/consensus.html">consensus page</a> and the <a class="link-inline" href="/security.html">security page</a> set out the rest in full, including what history is secured by and what happens if signers are lost.</p>
       </section>
     </div>
   </div>

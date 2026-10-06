@@ -18,6 +18,7 @@ import {
   HALF_CURVE_ORDER,
   TRANSFER_TYPEHASH,
   TRANSFER_TYPES,
+  decodeSentLog,
   digestFor,
   domainFor,
   domainSeparatorFor,
@@ -121,4 +122,43 @@ test('serialize/parse is lossless and parse rejects junk', () => {
   assert.throws(() => parseTransfer({ ...serializeTransfer(TRANSFER_1), amount: '0' }), /amount/);
   assert.throws(() => parseTransfer({ ...serializeTransfer(TRANSFER_1), sender: 'nope' }), /sender|address|checksum/i);
   assert.throws(() => parseTransfer({ ...serializeTransfer(TRANSFER_1), srcChainId: '-1' }), /srcChainId/);
+});
+
+test('uint64 fields past 2^53 - 1 are refused, never rounded to a neighbour', () => {
+  const wire = serializeTransfer(TRANSFER_1);
+  // 2^53 + 1 has no double: Number() would quietly make it 2^53.
+  assert.throws(() => parseTransfer({ ...wire, nonce: '9007199254740993' }), /transfer\.nonce .*refusing rather than rounding/);
+  assert.throws(() => parseTransfer({ ...wire, dstChainId: '18446744073709551615' }), /transfer\.dstChainId .*refusing/);
+  // A JSON number this large was already rounded by JSON.parse.
+  assert.throws(() => parseTransfer({ ...wire, nonce: 2 ** 53 }), /transfer\.nonce invalid/);
+  assert.throws(() => parseTransfer({ ...wire, nonce: 1.5 }), /transfer\.nonce invalid/);
+  // BigInt('') is 0n and BigInt('0x10') is 16n: neither is a decimal the sender wrote.
+  assert.throws(() => parseTransfer({ ...wire, srcChainId: '' }), /transfer\.srcChainId invalid/);
+  assert.throws(() => parseTransfer({ ...wire, nonce: '0x10' }), /transfer\.nonce invalid/);
+  assert.throws(() => parseTransfer({ ...wire, amount: 2 ** 70 }), /transfer\.amount invalid/);
+
+  const edge = parseTransfer({ ...wire, nonce: String(Number.MAX_SAFE_INTEGER) });
+  assert.equal(edge.nonce, Number.MAX_SAFE_INTEGER, 'the largest exact value still parses');
+  assert.equal(parseTransfer({ ...wire, nonce: '7' }).nonce, 7);
+});
+
+test('a Sent log whose nonce cannot be held exactly is refused with that reason', () => {
+  const big = 2n ** 53n + 1n;
+  const decoded = {
+    transferId: transferIdOf({ ...TRANSFER_1, nonce: big }),
+    dstChainId: 56n,
+    localToken: TRANSFER_1.srcToken,
+    srcChainId: 3961n,
+    nonce: big,
+    remoteToken: TRANSFER_1.dstToken,
+    sender: TRANSFER_1.sender,
+    recipient: TRANSFER_1.recipient,
+    amount: TRANSFER_1.amount,
+    fee: 0n,
+  };
+  const log = { transactionHash: `0x${'cd'.repeat(32)}`, index: 0, blockNumber: 1, blockHash: `0x${'ab'.repeat(32)}` };
+  assert.throws(() => decodeSentLog(log, decoded), /Sent\.nonce 9007199254740993 .*refusing rather than rounding/);
+  const ok = decodeSentLog(log, { ...decoded, nonce: 1n, transferId: TRANSFER_1_ID });
+  assert.equal(ok.transfer.nonce, 1);
+  assert.equal(ok.transferId, TRANSFER_1_ID);
 });

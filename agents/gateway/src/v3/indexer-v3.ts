@@ -8,6 +8,7 @@ import { getAddress } from "ethers";
 import type { Db } from "../db.js";
 import type { V3ContractKey } from "../config.js";
 import type { ActivityBus, ActivityType } from "../commons/activity.js";
+import type { RolledBackEvent } from "../indexer.js";
 import type { WebhookBus } from "./webhooks.js";
 
 export interface V3LogEvent {
@@ -59,6 +60,27 @@ function addStreamWei(db: Db, id: number, column: "deposit" | "claimed", delta: 
   db.prepare(`UPDATE streams SET ${column} = ?, updatedAtBlock = ? WHERE id = ?`).run((cur + delta).toString(), block, id);
 }
 
+/** agent_tokens wei counters += delta, in BigInt — the same 64-bit clamp as addStreamWei: once a total passed
+ * ≈ 9.22 FMX the SQL sum went REAL, was stored as "1.2e+19", and the next CAST read that back as 1 wei. */
+function addTokenWei(db: Db, token: string, column: "fmxIn" | "fmxOut" | "distributed", counter: "buys" | "sells" | null, delta: unknown, sign: 1 | -1 = 1): void {
+  const row = db.prepare(`SELECT ${column} AS v FROM agent_tokens WHERE token = ?`).get(token) as { v: string | null } | undefined;
+  if (!row) return;
+  let cur = 0n;
+  let add = 0n;
+  try {
+    cur = BigInt(row.v || "0");
+  } catch {
+    cur = 0n;
+  }
+  try {
+    add = BigInt(str(delta) || "0");
+  } catch {
+    add = 0n;
+  }
+  // sign -1: a reorg took the log back out (revertV3Event)
+  db.prepare(`UPDATE agent_tokens SET ${counter ? `${counter} = MAX(${counter} + ?, 0), ` : ""}${column} = ? WHERE token = ?`).run(...(counter ? [sign] : []), (cur + BigInt(sign) * add).toString(), token);
+}
+
 /** What a StreamCancelled log paid out to the payee side (payeeAmount + fee), per the as-built event. */
 function cancelPaid(args: Record<string, unknown>): bigint {
   try {
@@ -101,7 +123,8 @@ export function applyV3Event(deps: V3IndexerDeps, ev: V3LogEvent): void {
   const agentStmt = db.prepare("SELECT id, owner, name FROM agents WHERE id = ?");
   const jobStmt = db.prepare("SELECT id, agentId, client FROM jobs WHERE id = ?");
   // Handlers that INCREMENT (stream deposit/claimed, case votes, token counters) must apply a log exactly once:
-  // the 12-block reorg rescan and a resumed backfill replay logs, so each is claimed in v3_counted first.
+  // a resumed backfill replays logs, so each is claimed in v3_counted first. A reorg that removes the log
+  // subtracts it and releases the claim (revertV3Event), so the tx re-included at another logIndex counts once.
   const counted = () => db.prepare("INSERT OR IGNORE INTO v3_counted (txHash, logIndex) VALUES (?, ?)").run(ev.txHash, ev.logIndex).changes === 1;
 
   switch (key) {
@@ -234,14 +257,14 @@ export function applyV3Event(deps: V3IndexerDeps, ev: V3LogEvent): void {
         const agent = agentStmt.get(agentId) as { owner: string; name: string } | undefined;
         emit("token.launched", agent?.owner ?? null, { kind: "token", id: token }, { token, agentId, agentName: agent?.name ?? null, symbol: str(args.symbol) });
       } else if (name === "Bought" || name === "Sold" || name === "Distributed") {
-        // counters are increments, so the 12-block reorg rescan must not re-apply a log we already counted
+        // counters are increments, so a replayed log must not be applied twice (see counted())
         const fresh = counted();
         if (fresh && name === "Bought") {
-          db.prepare("UPDATE agent_tokens SET buys = buys + 1, fmxIn = CAST(CAST(fmxIn AS INTEGER) + ? AS TEXT) WHERE token = ?").run(str(args.fmxIn ?? "0"), addr(args.token));
+          addTokenWei(db, addr(args.token), "fmxIn", "buys", args.fmxIn);
         } else if (fresh && name === "Sold") {
-          db.prepare("UPDATE agent_tokens SET sells = sells + 1, fmxOut = CAST(CAST(fmxOut AS INTEGER) + ? AS TEXT) WHERE token = ?").run(str(args.fmxOut ?? "0"), addr(args.token));
+          addTokenWei(db, addr(args.token), "fmxOut", "sells", args.fmxOut);
         } else if (fresh && name === "Distributed") {
-          db.prepare("UPDATE agent_tokens SET distributed = CAST(CAST(distributed AS INTEGER) + ? AS TEXT) WHERE token = ?").run(str(args.amount ?? "0"), addr(args.token));
+          addTokenWei(db, addr(args.token), "distributed", null, args.amount);
         }
       }
       break;
@@ -332,6 +355,162 @@ export function applyV3Event(deps: V3IndexerDeps, ev: V3LogEvent): void {
     }
     case "identity8004":
     case "accountImpl":
+    default:
+      break;
+  }
+}
+
+/** Recorded events of `names` on `contract` whose id (any of `idNames`) is `id`, oldest first, minus `except`. */
+function remainingEvents(db: Db, contract: string, names: string[], idNames: string[], id: number, except: { txHash: string; logIndex: number }): Array<{ eventName: string; args: Record<string, unknown>; ts: number }> {
+  const rows = db
+    .prepare(`SELECT txHash, logIndex, eventName, argsJSON, ts FROM events WHERE contractName = ? AND eventName IN (${names.map(() => "?").join(", ")}) ORDER BY blockNumber ASC, logIndex ASC`)
+    .all(contract, ...names) as Array<{ txHash: string; logIndex: number; eventName: string; argsJSON: string; ts: number | null }>;
+  const out: Array<{ eventName: string; args: Record<string, unknown>; ts: number }> = [];
+  for (const r of rows) {
+    if (r.txHash === except.txHash && r.logIndex === except.logIndex) continue;
+    let args: Record<string, unknown>;
+    try {
+      args = JSON.parse(r.argsJSON) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (num(pick(args, idNames)) === id) out.push({ eventName: r.eventName, args, ts: r.ts ?? 0 });
+  }
+  return out;
+}
+
+/**
+ * Undoes what applyV3Event derived from one log a reorg removed. The indexer calls it newest first, inside one
+ * transaction, while the log's own `events` row still exists (and is skipped here). Rows the log created are
+ * deleted, values it set are re-derived from the events that remain, and increments it made — claimed in
+ * v3_counted — are subtracted and the claim released, so the same tx re-included at another logIndex counts once.
+ * Its activity row and any webhook delivery not yet sent go too.
+ */
+export function revertV3Event(deps: V3IndexerDeps, ev: RolledBackEvent): void {
+  const { db, activity, webhooks } = deps;
+  const { args, txHash, logIndex, eventName: name } = ev;
+  const dedup = `${name}:${txHash}:${logIndex}`;
+  activity.retract(dedup);
+  webhooks.retract(dedup);
+  const wasCounted = db.prepare("DELETE FROM v3_counted WHERE txHash = ? AND logIndex = ?").run(txHash, logIndex).changes === 1;
+  const others = (names: string[], idNames: string[], id: number) => remainingEvents(db, ev.contractName, names, idNames, id, { txHash, logIndex });
+  const nowS = Math.floor(Date.now() / 1000);
+
+  switch (ev.contractName) {
+    case "x402Vault": {
+      // back to `submitted`: the facilitator's receipt check (reconcileSubmitted) settles it again once the tx is
+      // back in a block, or re-queues it when the tx is gone
+      if (name === "Settled") {
+        db.prepare("DELETE FROM x402_settlements WHERE txHash = ? AND logIndex = ?").run(txHash, logIndex);
+        db.prepare("UPDATE x402_vouchers SET status = 'submitted', settledAt = ? WHERE payer = ? AND nonce = ? AND txHash = ? AND status = 'settled'").run(nowS, addr(args.payer), str(args.nonce), txHash);
+      } else if (name === "Skipped") {
+        db.prepare("UPDATE x402_vouchers SET status = 'submitted', error = NULL, settledAt = ? WHERE payer = ? AND nonce = ? AND txHash = ? AND status = 'skipped'").run(nowS, addr(args.payer), str(args.nonce), txHash);
+      }
+      break;
+    }
+    case "accountFactory": {
+      if (name === "AccountCreated") db.prepare("DELETE FROM agent_accounts WHERE account = ? AND txHash = ?").run(addr(args.account), txHash);
+      break;
+    }
+    case "streamPay": {
+      const streamId = num(pick(args, ["id", "streamId"]));
+      if (name === "StreamOpened") {
+        db.prepare("DELETE FROM streams WHERE id = ? AND txOpened = ?").run(streamId, txHash);
+      } else if (name === "StreamToppedUp") {
+        // deposit / stop replayed from what is left: StreamOpened, then each top-up (a total when the log carries one)
+        let deposit: bigint | null = null;
+        let stop = 0;
+        for (const e of others(["StreamOpened", "StreamToppedUp"], ["id", "streamId"], streamId)) {
+          try {
+            if (e.eventName === "StreamOpened") {
+              deposit = BigInt(str(pick(e.args, ["deposit", "amount"]) ?? "0") || "0");
+              const rate = BigInt(str(pick(e.args, ["ratePerSec", "rate"]) ?? "0") || "0");
+              stop = num(e.args.stop);
+              if (!stop && rate > 0n) stop = (num(e.args.start) || e.ts) + Number(deposit / rate);
+            } else {
+              deposit = e.args.deposit !== undefined ? BigInt(str(e.args.deposit) || "0") : (deposit ?? 0n) + BigInt(str(pick(e.args, ["amount", "value"]) ?? "0") || "0");
+              if (num(e.args.stop) > 0) stop = num(e.args.stop);
+            }
+          } catch {
+            // an unparsable amount: the running value stays as it is
+          }
+        }
+        if (deposit !== null) db.prepare("UPDATE streams SET deposit = ?, stop = ? WHERE id = ?").run(deposit.toString(), stop, streamId);
+      } else if (name === "StreamClaimed") {
+        if (wasCounted) addStreamWei(db, streamId, "claimed", -(BigInt(str(pick(args, ["amount", "payeeAmount"]) ?? "0")) + BigInt(str(args.fee ?? "0"))), ev.blockNumber);
+      } else if (name === "StreamCancelled") {
+        if (!others(["StreamCancelled"], ["id", "streamId"], streamId).length) db.prepare("UPDATE streams SET cancelled = 0 WHERE id = ?").run(streamId);
+        if (wasCounted) addStreamWei(db, streamId, "claimed", -cancelPaid(args), ev.blockNumber);
+      } else if (name === "PlanCreated") {
+        db.prepare("DELETE FROM plans WHERE id = ?").run(num(pick(args, ["planId", "id"])));
+      } else if (name === "PlanActiveSet" || name === "PlanUpdated") {
+        const planId = num(pick(args, ["planId", "id"]));
+        const last = others(["PlanActiveSet", "PlanUpdated"], ["planId", "id"], planId).at(-1);
+        db.prepare("UPDATE plans SET active = ? WHERE id = ?").run(last ? (String(last.args.active) === "true" ? 1 : 0) : 1, planId);
+      } else if (name === "Subscribed") {
+        db.prepare("DELETE FROM subs WHERE id = ?").run(num(pick(args, ["subId", "id"])));
+      } else if (name === "SubRenewed") {
+        const subId = num(pick(args, ["subId", "id"]));
+        const last = others(["Subscribed", "SubRenewed"], ["subId", "id"], subId).at(-1);
+        if (last) db.prepare("UPDATE subs SET paidThrough = ? WHERE id = ?").run(num(last.args.paidThrough), subId);
+      } else if (name === "SubCancelled") {
+        db.prepare("UPDATE subs SET cancelled = 0 WHERE id = ?").run(num(pick(args, ["subId", "id"])));
+      }
+      break;
+    }
+    case "arbiterPool": {
+      const caseId = num(pick(args, ["caseId", "id"]));
+      if (name === "CaseOpened") {
+        db.prepare("DELETE FROM arbiter_cases WHERE id = ? AND txOpened = ?").run(caseId, txHash);
+      } else if (name === "EvidenceSubmitted") {
+        if (wasCounted) db.prepare("DELETE FROM case_evidence WHERE id = (SELECT id FROM case_evidence WHERE caseId = ? AND txHash = ? ORDER BY id DESC LIMIT 1)").run(caseId, txHash);
+      } else if (name === "Voted") {
+        if (wasCounted) db.prepare("UPDATE arbiter_cases SET votes = MAX(votes - 1, 0) WHERE id = ?").run(caseId);
+      } else if (name === "CaseClosed") {
+        db.prepare("UPDATE arbiter_cases SET closed = 0, result = NULL, closedAt = NULL WHERE id = ?").run(caseId);
+      }
+      break;
+    }
+    case "tokenFactory": {
+      if (name === "Launched") db.prepare("DELETE FROM agent_tokens WHERE token = ? AND txLaunched = ?").run(addr(args.token), txHash);
+      else if (wasCounted && name === "Bought") addTokenWei(db, addr(args.token), "fmxIn", "buys", args.fmxIn, -1);
+      else if (wasCounted && name === "Sold") addTokenWei(db, addr(args.token), "fmxOut", "sells", args.fmxOut, -1);
+      else if (wasCounted && name === "Distributed") addTokenWei(db, addr(args.token), "distributed", null, args.amount, -1);
+      break;
+    }
+    case "reputation8004": {
+      if (name === "NewFeedback") db.prepare("DELETE FROM reputation_feedback WHERE txHash = ? AND logIndex = ?").run(txHash, logIndex);
+      break;
+    }
+    case "validation8004": {
+      const requestHash = str(args.requestHash).toLowerCase();
+      if (name === "ValidationResponse") {
+        db.prepare("UPDATE validations SET response = NULL, responseURI = NULL, tag = NULL, respondedAt = NULL, txResponse = NULL WHERE requestHash = ? AND txResponse = ?").run(requestHash, txHash);
+      } else if (name === "ValidationRequest") {
+        db.prepare("UPDATE validations SET txRequest = NULL WHERE requestHash = ? AND txRequest = ?").run(requestHash, txHash);
+      }
+      // a row that neither a request nor a response stands behind any more
+      db.prepare("DELETE FROM validations WHERE requestHash = ? AND txRequest IS NULL AND txResponse IS NULL").run(requestHash);
+      break;
+    }
+    case "memoryAnchor": {
+      if (name !== "MemoryAnchored") break;
+      const row = db.prepare("SELECT id FROM memory_anchors WHERE agentId = ? AND lower(root) = ? AND txHash = ? AND status = 'anchored'").get(num(args.agentId), str(args.root).toLowerCase(), txHash) as { id: number } | undefined;
+      if (!row) break;
+      // a batch we built goes back to waiting for its tx; a root only the chain told us about goes
+      if (db.prepare("SELECT 1 FROM memory_records WHERE batchId = ? LIMIT 1").get(row.id)) {
+        db.prepare("UPDATE memory_anchors SET status = 'submitted', onchainSeq = NULL, totalRecords = NULL, anchoredBy = NULL, blockNumber = NULL, anchoredAt = NULL, submittedAt = COALESCE(submittedAt, ?) WHERE id = ?").run(nowS, row.id);
+      } else {
+        db.prepare("DELETE FROM memory_anchors WHERE id = ?").run(row.id);
+      }
+      break;
+    }
+    case "endorsements": {
+      const id = num(args.id);
+      if (name === "Endorsed") db.prepare("DELETE FROM endorsements WHERE id = ? AND txHash = ?").run(id, txHash);
+      else if (name === "EndorsementRevoked" && !others(["EndorsementRevoked"], ["id"], id).length) db.prepare("UPDATE endorsements SET revoked = 0 WHERE id = ?").run(id);
+      break;
+    }
     default:
       break;
   }

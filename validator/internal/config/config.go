@@ -279,7 +279,9 @@ func Resolve(c Config, dir string) (*Resolved, error) {
 	if err := CheckLoopback(r.Dashboard); err != nil {
 		return nil, err
 	}
-	if c.Gas.TipGwei <= 0 {
+	// Signers never include a transaction tipping under 1 gwei: a lower tip
+	// would leave every attestation pending until its window closed.
+	if c.Gas.TipGwei < 1 {
 		r.Gas.TipGwei = 1
 	}
 	if c.Gas.MaxFeeGwei <= 0 {
@@ -312,6 +314,20 @@ func Resolve(c Config, dir string) (*Resolved, error) {
 }
 
 // Save writes config.json (mode 0600).
+//
+// install runs this as root in a network directory the service user owns, so
+// it never writes through what is already there: os.WriteFile follows a
+// symlink, and a config.json linked to a file elsewhere would have had that
+// file overwritten by root. A link at config.json, or in place of the
+// directory, is refused. The file is written under a fresh name (O_EXCL, so
+// never through anything planted) and renamed over config.json, which
+// replaces whatever directory entry is there by then and follows no link.
+// The service user can also swap the directory itself for a link while this
+// runs, so the directory is resolved by path once and everything after that
+// is done relative to what was opened (writeConfig). The new file keeps the
+// replaced one's owner, or takes the directory's when there is none (init
+// --force removes it first), so root saving in that directory leaves the
+// service a config.json it can still read.
 func Save(dir string, c Config) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
@@ -320,7 +336,18 @@ func Save(dir string, c Config) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "config.json"), append(b, '\n'), 0o600)
+	return writeConfig(dir, append(b, '\n'))
+}
+
+// Remove deletes dir/config.json, if there is one, so init --force starts
+// from defaults. It runs as root in the same directory as Save, and removing
+// by path would follow a link put where the directory was: unlink(2) follows
+// links in every component but the last, so root would delete the config.json
+// in the link's target. A link in place of the directory is refused, and
+// config.json is unlinked relative to the directory that was checked
+// (removeConfig).
+func Remove(dir string) error {
+	return removeConfig(dir)
 }
 
 // CheckLoopback refuses any dashboard bind address that is not 127.0.0.1/::1.
@@ -382,7 +409,9 @@ func CheckNodeArgs(args []string) error {
 				return fmt.Errorf("config: node flag %s is not allowed for a validator node", f)
 			}
 		}
-		if strings.HasPrefix(name, "--miner.") {
+		// --signer.enabled and --signer.rewardaddress are the node's own aliases
+		// of --mine and --miner.etherbase (chain/cmd/utils/flags.go)
+		if strings.HasPrefix(name, "--miner.") || strings.HasPrefix(name, "--signer.") {
 			return fmt.Errorf("config: node flag %s is not allowed for a validator node", name)
 		}
 	}

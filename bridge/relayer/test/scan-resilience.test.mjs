@@ -30,7 +30,8 @@ import { ChainClient, LOGS_RETRY_MS, isRangeRefusal } from '../src/chain.ts';
 import { INSECURE_ACKNOWLEDGEMENT, parseConfig } from '../src/config.ts';
 import { openStore } from '../src/db.ts';
 import { createLogger } from '../src/logger.ts';
-import { withScanVerdict } from '../src/service.ts';
+import { RelayerService, serialQueue, withScanVerdict } from '../src/service.ts';
+import { Metrics } from '../src/metrics.ts';
 import { transferIdOf } from '../src/transfer.ts';
 import { Watcher, scanHealth } from '../src/watcher.ts';
 
@@ -289,6 +290,74 @@ test('watcher: the cursor never moves past the settled height, even when the sca
   }
 });
 
+// ------------------------------------------------------------------ per-chain confirmation pass
+
+test("watcher: another chain's backlog of seen transfers cannot starve this chain's confirmations", async () => {
+  // Before: the pass fetched the 1000 oldest `seen` rows of ANY chain and then
+  // kept this chain's. 1000 older rows from chain B left chain A with nothing.
+  const dir = mkdtempSync(join(tmpdir(), 'fmx-scan-'));
+  const store = await openStore(join(dir, 'r.db'), 'sqlite');
+  const checked = [];
+  const confirmed = [];
+  const chain = {
+    name: 'a',
+    chainId: CHAIN_A,
+    config: { confirmations: 3, startBlock: 0, pollIntervalMs: 500 },
+    healthyEndpoints: [{}],
+    healthCheck: async () => {},
+    getBlockNumber: async () => 200,
+    settledHeight: async () => 197,
+    scanSent: async () => [],
+    confirmSentAcrossEndpoints: async (id) => {
+      checked.push(id);
+      return { status: 'ok', agreed: 1, checked: 1, reason: null };
+    },
+  };
+  const row = (transferId, srcChainId, firstSeenAt) => ({
+    transferId,
+    transfer: {
+      srcChainId,
+      dstChainId: srcChainId === CHAIN_A ? CHAIN_B : CHAIN_A,
+      nonce: 1,
+      srcToken: ZeroAddress,
+      dstToken: getAddress(`0x${'22'.repeat(20)}`),
+      sender: getAddress(`0x${'33'.repeat(20)}`),
+      recipient: getAddress(`0x${'44'.repeat(20)}`),
+      amount: 10n ** 18n,
+    },
+    fee: 0n,
+    srcBlockNumber: 100,
+    srcBlockHash: `0x${'aa'.repeat(32)}`,
+    srcTxHash: `0x${'bb'.repeat(32)}`,
+    srcLogIndex: 0,
+    status: 'seen',
+    reason: null,
+    firstSeenAt,
+    confirmedAt: null,
+    executedAt: null,
+    executedTxHash: null,
+    updatedAt: firstSeenAt,
+  });
+  try {
+    const t0 = Date.now() - 3_600_000;
+    for (let i = 0; i < 1000; i++) store.putTransfer(row(`0x${i.toString(16).padStart(64, '0')}`, CHAIN_B, t0 + i));
+    const mine = `0x${'ab'.repeat(32)}`;
+    store.putTransfer(row(mine, CHAIN_A, t0 + 5_000));
+    store.setCursor(CHAIN_A, 199);
+
+    const w = new Watcher({ chain, store, log: silent(), alerts: alerter(), requireRpcQuorum: false, onConfirmed: (t) => confirmed.push(t.transferId) });
+    await w.pollOnce();
+    assert.equal(w.stats.lastError, null);
+    assert.deepEqual(checked, [mine], "only this chain's transfer is re-read, and it is reached");
+    assert.deepEqual(confirmed, [mine]);
+    assert.equal(store.getTransfer(mine)?.status, 'confirmed');
+    assert.equal(store.listTransfers({ status: ['seen'], limit: 2000 }).length, 1000, "chain B's rows are left for chain B's watcher");
+  } finally {
+    store.close?.();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ------------------------------------------------------------------ scan health
 
 test('scan health: frozen, never-run and far-behind scanners are lagging; a current one is not', () => {
@@ -362,3 +431,294 @@ test('scan health: the UI fixture carries exactly the keys scanHealth() emits', 
   const emitted = Object.keys(scanHealth({ head: 1, cursor: 1, lastPollAt: 1, lastSuccessAt: 1 }, { name: 'x', confirmations: 1, maxBlockRange: 1, pollIntervalMs: 1 }, 1)).sort();
   for (const c of fixture.chains) assert.deepEqual(Object.keys(c.scan).sort(), emitted, `${c.name}.scan`);
 });
+
+// ------------------------------------------------------------------ role work is serial
+
+test('serialQueue: one call at a time, in order, and a throw does not wedge the queue', async () => {
+  const q = serialQueue();
+  const order = [];
+  let active = 0;
+  let peak = 0;
+  const job = (name, ms, fail = false) => q(async () => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((r) => setTimeout(r, ms));
+    order.push(name);
+    active--;
+    if (fail) throw new Error(name);
+    return name;
+  });
+  const results = await Promise.allSettled([job('a', 30), job('b', 5, true), job('c', 1)]);
+  assert.equal(peak, 1);
+  assert.deepEqual(order, ['a', 'b', 'c']);
+  assert.deepEqual(results.map((r) => r.status), ['fulfilled', 'rejected', 'fulfilled']);
+});
+
+/** Two chains on unreachable hosts: enough for a RelayerService to construct. */
+const serviceDoc = () =>
+  JSON.stringify({
+    network: 'test',
+    chains: [CHAIN_A, CHAIN_B].map((chainId, i) => ({
+      name: `c${i}`,
+      chainId,
+      rpcUrls: [`http://n${i}a.example:8545`, `http://n${i}b.example:8545`, `http://n${i}c.example:8545`],
+      bridgeAddress: BRIDGE,
+      confirmations: 3,
+      limits: { default: { maxPerTransfer: '1', dailyCap: '2' }, tokens: {} },
+    })),
+    insecure: { acknowledgement: INSECURE_ACKNOWLEDGEMENT, allowCountFinalityWithoutGadget: true },
+  });
+
+/** A stored transfer from CHAIN_A to CHAIN_B, as the watcher records it. */
+const transferRow = (n, status) => {
+  const now = Date.now();
+  return {
+    transferId: `0x${n.toString(16).padStart(64, '0')}`,
+    transfer: {
+      srcChainId: CHAIN_A,
+      dstChainId: CHAIN_B,
+      nonce: n,
+      srcToken: ZeroAddress,
+      dstToken: getAddress(`0x${'22'.repeat(20)}`),
+      sender: getAddress(`0x${'33'.repeat(20)}`),
+      recipient: getAddress(`0x${'44'.repeat(20)}`),
+      amount: 10n ** 18n,
+    },
+    fee: 0n,
+    srcBlockNumber: 100,
+    srcBlockHash: `0x${'aa'.repeat(32)}`,
+    srcTxHash: `0x${'bb'.repeat(32)}`,
+    srcLogIndex: n,
+    status,
+    reason: null,
+    firstSeenAt: now,
+    confirmedAt: null,
+    executedAt: null,
+    executedTxHash: null,
+    updatedAt: now,
+  };
+};
+
+test('service: a watcher\'s onConfirmed never runs concurrently with the role tick', async () => {
+  // Both used to run free: the validator verified the same transfer twice and
+  // consumed its 24h capacity twice for one signature, and the submitter's two
+  // allocateNonce() calls could hand two transfers the same account nonce.
+  const doc = serviceDoc();
+  const dir = mkdtempSync(join(tmpdir(), 'svc-serial-'));
+  const store = await openStore(join(dir, 'r.db'), 'journal');
+  let active = 0;
+  let peak = 0;
+  let confirmedRuns = 0;
+  const busy = async () => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((r) => setTimeout(r, 20));
+    active--;
+  };
+  const service = new RelayerService({
+    cfg: parseConfig(doc, 'x'),
+    role: 'validator',
+    log: silent(),
+    alerts: alerter(),
+    store,
+    metrics: new Metrics(),
+    tickIntervalMs: 1_000,
+    hooks: {
+      onConfirmed: async () => {
+        confirmedRuns++;
+        await busy();
+      },
+      tick: busy,
+    },
+  });
+  try {
+    // Real 'confirmed' rows: the queued work re-reads the row and skips one
+    // that is gone or no longer confirmed, which an empty object would be.
+    const [a, b] = [1, 2].map((n) => transferRow(n, 'confirmed'));
+    store.putTransfer(a);
+    store.putTransfer(b);
+    const onConfirmed = service.watchers[0].onConfirmed;
+    await Promise.all([onConfirmed(a), service.runTick(), onConfirmed(b), service.runTick()]);
+    assert.equal(confirmedRuns, 2, 'both confirmations ran');
+    assert.equal(peak, 1, 'role work overlapped');
+  } finally {
+    for (const c of service.chains.values()) dispose(c);
+    store.close?.();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('service: a confirmation is queued behind the role tick, never awaited by the scan', async () => {
+  // Awaiting the queued hook froze the source chain's poll for the rest of a
+  // tick — minutes, on a destination endpoint that passes the probe and hangs on
+  // eth_call — so lastSuccessAt went stale and /status published "Scanner
+  // behind" for every route out of that chain, not only the impaired one.
+  const dir = mkdtempSync(join(tmpdir(), 'svc-queue-'));
+  const store = await openStore(join(dir, 'r.db'), 'journal');
+  let release;
+  const gate = new Promise((r) => (release = r));
+  let active = 0;
+  let peak = 0;
+  const handled = [];
+  const service = new RelayerService({
+    cfg: parseConfig(serviceDoc(), 'x'),
+    role: 'validator',
+    log: silent(),
+    alerts: alerter(),
+    store,
+    metrics: new Metrics(),
+    tickIntervalMs: 1_000,
+    hooks: {
+      onConfirmed: async (t) => {
+        active++;
+        peak = Math.max(peak, active);
+        handled.push(t.transferId);
+        active--;
+      },
+      tick: async () => {
+        active++;
+        peak = Math.max(peak, active);
+        await gate; // a tick stuck on a hung destination read
+        active--;
+      },
+    },
+  });
+  const chain = {
+    name: 'a',
+    chainId: CHAIN_A,
+    config: { confirmations: 3, startBlock: 0, pollIntervalMs: 500 },
+    healthyEndpoints: [{}],
+    healthCheck: async () => {},
+    getBlockNumber: async () => 200,
+    settledHeight: async () => 197,
+    scanSent: async () => [],
+    confirmSentAcrossEndpoints: async () => ({ status: 'ok', agreed: 1, checked: 1, reason: null }),
+  };
+  const id = `0x${'ab'.repeat(32)}`;
+  const now = Date.now();
+  store.putTransfer({
+    transferId: id,
+    transfer: {
+      srcChainId: CHAIN_A,
+      dstChainId: CHAIN_B,
+      nonce: 1,
+      srcToken: ZeroAddress,
+      dstToken: getAddress(`0x${'22'.repeat(20)}`),
+      sender: getAddress(`0x${'33'.repeat(20)}`),
+      recipient: getAddress(`0x${'44'.repeat(20)}`),
+      amount: 10n ** 18n,
+    },
+    fee: 0n,
+    srcBlockNumber: 100,
+    srcBlockHash: `0x${'aa'.repeat(32)}`,
+    srcTxHash: `0x${'bb'.repeat(32)}`,
+    srcLogIndex: 0,
+    status: 'seen',
+    reason: null,
+    firstSeenAt: now,
+    confirmedAt: null,
+    executedAt: null,
+    executedTxHash: null,
+    updatedAt: now,
+  });
+  store.setCursor(CHAIN_A, 199);
+  const tickDone = service.runTick();
+  try {
+    const w = new Watcher({ chain, store, log: silent(), alerts: alerter(), requireRpcQuorum: false, onConfirmed: service.watchers[0].onConfirmed });
+    const polled = await Promise.race([w.pollOnce().then(() => 'polled'), new Promise((r) => setTimeout(() => r('blocked'), 1_000))]);
+    assert.equal(polled, 'polled', 'the scan finished while the tick was still running');
+    assert.equal(w.stats.lastError, null);
+    assert.ok(w.stats.lastSuccessAt > 0, 'and counts as a completed scan');
+    assert.equal(store.getTransfer(id)?.status, 'confirmed');
+    assert.deepEqual(handled, [], 'the role work waits for the tick in flight');
+
+    release();
+    await tickDone;
+    await service.runTick(); // FIFO: settles after everything queued before it
+    assert.deepEqual(handled, [id], 'and then runs, once');
+    assert.equal(peak, 1, 'never beside the tick');
+  } finally {
+    release();
+    await tickDone;
+    for (const c of service.chains.values()) dispose(c);
+    store.close?.();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+for (const driver of ['sqlite', 'journal']) {
+  test(`[${driver}] service: queued role work re-reads the row and skips a transfer the tick in flight already decided`, async () => {
+    // The watcher hands over the row it read at confirm time and no longer
+    // waits for the role work, so a tick stuck before it lists its rows (in the
+    // contract-cap revisit, on a hung destination read) also picks up every
+    // transfer confirmed meanwhile. The queued call then ran on that old copy —
+    // under sqlite a separate object still saying 'confirmed' — and the
+    // validator verified a transfer it had already refused, and could sign it.
+    const dir = mkdtempSync(join(tmpdir(), `svc-reread-${driver}-`));
+    const store = await openStore(join(dir, 'r.db'), driver);
+    assert.equal(store.driver, driver);
+    let release;
+    const gate = new Promise((r) => (release = r));
+    const handled = [];
+    const [rejected, signed, deferred] = [1, 2, 3].map((n) => transferRow(n, 'seen'));
+    const service = new RelayerService({
+      cfg: parseConfig(serviceDoc(), 'x'),
+      role: 'validator',
+      log: silent(),
+      alerts: alerter(),
+      store,
+      metrics: new Metrics(),
+      tickIntervalMs: 1_000,
+      hooks: {
+        onConfirmed: async (t) => {
+          handled.push({ id: t.transferId, given: t.status, stored: store.getTransfer(t.transferId)?.status });
+        },
+        tick: async () => {
+          await gate; // stuck before it lists its rows
+          for (const t of store.listTransfers({ status: ['confirmed'] })) {
+            if (t.transferId === rejected.transferId) store.setTransferStatus(t.transferId, 'rejected', 'domain_mismatch: final');
+            if (t.transferId === signed.transferId) store.setTransferStatus(t.transferId, 'signed');
+            // `deferred` is a retryable refusal: it stays 'confirmed'.
+          }
+        },
+      },
+    });
+    const chain = {
+      name: 'a',
+      chainId: CHAIN_A,
+      config: { confirmations: 3, startBlock: 0, pollIntervalMs: 500 },
+      healthyEndpoints: [{}],
+      healthCheck: async () => {},
+      getBlockNumber: async () => 200,
+      settledHeight: async () => 197,
+      scanSent: async () => [],
+      confirmSentAcrossEndpoints: async () => ({ status: 'ok', agreed: 1, checked: 1, reason: null }),
+    };
+    for (const row of [rejected, signed, deferred]) store.putTransfer(row);
+    store.setCursor(CHAIN_A, 199);
+    const tickDone = service.runTick();
+    try {
+      const w = new Watcher({ chain, store, log: silent(), alerts: alerter(), requireRpcQuorum: false, onConfirmed: service.watchers[0].onConfirmed });
+      await w.pollOnce();
+      for (const row of [rejected, signed, deferred]) assert.equal(store.getTransfer(row.transferId)?.status, 'confirmed');
+      assert.deepEqual(handled, [], 'queued behind the tick in flight');
+
+      release();
+      await tickDone;
+      await service.runTick(); // FIFO: settles after everything queued before it
+      assert.equal(store.getTransfer(rejected.transferId)?.status, 'rejected', 'a final refusal stays final');
+      assert.equal(store.getTransfer(signed.transferId)?.status, 'signed');
+      assert.deepEqual(
+        handled,
+        [{ id: deferred.transferId, given: 'confirmed', stored: 'confirmed' }],
+        'only the transfer still confirmed is handed to the role, as it is now',
+      );
+    } finally {
+      release();
+      await tickDone;
+      for (const c of service.chains.values()) dispose(c);
+      store.close?.();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}

@@ -9,6 +9,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// openLockFile opens path by name: the Windows data directory is SYSTEM and
+// Administrators only, so no less privileged account can put a link in it.
+func openLockFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+}
+
 func lockFile(f *os.File) error {
 	ol := new(windows.Overlapped)
 	err := windows.LockFileEx(windows.Handle(f.Fd()),

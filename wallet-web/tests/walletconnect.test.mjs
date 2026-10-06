@@ -212,6 +212,13 @@ test('personal_sign: binary data is shown as hex with a warning; a sign-in messa
   assert.equal(printableText(new Uint8Array([0xe2, 0x80, 0xae])), null, 'a bidi override makes text unreadable');
 });
 
+test('personal_sign: an odd-length "0x…" message is text, not a throw that breaks every later review', async () => {
+  const v = reviewRequest(req('personal_sign', ['0x123', ME]), session(), ME);
+  assert.deepEqual(v.blockers, []);
+  assert.equal(v.detail.text, '0x123');
+  assert.equal(verifyMessage('0x123', await signForRequest(v, KEY)), ME);
+});
+
 test('eth_sign: refused as unsupported and never offered in a session', () => {
   const hash = hashMessage('anything');
   const v = reviewRequest(req('eth_sign', [ME, hash]), session(), ME);

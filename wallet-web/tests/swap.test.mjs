@@ -6,7 +6,7 @@
 // the pairs, the tokens and the router, and the decision it feeds.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { AbiCoder, Interface, MaxUint256, getAddress, parseEther } from 'ethers';
 import {
   DEX,
@@ -82,12 +82,18 @@ function pool(a, b, ra, rb) {
 /* Deployment facts                                                    */
 /* ------------------------------------------------------------------ */
 
-test('the router, factory and WFMX are the deployed ones (DeployDex broadcast) and WFMX is the registry’s', () => {
-  const run = JSON.parse(readFileSync(new URL('../../dex/contracts/broadcast/DeployDex.s.sol/3961/run-latest.json', import.meta.url), 'utf8'));
+// dex/contracts/broadcast is gitignored: the record exists only where the DEX was deployed from.
+const DEX_BROADCAST = new URL('../../dex/contracts/broadcast/DeployDex.s.sol/3961/run-latest.json', import.meta.url);
+
+test('the router, factory and WFMX are the deployed ones (DeployDex broadcast)', { skip: !existsSync(DEX_BROADCAST) && 'no DeployDex broadcast in this checkout' }, () => {
+  const run = JSON.parse(readFileSync(DEX_BROADCAST, 'utf8'));
   const deployed = Object.fromEntries(run.transactions.filter((t) => t.contractName).map((t) => [t.contractName, t.contractAddress.toLowerCase()]));
   assert.equal(DEX.router.toLowerCase(), deployed.FerminuxRouter);
   assert.equal(DEX.factory.toLowerCase(), deployed.FerminuxFactory);
   assert.equal(DEX.wfmx.toLowerCase(), deployed.WFMX);
+});
+
+test('WFMX is the registry’s, and the DEX addresses are checksummed for chain 3961', () => {
   assert.equal(TOKENS.find((t) => t.symbol === 'WFMX').address, WFMX);
   assert.equal(getAddress(DEX.router), DEX.router, 'checksummed');
   assert.equal(SWAP_CHAIN_ID, 3961);

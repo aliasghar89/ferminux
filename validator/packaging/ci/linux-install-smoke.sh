@@ -3,12 +3,15 @@
 # GitHub runner). It runs the staged release's install.sh, checks what it
 # set up, starts the service against a devnet configuration that talks to no
 # network at all, checks the password reaches the sidecar through systemd's
-# LoadCredential=, breaks the configuration to check a failed start says why,
-# and uninstalls everything.
+# LoadCredential=, checks an upgrade that install refuses names every file and
+# leaves the service running, breaks the configuration to check a failed start
+# says why, and uninstalls everything.
 #
 # Nothing here joins chain 3961 or any public network: the mainnet install is
-# registered with --no-start, and the service that does run is a devnet
-# sidecar attached to a node address where nothing listens.
+# registered with --no-start, the service that does run is a devnet sidecar
+# attached to a node address where nothing listens, and while the upgrade
+# check runs install.sh again (which starts whatever unit it writes) a drop-in
+# keeps the service on localhost.
 #
 #   sudo validator/packaging/ci/linux-install-smoke.sh <staged release dir>
 #
@@ -22,6 +25,7 @@ DATA_DIR=/var/lib/fmx-validator
 PASSWORD_FILE=/etc/fmx-validator/attester-password
 UNIT=fmx-validator.service
 UNIT_FILE="/etc/systemd/system/$UNIT"
+DROPIN_DIR="/etc/systemd/system/$UNIT.d"
 DEV_CHAIN=31337
 # any address: the devnet sidecar only needs one configured to go on to open its key
 DEV_HUB=0x5FbDB2315678afecb367f032d93F642f64180aa3
@@ -69,6 +73,36 @@ if [ "${SKIP_CREDENTIAL_CHECK:-0}" != 1 ]; then
   ok "password delivered by LoadCredential="
 fi
 ok "devnet service running"
+
+echo "==> an upgrade over root-owned leftovers: all named, the service started again"
+# what a root run of an earlier release left in the service user's directories
+left=("$DATA_DIR/mainnet/root-leftover" "$DATA_DIR/mainnet/keys/root-leftover")
+for f in "${left[@]}"; do printf x > "$f"; done
+# install.sh without --no-start installs mainnet and starts it. It should
+# refuse before it writes that unit; if it does not, the mainnet node must
+# still reach no network. A drop-in applies to whatever unit install.sh writes
+# under this name (the empty IPAddressAllow= drops any allow list that unit
+# has), and on a host that cannot filter, the stop before `fail` ends it.
+mkdir -p "$DROPIN_DIR"
+printf '[Service]\nIPAddressAllow=\nIPAddressAllow=localhost\nIPAddressDeny=any\n' > "$DROPIN_DIR/smoke-localhost-only.conf"
+systemctl daemon-reload
+[ -n "$(systemctl show -p IPAddressDeny --value "$UNIT")" ] || fail "the localhost-only drop-in is not in effect"
+if out="$("$rel/install.sh" 2>&1)"; then
+  echo "$out"
+  systemctl disable --now "$UNIT" || true
+  fail "install.sh handed over root-owned files"
+fi
+echo "$out"
+for f in "${left[@]}"; do
+  grep -qF "$f (uid 0)" <<<"$out" || fail "install.sh did not name $f"
+  [ "$(stat -c '%u' "$f")" = 0 ] || fail "$f was handed over"
+done
+sleep 3
+systemctl is-active --quiet "$UNIT" || fail "a failed upgrade left $UNIT stopped"
+rm -f "${left[@]}"
+rm -rf "$DROPIN_DIR"
+systemctl daemon-reload
+ok "failed upgrade named every leftover and started the service again"
 
 echo "==> a broken config.json: the start fails and says why"
 systemctl stop "$UNIT"

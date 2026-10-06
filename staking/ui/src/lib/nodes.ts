@@ -1,24 +1,23 @@
-// NodeRegistry data layer — the network roster and the register-a-node flow.
-// No browser globals; exercised by the e2e suite under Node.
-//
-// ABI STATUS: coded to staking/DESIGN.md §5 (the design names the contract
-// ValidatorRegistry; the roster the UI shows is its node list) and to the e2e
-// fixture. Reconcile when the real contract lands in /staking/contracts.
+// NodeRegistry data layer — the network roster and the register-a-node flow
+// for ../../contracts/src/NodeRegistry.sol (ABI fragments: ./abi.ts).
+// No browser globals; exercised by the e2e suite under Node against the real
+// contract deployed on a local anvil.
 
-import { Contract, keccak256, toUtf8Bytes, type ContractRunner, type Provider, type Signer, type TransactionResponse } from 'ethers';
+import {
+  Contract,
+  Signature,
+  dataSlice,
+  getAddress,
+  keccak256,
+  recoverAddress,
+  solidityPackedKeccak256,
+  type ContractRunner,
+  type Provider,
+  type Signer,
+  type TransactionResponse,
+} from 'ethers';
+import { NODE_REGISTRY_ABI } from './abi.ts';
 import { checkAddress } from './validate.ts';
-
-export const NODE_REGISTRY_ABI = [
-  'function nodeCount() view returns (uint256)',
-  'function getNodes() view returns (tuple(uint256 id, address operator, address consensusAddr, bytes32 enodeId, uint256 positionId, uint256 bond, uint256 registeredAt, uint256 lastSeen, uint256 uptimeBps, bool active)[])',
-  'function registerNode(uint256 positionId, address consensusAddr, bytes32 enodeId) returns (uint256 id)',
-  'function deregister(uint256 nodeId)',
-  'function minBond() view returns (uint256)',
-  'function validatorTier() view returns (uint256)',
-  'event NodeRegistered(uint256 indexed id, address indexed operator, address consensusAddr, bytes32 enodeId, uint256 positionId)',
-  'event NodeDeregistered(uint256 indexed id, address indexed operator)',
-  'event UptimeAttested(uint256 indexed id, uint256 uptimeBps, uint256 timestamp)',
-] as const;
 
 export function registryContract(address: string, runner: ContractRunner): Contract {
   return new Contract(address, NODE_REGISTRY_ABI as unknown as string[], runner);
@@ -28,65 +27,208 @@ export interface NetworkNode {
   id: bigint;
   operator: string;
   consensusAddr: string;
-  enodeId: string;
-  positionId: bigint;
+  /** Address derived from the node's devp2p public key — its identity in the registry. */
+  nodeAddress: string;
+  /** Live bond of the linked validator-track position. */
   bondWei: bigint;
-  registeredAt: number;
-  /** Unix seconds of the last watchtower attestation covering this node; 0 = none yet. */
+  /** The linked position carries the uptime boost (2.0× → 3.0×) right now. */
+  boosted: boolean;
+  /** End of the latest finalized epoch in which the node scored above zero; 0 = never. */
   lastSeen: number;
-  /** Attested uptime for the latest epoch, in bps. */
+  /** Score in the latest finalized epoch that included the node, in bps. */
   uptimeBps: bigint;
-  active: boolean;
 }
 
+export interface RegistryParams {
+  /** Minimum bond per node (= the vault's MIN_VALIDATOR_STAKE). */
+  minBondWei: bigint;
+  /** Epoch score that switches the boost on (BOOST_THRESHOLD_BPS). */
+  boostThresholdBps: bigint;
+  /** A posted epoch takes effect only after this window (DISPUTE_WINDOW). */
+  disputeWindowSeconds: number;
+}
+
+/**
+ * The live roster: listActiveNodes() returns only nodes whose bonding position
+ * is still Active and at or above the minimum — a node whose bond exited is
+ * not shown as live.
+ */
 export async function fetchRoster(provider: Provider, registryAddress: string): Promise<NetworkNode[]> {
   const registry = registryContract(registryAddress, provider);
-  const raw = (await registry.getNodes()) as Array<
-    [bigint, string, string, string, bigint, bigint, bigint, bigint, bigint, boolean]
-  >;
+  const raw = (await registry.listActiveNodes()) as Array<{
+    nodeId: bigint;
+    operator: string;
+    consensusAddr: string;
+    nodeAddress: string;
+    stake: bigint;
+    boosted: boolean;
+    lastSeen: bigint;
+    lastUptimeBps: bigint;
+  }>;
   return raw.map((n) => ({
-    id: n[0],
-    operator: n[1],
-    consensusAddr: n[2],
-    enodeId: n[3],
-    positionId: n[4],
-    bondWei: n[5],
-    registeredAt: Number(n[6]),
-    lastSeen: Number(n[7]),
-    uptimeBps: n[8],
-    active: n[9],
+    id: n.nodeId,
+    operator: n.operator,
+    consensusAddr: n.consensusAddr,
+    nodeAddress: n.nodeAddress,
+    bondWei: n.stake,
+    boosted: n.boosted,
+    lastSeen: Number(n.lastSeen),
+    uptimeBps: n.lastUptimeBps,
   }));
 }
 
-export async function fetchRegistryParams(
-  provider: Provider,
-  registryAddress: string,
-): Promise<{ minBondWei: bigint; validatorTier: number }> {
+export async function fetchRegistryParams(provider: Provider, registryAddress: string): Promise<RegistryParams> {
   const registry = registryContract(registryAddress, provider);
-  const [minBond, tier] = await Promise.all([
+  const [minBond, threshold, window] = await Promise.all([
     registry.minBond() as Promise<bigint>,
-    registry.validatorTier() as Promise<bigint>,
+    registry.BOOST_THRESHOLD_BPS() as Promise<bigint>,
+    registry.DISPUTE_WINDOW() as Promise<bigint>,
   ]);
-  return { minBondWei: minBond, validatorTier: Number(tier) };
+  return { minBondWei: minBond, boostThresholdBps: threshold, disputeWindowSeconds: Number(window) };
 }
 
-/** Explicit gas ceiling — see the note on GAS_LIMITS in staking.ts. */
-export const REGISTER_GAS_LIMIT = 350_000n;
+/** Which of these positions already bond a node (nodeIdByPosition ≠ 0) — one node per position. */
+export async function fetchBondedPositions(
+  provider: Provider,
+  registryAddress: string,
+  positionIds: bigint[],
+): Promise<Set<string>> {
+  const registry = registryContract(registryAddress, provider);
+  const nodeIds = await Promise.all(positionIds.map((id) => registry.nodeIdByPosition(id) as Promise<bigint>));
+  return new Set(positionIds.filter((_, i) => nodeIds[i] !== 0n).map((id) => id.toString()));
+}
+
+/** A node the wallet registered and has not deregistered, live or not. */
+export interface OwnNode {
+  id: bigint;
+  nodeAddress: string;
+  consensusAddr: string;
+  /** The bonding position — possibly no longer Active. */
+  positionId: bigint;
+}
+
+/**
+ * The operator's registered nodes, found through its own positions in ANY
+ * state (nodeIdByPosition ≠ 0). listActiveNodes() leaves out a node whose bond
+ * exited or fell below the minimum, yet the registry keeps that node's key,
+ * consensus address and position bound until deregisterNode() — so the
+ * roster alone cannot offer Deregister for it, and re-registering the same
+ * node on a new bond would fail with "node key already registered".
+ */
+export async function fetchOwnNodes(
+  provider: Provider,
+  registryAddress: string,
+  operator: string,
+  positionIds: bigint[],
+): Promise<OwnNode[]> {
+  const registry = registryContract(registryAddress, provider);
+  const nodeIds = await Promise.all(positionIds.map((id) => registry.nodeIdByPosition(id) as Promise<bigint>));
+  const ids = nodeIds.filter((id) => id !== 0n);
+  const raw = (await Promise.all(ids.map((id) => registry.getNode(id)))) as Array<{
+    operator: string;
+    consensusAddr: string;
+    nodeAddress: string;
+    active: boolean;
+    positionId: bigint;
+  }>;
+  const me = operator.toLowerCase();
+  return raw
+    .map((n, i) => ({ n, id: ids[i] }))
+    .filter(({ n }) => n.active && n.operator.toLowerCase() === me)
+    .map(({ n, id }) => ({ id, nodeAddress: n.nodeAddress, consensusAddr: n.consensusAddr, positionId: n.positionId }));
+}
+
+/** Own nodes the live roster does not list — the ones only fetchOwnNodes() can reach. */
+export function nodesOutsideRoster(own: OwnNode[], roster: NetworkNode[]): OwnNode[] {
+  const listed = new Set(roster.map((n) => n.id));
+  return own.filter((n) => !listed.has(n.id));
+}
+
+/* ------------------------------------------------------------------ *
+ * Registration — the node key proves possession
+ * ------------------------------------------------------------------ */
+
+/**
+ * The digest the node key signs: NodeRegistry.registrationDigest(), computed
+ * locally. It binds chain, registry, operator (the wallet that sends the
+ * registration), consensus address and position, so a signature can never be
+ * replayed for another registration. Signed RAW — the contract runs ecrecover
+ * on this hash directly, with no "\x19Ethereum Signed Message" prefix.
+ */
+export function registrationDigest(
+  chainId: number | bigint,
+  registryAddress: string,
+  operator: string,
+  consensusAddr: string,
+  positionId: bigint,
+): string {
+  return solidityPackedKeccak256(
+    ['string', 'uint256', 'address', 'address', 'address', 'uint256'],
+    ['FMX_NODE_REG_V1', chainId, registryAddress, operator, consensusAddr, positionId],
+  );
+}
+
+export type SignatureCheck =
+  | { ok: true; v: number; r: string; s: string }
+  | { ok: false; error: string };
+
+/**
+ * Validate a pasted 65-byte possession signature BEFORE any transaction: it
+ * must recover, over `digest`, to the address the registry derives from the
+ * node's public key. Catches a signature from the wrong key or over a stale
+ * digest (another position, consensus address or wallet) without spending gas.
+ */
+export function checkPossessionSignature(raw: string, digest: string, nodeAddress: string): SignatureCheck {
+  const s = raw.trim();
+  if (s === '') return { ok: false, error: 'Paste the signature the node key produced.' };
+  const hex = s.startsWith('0x') ? s : `0x${s}`;
+  if (!/^0x[0-9a-fA-F]{130}$/.test(hex)) {
+    return { ok: false, error: 'A signature is 65 bytes: 0x followed by 130 hex characters (r, s, v).' };
+  }
+  let sig: Signature;
+  let recovered: string;
+  try {
+    sig = Signature.from(hex);
+    recovered = recoverAddress(digest, sig);
+  } catch {
+    return { ok: false, error: 'Not a valid secp256k1 signature.' };
+  }
+  if (recovered !== getAddress(nodeAddress)) {
+    return {
+      ok: false,
+      error: 'This signature was not made by the node key in the enode URL over the digest shown — sign that digest with that node key.',
+    };
+  }
+  return { ok: true, v: sig.v, r: sig.r, s: sig.s };
+}
+
+/** Explicit gas ceilings — see the note on GAS_LIMITS in staking.ts. */
+export const REGISTER_GAS_LIMIT = 450_000n;
+export const DEREGISTER_GAS_LIMIT = 200_000n;
 
 export async function registerNode(
   signer: Signer,
   registryAddress: string,
-  positionId: bigint,
-  consensusAddr: string,
-  enodeId: string,
+  args: { pubkey: string; consensusAddr: string; positionId: bigint; signature: { v: number; r: string; s: string } },
 ): Promise<TransactionResponse> {
   const registry = registryContract(registryAddress, signer);
+  const { pubkey, consensusAddr, positionId, signature } = args;
+  const callArgs = [pubkey, consensusAddr, positionId, signature.v, signature.r, signature.s] as const;
   // Preflight surfaces the require string gas-free; the pinned limit avoids
   // estimate-drift out-of-gas (see GAS_LIMITS in staking.ts).
-  await registry.registerNode.staticCall(positionId, consensusAddr, enodeId);
-  return (await registry.registerNode(positionId, consensusAddr, enodeId, {
-    gasLimit: REGISTER_GAS_LIMIT,
-  })) as TransactionResponse;
+  await registry.registerNode.staticCall(...callArgs);
+  return (await registry.registerNode(...callArgs, { gasLimit: REGISTER_GAS_LIMIT })) as TransactionResponse;
+}
+
+/** Free the node's bindings; any active uptime boost on its bond is dropped. */
+export async function deregisterNode(
+  signer: Signer,
+  registryAddress: string,
+  nodeId: bigint,
+): Promise<TransactionResponse> {
+  const registry = registryContract(registryAddress, signer);
+  await registry.deregisterNode.staticCall(nodeId);
+  return (await registry.deregisterNode(nodeId, { gasLimit: DEREGISTER_GAS_LIMIT })) as TransactionResponse;
 }
 
 /* ------------------------------------------------------------------ *
@@ -113,14 +255,21 @@ export function parseEnode(url: string): ParsedEnode | null {
   return { pubkey: m[1].toLowerCase(), host: m[2], port };
 }
 
-/**
- * The bytes32 node identity stored on-chain: keccak256 of the lowercase
- * public key (host/port change with reconnects; the key is the identity).
- */
-export function enodeToId(url: string): string | null {
+/** The 64-byte public key registerNode() takes (no 0x04 prefix), as 0x-hex. */
+export function enodePubkeyBytes(url: string): string | null {
   const parsed = parseEnode(url);
-  if (!parsed) return null;
-  return keccak256(toUtf8Bytes(parsed.pubkey));
+  return parsed ? `0x${parsed.pubkey}` : null;
+}
+
+/**
+ * The node's on-chain identity, derived exactly as registerNode() does:
+ * address(uint160(uint256(keccak256(pubkey)))). Host and port change with
+ * reconnects; the key is the identity.
+ */
+export function enodeToNodeAddress(url: string): string | null {
+  const pubkey = enodePubkeyBytes(url);
+  if (!pubkey) return null;
+  return getAddress(dataSlice(keccak256(pubkey), 12));
 }
 
 /** Consensus-address field validation for the register form (EIP-55 checked, checksummed result). */

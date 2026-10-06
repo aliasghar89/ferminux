@@ -46,6 +46,20 @@ export function withScanVerdict(finality: Record<string, unknown>, scan: ScanHea
   return { ...finality, signing: { paused: true, reason: `Scanner behind: ${scan.reason}` } };
 }
 
+/**
+ * A run-one-at-a-time queue. Every call waits for the previous one to settle,
+ * whether it resolved or threw, and then runs; the caller still sees its own
+ * result or error.
+ */
+export function serialQueue(): <T>(fn: () => Promise<T>) => Promise<T> {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(fn: () => Promise<T>): Promise<T> => {
+    const run = tail.then(fn, fn);
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}
+
 export interface ServiceOptions {
   cfg: RelayerConfig;
   role: 'validator' | 'submitter';
@@ -72,6 +86,18 @@ export class RelayerService {
   readonly watchers: Watcher[] = [];
   private readonly hooks: RoleHooks;
   private readonly tickIntervalMs: number;
+  /**
+   * Role work — onConfirmed and tick — runs one call at a time. The watchers
+   * call onConfirmed from their own poll timers while the tick timer walks the
+   * same `confirmed` rows, so without this both reach the same transfer at
+   * once. In the validator that is two verifications, each consuming 24h
+   * capacity, for one signature: the second consumption is never released and
+   * the node slowly starves itself. In the submitter it is two allocateNonce()
+   * calls racing on the same pending count: two transfers broadcast at one
+   * nonce, one replaces the other, and the loser escalates at a nonce that has
+   * already been spent until it is abandoned.
+   */
+  private readonly exclusive = serialQueue();
   private http: RelayerHttpServer | null = null;
   private timers: NodeJS.Timeout[] = [];
   private stopped = false;
@@ -122,7 +148,32 @@ export class RelayerService {
           log: this.log,
           alerts: this.alerts,
           requireRpcQuorum: this.cfg.validator.requireRpcQuorum,
-          onConfirmed: (t) => this.hooks.onConfirmed(t),
+          // Queued, not awaited: the scan must never wait for role work. A tick
+          // can run for minutes on a destination endpoint that passes the probe
+          // and hangs on eth_call (ethers' default request timeout is 300 s), and
+          // a poll stuck behind it stales lastSuccessAt and publishes "Scanner
+          // behind" for every route out of this chain, not only the impaired one.
+          // FIFO still runs it after the tick in flight, never beside it, and a
+          // failure leaves the row 'confirmed' for the next tick to retry.
+          //
+          // Re-read the row when the work finally runs: `t` was read when the
+          // watcher confirmed it, and the tick in flight may since have listed it
+          // and rejected, signed or executed it. The sqlite store hands out a
+          // copy, so `t.status` still says 'confirmed', and the role hooks guard
+          // on the status they are given: a final refusal would be verified
+          // again — and could be signed — with no operator in the loop.
+          onConfirmed: (t) => {
+            this.exclusive(async () => {
+              const current = this.store.getTransfer(t.transferId);
+              if (current?.status !== 'confirmed') return;
+              await this.hooks.onConfirmed(current);
+            }).catch((err) => {
+              this.log.error('role work for a confirmed transfer failed — the next tick retries it', {
+                transferId: t.transferId,
+                err: (err as Error).message,
+              });
+            });
+          },
         }),
       );
     }
@@ -236,7 +287,7 @@ export class RelayerService {
     }
     this.every(this.tickIntervalMs, async () => {
       await this.refreshFinality();
-      await this.hooks.tick?.();
+      await this.runTick();
     });
     this.every(15_000, () => {
       this.refreshMetrics();
@@ -257,8 +308,15 @@ export class RelayerService {
   async runOnce(): Promise<void> {
     for (const w of this.watchers) await w.pollOnce();
     await this.refreshFinality();
-    await this.hooks.tick?.();
+    await this.runTick();
     this.refreshMetrics();
+  }
+
+  /** The role's periodic work, inside the same queue as onConfirmed. */
+  runTick(): Promise<void> {
+    return this.exclusive(async () => {
+      await this.hooks.tick?.();
+    });
   }
 
   private every(ms: number, fn: () => Promise<void>): void {

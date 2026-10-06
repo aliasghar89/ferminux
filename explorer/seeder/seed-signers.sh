@@ -1,19 +1,25 @@
 #!/bin/sh
-# Attribute authority blocks to the signer that actually sealed them.
+# Attribute authority blocks to the signer that actually confirmed them.
 #
 # THE PROBLEM, which only appears at the fork and would appear on every block:
 # Clique's Prepare sets header.Coinbase to the zero address (it repurposes that
 # field for signer votes), and geth's RPC marshals "miner" straight from
 # header.Coinbase. Blockscout believes it. So from PosaBlock onward the explorer
-# would show EVERY block mined by 0x0000…0000, with the reward paid there, while
+# would attribute EVERY block to 0x0000…0000, with the reward paid there, while
 # the chain credits the ecrecovered signer — and during a signer vote it would
 # name the vote's subject as the miner, which is worse than a blank.
 #
 # The chain is right and the explorer is wrong, so this repairs the explorer:
-# for each post-fork block still attributed to the zero address, ask the node
-# who sealed it (clique_getSigner recovers it from the header seal — the same
-# source the consensus rules use) and rewrite blocks.miner_hash, carrying the
-# reward row with it.
+# for each post-fork block whose signer has not been recorded yet, ask the
+# node which signer confirmed it (clique_getSigner recovers it from the header
+# seal — the same source the consensus rules use) and rewrite blocks.miner_hash,
+# carrying the reward row with it.
+#
+# A vote block's coinbase is the vote's SUBJECT, not zero, so "still credited
+# to 0x0" cannot find it. Every post-fork block is therefore checked once, and
+# the answer is recorded in ferminux_block_signers (block hash -> signer). A
+# block is checked again whenever its miner_hash no longer equals the recorded
+# signer, which also repairs a block the indexer has re-imported.
 #
 # Runs every pass and is a no-op before the fork: no block below PosaBlock
 # matches, so this file changes nothing until the day it is needed. That is
@@ -27,19 +33,26 @@ set -u
 RPC="${FMX_RPC:-http://miner:8545}"
 FORK="${FMX_POSA_BLOCK:-160000}"
 BATCH="${FMX_SIGNER_BATCH:-500}"
-ZERO='\x0000000000000000000000000000000000000000'
 
-# Blocks past the fork that are still credited to nobody. Ordered oldest first
-# so a long backlog converges from the fork forward rather than in random order.
+psql -q -v ON_ERROR_STOP=1 -c "
+  CREATE TABLE IF NOT EXISTS ferminux_block_signers (
+    block_hash bytea PRIMARY KEY,
+    signer     bytea NOT NULL
+  );" >/dev/null 2>&1 || exit 0
+
+# Post-fork blocks whose miner is not the confirmed signer (never checked, or
+# changed since). Ordered oldest first so a long backlog converges from the
+# fork forward rather than in random order.
 rows=$(psql -tAF'|' -c "
-  SELECT number, '0x' || encode(hash, 'hex')
-  FROM blocks
-  WHERE consensus AND number >= ${FORK} AND miner_hash = '${ZERO}'::bytea
-  ORDER BY number
+  SELECT b.number, '0x' || encode(b.hash, 'hex')
+  FROM blocks b
+  WHERE b.consensus AND b.number >= ${FORK}
+    AND NOT EXISTS (SELECT 1 FROM ferminux_block_signers s
+                     WHERE s.block_hash = b.hash AND s.signer = b.miner_hash)
+  ORDER BY b.number
   LIMIT ${BATCH};" 2>/dev/null) || exit 0
 [ -n "$rows" ] || exit 0
 
-fixed=0
 echo "$rows" | while IFS='|' read -r number hash; do
   [ -n "$hash" ] || continue
   signer=$(wget -qO- --timeout=8 \
@@ -49,6 +62,7 @@ echo "$rows" | while IFS='|' read -r number hash; do
   # No signer means the node could not recover one. Leave the row alone: a wrong
   # attribution is worse than a missing one, and the next pass will retry.
   [ -n "$signer" ] || { echo "seed-signers: block ${number}: no signer from ${RPC}"; continue; }
+  h=${hash#0x}
 
   psql -q -v ON_ERROR_STOP=1 <<SQL 2>/dev/null || { echo "seed-signers: block ${number}: update failed"; continue; }
 BEGIN;
@@ -61,34 +75,39 @@ ON CONFLICT (hash) DO NOTHING;
 
 UPDATE blocks
    SET miner_hash = decode('${signer}', 'hex'), updated_at = NOW()
- WHERE number = ${number} AND consensus AND miner_hash = '${ZERO}'::bytea;
+ WHERE hash = decode('${h}', 'hex') AND consensus
+   AND miner_hash IS DISTINCT FROM decode('${signer}', 'hex');
 
 -- Carry the reward row to the same address. The PRIMARY KEY is
 -- (address_hash, block_hash, address_type), so this is an update of the key
 -- itself; if a row for the correct address somehow already exists, keep it and
--- drop the stale zero-address one rather than failing the batch.
+-- drop the stale one (zero address or vote subject) rather than failing.
 UPDATE block_rewards r
    SET address_hash = decode('${signer}', 'hex'), updated_at = NOW()
-  FROM blocks b
- WHERE b.number = ${number} AND r.block_hash = b.hash
+ WHERE r.block_hash = decode('${h}', 'hex')
    AND r.address_type = 'validator'
-   AND r.address_hash = '${ZERO}'::bytea
+   AND r.address_hash <> decode('${signer}', 'hex')
    AND NOT EXISTS (
      SELECT 1 FROM block_rewards r2
       WHERE r2.block_hash = r.block_hash AND r2.address_type = r.address_type
         AND r2.address_hash = decode('${signer}', 'hex'));
 
 DELETE FROM block_rewards r
- USING blocks b
- WHERE b.number = ${number} AND r.block_hash = b.hash
+ WHERE r.block_hash = decode('${h}', 'hex')
    AND r.address_type = 'validator'
-   AND r.address_hash = '${ZERO}'::bytea;
+   AND r.address_hash <> decode('${signer}', 'hex');
+
+INSERT INTO ferminux_block_signers (block_hash, signer)
+VALUES (decode('${h}', 'hex'), decode('${signer}', 'hex'))
+ON CONFLICT (block_hash) DO UPDATE SET signer = EXCLUDED.signer;
 COMMIT;
 SQL
-  fixed=$((fixed + 1))
 done
 
-# The loop runs in a subshell (pipe), so report from a fresh count rather than
-# from $fixed, which would always read 0 out here.
-remaining=$(psql -tAc "SELECT count(*) FROM blocks WHERE consensus AND number >= ${FORK} AND miner_hash = '${ZERO}'::bytea;" 2>/dev/null)
-[ "${remaining:-0}" = "0" ] || echo "seed-signers: ${remaining} authority block(s) still unattributed"
+# The loop runs in a subshell (pipe), so report from a fresh count.
+remaining=$(psql -tAc "
+  SELECT count(*) FROM blocks b
+   WHERE b.consensus AND b.number >= ${FORK}
+     AND NOT EXISTS (SELECT 1 FROM ferminux_block_signers s
+                      WHERE s.block_hash = b.hash AND s.signer = b.miner_hash);" 2>/dev/null)
+[ "${remaining:-0}" = "0" ] || echo "seed-signers: ${remaining} authority block(s) not yet attributed to their signer"

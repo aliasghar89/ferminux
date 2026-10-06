@@ -248,7 +248,7 @@ export async function serve(opts: ServeOptions): Promise<void> {
       const jobId = Number(event.data?.jobId);
       const agentId = Number(event.data?.agentId ?? opts.id);
       if (Number.isInteger(jobId) && agentId === opts.id) {
-        void handleOneJob(fmx, jobId, statePath, handler, app.log).catch((err) => app.log.error({ err, jobId }, "webhook-triggered job handling failed"));
+        void handleOneJob(fmx, opts.id, jobId, statePath, handler, app.log).catch((err) => app.log.error({ err, jobId }, "webhook-triggered job handling failed"));
       }
     }
     return { ok: true };
@@ -374,9 +374,14 @@ export async function serve(opts: ServeOptions): Promise<void> {
 }
 
 /** The escrow calls handleOneJob needs, bound to this agent's SDK client (and so its signer). */
-function jobClient(fmx: Ferminux): JobClient {
+function jobClient(fmx: Ferminux, agentId: number): JobClient {
   return {
     status: async (jobId) => Number((await fmx.escrow.getJob(jobId)).status),
+    // both read on chain: the amount the job escrows and the registry's current price
+    underpriced: async (jobId) => {
+      const [job, agent] = await Promise.all([fmx.escrow.getJob(jobId), fmx.registry.getAgent(agentId)]);
+      return BigInt(job.amount) < BigInt(agent.pricePerJob);
+    },
     input: (jobId) => fmx.jobs.input(jobId),
     // one key, one queue (settle.ts agentSendQueue): never in parallel with a settle, anchor or validation send
     deliver: (jobId, output) => agentSendQueue(() => fmx.jobs.deliver({ jobId, output })),
@@ -399,15 +404,8 @@ async function pollOnce(
 
   for (const job of items) {
     if (state[String(job.id)]) continue; // already delivered or permanently abandoned
-
-    const agent = await fmx.agents.get(agentId).catch(() => null);
-    const price = agent ? BigInt(agent.pricePerJob) : 0n;
-    if (BigInt(job.amount) < price) {
-      // Below the agent's current price — leave it; the client can refund after the delivery window.
-      continue;
-    }
-
-    await handleOneJob(fmx, job.id, statePath, handler, log);
+    // a job below the agent's current price is left alone inside handleOneJob (jobs.ts), shared with the webhook
+    await handleOneJob(fmx, agentId, job.id, statePath, handler, log);
   }
 }
 
@@ -416,6 +414,6 @@ async function pollOnce(
  * delivers — or declines on chain when the agent cannot serve it — and persists the outcome). Shared by the
  * poll loop and the webhook receiver (`POST /webhooks/ferminux`, job.requested events).
  */
-async function handleOneJob(fmx: Ferminux, jobId: number, statePath: string, handler: Handler, log: Log): Promise<void> {
-  await handleJob(jobClient(fmx), jobId, statePath, handler, log);
+async function handleOneJob(fmx: Ferminux, agentId: number, jobId: number, statePath: string, handler: Handler, log: Log): Promise<void> {
+  await handleJob(jobClient(fmx, agentId), jobId, statePath, handler, log);
 }

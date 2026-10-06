@@ -662,6 +662,7 @@ async function withHttp(opts, fn) {
     maxConnections: 64,
     metrics,
     log: silentLogger(),
+    now: opts.now,
     handlers: {
       health: () => ({ ok: true, body: { ok: true } }),
       status: () => ({ role: 'validator', inFlightBook: 'sender, recipient, amount, status' }),
@@ -708,14 +709,22 @@ test('http: an anonymous flood is throttled, the 429 says when to return, and th
   // A token must be configured for a caller to count as anonymous: with no
   // token at all every caller is "authorized" (that shape is loopback-only by
   // config rule) and gets the generous bucket.
-  const opts = { apiToken: 'q'.repeat(32), rateLimit: { burst: 5, refillPerSecond: 20, maxClients: 16 } };
+  //
+  // The limiter's clock is pinned and moved by hand. On wall time a loaded CI
+  // runner served the flood slower than 20/s, the bucket refilled as fast as
+  // it was spent, and the test failed without the limiter being wrong.
+  let clock = 1_000_000;
+  const opts = { apiToken: 'q'.repeat(32), rateLimit: { burst: 5, refillPerSecond: 20, maxClients: 16 }, now: () => clock };
   await withHttp(opts, async (port, server) => {
     const codes = [];
     for (let i = 0; i < 12; i++) codes.push((await rawRequest(port, { path: '/health' })).status);
     assert.deepEqual(codes.slice(0, 5), [200, 200, 200, 200, 200], 'the burst is honoured');
-    assert.ok(codes.includes(429), `then the limiter trips: ${codes.join(',')}`);
-    assert.ok(server.throttledCount > 0);
+    assert.deepEqual(codes.slice(5), [429, 429, 429, 429, 429, 429, 429], `then the limiter trips: ${codes.join(',')}`);
+    assert.equal(server.throttledCount, 7);
 
+    // The server reads the limiter's clock, not the wall: on wall time this
+    // pause alone would refill three tokens, as a slow runner's requests did.
+    await new Promise((r) => setTimeout(r, 150));
     const limited = await rawRequest(port, { path: '/health' });
     assert.equal(limited.status, 429);
     assert.ok(Number(limited.headers['retry-after']) >= 1, 'a 429 tells the caller when to come back');
@@ -732,7 +741,7 @@ test('http: an anonymous flood is throttled, the 429 says when to return, and th
       'a flood of guesses is throttled before it is answered',
     );
 
-    await new Promise((r) => setTimeout(r, 300)); // 20/s => ~6 tokens
+    clock += 300; // 20/s => 6 tokens
     assert.equal((await rawRequest(port, { path: '/health' })).status, 200, 'a throttle is not a ban');
   });
 });
@@ -742,7 +751,10 @@ test('http: the submitter is not throttled alongside the anonymous flood it is b
   // tick. Throttling it would stall signature collection — which is the outage
   // the limiter exists to prevent, arrived at from the other direction.
   const token = 'z'.repeat(32);
-  await withHttp({ apiToken: token, rateLimit: { burst: 5, refillPerSecond: 20, maxClients: 16 } }, async (port) => {
+  // Pinned for the same reason as the flood test: on wall time a slow runner
+  // refills the anonymous bucket mid-flood and it never trips.
+  const now = () => 1_000_000;
+  await withHttp({ apiToken: token, rateLimit: { burst: 5, refillPerSecond: 20, maxClients: 16 }, now }, async (port) => {
     const headers = { authorization: `Bearer ${token}` };
     const codes = [];
     for (let i = 0; i < 40; i++) codes.push((await rawRequest(port, { path: '/status', headers })).status);
@@ -1062,6 +1074,44 @@ test('capacity: repeated reject-and-release does not ratchet the budget down', a
 
   const final = await verifyForSigning(ctx, stored);
   assert.equal(final.ok, true, 'and a legitimate transfer still gets signed afterwards');
+});
+
+// ============================================================================
+// FINDING: an unreadable destination domain separator was a final refusal
+// ============================================================================
+
+test('domain: a separator that cannot be READ is a retryable rpc_error, not an impostor', async () => {
+  // A real ChainClient for the destination, with no healthy endpoint yet — the
+  // state a 429 or a failed probe leaves behind. Before: domain_mismatch, which
+  // is final, so a passing RPC blip permanently rejected a transfer whose funds
+  // send() had already locked, and paged "impostor contract" for it.
+  const { ctx, stored, transfer, limiter } = verifyFixture();
+  const fired = watchAlerts(ctx.alerts);
+  const dstCfg = ctx.chains.get(CHAIN_B).config;
+  const dst = new ChainClient(dstCfg, silentLogger(), ctx.alerts);
+  try {
+    ctx.chains.get(CHAIN_B).verifyDomainSeparator = (expected) => dst.verifyDomainSeparator(expected);
+    const result = await verifyForSigning(ctx, stored);
+    assert.equal(result.ok, false, 'still refuses: nothing unchecked is signed');
+    assert.equal(result.code, 'rpc_error', result.reason ?? '');
+    assert.match(result.reason ?? '', /no healthy RPC endpoint/);
+    assert.equal(fired.filter((a) => a.kind === 'domain_mismatch').length, 0, 'no impostor alert for an unreachable node');
+    assert.equal(result.consumed, null);
+    assert.equal(limiter.usage(windowKey(transfer.srcChainId, transfer.srcToken, 'out')), 0n);
+  } finally {
+    dst.endpoints.forEach((e) => e.provider.destroy());
+  }
+});
+
+test('domain: a separator that is read and DIFFERS is still a final domain_mismatch', async () => {
+  const { ctx, stored } = verifyFixture();
+  const fired = watchAlerts(ctx.alerts);
+  const wrong = `0x${'ee'.repeat(32)}`;
+  ctx.chains.get(CHAIN_B).verifyDomainSeparator = async (expected) => ({ ok: false, onChain: wrong, reason: `on-chain ${wrong} != locally derived ${expected}` });
+  const result = await verifyForSigning(ctx, stored);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'domain_mismatch');
+  assert.equal(fired.filter((a) => a.kind === 'domain_mismatch' && a.severity === 'critical').length, 1);
 });
 
 test('capacity: a dry-run verification consumes nothing to release', async () => {

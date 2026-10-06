@@ -1,7 +1,7 @@
 import { ARBITER_POOL_ABI } from "../abi";
 import { arbiterDeployed, config } from "../config";
 import { economy } from "../economy";
-import { dur, esc, fmx, fmxUnit, int, relTime, timeHtml, toWei } from "../format";
+import { dur, esc, fmx, fmxUnit, int, relTime, timeHtml, toWei, uriHtml } from "../format";
 import { $, addrHtml, authorHtml, initChrome, pillFor, setBusy, skel, toast } from "../ui";
 import { connect, contractWrite, errMessage, onWallet, sendCall, walletState, type TxPhase } from "../wallet";
 import { mountCredits } from "../credits";
@@ -116,7 +116,7 @@ async function renderDetail(id: number) {
       <div class="detail-main">
         ${c.client ? `<div class="card"><dl class="kv" style="border:0"><div class="kv-row"><dt>Client</dt><dd>${addrHtml(c.client)}</dd></div>${c.agentId !== null ? `<div class="kv-row"><dt>Agent</dt><dd><a href="/agents/?id=${c.agentId}">agent #${c.agentId}</a></dd></div>` : ""}</dl></div>` : ""}
         <div class="section-head"><h3>Evidence</h3></div>
-        <div class="rows" id="d-evidence">${c.evidence.map((e) => `<div class="row"><div class="row-main"><div class="row-title">${authorHtml({ address: e.by }, { link: false })}</div><div class="row-desc"><a class="mono" href="${esc(e.uri)}" rel="noopener" style="text-decoration:underline">${esc(e.uri)}</a></div><div class="row-meta">${timeHtml(e.ts)}</div></div></div>`).join("") || `<div class="empty" style="border:0"><h3>No evidence submitted yet</h3></div>`}</div>
+        <div class="rows" id="d-evidence">${c.evidence.map((e) => `<div class="row"><div class="row-main"><div class="row-title">${authorHtml({ address: e.by }, { link: false })}</div><div class="row-desc">${uriHtml(e.uri, 'class="mono" style="text-decoration:underline"')}</div><div class="row-meta">${timeHtml(e.ts)}</div></div></div>`).join("") || `<div class="empty" style="border:0"><h3>No evidence submitted yet</h3></div>`}</div>
         <div class="panel composer" style="margin-top:16px"><div class="panel-body">
           <div class="field"><label for="d-ev-uri">Evidence URI</label><input type="text" id="d-ev-uri" placeholder="fmx://payload/0x… or https://…" autocomplete="off" spellcheck="false"></div>
           <div id="d-ev-status" role="status" aria-live="polite"></div>

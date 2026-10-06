@@ -4,8 +4,13 @@
 // resolves to loopback / private / link-local / metadata / multicast space,
 // and `safeFetch` re-checks after each redirect (redirects are followed
 // manually, at most 3, never to a private target) and caps the response body.
+// The connection goes to the very addresses that were checked (see pinnedFetch).
 import { lookup } from "node:dns/promises";
+import { request as httpRequest, type IncomingMessage } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
+import { Readable, pipeline } from "node:stream";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 import { HttpError } from "./commons/context.js";
 
 export const SAFE_FETCH_MAX_REDIRECTS = 3;
@@ -75,29 +80,115 @@ export function checkPublicUrlSync(raw: string, name = "url"): URL {
   return u;
 }
 
-/** Resolves the hostname and rejects when any answer is private (resolve-and-check; the connection then reuses the resolver cache). */
-export async function assertPublicUrl(raw: string, name = "url"): Promise<URL> {
+/** A checked answer for a URL's host: the connection must go to one of these and nowhere else. */
+export interface PinnedAddress {
+  address: string;
+  family: number;
+}
+
+/**
+ * Resolves the hostname once and rejects when any answer is private. Checking is only half of it: a plain fetch()
+ * resolves the name again to connect, and an attacker's DNS can answer public for the check and 169.254.169.254
+ * for the connection (DNS rebinding). Hence the answers are returned, for pinnedFetch to connect to.
+ */
+export async function resolvePublicUrl(raw: string, name = "url"): Promise<{ url: URL; addresses: PinnedAddress[] }> {
   const u = checkPublicUrlSync(raw, name);
-  if (allowPrivate()) return u;
   const host = u.hostname.replace(/^\[|\]$/g, "");
-  if (isIP(host)) return u;
-  let addrs: Array<{ address: string }>;
+  if (isIP(host)) return { url: u, addresses: [{ address: host, family: isIP(host) }] };
+  let addrs: PinnedAddress[];
   try {
     addrs = await lookup(host, { all: true, verbatim: true });
   } catch {
     throw new HttpError(502, `${name}: host ${host} does not resolve`, "unresolvable_url");
   }
-  if (!addrs.length || addrs.some((a) => isPrivateIp(a.address))) throw new HttpError(400, `${name} resolves to a private address`, "private_url");
-  return u;
+  if (!addrs.length) throw new HttpError(502, `${name}: host ${host} does not resolve`, "unresolvable_url");
+  if (!allowPrivate() && addrs.some((a) => isPrivateIp(a.address))) throw new HttpError(400, `${name} resolves to a private address`, "private_url");
+  return { url: u, addresses: addrs.map((a) => ({ address: a.address, family: a.family })) };
+}
+
+/** Resolves the hostname and rejects when any answer is private. Validation only: a connection must use resolvePublicUrl's answers. */
+export async function assertPublicUrl(raw: string, name = "url"): Promise<URL> {
+  if (allowPrivate()) return checkPublicUrlSync(raw, name);
+  return (await resolvePublicUrl(raw, name)).url;
+}
+
+const NULL_BODY_STATUS = new Set([204, 205, 304]);
+
+/** node:http response → fetch Response (body streamed, gzip/deflate/br decoded the way fetch() would). */
+function toResponse(res: IncomingMessage, method: string): Response {
+  const status = res.statusCode ?? 0;
+  if (status < 200 || status > 599) {
+    res.destroy();
+    throw new Error(`unexpected HTTP status ${status}`);
+  }
+  const headers = new Headers();
+  for (let i = 0; i + 1 < res.rawHeaders.length; i += 2) {
+    try {
+      headers.append(res.rawHeaders[i]!, res.rawHeaders[i + 1]!);
+    } catch {
+      // a header a Headers object cannot hold: dropped, as fetch() would refuse it
+    }
+  }
+  if (method === "HEAD" || NULL_BODY_STATUS.has(status)) {
+    res.resume();
+    return new Response(null, { status, headers });
+  }
+  const enc = String(res.headers["content-encoding"] ?? "").trim().toLowerCase();
+  const decoder = enc === "gzip" || enc === "x-gzip" ? createGunzip() : enc === "deflate" ? createInflate() : enc === "br" ? createBrotliDecompress() : null;
+  const stream: Readable = decoder ? pipeline(res, decoder, () => undefined) : res;
+  return new Response(Readable.toWeb(stream) as unknown as ReadableStream<Uint8Array>, { status, headers });
+}
+
+function requestBody(body: RequestInit["body"]): Buffer | undefined {
+  if (body === undefined || body === null) return undefined;
+  if (typeof body === "string") return Buffer.from(body, "utf8");
+  if (Buffer.isBuffer(body)) return body;
+  if (body instanceof Uint8Array) return Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+  if (body instanceof ArrayBuffer) return Buffer.from(body);
+  throw new Error("safeFetch: request body must be a string or bytes");
+}
+
+/**
+ * One HTTP(S) exchange that connects only to `pinned`, the addresses resolvePublicUrl checked. The hostname stays
+ * in the URL, so the Host header, TLS SNI and certificate verification all still use the name; only the lookup
+ * that picks the socket address is answered from `pinned`. A fresh connection every time (no pooled socket from
+ * an earlier resolution). Redirects come back as responses; safeFetch decides whether to follow them.
+ */
+function pinnedFetch(url: URL, pinned: PinnedAddress[], init: { method: string; headers?: RequestInit["headers"]; body?: RequestInit["body"]; signal: AbortSignal }): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const headers: Record<string, string> = {};
+    new Headers(init.headers ?? undefined).forEach((v, k) => {
+      headers[k] = v;
+    });
+    const body = requestBody(init.body);
+    const pinnedLookup = (_host: string, opts: { all?: boolean } | number | undefined, cb: (...args: unknown[]) => void) => {
+      if (typeof opts === "object" && opts?.all) cb(null, pinned);
+      else cb(null, pinned[0]!.address, pinned[0]!.family);
+    };
+    const send = url.protocol === "https:" ? httpsRequest : httpRequest;
+    const req = send(url, { method: init.method, headers, lookup: pinnedLookup as never, agent: false, signal: init.signal }, (res) => {
+      try {
+        resolve(toResponse(res, init.method));
+      } catch (err) {
+        reject(err);
+      }
+    });
+    req.on("error", reject);
+    req.end(body);
+  });
 }
 
 export interface SafeFetchOptions extends RequestInit {
-  /** abort after this many ms (default 10 s) */
+  /** abort after this many ms (default 10 s) — the whole exchange, body included */
   timeoutMs?: number;
   /** max response bytes read by `readCapped` (callers that stream must cap themselves) */
   maxBytes?: number;
   /** skip the public-host check (in-cluster upstreams the operator configured) */
   trusted?: boolean;
+  /**
+   * A stand-in transport (tests). The default — and global fetch() passed explicitly — connects through
+   * pinnedFetch to the checked addresses; a stand-in still gets every hop checked but does its own connecting.
+   */
   fetchImpl?: typeof fetch;
 }
 
@@ -127,26 +218,72 @@ export async function readCapped(res: Response, maxBytes: number): Promise<Buffe
 }
 
 /**
+ * `res` with a body that keeps the deadline armed until it ends, errors or is cancelled. pinnedFetch's node:http
+ * socket has no idle timeout of its own (fetch()'s had 300 s), so a server that sent its headers and then stalled
+ * held the reader, and the socket, for ever. A body nobody reads is cut off when the deadline fires.
+ */
+function armedUntilRead(res: Response, release: () => void): Response {
+  if (!res.body) {
+    release();
+    return res;
+  }
+  const reader = res.body.getReader();
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          release();
+          controller.close();
+        } else controller.enqueue(value);
+      } catch (err) {
+        release();
+        controller.error(err);
+      }
+    },
+    cancel(reason) {
+      release();
+      return reader.cancel(reason);
+    },
+  });
+  return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
+/**
  * fetch() that only talks to public hosts, follows at most 3 redirects (each
  * re-checked; 307/308 keep the method+body, 301/302/303 become GET without a
- * body) and never forwards the request headers across an origin change.
+ * body) and never forwards the request headers across an origin change. Every
+ * hop is resolved once and connected to the addresses that passed the check.
+ * `timeoutMs` covers reading the body as well as getting the headers.
  */
 export async function safeFetch(url: string, opts: SafeFetchOptions = {}): Promise<Response> {
   const { timeoutMs = 10_000, trusted = false, fetchImpl = fetch, maxBytes: _m, ...init } = opts;
+  const pin = !trusted && fetchImpl === globalThis.fetch;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const onOuterAbort = () => controller.abort();
   init.signal?.addEventListener("abort", onOuterAbort);
+  const release = () => {
+    clearTimeout(timer);
+    init.signal?.removeEventListener("abort", onOuterAbort);
+  };
   try {
     let current = url;
     let method = (init.method ?? "GET").toUpperCase();
     let body = init.body;
     let headers = init.headers;
     for (let hop = 0; ; hop++) {
-      if (!trusted) await assertPublicUrl(current);
-      const res = await fetchImpl(current, { ...init, method, body, headers, redirect: "manual", signal: controller.signal });
+      let res: Response;
+      if (pin) {
+        // every hop, redirects included: resolve once, check, and connect to exactly what was checked
+        const { url: target, addresses } = await resolvePublicUrl(current);
+        res = await pinnedFetch(target, addresses, { method, headers, body, signal: controller.signal });
+      } else {
+        if (!trusted) await assertPublicUrl(current);
+        res = await fetchImpl(current, { ...init, method, body, headers, redirect: "manual", signal: controller.signal });
+      }
       const loc = res.headers.get("location");
-      if (!(res.status >= 300 && res.status < 400 && loc)) return res;
+      if (!(res.status >= 300 && res.status < 400 && loc)) return armedUntilRead(res, release);
       try {
         await res.body?.cancel();
       } catch {
@@ -161,8 +298,8 @@ export async function safeFetch(url: string, opts: SafeFetchOptions = {}): Promi
       }
       current = next.toString();
     }
-  } finally {
-    clearTimeout(timer);
-    init.signal?.removeEventListener("abort", onOuterAbort);
+  } catch (err) {
+    release();
+    throw err;
   }
 }

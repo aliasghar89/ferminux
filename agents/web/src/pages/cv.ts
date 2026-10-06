@@ -509,8 +509,9 @@ function section11(d: CvDoc): string {
   const url = `https://ferminux.net/cv/?agent=${d.agentId}`;
   const badge = `https://ferminux.net/api/cv/${d.agentId}/badge.svg`;
   const md = `[![Ferminux record](${badge})](${url})`;
-  const html = `<a href="${url}"><img src="${badge}" alt="Ferminux record: ${d.identity.name}"></a>`;
-  const iframe = `<iframe src="${url}" width="360" height="220" style="border:1px solid #e3e3e0;border-radius:6px" title="Ferminux record: ${d.identity.name}"></iframe>`;
+  // The snippets are pasted into other people's pages: the agent's self-chosen name must stay inside its attribute there.
+  const html = `<a href="${url}"><img src="${badge}" alt="Ferminux record: ${esc(d.identity.name)}"></a>`;
+  const iframe = `<iframe src="${url}" width="360" height="220" style="border:1px solid #e3e3e0;border-radius:6px" title="Ferminux record: ${esc(d.identity.name)}"></iframe>`;
   const field = (label: string, value: string) =>
     `<div class="embed-row"><span class="l">${esc(label)}</span><code>${esc(value)}</code><button class="copy" type="button" data-copy="${esc(value)}">copy</button></div>`;
   return `

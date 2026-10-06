@@ -38,7 +38,8 @@ export const toolsHandler: Handler = async (input) => {
     case "timestamp": {
       const n = Number(text.trim());
       const d = Number.isFinite(n) ? new Date(n > 1e12 ? n : n * 1000) : new Date(text.trim());
-      if (Number.isNaN(d.getTime())) return { ok: true, op, error: "unparseable date/time", output: null };
+      // ok:false is a refusal (jobs.ts): the job is declined and the client credited, not charged for an error
+      if (Number.isNaN(d.getTime())) return { ok: false, op, error: "unparseable date/time" };
       return { ok: true, op, output: { iso: d.toISOString(), unix: Math.floor(d.getTime() / 1000), utc: d.toUTCString() } };
     }
     case "stats":

@@ -101,6 +101,7 @@ type key struct {
 type DB struct {
 	mu         sync.Mutex
 	path       string
+	dir        *dbDir // path's directory: the database's files are opened and removed relative to it
 	f          *os.File
 	lock       *flock.Lock
 	records    map[key]Record
@@ -119,24 +120,35 @@ func Open(path string) (*DB, error) {
 		return nil, err
 	}
 	lk, err := flock.Acquire(path + ".lock")
-	if err != nil {
+	if errors.Is(err, flock.ErrLocked) {
 		return nil, fmt.Errorf("slashing protection database is in use: %w", err)
 	}
-	db := &DB{path: path, lock: lk, records: map[key]Record{}, watermarks: map[Scope]uint64{}, now: time.Now,
+	if err != nil {
+		return nil, fmt.Errorf("slashing protection database: %w", err)
+	}
+	dir, err := openDBDir(filepath.Dir(path))
+	if err != nil {
+		lk.Release()
+		return nil, err
+	}
+	db := &DB{path: path, dir: dir, lock: lk, records: map[key]Record{}, watermarks: map[Scope]uint64{}, now: time.Now,
 		writeString: func(f *os.File, s string) (int, error) { return f.WriteString(s) }}
 	if err := db.load(); err != nil {
+		dir.close()
 		lk.Release()
 		return nil, err
 	}
 	return db, nil
 }
 
-func (db *DB) repairPath() string { return db.path + ".repair" }
+// name and repairName are the database's and the repair marker's names in db.dir.
+func (db *DB) name() string       { return filepath.Base(db.path) }
+func (db *DB) repairName() string { return db.name() + ".repair" }
 
 // writeRepairMarker durably records that n bytes of torn tail were cut, before
 // the cut happens.
 func (db *DB) writeRepairMarker(n int64) error {
-	f, err := os.OpenFile(db.repairPath(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	f, err := db.dir.open(db.repairName(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
 	if err != nil {
 		return err
 	}
@@ -151,12 +163,12 @@ func (db *DB) writeRepairMarker(n int64) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	syncDir(filepath.Dir(db.path))
+	db.dir.sync()
 	return nil
 }
 
 func (db *DB) load() error {
-	if b, err := os.ReadFile(db.repairPath()); err == nil {
+	if b, err := db.dir.readFile(db.repairName()); err == nil {
 		// an earlier open cut a torn tail and the watermark was not raised yet
 		n, perr := strconv.ParseInt(strings.TrimSpace(string(b)), 10, 64)
 		if perr != nil || n <= 0 {
@@ -166,14 +178,16 @@ func (db *DB) load() error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	_, statErr := os.Stat(db.path)
-	created := os.IsNotExist(statErr)
-	f, err := os.OpenFile(db.path, os.O_RDWR|os.O_CREATE, 0o600)
+	f, err := db.dir.open(db.name(), os.O_RDWR)
+	created := errors.Is(err, os.ErrNotExist)
+	if created {
+		f, err = db.dir.open(db.name(), os.O_RDWR|os.O_CREATE)
+	}
 	if err != nil {
 		return err
 	}
 	if created {
-		syncDir(filepath.Dir(db.path))
+		db.dir.sync()
 	}
 	data, err := io.ReadAll(f)
 	if err != nil {
@@ -563,10 +577,13 @@ func (db *DB) RepairHandled() error {
 	if db.repaired == 0 {
 		return nil
 	}
-	if err := os.Remove(db.repairPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if db.dir == nil {
+		return errors.New("slashing protection: database is closed")
+	}
+	if err := db.dir.remove(db.repairName()); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	syncDir(filepath.Dir(db.path))
+	db.dir.sync()
 	db.repaired = 0
 	return nil
 }
@@ -583,6 +600,10 @@ func (db *DB) Close() error {
 		err = db.f.Close()
 		db.f = nil
 	}
+	if db.dir != nil {
+		db.dir.close()
+		db.dir = nil
+	}
 	if db.lock != nil {
 		db.lock.Release()
 		db.lock = nil
@@ -591,17 +612,6 @@ func (db *DB) Close() error {
 }
 
 func lower(a common.Address) string { return strings.ToLower(a.Hex()) }
-
-// syncDir makes a newly created file's directory entry durable (no-op where
-// directories cannot be fsynced).
-func syncDir(dir string) {
-	d, err := os.Open(dir)
-	if err != nil {
-		return
-	}
-	_ = d.Sync()
-	d.Close()
-}
 
 // ReadExport parses an export file.
 func ReadExport(r io.Reader) ([]ExportRecord, error) {

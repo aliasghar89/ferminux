@@ -629,7 +629,8 @@ export function reviewRequest(
       if (typeof msg === 'string' && ADDRESS_RE.test(msg) && !(typeof addr === 'string' && ADDRESS_RE.test(addr))) [msg, addr] = [addr, msg];
       if (typeof msg !== 'string') return invalid(base, 'The message to sign is missing.');
       if (!sameAddress(addr, activeAddress)) blockers.push(`The site asks for a signature from ${String(addr)}, which is not the active account.`);
-      const bytes = isHexString(msg) ? getBytes(msg) : toUtf8Bytes(msg);
+      // Odd-length "0x…" is not bytes: sign it as the text it is (as the connect window does), never throw here.
+      const bytes = isHexString(msg) && msg.length % 2 === 0 ? getBytes(msg) : toUtf8Bytes(msg);
       const text = printableText(bytes);
       const domain = siweDomain(text);
       // Verify's origin when it has one, else the host the site claims.

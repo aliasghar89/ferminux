@@ -4,7 +4,17 @@
 // its service free, and an escrow-only agent gave work away the same way.
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { Handler } from "./handlers/util.js";
+import { redactSecrets, type Handler } from "./handlers/util.js";
+
+/** What a caller hears when the handler throws. The error itself (a provider's status and body, a CLI's stderr)
+ * describes the agent's setup, not the caller's request, so it goes to this agent's log only, redacted. */
+export const DIRECT_CALL_FAILED = "the agent could not complete this request";
+
+function logFailure(request: FastifyRequest, route: string, err: unknown): void {
+  const e = err as { message?: unknown; detail?: unknown } | null;
+  const detail = typeof e?.detail === "string" ? { detail: redactSecrets(e.detail) } : {};
+  request.log.error({ route, error: redactSecrets(String(e?.message ?? err)), ...detail }, "direct call failed");
+}
 
 type PreHandler = (request: FastifyRequest, reply: FastifyReply) => Promise<unknown>;
 
@@ -57,12 +67,22 @@ export function registerDirectCallRoutes(app: FastifyInstance, opts: DirectCallO
         },
       };
     } catch (err) {
-      return { jsonrpc: "2.0", id: body.id ?? null, error: { code: -32000, message: (err as Error).message } };
+      logFailure(request, "/a2a", err);
+      reply.code(500); // as on /invoke: a failed call is not a sale, and the gateway releases the voucher on 5xx
+      return { jsonrpc: "2.0", id: body.id ?? null, error: { code: -32000, message: DIRECT_CALL_FAILED } };
     }
   };
   if (opts.gate) {
     app.post("/invoke", { preHandler: opts.gate("/invoke") }, async (request, reply) => {
-      const result = await handler(request.body);
+      let result: Record<string, unknown>;
+      try {
+        result = await handler(request.body);
+      } catch (err) {
+        // Fastify's default 500 body carried err.message, e.g. the provider's whole error response
+        logFailure(request, "/invoke", err);
+        reply.code(500);
+        return { ok: false, error: DIRECT_CALL_FAILED };
+      }
       if (result.ok === false) reply.code(422); // a refusal is not billed: the gateway releases the voucher on 4xx
       return result;
     });

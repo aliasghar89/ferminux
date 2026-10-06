@@ -21,16 +21,21 @@ type Lock struct {
 }
 
 // Acquire locks path (creating it with mode 0600) and writes this process's
-// PID into it for diagnostics.
+// PID into it for diagnostics. A link at path, or in place of its directory,
+// is refused on Linux and the other Unix systems, and a lock root creates
+// there takes its directory's owner (see openLockFile).
 func Acquire(path string) (*Lock, error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	f, err := openLockFile(path)
 	if err != nil {
 		return nil, err
 	}
 	if err := lockFile(f); err != nil {
+		// the holder is read through the descriptor: by path it would be
+		// whatever has been put there since
 		holder := ""
-		if b, rerr := os.ReadFile(path); rerr == nil {
-			holder = strings.TrimSpace(string(b))
+		b := make([]byte, 32)
+		if n, _ := f.ReadAt(b, 0); n > 0 {
+			holder = strings.TrimSpace(string(b[:n]))
 		}
 		f.Close()
 		if errors.Is(err, ErrLocked) {

@@ -398,7 +398,7 @@ export const CITIZENS_ABI = [
   "function symbol() view returns (string)",
   "function totalIds() view returns (uint256)",
   "function paused() view returns (bool)",
-  "function priceOfTier(uint8 tier) view returns (uint256)",
+  "function priceOfTier(uint256 tier) view returns (uint256)",
   "function tierOf(uint256 tokenId) view returns (uint8)",
   "function price(uint256 tokenId) view returns (uint256)",
   "function minted(uint256 tokenId) view returns (bool)",

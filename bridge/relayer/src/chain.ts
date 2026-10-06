@@ -783,6 +783,10 @@ export class ChainClient {
    * (chainId, bridgeAddress), and the pinned value in config when present.
    * A validator that skips this can be phished into signing for an attacker's
    * bridge at an address it was tricked into configuring.
+   *
+   * `onChain: null` means the separator could not be read at all (no healthy
+   * endpoint, a timeout, a rate limit) — not that it differs. Callers that
+   * decide something final must tell the two apart; verifyForSigning does.
    */
   async verifyDomainSeparator(expected: string): Promise<{ ok: boolean; onChain: string | null; reason: string | null }> {
     try {

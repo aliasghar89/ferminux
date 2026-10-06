@@ -338,6 +338,87 @@ contract NodeRegistryTest is StakingTestBase {
         assertEq(staking.totalUnits(), MIN_VAL * 20);
     }
 
+    /// Finalization is permissionless and two posted epochs can both be past
+    /// their dispute window. Finalizing the older one last must not overwrite
+    /// the boost and last score the newer one set.
+    function test_FinalizeOutOfOrderKeepsNewestBoost() public {
+        (uint256 nodeId, uint256 pos) = _oneNode();
+        uint256 older = registry.currentEpoch() - 1;
+        postEpochFor(older, nodeId, 10_000);
+        skip(EPOCH);
+        uint256 newer = registry.currentEpoch() - 1;
+        postEpochFor(newer, nodeId, 0);
+        skip(DISPUTE);
+
+        registry.finalizeEpoch(newer);
+        assertFalse(staking.getPosition(pos).boosted);
+        registry.finalizeEpoch(older);
+
+        assertFalse(staking.getPosition(pos).boosted, "a stale epoch re-applied its boost");
+        assertEq(staking.totalUnits(), MIN_VAL * 20);
+        assertEq(registry.getNode(nodeId).lastUptimeBps, 0, "a stale epoch overwrote the last score");
+        assertEq(registry.latestFinalizedEpoch(), newer);
+        // The older score still counts towards the qualification record.
+        assertEq(registry.nodeScore(nodeId, older), 10_000);
+    }
+
+    /// @dev Node A scored in both epochs, node B only in the older one (the
+    ///      watchtower may post any subset of nodes). Both epochs end past
+    ///      their dispute window and unfinalized.
+    function _partialRosterEpochs()
+        internal
+        returns (uint256 a, uint256 posA, uint256 b, uint256 posB, uint256 older, uint256 newer)
+    {
+        posA = stakeAs(alice, FMXStaking.Tier.Validator, MIN_VAL);
+        (a,,) = registerNodeAs(alice, posA, "node-a");
+        posB = stakeAs(bob, FMXStaking.Tier.Validator, MIN_VAL);
+        (b,,) = registerNodeAs(bob, posB, "node-b");
+        older = registry.currentEpoch() - 1;
+        uint256[] memory ids = new uint256[](2);
+        uint16[] memory scores = new uint16[](2);
+        (ids[0], ids[1]) = (a, b);
+        (scores[0], scores[1]) = (10_000, 10_000);
+        vm.prank(watchtower);
+        registry.postEpoch(older, keccak256("older"), ids, scores);
+        skip(EPOCH);
+        newer = registry.currentEpoch() - 1;
+        postEpochFor(newer, a, 0);
+        skip(DISPUTE);
+    }
+
+    /// Whatever the finalization order: A takes the newer epoch's score, and B
+    /// the older one's — the latest finalized epoch that includes it.
+    function _assertPartialRosterOutcome(uint256 a, uint256 posA, uint256 b, uint256 posB) internal view {
+        assertFalse(staking.getPosition(posA).boosted, "A: the newer epoch's score must win");
+        assertEq(registry.getNode(a).lastUptimeBps, 0);
+        assertTrue(staking.getPosition(posB).boosted, "B: the older epoch is the latest that includes it");
+        assertEq(registry.getNode(b).lastUptimeBps, 10_000);
+        assertEq(staking.totalUnits(), MIN_VAL * 20 + MIN_VAL * 30);
+    }
+
+    function test_FinalizeInOrderPartialRoster() public {
+        (uint256 a, uint256 posA, uint256 b, uint256 posB, uint256 older, uint256 newer) = _partialRosterEpochs();
+        registry.finalizeEpoch(older);
+        registry.finalizeEpoch(newer);
+        _assertPartialRosterOutcome(a, posA, b, posB);
+    }
+
+    /// Staleness is per node: finalizing the newer epoch first must not stop
+    /// the older one from applying to a node the newer one left out, or anyone
+    /// could pick the order to hold B at 2.0x.
+    function test_FinalizeOutOfOrderPartialRosterSameOutcome() public {
+        (uint256 a, uint256 posA, uint256 b, uint256 posB, uint256 older, uint256 newer) = _partialRosterEpochs();
+        registry.finalizeEpoch(newer);
+        // A's older score is stale, so its event reports the boost A keeps.
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit NodeRegistry.NodeAttested(a, older, 10_000, false);
+        vm.expectEmit(true, true, false, true, address(registry));
+        emit NodeRegistry.NodeAttested(b, older, 10_000, true);
+        registry.finalizeEpoch(older);
+        _assertPartialRosterOutcome(a, posA, b, posB);
+        assertEq(registry.latestFinalizedEpoch(), newer);
+    }
+
     function test_FinalizeSkipsDeregisteredNode() public {
         (uint256 nodeId, uint256 pos) = _oneNode();
         uint256 epoch = registry.currentEpoch() - 1;

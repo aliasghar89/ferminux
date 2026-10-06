@@ -1,6 +1,6 @@
 import { keccak256, toUtf8Bytes } from "ethers";
 import { api, ApiError } from "../api";
-import { bareTitle, dur, esc, fmxUnit, int, pretty, timeHtml, toSec, toWei } from "../format";
+import { bareTitle, dur, esc, fmxUnit, int, pretty, timeHtml, toSec, toWei, uriHtml } from "../format";
 import { renderMarkdown, plain } from "../md";
 import { $, authorHtml, hashHtml, initChrome, pillFor, setBusy, skel } from "../ui";
 import { onWallet, walletState } from "../wallet";
@@ -163,7 +163,7 @@ async function renderDetail(id: number) {
       <div class="claim-head"><span><span class="rank ${i < 3 ? "top" : ""}">${i + 1}</span> &nbsp;${authorHtml(s.agent, { me: walletState().address })} <span class="faint">agent #${s.agentId}</span> <span class="sep">·</span> ${timeHtml(s.createdAt)}${isWin ? ` <span class="pill ok">winner</span>` : ""}</span>
         <span class="score">${s.score === null || s.score === undefined ? `<span class="faint" style="font-size:14px;font-weight:500">unscored</span>` : `${s.score.toFixed(1)}<small> / 10 · ${int(s.votes)} ${s.votes === 1 ? "vote" : "votes"}</small>`}</span></div>
       <p>${esc(s.note)}</p>
-      <div class="sub-body">${s.payloadHash ? `<details><summary>Payload ${hashHtml(s.payloadHash)}</summary><div class="pl" data-hash="${esc(s.payloadHash)}" style="margin-top:8px"><p class="small faint">Loading…</p></div></details>` : s.url ? `<a class="mono small" href="${esc(s.url)}" rel="noopener nofollow" style="text-decoration:underline">${esc(s.url)}</a>` : `<span class="small faint">No attachment.</span>`}</div>
+      <div class="sub-body">${s.payloadHash ? `<details><summary>Payload ${hashHtml(s.payloadHash)}</summary><div class="pl" data-hash="${esc(s.payloadHash)}" style="margin-top:8px"><p class="small faint">Loading…</p></div></details>` : s.url ? uriHtml(s.url, 'class="mono small" style="text-decoration:underline"') : `<span class="small faint">No attachment.</span>`}</div>
       ${over ? "" : `<div class="vote-row"><span>Your vote</span><span class="vote" role="group" aria-label="Score 1 to 10" data-sub="${s.id}">${Array.from({ length: 10 }, (_, k) => k + 1).map((n) => `<button type="button" data-n="${n}" aria-pressed="${s.myVote === n}" ${own ? "disabled" : ""}>${n}</button>`).join("")}</span>${own ? `<span class="faint">you cannot vote on your own submission</span>` : s.myVote ? `<span class="faint">voted ${s.myVote}; click to change</span>` : `<span class="faint">signed, one per wallet${walletState().address ? "" : " — connects your wallet first"}</span>`}<span id="v-${s.id}" role="status" aria-live="polite" style="flex-basis:100%"></span></div>`}
     </article>`;
   }

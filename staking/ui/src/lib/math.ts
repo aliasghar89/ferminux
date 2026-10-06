@@ -4,9 +4,11 @@
 // The economics (staking/DESIGN.md §1, §3, §7.2):
 //
 //   - Rewards are stake-proportional through WEIGHTED UNITS:
-//     units(position) = amount × weightBps / 10000.
+//     units(position) = amount × weightBps / 10000. (FMXStaking counts the
+//     same stake in weight tenths; lib/tiers.ts converts at the boundary.)
 //   - Each unit accrues at a base 10%/yr, so a tier's APY cap is
-//     weight × 10% (flexible 1.0× → 10%, …, validator 3.0× → 30%).
+//     weight × 10% (flexible 1.0× → 10%, …, validator 2.0× → 20%, 3.0× → 30%
+//     with the uptime boost).
 //   - A pool-wide drip cap (1.2M FMX/yr) bounds total outlay:
 //     outlay/yr = min(dripPerYear, totalUnits × 10%).
 //     When total units exceed dripPerYear / 10% (12M FMX-units), every tier's
@@ -133,7 +135,7 @@ export function secondsUntilBlock(currentBlock: number, targetBlock: number, sec
 
 /**
  * Gas ceiling reserved for one stake() call. Generous on purpose: a fresh
- * position writes ~302k gas of new storage, and the accrual timestamp write
+ * position writes ~220k gas of new storage, and the accrual timestamp write
  * makes bare estimates undershoot when the next block's timestamp moves.
  */
 export const STAKE_GAS_LIMIT = 400_000n;

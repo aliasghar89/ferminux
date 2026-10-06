@@ -463,12 +463,12 @@
     "name": "isAnchorer",
     "inputs": [
       {
-        "name": "",
+        "name": "agentId",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "",
+        "name": "who",
         "type": "address",
         "internalType": "address"
       }

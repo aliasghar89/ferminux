@@ -49,6 +49,12 @@ export function registerFaucetRoutes(app: FastifyInstance, ctx: V3Context): void
   const countIp = db.prepare("SELECT COUNT(*) AS c FROM relays WHERE kind = 'faucet' AND target = ? AND createdAt >= ? AND ok = 1");
   const countAll = db.prepare("SELECT COUNT(*) AS c FROM relays WHERE kind = 'faucet' AND createdAt >= ? AND ok = 1");
   const insert = db.prepare("INSERT INTO relays (kind, subject, target, txHash, ok, error, gasLimit, createdAt) VALUES ('faucet', ?, ?, ?, ?, ?, 21000, ?)");
+  // Drips still between their limit checks and the row that records them. The checks read the relays table, the
+  // row is written only after three RPC reads and the send, so without this N parallel POSTs for one fresh
+  // address all passed (balance 0, nonce 0, no row yet) and each sent a drip — the per-address, per-IP and
+  // global caps all counted none of them until it was too late.
+  const inflight = new Map<string, string>(); // lower(address) → ip
+  const inflightFor = (ip: string) => [...inflight.values()].filter((v) => v === ip).length;
 
   app.get("/api/faucet", async () => ({
     enabled: !!ctx.relayer,
@@ -75,27 +81,35 @@ export function registerFaucetRoutes(app: FastifyInstance, ctx: V3Context): void
       }
       const now = ctx.nowS();
       const ip = String(req.ip || "?");
+      const addrKey = address.toLowerCase();
+      if (inflight.has(addrKey)) throw new HttpError(429, "a drip to this address is already being sent", "faucet_cooldown");
       const last = lastForAddr.get(address) as { createdAt: number } | undefined;
       if (last && now - last.createdAt < DAY_S) throw new HttpError(429, `already dripped to this address; retry in ${Math.ceil((DAY_S - (now - last.createdAt)) / 60)} min`, "faucet_cooldown");
-      if ((countIp.get(ip, dayStart(now)) as { c: number }).c >= PER_IP_PER_DAY) throw new HttpError(429, "faucet limit for this IP reached today", "faucet_ip_limit");
-      if ((countAll.get(dayStart(now)) as { c: number }).c >= GLOBAL_PER_DAY) throw new HttpError(503, "faucet is empty for today", "faucet_daily_cap");
+      if ((countIp.get(ip, dayStart(now)) as { c: number }).c + inflightFor(ip) >= PER_IP_PER_DAY) throw new HttpError(429, "faucet limit for this IP reached today", "faucet_ip_limit");
+      if ((countAll.get(dayStart(now)) as { c: number }).c + inflight.size >= GLOBAL_PER_DAY) throw new HttpError(503, "faucet is empty for today", "faucet_daily_cap");
       if (FAUCET_POW_BITS > 0) {
         const pow = typeof body.pow === "string" ? body.pow : "";
         if (!pow || pow.length > 64 || powBits(address, pow) < FAUCET_POW_BITS) throw new HttpError(400, `anti-abuse puzzle required: keccak256(utf8(lowercase(address) + ":" + pow)) must start with ${FAUCET_POW_BITS} zero bits (see GET /api/faucet)`, "faucet_pow");
       }
-      const [bal, txCount, relayerBal] = await Promise.all([ctx.provider.getBalance(address), ctx.provider.getTransactionCount(address), ctx.provider.getBalance(ctx.relayer.address)]);
-      if (relayerBal - DRIP_WEI < FAUCET_RELAYER_RESERVE_WEI) throw new HttpError(503, "faucet paused: the relayer is down to its reserve for gasless relays — try again after it is topped up", "faucet_reserve");
-      if (bal >= DRIP_WEI) throw new HttpError(400, `address already holds ${formatEther(bal)} FMX — the faucet is for empty wallets`, "faucet_not_needed");
-      if (txCount > 0) throw new HttpError(400, `address has already sent ${txCount} transaction(s) — the faucet only funds fresh keys`, "faucet_used_key");
-      const fee = await ctx.provider.getFeeData();
-      const tx = await ctx.relayer.sendTransaction({
-        to: address,
-        value: DRIP_WEI,
-        maxPriorityFeePerGas: RELAY_PRIORITY_FEE_WEI,
-        maxFeePerGas: (fee.maxFeePerGas ?? 0n) > 2n * RELAY_PRIORITY_FEE_WEI ? fee.maxFeePerGas! : 2n * RELAY_PRIORITY_FEE_WEI,
-      });
-      insert.run(address, ip, tx.hash, 1, null, now);
-      return reply.code(202).send({ address, txHash: tx.hash, tx: tx.hash, amountFmx: formatEther(DRIP_WEI), next: "call AgentRegistry.register(name, endpoint, metadataURI, pricePerJob) with value 0 — see https://ferminux.net/llms-full.txt" });
+      // reserved synchronously, after the checks above and before the first await
+      inflight.set(addrKey, ip);
+      try {
+        const [bal, txCount, relayerBal] = await Promise.all([ctx.provider.getBalance(address), ctx.provider.getTransactionCount(address), ctx.provider.getBalance(ctx.relayer.address)]);
+        if (relayerBal - DRIP_WEI < FAUCET_RELAYER_RESERVE_WEI) throw new HttpError(503, "faucet paused: the relayer is down to its reserve for gasless relays — try again after it is topped up", "faucet_reserve");
+        if (bal >= DRIP_WEI) throw new HttpError(400, `address already holds ${formatEther(bal)} FMX — the faucet is for empty wallets`, "faucet_not_needed");
+        if (txCount > 0) throw new HttpError(400, `address has already sent ${txCount} transaction(s) — the faucet only funds fresh keys`, "faucet_used_key");
+        const fee = await ctx.provider.getFeeData();
+        const tx = await ctx.relayer.sendTransaction({
+          to: address,
+          value: DRIP_WEI,
+          maxPriorityFeePerGas: RELAY_PRIORITY_FEE_WEI,
+          maxFeePerGas: (fee.maxFeePerGas ?? 0n) > 2n * RELAY_PRIORITY_FEE_WEI ? fee.maxFeePerGas! : 2n * RELAY_PRIORITY_FEE_WEI,
+        });
+        insert.run(address, ip, tx.hash, 1, null, now);
+        return reply.code(202).send({ address, txHash: tx.hash, tx: tx.hash, amountFmx: formatEther(DRIP_WEI), next: "call AgentRegistry.register(name, endpoint, metadataURI, pricePerJob) with value 0 — see https://ferminux.net/llms-full.txt" });
+      } finally {
+        inflight.delete(addrKey);
+      }
     } catch (err) {
       return commons.sendError(reply, err);
     }

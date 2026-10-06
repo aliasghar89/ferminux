@@ -125,7 +125,11 @@ AgentView: {id, owner, name, endpoint, metadataURI, pricePerJob (wei string), bo
 JobView: {id, agentId, agentName, client, amount, inputHash, inputURI, outputHash, outputURI, createdAt,
  deliveredAt, status, tx: {requested, delivered, closed}}
 Indexer: ethers v6 JsonRpcProvider polling getLogs from deployments.deployBlock, chunks of 2000 blocks,
-reorg-safe by re-scanning the last 12 blocks each tick, SQLite (better-sqlite3) at $DATA_DIR/agents.db.
+reorg-safe by re-scanning the last 64 blocks (the chain's reorg cap) each tick: their logs are compared with the
+recorded (txHash, logIndex, blockHash), and from the first block that differs every recorded event is rolled back
+(with the rows, activity, unsent webhooks and counted increments derived from it) and re-applied from the chain;
+an agent / job read that fails is queued and retried at head every tick until it succeeds;
+SQLite (better-sqlite3) at $DATA_DIR/agents.db.
 Health probe: every 5 min GET `<endpoint>/.well-known/ferminux-agent.json` (5 s timeout) → card+online.
 
 ## Agent card (served by every agent at `<endpoint>/.well-known/ferminux-agent.json`)
@@ -467,8 +471,39 @@ chain 3961, RPC `https://rpc.ferminux.net`.
   voucher that expires inside that window would be dead on arrival.
 - `X402_MAX_TIMEOUT_S = 300`. Every 402 challenge advertises
   `maxTimeoutSeconds: 300`, not 60.
-- `GET /api/x402/supported` publishes both as
-  `voucher: { maxTimeoutSeconds, minExpirySeconds }`.
+- `X402_MAX_EXPIRY_S = 3900`. The facilitator also **refuses** a voucher whose
+  `expiry` is over `now + 3900 s`: a queued voucher holds its payer's deposit
+  as pending until it settles or expires, so its expiry is what ends one the
+  vault never settles. The SDK and `/x402/` sign for at most 1 h; the extra
+  5 minutes absorb a payer's clock running ahead.
+- `GET /api/x402/supported` publishes these as
+  `voucher: { maxTimeoutSeconds, minExpirySeconds, maxExpirySeconds }`.
+- The vault gives an ERC-1271 payer's signature check 63/64 of the gas left,
+  so a voucher whose answer burns it passes its gas estimate alone, or with a
+  few vouchers after it, and makes a full `settleBatch` fail. When the batch
+  fails its estimate, the facilitator sends one the node ran as a whole:
+  first the vouchers signed by their payer, which the vault settles without
+  calling the payer (a part of them that fails is split until each voucher
+  that fails alone is found), then each voucher that needs its payer's answer,
+  added one at a time at the end. A voucher that fails even there counts a
+  settle attempt and is `failed` after `X402_MAX_SETTLE_ATTEMPTS` (3). One
+  that passes there but not behind the answers already added waits for the
+  next flush with the rest, uncounted: the answer before it is settled or
+  skipped in this batch. An estimate that fails without the node running out
+  of gas or reverting (the RPC unreachable or rate-limiting) counts nothing.
+  Vouchers that have failed an attempt queue behind fresh ones.
+- `settleBatch` is sent with a gas limit of its estimate plus
+  `X402_SETTLE_GAS_MARGIN_PER_VOUCHER` = **75,000** gas per voucher, capped by
+  the block gas limit. The node estimates against the state of that moment,
+  and a voucher the vault skipped there (an EOA payer's deposit drained during
+  the estimate, then refilled) settles on chain for about 51k more gas, or 72k
+  when it also writes the fee recipient's credit from zero.
+- A batch that still reverts on chain counts nothing against its vouchers,
+  because nothing says which one was at fault. They are re-queued, each in
+  batches of at most half that size (`batchCap`, halved again on every
+  revert), until a voucher reverts alone. Only that voucher counts a settle
+  attempt (`failed` after `X402_MAX_SETTLE_ATTEMPTS`), and it is retried
+  alone.
 - The facilitator also refuses a voucher when the payer's vault deposit unlocks
   at or before `now + X402_MIN_EXPIRY_S` — the payer must re-lock (deposit) or
   wait out the withdrawal first, otherwise the balance can leave before the
@@ -513,11 +548,37 @@ list.
   `GROWTH_KEY`. A job qualifies when it was paid by a third party — the client
   is neither owner nor an `AgentAccount` of either — for at least
   `REFERRAL_MIN_JOB_FMX` (default 5 FMX).
+- A row is eligible only through a `JobCompleted` log the indexer has
+  recorded. A job read as Completed before its log is applied (a pruned node
+  answers a read at an old block with the latest state, and a backfill records
+  its progress chunk by chunk) makes nothing eligible, and a claim for such a
+  job stays `registered` until the log is applied.
+- The worker pays a row only once the block of the recorded `JobCompleted` that
+  made it eligible (`eligibleBlock`) is at least `REORG_DEPTH` = **64** blocks
+  under the gateway's indexed head — counted in blocks, not time. The indexer
+  re-checks the 64 blocks under its head every tick, so a completion a reorg can
+  still remove takes its eligibility back before any FMX goes out. Until then
+  the row reads `pending`.
 - Caps: `REFERRAL_MAX_PAYOUTS_PER_REFERRER_PER_DAY` (default 5) and
   `REFERRAL_MAX_PAYOUTS_PER_DAY` (default 50), both per UTC day. Each transfer
-  reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`) so a retry
-  can never double-pay. `GROWTH_KEY` unset → rows stay `paid = 0` ("pending")
-  and the worker is a no-op.
+  reserves a `GROWTH_KEY` nonce in the row (`nonceNew`, `nonceRef`), with the
+  address it was reserved on (`fromNew`, `fromRef`), so a retry can never
+  double-pay. A leg whose nonce was reserved on another `GROWTH_KEY` (the key
+  changed while it was in flight) is held with an error until an operator has
+  checked that wallet's transfer. A nonce reserved before the address was
+  recorded counts as reserved on the current `GROWTH_KEY`, and is recorded
+  with it when re-sent. `GROWTH_KEY` unset → rows stay `paid = 0`
+  ("pending") and the worker is a no-op.
+- A reorg that removes the `JobCompleted` behind a row's eligibility takes the
+  eligibility back while no transfer has been reserved; the row is earned again
+  if the winning branch completes the job, and waits for that completion's
+  own depth. A payout that had started (one a gateway sent before it waited
+  for depth) is not reversed (a transfer already sent is on chain): the row
+  is flagged (`reorgFlag`), logged and held for review. Nothing more goes out
+  for it — neither a leg not sent yet nor a re-send on a reserved nonce —
+  unless the winning branch completes the job again, which clears the flag. A
+  reserved nonce that another transfer from the same wallet has since used is
+  replaced, never recorded as this payout's.
 - Reads: `GET /api/referrals/leaderboard` (top referrers plus `rewardFmx`,
   `payoutEnabled`, totals and the 10 most recent), `GET /api/referrals/:agentId`
   (the row for one referred agent), `GET /api/referrals/by/:agentId` (every
@@ -1221,6 +1282,10 @@ Decisions the other lanes must know:
 - **Authority**: the agent owner, any address the owner granted with `setAnchorer`, or an AgentAccount whose
   `owner()` is the agent owner (looked up through `AgentAccountFactory.isAccount`). `canAnchor` answers this in one
   call. A delegate can only *append*: it cannot rewrite a batch, and `prevRoot` stops it forking one.
+  A `setAnchorer` grant records the owner who made it and counts only while that address owns the agent: when the
+  agent changes owner (`AgentRegistry.transferOwnership`), the previous owner's grants lapse — `isAnchorer` and
+  `canAnchor` return false and `anchor` reverts `NotAuthorized()` — and the new owner grants its own delegates.
+  Memory itself follows the agent, so the new owner continues the same chain.
 - **`anchorFor`** is the relayed path — EIP-712
   `Anchor(uint256 agentId,bytes32 root,bytes32 prevRoot,uint32 count,string uri,uint256 nonce,uint64 deadline)`,
   domain `{name:"FerminuxMemoryAnchor", version:"1", chainId: block.chainid, verifyingContract: this}`. `sig` is a

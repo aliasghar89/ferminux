@@ -1,5 +1,8 @@
-# Seeds miner rewards (6 FMX >> era + tip fees) into the explorer DB every
-# minute — Blockscout's geth variant cannot fetch PoW beneficiaries over RPC.
+# Seeds block rewards into the explorer DB every minute, as the compose
+# rewards-sidecar does (explorer/seeder/run.sh): Blockscout's geth variant
+# cannot fetch them over RPC, and from the authority fork it would credit
+# every block to header.Coinbase (zero, or a vote's subject) rather than the
+# signer that confirmed it. The scripts are the explorer-seeder-sql ConfigMap.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -28,11 +31,33 @@ spec:
             - name: psql
               image: postgres:17.5-alpine
               command: ["/bin/sh", "-c"]
+              # All three run every pass, as in run.sh: a failed reward table
+              # must not also stop signer attribution. But a script's status
+              # is its last command's, so each step's status is kept and
+              # returned at the end. Otherwise a broken seed-rewards.sql would
+              # leave the Job marked Succeeded, its error only in a log kept
+              # for one minute, while the explorer publishes stale reward
+              # figures. seed-signers.sh exits 0 on every runtime path (no
+              # backlog, DB or RPC down), so its status fails the Job only
+              # when the shell cannot run it at all: a syntax error or an
+              # unreadable file, which would otherwise leave each new
+              # authority block credited to 0x0 behind a Succeeded Job.
               args:
                 - |
-                  psql -q -v ON_ERROR_STOP=0 -f /seeder/emission-ranges.sql 2>/dev/null || true
-                  psql -q -v ON_ERROR_STOP=1 -f /seeder/seed-rewards.sql
+                  rc=0
+                  psql -q -v ON_ERROR_STOP=1 -f /seeder/emission-ranges.sql || rc=$?
+                  psql -q -v ON_ERROR_STOP=1 -f /seeder/seed-rewards.sql || rc=$?
+                  sh /seeder/seed-signers.sh || rc=$?
+                  exit "$rc"
               env:
+                # seed-signers.sh asks this node which signer confirmed each
+                # authority block (clique_getSigner): the node the backend
+                # indexes from.
+                - name: FMX_RPC
+                  valueFrom:
+                    configMapKeyRef:
+                      name: explorer-backend-env
+                      key: ETHEREUM_JSONRPC_HTTP_URL
                 - name: PGHOST
                   value: explorer-db
                 - name: PGPORT

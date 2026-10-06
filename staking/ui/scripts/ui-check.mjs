@@ -1,16 +1,21 @@
 #!/usr/bin/env node
 // Browser check for the staking UI.
 //
-// Builds the real bundle against a local anvil (port 8612) with the fixture
-// contracts deployed and seeded (two stakers, one registered + attested node),
-// serves dist, and drives it in headless Chromium:
+// Builds the real bundle against a local anvil (port 8612) with the real
+// contracts from ../../contracts deployed and seeded (two stakers, one
+// registered node with a finalized ≥95% uptime epoch), serves dist, and drives
+// it in headless Chromium:
 //
-//   • stats strip shows the REAL totals (staked / stakers / nodes / pool)
+//   • stats strip shows the REAL totals (staked / positions / nodes / settled pool)
 //   • tier cards show live APY caps
 //   • connect via session key (in-memory only; localStorage stays empty)
 //   • full stake flow: amount → review (honest confirm table) → sign → done
 //   • the new position appears under Positions with claim/unstake actions
-//   • the node roster shows the seeded node with bond + uptime
+//   • the node roster shows the seeded node with bond + uptime + boost
+//   • register a node: stake a validator bond in the UI, sign the digest the
+//     form shows with the node key, paste it back, see it confirmed
+//   • emergency-exit that bond: the node leaves the roster but is still
+//     offered for deregistration, and deregisters
 //   • the explainer says, verbatim, that staking does not secure the chain
 //
 // Requirements (both optional — the script SKIPS cleanly without them):
@@ -28,10 +33,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import { Wallet, ContractFactory, JsonRpcProvider, Network, parseEther } from 'ethers';
+import { Wallet, ContractFactory, JsonRpcProvider, Network, SigningKey, parseEther } from 'ethers';
+import { registrationDigest, enodePubkeyBytes } from '../src/lib/nodes.ts';
+import { settledRewardPool } from '../src/lib/staking.ts';
+import { formatFMX } from '../src/lib/format.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const FIXTURES = join(ROOT, 'fixtures');
+const CONTRACTS = join(ROOT, '../contracts');
 const RPC_PORT = 8612;
 const WEB_PORT = 8613;
 const RPC = `http://127.0.0.1:${RPC_PORT}`;
@@ -76,7 +84,7 @@ async function loadPlaywright() {
 }
 
 function artifact(name) {
-  return JSON.parse(readFileSync(join(FIXTURES, `out/${name}.sol/${name}.json`), 'utf8'));
+  return JSON.parse(readFileSync(join(CONTRACTS, `out/${name}.sol/${name}.json`), 'utf8'));
 }
 
 async function main() {
@@ -86,7 +94,7 @@ async function main() {
   if (!existsSync(CHROME)) skip(`no Chromium at ${CHROME} (set CHROME_PATH)`);
   await mkdirP(SHOTS, { recursive: true });
 
-  execFileSync('forge', ['build'], { cwd: FIXTURES, stdio: 'pipe' });
+  execFileSync('forge', ['build'], { cwd: CONTRACTS, stdio: 'pipe' });
 
   // --- anvil + seeded chain state ---
   const anvil = spawn(
@@ -106,20 +114,17 @@ async function main() {
   }
   const [deployer, alice, bob] = KEYS.map((k) => new Wallet(k, provider));
 
-  const vaultArt = artifact('StakingVaultFixture');
+  const vaultArt = artifact('FMXStaking');
   const vault = await new ContractFactory(vaultArt.abi, vaultArt.bytecode.object, deployer).deploy(
-    parseEther('1200000'),
-    7 * 86_400,
-    365 * 86_400,
+    deployer.address,
     [],
   );
   await vault.waitForDeployment();
   const vaultAddr = await vault.getAddress();
-  const regArt = artifact('NodeRegistryFixture');
+  const regArt = artifact('NodeRegistry');
   const registry = await new ContractFactory(regArt.abi, regArt.bytecode.object, deployer).deploy(
     vaultAddr,
-    3,
-    parseEther('25000'),
+    deployer.address,
     deployer.address,
   );
   await registry.waitForDeployment();
@@ -129,13 +134,37 @@ async function main() {
   // undershoot by a few thousand gas when the block timestamp moves between
   // estimation and execution (same reason the UI lib pins its own limits).
   const gl = { gasLimit: 500_000n };
-  await (await vault.fundPool({ value: parseEther('150000'), ...gl })).wait();
+  await (await vault.initNodeRegistry(registryAddr, gl)).wait();
+  await (await vault.fundRewards({ value: parseEther('150000'), ...gl })).wait();
   await (await vault.connect(alice).stake(0, { value: parseEther('1000'), ...gl })).wait();
   await (await vault.connect(bob).stake(3, { value: parseEther('25000'), ...gl })).wait();
-  const enodeId = '0x' + 'ab'.repeat(32);
-  await (await registry.connect(bob).registerNode(1, Wallet.createRandom().address, enodeId, gl)).wait();
-  await (await registry.attest([0], [9_800], gl)).wait();
-  ok(`anvil :${RPC_PORT} seeded — pool 150k, 2 stakers (1k flex + 25k validator), 1 attested node`);
+  // Node registration: the node key signs the registry's digest (possession proof).
+  const nodeKey = new SigningKey('0x' + '5a'.repeat(32));
+  const pubkey = enodePubkeyBytes(`enode://${nodeKey.publicKey.slice(4)}@203.0.113.7:30303`);
+  const consensusAddr = Wallet.createRandom().address;
+  const sig = nodeKey.sign(registrationDigest(3961, registryAddr, bob.address, consensusAddr, 1n));
+  await (await registry.connect(bob).registerNode(pubkey, consensusAddr, 1, sig.v, sig.r, sig.s, gl)).wait();
+  // One ≥95% epoch, through the 7-day dispute window, finalized.
+  const epoch = Math.floor((await provider.getBlock('latest')).timestamp / 86_400) - 1;
+  await (await registry.postEpoch(epoch, '0x' + 'ee'.repeat(32), [1], [9_800], gl)).wait();
+  await provider.send('evm_increaseTime', [7 * 86_400 + 1]);
+  await (await registry.finalizeEpoch(epoch, gl)).wait();
+  // The pool the strip must show: the vault's own accrual settled to the head
+  // block, the same number the next transaction would leave behind.
+  const headTs = BigInt((await provider.getBlock('latest')).timestamp);
+  const expectedPool = formatFMX(
+    settledRewardPool(
+      {
+        rewardPool: await vault.rewardPool(),
+        totalUnits: await vault.totalUnits(),
+        dripPerYear: await vault.dripPerYear(),
+        lastAccrual: await vault.lastAccrual(),
+      },
+      headTs,
+    ),
+    0,
+  );
+  ok(`anvil :${RPC_PORT} seeded — pool 150k, 2 positions (1k flex + 25k validator), 1 node boosted by a finalized 98% epoch`);
 
   // --- build against this deployment ---
   const build = spawnSync('npx', ['vite', 'build', '--outDir', 'dist-ui-check', '--emptyOutDir'], {
@@ -178,19 +207,22 @@ async function main() {
     await page.waitForSelector('text=Ferminux · 3961', { timeout: 15_000 });
     const strip = page.locator('.stats-strip');
     await strip.locator('text=26,000').waitFor({ timeout: 15_000 }); // total staked
-    assert.equal(await strip.locator('.stat').nth(1).locator('.v').innerText(), '2'); // stakers
+    assert.equal(await strip.locator('.stat').nth(1).locator('.v').innerText(), '2'); // positions
+    await strip.locator('text=not distinct stakers').waitFor();
     assert.equal(await strip.locator('.stat').nth(2).locator('.v').innerText(), '1'); // bonded nodes
-    await strip.locator('text=150,000').waitFor(); // reward pool
+    await strip.locator(`text=${expectedPool}`).waitFor(); // reward pool, settled to the head block
     const runwayText = await strip.locator('.stat').nth(3).locator('.sub').innerText();
     assert.match(runwayText, /runs ~\d+(\.\d+)? months|10\+ years/, `runway shown honestly (${runwayText})`);
-    ok(`stats strip: 26,000 FMX staked · 2 stakers · 1 node · 150,000 pool (${runwayText})`);
+    ok(`stats strip: 26,000 FMX staked · 2 positions · 1 node · ${expectedPool} pool settled to the head (${runwayText})`);
 
     // --- tier cards with APY ---
-    await page.locator('.tier-card', { hasText: 'Validator track' }).waitFor();
-    await page.locator('.tier-card', { hasText: '30%' }).waitFor();
+    const validatorCard = page.locator('.tier-card', { hasText: 'Validator track' });
+    await validatorCard.locator('text=20%').waitFor();
+    await validatorCard.locator('text=cap 30%').waitFor();
+    await validatorCard.locator('text=Locked until block 4,680,000').waitFor();
     await page.locator('text=Min 25,000 FMX bond').waitFor();
     await page.screenshot({ path: join(SHOTS, '1-stake.png') });
-    ok('tier cards: 4 tiers with live APY, validator minimum + node requirement shown');
+    ok('tier cards: 4 tiers with live APY; validator 20% base, 30% boosted cap, block-height lock, 25k minimum');
 
     // --- connect a session key (dave) ---
     await page.click('button:has-text("Connect wallet")');
@@ -226,16 +258,64 @@ async function main() {
 
     // --- stats updated to include the new stake ---
     await page.locator('.stats-strip >> text=26,500').waitFor({ timeout: 15_000 });
-    ok('stats strip re-read from chain: total staked now 26,500 FMX');
+    assert.equal(await strip.locator('.stat').nth(1).locator('.v').innerText(), '3'); // positions
+    ok('stats strip re-read from chain: total staked now 26,500 FMX across 3 positions');
 
     // --- node roster ---
     await page.click('[role=tab]:has-text("Nodes")');
     await page.locator('.roster-table').waitFor();
     await page.locator('td', { hasText: '25,000 FMX' }).waitFor();
     await page.locator('td', { hasText: '98%' }).waitFor();
+    assert.equal(await page.locator('.roster-table tbody tr').first().locator('td').nth(4).innerText(), 'on'); // boost
     await page.locator('text=not a count of distinct operators').waitFor();
     await page.screenshot({ path: join(SHOTS, '4-nodes.png') });
-    ok('nodes: roster shows the bonded node (25,000 FMX, 98% uptime) with the distinct-operator honesty note');
+    // This wallet holds no validator-track position: the form says so instead of asking for a node key.
+    await page.click('button:has-text("Register a node")');
+    await page.locator('.modal', { hasText: 'You have none right' }).waitFor({ timeout: 10_000 });
+    await page.click('.modal button:has-text("Close")');
+    ok('nodes: roster shows the bonded node (25,000 FMX, 98% uptime, boost on); register form refuses a wallet with no bond');
+
+    // --- register a node through the form: stake a validator bond in the UI,
+    //     sign the digest the form SHOWS with the node key, paste it back ---
+    await page.click('[role=tab]:has-text("Stake")');
+    await page.click('.tier-card:has-text("Validator track")');
+    await page.fill('#stake-amount', '25000');
+    await page.click('button:has-text("Review stake")');
+    await page.click('button:has-text("Sign and stake")');
+    await page.locator('.notice-success', { hasText: 'Staked 25,000 FMX' }).waitFor({ timeout: 20_000 });
+    await page.click('.modal button:has-text("Done")');
+    await page.click('[role=tab]:has-text("Nodes")');
+    await page.click('button:has-text("Register a node")');
+    const daveNode = new SigningKey('0x' + '7c'.repeat(32));
+    await page.fill('#reg-consensus', Wallet.createRandom().address);
+    await page.fill('#reg-enode', `enode://${daveNode.publicKey.slice(4)}@198.51.100.9:30303`);
+    const shownDigest = /0x[0-9a-f]{64}/.exec(await page.locator('.modal code').innerText())[0];
+    await page.fill('#reg-sig', daveNode.sign(shownDigest).serialized);
+    await page.screenshot({ path: join(SHOTS, '4b-register.png') });
+    await page.click('.modal button:has-text("Register node")');
+    await page.locator('.modal .notice-success', { hasText: 'Node registered' }).waitFor({ timeout: 20_000 });
+    await page.click('.modal button:has-text("Done")');
+    await page.locator('.roster-table tbody tr').nth(1).waitFor({ timeout: 15_000 });
+    ok('register a node: validator bond staked in the UI, the digest it shows signed by the node key, registered on chain');
+
+    // --- that bond exits: its node leaves the roster but stays registered, and
+    //     Deregister is still offered for it outside the roster ---
+    await page.click('[role=tab]:has-text("Positions")');
+    await page.click('button:has-text("Emergency exit")');
+    await page.click('.modal button:has-text("Forfeit and exit")');
+    await page.locator('.state-badge', { hasText: 'COOLING DOWN' }).waitFor({ timeout: 20_000 });
+    await page.click('[role=tab]:has-text("Nodes")');
+    const outside = page.locator('.notice', { hasText: 'Your nodes outside the roster' });
+    await outside.waitFor({ timeout: 15_000 });
+    assert.equal(await page.locator('.roster-table').first().locator('tbody tr').count(), 1, 'only the seeded node is live');
+    await page.screenshot({ path: join(SHOTS, '4c-outside-roster.png') });
+    await outside.locator('button:has-text("Deregister")').click();
+    await page.locator('.modal', { hasText: 'registered again on an active validator-track bond' }).waitFor();
+    await page.click('.modal button:has-text("Deregister node")');
+    await page.locator('.modal .notice-success', { hasText: 'deregistered' }).waitFor({ timeout: 20_000 });
+    await page.click('.modal button:has-text("Done")');
+    await outside.waitFor({ state: 'detached', timeout: 15_000 });
+    ok('exited bond: its node leaves the roster, is listed outside it, and deregisters from there');
 
     // --- explainer honesty ---
     await page.click('[role=tab]:has-text("How it works")');

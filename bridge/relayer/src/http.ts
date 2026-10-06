@@ -61,6 +61,12 @@ export interface HttpServerOptions {
   metrics: Metrics;
   handlers: HttpHandlers;
   log: Logger;
+  /**
+   * The rate limiter's clock; Date.now unless a test pins it. On wall time a
+   * throttle test measures the machine, not the limiter: a loaded runner
+   * serves the flood slower than the refill rate and the bucket never empties.
+   */
+  now?: () => number;
 }
 
 /**
@@ -127,6 +133,7 @@ export class RelayerHttpServer {
   private readonly anonLimiter: TokenBucketLimiter;
   /** Callers presenting the bearer token — chiefly the submitter. */
   private readonly authedLimiter: TokenBucketLimiter;
+  private readonly now: () => number;
   private actualPort = 0;
   private throttled = 0;
 
@@ -139,6 +146,7 @@ export class RelayerHttpServer {
       refillPerSecond: opts.rateLimit.refillPerSecond * AUTHENTICATED_RATE_MULTIPLIER,
       maxClients: opts.rateLimit.maxClients,
     });
+    this.now = opts.now ?? Date.now;
     this.server = createServer({ maxHeaderSize: 8_192 }, (req, res) => this.route(req, res));
     // Slowloris and socket exhaustion are the cheap ways to keep a validator
     // from answering the submitter. None of these routes needs a long life.
@@ -224,10 +232,11 @@ export class RelayerHttpServer {
     const authed = this.authorized(req);
     const limiter = authed ? this.authedLimiter : this.anonLimiter;
     const key = this.clientKey(req);
-    if (!limiter.take(key)) {
+    const now = this.now();
+    if (!limiter.take(key, now)) {
       this.throttled += 1;
       this.count('any', 'throttled');
-      res.setHeader('retry-after', String(limiter.retryAfterSeconds(key)));
+      res.setHeader('retry-after', String(limiter.retryAfterSeconds(key, now)));
       return send(res, 429, { error: 'rate limit exceeded' });
     }
 

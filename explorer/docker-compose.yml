@@ -11,6 +11,11 @@
 #     index sha256:0b82d1e2f57354b5aa785b33cc82d24a1d2e2d5838dce6adcb81e8bc144c1724
 #     run as linux/amd64 everywhere (see the service)
 #
+# Secrets have NO defaults: POSTGRES_PASSWORD and SECRET_KEY_BASE must be set
+# in .env (see .env.example), and every `docker compose` command in this
+# directory refuses to run until they are. A default committed here would be
+# the password of every stack started without an .env.
+#
 # Node URL is parameterized:
 #   FMX_RPC_HTTP  (default http://host.docker.internal:8545)
 #   FMX_RPC_WS    (default ws://host.docker.internal:8546)
@@ -47,10 +52,11 @@ services:
     environment:
       POSTGRES_DB: blockscout
       POSTGRES_USER: blockscout
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fmx-explorer-db-pw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     ports:
-      # host port 7432 to avoid colliding with anything on 5432; internal-only is fine too
-      - "${FMX_EXPLORER_DB_PORT:-7432}:5432"
+      # host port 7432 to avoid colliding with anything on 5432. Loopback only by default: a
+      # published Docker port bypasses host firewalls (ufw).
+      - "${FMX_EXPLORER_DB_PORT:-127.0.0.1:7432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -79,8 +85,9 @@ services:
       ETHEREUM_JSONRPC_HTTP_URL: ${FMX_RPC_HTTP:-http://host.docker.internal:8545}
       ETHEREUM_JSONRPC_TRACE_URL: ${FMX_RPC_HTTP:-http://host.docker.internal:8545}
       ETHEREUM_JSONRPC_WS_URL: ${FMX_RPC_WS:-ws://host.docker.internal:8546}
-      DATABASE_URL: postgresql://blockscout:${POSTGRES_PASSWORD:-fmx-explorer-db-pw}@db:5432/blockscout
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-2fszasAx2eLGBTm8y4z28wIVJScdACjPnjjMMcAHCpe7WFsCmAvSFAwpQ9fvmjfd}
+      # POSTGRES_PASSWORD is embedded in a URL: use URL-safe characters (openssl rand -hex).
+      DATABASE_URL: postgresql://blockscout:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/blockscout
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env}
     volumes:
       - ./chainspec:/app/chainspec:ro
       - backend-dets:/app/dets
@@ -127,12 +134,17 @@ services:
       retries: 3
       start_period: 20s
 
-  # Ferminux-geth is a geth fork: Blockscout's geth variant cannot fetch PoW
-  # miner rewards over RPC (needs trace_block). This sidecar writes the exact
-  # consensus reward (6 FMX >> era, era = block/4,500,000; chain/consensus/
-  # ethash/ferminux.go) plus tip fees into Blockscout's block_rewards table so
-  # /api/v2/blocks and the UI show "Miner Reward". It only writes to the
-  # explorer's own Postgres — never to the chain.
+  # Ferminux-geth is a geth fork: Blockscout's geth variant cannot fetch
+  # block rewards over RPC (needs trace_block). This sidecar writes the exact
+  # consensus reward plus tip fees into Blockscout's block_rewards table so
+  # /api/v2/blocks and the UI show them. The subsidy is
+  # chain/consensus/powhash/ferminux.go:FerminuxBlockReward: 6 FMX below block
+  # 20,000, then 1 FMX >> era (era = block / 4,500,000). From the authority
+  # fork at 160,000, chain/consensus/posa quarters it and splits it: the signer
+  # keeps the remainder (40%) with the tips, Blockscout's "Miner Reward" row;
+  # the reward sink's 50% and the treasury's 10% are "Emission Reward" rows.
+  # seeder/*.sql mirrors it. It only writes to the explorer's own Postgres —
+  # never to the chain.
   rewards-sidecar:
     image: postgres:17.5-alpine
     container_name: fmx-explorer-rewards
@@ -145,10 +157,10 @@ services:
       PGHOST: db
       PGPORT: "5432"
       PGUSER: blockscout
-      PGPASSWORD: ${POSTGRES_PASSWORD:-fmx-explorer-db-pw}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       PGDATABASE: blockscout
       SEED_INTERVAL_SECONDS: "20"
-      # seed-signers.sh asks a node WHO SEALED each authority block, via
+      # seed-signers.sh asks a node for each authority block's SIGNER, via
       # clique_getSigner. The old default target (the miner) does not expose
       # the clique namespace, so attribution would have silently never run and
       # every block after the fork would have stayed credited to 0x0. Same
@@ -157,7 +169,7 @@ services:
       # Deliberately NOT ${FMX_RPC_HTTP}: that points at the miner, which does
       # not expose the clique namespace, so following it silently disables
       # signer attribution — every post-fork block would stay credited to 0x0.
-      # Asking a different node is safe here: the sealer of a PAST block is a
+      # Asking a different node is safe here: the signer of a PAST block is a
       # property of the block, identical on any synced node.
       FMX_RPC: http://rpc1:8545
     volumes:

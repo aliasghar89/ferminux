@@ -1,7 +1,7 @@
 #!/bin/sh
 # Ferminux rewards sidecar: loops forever, seeding Blockscout's reward tables.
-# Blockscout's geth variant cannot fetch PoW beneficiaries over RPC, so the
-# explorer would otherwise show no miner rewards. Writes ONLY to the explorer DB.
+# Blockscout's geth variant cannot fetch reward beneficiaries over RPC, so the
+# explorer would otherwise show no block rewards. Writes ONLY to the explorer DB.
 set -u
 
 INTERVAL="${SEED_INTERVAL_SECONDS:-20}"
@@ -25,7 +25,7 @@ while true; do
   done
   # Authority blocks carry a zero coinbase (Clique uses that field for votes),
   # so from PosaBlock onward the explorer would credit every block to
-  # 0x0000…0000 unless the sealer is recovered from the header. Inert before
+  # 0x0000…0000 unless the signer is recovered from the header. Inert before
   # the fork: no block matches, and it costs one indexed query per pass.
   sh /seeder/seed-signers.sh 2>&1 | grep -v '^$' || true
   sleep "$INTERVAL"

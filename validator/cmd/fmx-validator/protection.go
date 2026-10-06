@@ -117,7 +117,9 @@ func cmdResume(args []string, out io.Writer) error {
 	if !*yes {
 		return errors.New("if another machine used this key, stop it for good (or rotate to a new attester key) before resuming; then run again with --yes")
 	}
-	if err := os.Remove(p); err != nil {
+	// root runs this in a data directory the service user owns: never remove
+	// by path through a link put where the network directory was
+	if err := removeIn(cm.dir(), HaltedFile); err != nil {
 		return err
 	}
 	fmt.Fprintln(out, "cleared; restart fmx-validator. If the chain still shows attestations this machine did not sign, it will refuse again.")

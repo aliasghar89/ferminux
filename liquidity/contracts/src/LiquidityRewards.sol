@@ -267,6 +267,11 @@ contract LiquidityRewards {
         uint256 amount = releasable(user);
         if (amount == 0) return 0;
         _vest[user].released += amount;
+        // Counted here, at the one payout to a participant, and not in _push:
+        // the sweep also pushes reward tokens, and counting that as released
+        // would shrink _outstanding() by the swept amount so that every further
+        // sweep could take the same amount again out of what stakers are owed.
+        _releasedTotal += amount;
         _push(rewardToken, user, amount);
         emit Released(user, amount);
         return amount;
@@ -343,7 +348,6 @@ contract LiquidityRewards {
     }
 
     function _push(address token, address to, uint256 amount) internal {
-        if (token == rewardToken) _releasedTotal += amount;
         uint256 before = _balanceOf(token);
         (bool ok, bytes memory ret) = token.call(abi.encodeWithSelector(0xa9059cbb, to, amount));
         require(ok && (ret.length == 0 || abi.decode(ret, (bool))), "LR: transfer failed");

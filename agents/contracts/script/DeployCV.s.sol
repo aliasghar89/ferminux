@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 import {AgentRegistry} from "../src/AgentRegistry.sol";
 import {ServiceEscrow} from "../src/ServiceEscrow.sol";
 import {MemoryAnchor} from "../src/MemoryAnchor.sol";
@@ -84,10 +85,18 @@ contract DeployCV is Script {
         console.log("deployments-cv json:", json);
 
         string memory path = string.concat("../deployments-cv.", vm.toString(block.chainid), ".json");
-        try vm.writeFile(path, json) {
-            console.log("wrote", path);
-        } catch {
-            console.log("could not write", path, "- copy the JSON line above");
+        // A dry run (no --broadcast) only simulates the deploy: its addresses hold no code, yet the gateway and
+        // the web build would load the file as if they did. An existing file is the record of live contracts.
+        if (!vm.isContext(VmSafe.ForgeContext.ScriptBroadcast) && !vm.isContext(VmSafe.ForgeContext.ScriptResume)) {
+            console.log("dry run: not writing", path);
+        } else if (vm.exists(path)) {
+            console.log(path, "already exists: not overwriting it - copy the JSON line above");
+        } else {
+            try vm.writeFile(path, json) {
+                console.log("wrote", path);
+            } catch {
+                console.log("could not write", path, "- copy the JSON line above");
+            }
         }
     }
 

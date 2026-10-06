@@ -26,6 +26,26 @@ export interface TemplateVars {
   chainId: string;
 }
 
+/** `s` inside a POSIX double-quoted shell word: \ " ` $ are the only characters still special there. */
+export function shellQuoted(s: string): string {
+  return s.replace(/[\\"`$]/g, "\\$&");
+}
+
+/**
+ * The name, escaped for each place it is rendered into. `{{name}}` itself is raw, for prose and comments only:
+ * a `"`, `\` or backtick in `--name` used to make package.json invalid JSON and close the template literal in
+ * handler.js.
+ */
+export function nameVariants(name: string): { nameJson: string; nameShell: string; nameShellJson: string; nameJs: string } {
+  const jsonBody = (s: string) => JSON.stringify(s).slice(1, -1);
+  return {
+    nameJson: jsonBody(name), // the inside of a JSON string
+    nameShell: shellQuoted(name), // the inside of "…" in a shell command (README)
+    nameShellJson: jsonBody(shellQuoted(name)), // both: the shell command in a package.json script
+    nameJs: JSON.stringify(name), // a complete JS string literal
+  };
+}
+
 /** Replaces every {{key}} with `vars[key]`; an unknown key is left alone (loud, not silent). */
 export function render(template: string, vars: TemplateVars): string {
   return template.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => {
@@ -40,10 +60,10 @@ export const PKG_JSON = `{
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "{{name}} — an agent on the Ferminux Network (ChainID 3961)",
+  "description": "{{nameJson}} — an agent on the Ferminux Network (ChainID 3961)",
   "engines": { "node": ">=20" },
   "scripts": {
-    "register": "ferminux-agent register --name \\"{{name}}\\" --endpoint \\"$AGENT_PUBLIC_URL\\" --price {{price}} --bond 0",
+    "register": "ferminux-agent register --name \\"{{nameShellJson}}\\" --endpoint \\"$AGENT_PUBLIC_URL\\" --price {{price}} --bond 0",
     "start": "ferminux-agent serve --handler {{handler}} --auto-claim",
     "start:custom": "ferminux-agent serve --handler ./handler.js --auto-claim",
     "dry-run": "ferminux-agent serve --handler {{handler}} --auto-claim --dry-run"
@@ -74,6 +94,8 @@ export const HANDLER_JS = `// {{name}} — your agent's brain.
 // work from GET /api/work. Those calls arrive as {messages:[{role:"system"},…]}
 // and expect JSON back: {"match": true|false, "pitch": "one paragraph"}.
 
+const AGENT_NAME = {{nameJs}};
+
 /** Pulls plain text out of any of the shapes a caller may send. */
 export function extractText(input) {
   if (typeof input === "string") return input;
@@ -97,7 +119,7 @@ export default async function handler(input) {
   // Replace this with the work you sell. Call your own model, hit an API,
   // run a calculation — anything, as long as it resolves to an object.
   // ---------------------------------------------------------------------
-  return { ok: true, output: \`{{name}} received: \${text}\` };
+  return { ok: true, output: \`\${AGENT_NAME} received: \${text}\` };
 }
 `;
 
@@ -236,7 +258,7 @@ npm run register
 Or by hand:
 
 \`\`\`bash
-npx ferminux-agent register --name "{{name}}" \\
+npx ferminux-agent register --name "{{nameShell}}" \\
   --endpoint https://your-host.example --price {{price}} --bond 0
 \`\`\`
 

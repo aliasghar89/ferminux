@@ -1,5 +1,5 @@
-import { Contract, JsonRpcProvider, Wallet, formatEther, parseEther, toUtf8Bytes } from "ethers";
-import type { ContractRunner, TransactionReceipt, Log, Signer, TransactionRequest } from "ethers";
+import { Contract, JsonRpcProvider, Wallet, formatEther, toUtf8Bytes } from "ethers";
+import type { ContractRunner, EventLog, TransactionReceipt, Log, Signer, TransactionRequest } from "ethers";
 import { REGISTRY_ABI, ESCROW_ABI, NFT_ABI, CITIZENS_ABI, AgentStatus, JobStatusEnum, JobStatusName } from "./abi.js";
 import { NETWORKS, DEFAULT_CHAIN_ID } from "./networks.js";
 
@@ -531,9 +531,7 @@ function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
 }
 
 function toWei(amount: AmountLike): bigint {
-  if (typeof amount === "bigint") return amount;
-  if (typeof amount === "number") return parseEther(amount.toString());
-  return BigInt(amount);
+  return toWeiShared(amount);
 }
 
 /** fmx://payload/<hash> → hash; other fmx:// URIs (e.g. fmx://bounty/<id>, used by bounty hires) carry no hash → null. */
@@ -1354,6 +1352,37 @@ class WorkAPI {
   }
 }
 
+/**
+ * The chain's half of the bounty/arena double-hire guard. The gateway learns of a hire only once the requestJob
+ * is confirmed AND indexed, or once hire() reaches its own award(): a retry after a timeout (the first requestJob
+ * still pending, or confirmed but not yet indexed) saw no linked job and locked the reward a second time, at the
+ * next nonce. So ask the chain: refuse while a transaction from this wallet is still pending, and while any
+ * escrow job this client requested with the same inputURI is anything but Refunded.
+ */
+async function assertNoLiveEscrowJob(fmx: Ferminux, inputURI: string): Promise<void> {
+  const signer = fmx.requireSigner();
+  const [pending, latest] = await Promise.all([
+    fmx.provider.getTransactionCount(signer.address, "pending"),
+    fmx.provider.getTransactionCount(signer.address, "latest"),
+  ]);
+  if (pending > latest) {
+    throw new Error(
+      `Ferminux: ${pending - latest} transaction(s) from ${signer.address} still pending — one may be the hire for ${inputURI}; wait until it confirms, then run this again`,
+    );
+  }
+  // requestJob's msg.sender: the AgentAccount for a session-key or gasless signer, else the wallet itself
+  const client = (signer as { accountAddress?: string }).accountAddress ?? signer.address;
+  const logs = await fmx.escrow.queryFilter(fmx.escrow.filters.JobRequested(null, null, client), NETWORKS[fmx.chainId]?.deployBlock ?? 0, "latest");
+  for (const log of logs) {
+    const args = (log as EventLog).args;
+    if (!args || args.inputURI !== inputURI) continue;
+    const status = Number((await fmx.escrow.getJob(args.jobId)).status);
+    if (status !== JobStatusEnum.Refunded) {
+      throw new Error(`Ferminux: ${inputURI} is already settled by escrow job ${args.jobId} (${JobStatusName[status] ?? status}) on chain — not hiring again`);
+    }
+  }
+}
+
 class BountiesAPI {
   constructor(private readonly fmx: Ferminux) {}
 
@@ -1390,9 +1419,17 @@ class BountiesAPI {
 
   /** Awards the bounty (poster only, signed). Pass jobId after hiring the agent through the escrow. */
   async award(params: { bountyId: number | bigint; agentId: number | bigint; jobId?: number | bigint }): Promise<BountyDetail> {
+    let jobId = params.jobId;
+    if (jobId == null) {
+      // The gateway stores `jobId = body.jobId ?? null`, so an award without one (fmx_bounty_award retried,
+      // `ferminux award` run again) unlinked a live escrow job and the next hire() locked the reward a second
+      // time. Re-send the live link instead: only a refund frees the bounty for another job.
+      const bounty = await this.get(params.bountyId);
+      if (bounty.jobId != null && bounty.jobStatus !== "Refunded") jobId = bounty.jobId;
+    }
     return this.fmx.gatewaySignedPost(`/bounties/${params.bountyId}/award`, "bounty.award", {
       agentId: Number(params.agentId),
-      jobId: params.jobId != null ? Number(params.jobId) : undefined,
+      jobId: jobId != null ? Number(jobId) : undefined,
     });
   }
 
@@ -1407,8 +1444,15 @@ class BountiesAPI {
     const bounty = await this.get(params.bountyId);
     const agentId = params.agentId ?? bounty.awardedAgentId;
     if (agentId == null) throw new Error(`Ferminux: bounty ${bounty.id} has no awarded agent — pass agentId`);
+    // Each call locks the whole reward in a NEW escrow job: re-running it (a retry after a timeout, a second
+    // `ferminux bounty-hire`) paid the reward twice. A refund unlinks the job, so a refunded bounty can be re-hired.
+    if (bounty.status === "completed" || (bounty.jobId != null && bounty.jobStatus !== "Refunded")) {
+      throw new Error(`Ferminux: bounty ${bounty.id} is already settled by escrow job ${bounty.jobId} (${bounty.jobStatus ?? bounty.status}) — not hiring again`);
+    }
+    const inputURI = `fmx://bounty/${bounty.id}`;
+    await assertNoLiveEscrowJob(this.fmx, inputURI);
     const { hash } = await this.fmx.uploadPayload(params.input ?? `# ${bounty.title}\n\n${bounty.brief}`);
-    const tx = await this.fmx.escrow.requestJob(agentId, hash, `fmx://bounty/${bounty.id}`, { value: BigInt(bounty.rewardWei) });
+    const tx = await this.fmx.escrow.requestJob(agentId, hash, inputURI, { value: BigInt(bounty.rewardWei) });
     const receipt: TransactionReceipt = await tx.wait();
     const args = findEventArgs(this.fmx.escrow, receipt, "JobRequested");
     if (!args) throw new Error("Ferminux: JobRequested event not found in receipt");
@@ -1580,9 +1624,15 @@ class ArenaAPI {
 
   /** Awards a closed challenge to an agent (creator only, after endsAt; signed) and links the escrow job. */
   async award(params: { challengeId: number | bigint; agentId: number | bigint; jobId?: number | bigint }): Promise<ChallengeDetail> {
+    let jobId = params.jobId;
+    if (jobId == null) {
+      // Same as bounties.award: an award without a jobId would unlink the live job and re-open arena.hire.
+      const c = await this.challenge(params.challengeId);
+      if (c.jobId != null && c.jobStatus !== "Refunded") jobId = c.jobId;
+    }
     return this.fmx.gatewaySignedPost(`/arena/challenges/${params.challengeId}/award`, "arena.award", {
       agentId: Number(params.agentId),
-      jobId: params.jobId != null ? Number(params.jobId) : undefined,
+      jobId: jobId != null ? Number(jobId) : undefined,
     });
   }
 
@@ -1596,8 +1646,14 @@ class ArenaAPI {
     const c = await this.challenge(params.challengeId);
     const agentId = params.agentId ?? c.winner?.agentId ?? c.awardedAgentId;
     if (agentId == null) throw new Error(`Ferminux: challenge ${c.id} has no winning agent — pass agentId`);
+    // Same guard as bounties.hire: a second call would lock the prize in a second escrow job.
+    if (c.jobId != null && c.jobStatus !== "Refunded") {
+      throw new Error(`Ferminux: challenge ${c.id} is already settled by escrow job ${c.jobId} (${c.jobStatus ?? "linked"}) — not hiring again`);
+    }
+    const inputURI = `fmx://arena/${c.id}`;
+    await assertNoLiveEscrowJob(this.fmx, inputURI);
     const { hash } = await this.fmx.uploadPayload(params.input ?? `# ${c.title}\n\n${c.brief}`);
-    const tx = await this.fmx.escrow.requestJob(agentId, hash, `fmx://arena/${c.id}`, { value: BigInt(c.prizeWei) });
+    const tx = await this.fmx.escrow.requestJob(agentId, hash, inputURI, { value: BigInt(c.prizeWei) });
     const receipt: TransactionReceipt = await tx.wait();
     const args = findEventArgs(this.fmx.escrow, receipt, "JobRequested");
     if (!args) throw new Error("Ferminux: JobRequested event not found in receipt");

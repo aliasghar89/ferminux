@@ -3,11 +3,12 @@
 // the pool cannot pay.
 
 import { useEffect, useMemo, useState } from 'react';
-import { EXPLORER_URL, NATIVE_SYMBOL, STAKING_VAULT_ADDRESS } from '../config.ts';
+import { EXPLORER_URL, NATIVE_SYMBOL, SECONDS_PER_BLOCK, STAKING_VAULT_ADDRESS } from '../config.ts';
 import type { ChainState } from '../state/useChain.ts';
 import type { WalletState } from '../state/useWallet.ts';
 import type { Poll, VaultData } from '../state/useStakingData.ts';
 import { stake, fetchDenied, humanizeTxError, type Tier } from '../lib/staking.ts';
+import { tierSpec } from '../lib/tiers.ts';
 import {
   effectiveAprBps,
   weightedUnits,
@@ -15,12 +16,24 @@ import {
   runwaySeconds,
   poolCoversProjection,
   maxStakeableWei,
+  secondsUntilBlock,
 } from '../lib/math.ts';
 import { checkAmount } from '../lib/validate.ts';
 import { formatFMX, formatBps, formatWeight, formatDuration, formatDateTime, formatMonths } from '../lib/format.ts';
 import { Modal, Spinner, Skeleton } from '../components/ui.tsx';
 
-const TIER_NAMES = ['Flexible', 'Locked 90 days', 'Locked 180 days', 'Validator track'];
+/**
+ * Seconds a stake in `t` stays locked from now: the time lock, or — for the
+ * validator track — the estimate to its lock block at the 7 s cadence. 0 = no
+ * lock left (or the head is not known yet).
+ */
+function lockSecondsFrom(t: Tier, blockNumber: number | null): bigint {
+  if (t.lockSeconds > 0n) return t.lockSeconds;
+  if (t.lockUntilBlock !== null && blockNumber !== null) {
+    return BigInt(secondsUntilBlock(blockNumber, t.lockUntilBlock, SECONDS_PER_BLOCK));
+  }
+  return 0n;
+}
 
 type TxPhase =
   | { phase: 'idle' }
@@ -91,6 +104,9 @@ export function StakePanel({
     return effectiveAprBps(tier.weightBps, units, overview.dripPerYearWei);
   }, [overview, tier, amount]);
 
+  const tierLock = tier ? lockSecondsFrom(tier, chain.blockNumber) : 0n;
+  // A block lock cannot be put into words before the head block is known.
+  const lockKnown = !(tier?.lockUntilBlock != null && chain.blockNumber === null);
   const runway = overview ? runwaySeconds(overview.rewardPoolWei, overview.totalWeightedUnitsWei, overview.dripPerYearWei) : null;
   const poolCoversLock =
     overview && tier
@@ -98,12 +114,22 @@ export function StakePanel({
           overview.rewardPoolWei,
           overview.totalWeightedUnitsWei,
           overview.dripPerYearWei,
-          tier.lockSeconds > 0n ? tier.lockSeconds : 30n * 86_400n,
+          tierLock > 0n ? tierLock : 30n * 86_400n,
         )
       : true;
 
-  const unlockAt = tier ? now + Number(tier.lockSeconds) : now;
-  const horizonSeconds = tier && tier.lockSeconds > 0n ? tier.lockSeconds : 30n * 86_400n;
+  const unlockAt = now + Number(tierLock);
+  const horizonSeconds = tierLock > 0n ? tierLock : 30n * 86_400n;
+  // Plain words for when a stake in this tier unlocks. A block lock is a block
+  // height, so its date is an estimate at the 7 s cadence and says so.
+  const unlockWhen =
+    tier?.lockUntilBlock != null && tierLock > 0n ? (
+      <>
+        block {tier.lockUntilBlock.toLocaleString('en-US')} (about {formatDateTime(unlockAt)})
+      </>
+    ) : (
+      formatDateTime(unlockAt)
+    );
   const projected =
     amount.ok && aprAfterMyStake !== null ? projectedRewardsWei(amount.wei, aprAfterMyStake, horizonSeconds) : null;
 
@@ -118,10 +144,13 @@ export function StakePanel({
     }
   };
 
+  const paused = overview?.paused ?? false;
   const canReview =
     deployed &&
     wallet.address !== null &&
     !denied &&
+    !paused &&
+    lockKnown &&
     amount.ok &&
     !belowMin &&
     !overBalance &&
@@ -163,6 +192,12 @@ export function StakePanel({
           staking rewards by contract.
         </div>
       )}
+      {paused && (
+        <div className="notice notice-warn">
+          New deposits are paused by the vault owner. Withdrawals, claims and emergency exits are never paused —
+          existing positions are unaffected.
+        </div>
+      )}
 
       {/* tier cards */}
       <div className="tier-grid">
@@ -181,6 +216,7 @@ export function StakePanel({
           : tiers.map((t) => {
               const apr = liveApr(t);
               const capped = apr !== null && apr < t.aprCapBps;
+              const lockLeft = lockSecondsFrom(t, chain.blockNumber);
               return (
                 <button
                   key={t.id}
@@ -190,7 +226,7 @@ export function StakePanel({
                   aria-checked={tierId === t.id}
                 >
                   <div className="tier-head">
-                    <span className="tier-name">{TIER_NAMES[t.id] ?? `Tier ${t.id}`}</span>
+                    <span className="tier-name">{t.name}</span>
                     <span className="tier-weight num">{formatWeight(t.weightBps)}</span>
                     <span className="tier-apy num">
                       {apr === null ? '…' : formatBps(apr)}
@@ -198,15 +234,23 @@ export function StakePanel({
                     </span>
                   </div>
                   <div className="tier-sub">
-                    {t.lockSeconds === 0n
-                      ? 'No lock — exit any time via the 7-day cooldown'
-                      : `Locks for ${formatDuration(Number(t.lockSeconds))} — until ${formatDateTime(now + Number(t.lockSeconds))}`}
+                    {t.lockUntilBlock !== null
+                      ? lockLeft > 0n
+                        ? `Locked until block ${t.lockUntilBlock.toLocaleString('en-US')} — about ${formatDuration(Number(lockLeft))} at ${SECONDS_PER_BLOCK} s blocks`
+                        : chain.blockNumber === null
+                          ? `Locked until block ${t.lockUntilBlock.toLocaleString('en-US')}`
+                          : `Lock block ${t.lockUntilBlock.toLocaleString('en-US')} has passed — exit any time via the 7-day cooldown`
+                      : t.lockSeconds === 0n
+                        ? 'No lock — exit any time via the 7-day cooldown'
+                        : `Locks for ${formatDuration(Number(t.lockSeconds))} — until ${formatDateTime(now + Number(t.lockSeconds))}`}
                   </div>
-                  {(t.minStakeWei > 0n || t.requiresNode) && (
+                  {(t.minStakeWei > 0n || t.boostedWeightBps !== null) && (
                     <div className="tier-req">
                       {t.minStakeWei > 0n && `Min ${formatFMX(t.minStakeWei, 0)} FMX bond`}
-                      {t.minStakeWei > 0n && t.requiresNode && ' · '}
-                      {t.requiresNode && 'requires a registered node (Nodes tab)'}
+                      {t.minStakeWei > 0n && t.boostedWeightBps !== null && ' · '}
+                      {t.boostedWeightBps !== null &&
+                        t.boostedAprCapBps !== null &&
+                        `${formatWeight(t.boostedWeightBps)} (cap ${formatBps(t.boostedAprCapBps)}) while its registered node holds the uptime boost (Nodes tab)`}
                     </div>
                   )}
                 </button>
@@ -261,7 +305,7 @@ export function StakePanel({
         {amountError && <div className="field-error">{amountError}</div>}
         {belowMin && tier && (
           <div className="field-error">
-            {TIER_NAMES[tier.id]} needs at least {formatFMX(tier.minStakeWei, 0)} FMX.
+            {tier.name} needs at least {formatFMX(tier.minStakeWei, 0)} FMX.
           </div>
         )}
         {overBalance && <div className="field-error">More than your balance.</div>}
@@ -274,14 +318,14 @@ export function StakePanel({
       </div>
 
       {/* the plain-words statement */}
-      {tier && amount.ok && !belowMin && !overBalance && (
+      {tier && lockKnown && amount.ok && !belowMin && !overBalance && (
         <div className="notice">
           You are locking <strong className="num">{formatFMX(amount.wei)} FMX</strong>{' '}
-          {tier.lockSeconds === 0n ? (
+          {tierLock === 0n ? (
             <>with no lock — you can start the 7-day exit cooldown at any time.</>
           ) : (
             <>
-              until <strong>{formatDateTime(unlockAt)}</strong> ({formatDuration(Number(tier.lockSeconds))}).
+              until <strong>{unlockWhen}</strong> ({formatDuration(Number(tierLock))}).
               Leaving early forfeits all unclaimed rewards plus 5% of principal.
             </>
           )}{' '}
@@ -334,12 +378,12 @@ export function StakePanel({
                   <tr>
                     <th>Tier</th>
                     <td>
-                      {TIER_NAMES[tier.id]} ({formatWeight(tier.weightBps)})
+                      {tier.name} ({formatWeight(tier.weightBps)})
                     </td>
                   </tr>
                   <tr>
                     <th>Locked until</th>
-                    <td>{tier.lockSeconds === 0n ? 'no lock' : formatDateTime(unlockAt)}</td>
+                    <td>{tierLock === 0n ? 'no lock' : unlockWhen}</td>
                   </tr>
                   <tr>
                     <th>Effective APY now</th>
@@ -356,8 +400,8 @@ export function StakePanel({
                     <td>7-day cooldown, no rewards during it</td>
                   </tr>
                   <tr>
-                    <th>Early exit{tier.lockSeconds === 0n ? '' : ' (before unlock)'}</th>
-                    <td>{tier.lockSeconds === 0n ? 'n/a — no lock' : 'forfeits unclaimed rewards + 5% principal'}</td>
+                    <th>Early exit{tierLock === 0n ? '' : ' (before unlock)'}</th>
+                    <td>{tierLock === 0n ? 'n/a — no lock' : 'forfeits unclaimed rewards + 5% principal'}</td>
                   </tr>
                 </tbody>
               </table>
@@ -380,8 +424,8 @@ export function StakePanel({
           {tx.phase === 'done' && (
             <>
               <div className="notice notice-success">
-                Staked {formatFMX(tx.amountWei)} FMX into {TIER_NAMES[tx.tierId] ?? `tier ${tx.tierId}`}. It is now
-                visible under Positions.
+                Staked {formatFMX(tx.amountWei)} FMX into {tierSpec(tx.tierId)?.name ?? `tier ${tx.tierId}`}. It is
+                now visible under Positions.
               </div>
               <p className="small">
                 <a href={`${EXPLORER_URL}/tx/${tx.hash}`} target="_blank" rel="noreferrer noopener">

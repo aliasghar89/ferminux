@@ -28,8 +28,23 @@ export const X402_MAX_TIMEOUT_S = 300;
  * about to unlock (withdraw-before-settle).
  */
 export const X402_MIN_EXPIRY_S = 90;
+/**
+ * A voucher is refused when it stays valid for longer than this. A queued voucher holds its payer's deposit as
+ * pending until it settles or expires, and flush() drops an unsettled one only once it has expired: with no bound,
+ * a voucher the vault cannot settle stayed in the queue for good. The SDK signs for at most 1 h and /x402/ for
+ * exactly 1 h; the 5 minutes on top absorb a payer's clock running ahead of the gateway's.
+ */
+export const X402_MAX_EXPIRY_S = 3900;
 export const X402_BATCH_SIZE = 50;
 export const X402_MAX_SETTLE_ATTEMPTS = 3;
+/**
+ * Gas added to settleBatch's estimate for each voucher in the batch, capped by the block gas limit. The node estimates
+ * against the state of that moment, and the vault settles a voucher it skipped there (an EOA payer's deposit drained
+ * during the estimate and refilled before inclusion, an ERC-1271 answer that differs on chain) for about 51k more gas:
+ * the used nonce and the payee's credit written from zero, and the Settled log. Writing the fee recipient's credit from
+ * zero too makes it 72k. Sent at the bare estimate (ethers' default), such a batch ran out of gas and reverted whole.
+ */
+export const X402_SETTLE_GAS_MARGIN_PER_VOUCHER = 75_000n;
 /** a `submitted` batch whose receipt never arrived is re-checked / re-queued after this long */
 export const X402_SUBMITTED_STALE_S = 600;
 /** facilitator balance below this is reported as `lowFunds` on /api/health and /api/x402/supported */
@@ -99,8 +114,10 @@ export interface VoucherRow {
   error: string | null;
   createdAt: number;
   settledAt: number | null;
-  /** settleBatch attempts so far (a reverted batch re-queues up to X402_MAX_SETTLE_ATTEMPTS) */
+  /** settleBatch attempts so far (a voucher that reverts or fails its estimate alone re-queues up to X402_MAX_SETTLE_ATTEMPTS) */
   attempts: number;
+  /** the most vouchers a batch carrying this one may hold: halved each time such a batch reverts on chain (null: no limit) */
+  batchCap: number | null;
 }
 
 declare module "fastify" {
@@ -164,6 +181,27 @@ export function paymentFromRequest(req: FastifyRequest): Payment | null {
   return parsePayment(decoded);
 }
 
+/** settleBatch's (vouchers, signatures) arguments for queued rows. */
+function batchArgs(rows: VoucherRow[]): [Array<[string, string, bigint, bigint, number, string]>, string[]] {
+  return [rows.map((r) => [r.payer, r.payee, BigInt(r.amount), BigInt(r.nonce), r.expiry, r.ref]), rows.map((r) => r.sig)];
+}
+
+/**
+ * The node ran the batch and it failed (out of gas, reverted): the vouchers' fault, not the RPC's. ethers reports any
+ * error the node answers eth_estimateGas with as CALL_EXCEPTION, a proxy's rate limit included, so the node's own
+ * message decides; counting attempts for that would fail good vouchers through an RPC incident.
+ */
+function batchFailed(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; info?: { error?: { message?: string } } };
+  return e.code === "CALL_EXCEPTION" && /revert|gas/i.test(e.info?.error?.message ?? e.message ?? "");
+}
+
+/** A vault read that threw: its own reason when it says why the voucher is bad, otherwise a vault-check failure. */
+function vaultFailure(fail: (invalidReason: string) => VerifyResult, err: unknown): VerifyResult {
+  if (err instanceof Error && /insufficient|rejected|expired|used/i.test(err.message)) return fail(err.message);
+  return fail(`vault check failed: ${(err as Error).message.slice(0, 120)}`);
+}
+
 export class X402Facilitator {
   readonly vault?: Contract;
   readonly vaultAddress: string | null;
@@ -175,6 +213,8 @@ export class X402Facilitator {
   private lastFlush = 0;
   private flushing = false;
   private funding: { at: number; balance: bigint | null } = { at: 0, balance: null };
+  /** settle() runs one at a time per payer (see settle) */
+  private readonly payerTail = new Map<string, Promise<void>>();
 
   constructor(private readonly ctx: V3Context) {
     this.vaultAddress = ctx.address("x402Vault") ?? null;
@@ -185,7 +225,9 @@ export class X402Facilitator {
       "INSERT INTO x402_vouchers (payer, nonce, payee, amount, ref, expiry, sig, resource, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     );
     this.getVoucher = db.prepare("SELECT * FROM x402_vouchers WHERE payer = ? AND nonce = ?");
-    this.queued = db.prepare("SELECT * FROM x402_vouchers WHERE status = 'queued' ORDER BY createdAt ASC, rowid ASC LIMIT ?");
+    // vouchers that have failed a settle attempt go behind fresh ones: a batch of 50 that could not settle must not
+    // hold the rest of the queue back while it uses up its attempts
+    this.queued = db.prepare("SELECT * FROM x402_vouchers WHERE status = 'queued' ORDER BY attempts ASC, createdAt ASC, rowid ASC LIMIT ?");
     this.pendingSum = db.prepare("SELECT amount FROM x402_vouchers WHERE payer = ? AND status IN ('queued','submitted')");
     this.lastFlush = ctx.now();
   }
@@ -213,7 +255,7 @@ export class X402Facilitator {
       domain: this.domain,
       types: X402_VOUCHER_TYPES,
       batch: { everyMs: this.ctx.cfg.x402BatchMs, size: X402_BATCH_SIZE, queued: this.queuedCount() },
-      voucher: { maxTimeoutSeconds: X402_MAX_TIMEOUT_S, minExpirySeconds: X402_MIN_EXPIRY_S },
+      voucher: { maxTimeoutSeconds: X402_MAX_TIMEOUT_S, minExpirySeconds: X402_MIN_EXPIRY_S, maxExpirySeconds: X402_MAX_EXPIRY_S },
       facilitatorBalance: funding.balance,
       ...(funding.lowFunds ? { warning: `facilitator ${funding.address} is low on gas (${funding.balance} wei) — settlements will stall until it is topped up` } : {}),
       ...(this.vaultAddress ? {} : DISABLED_NOT_DEPLOYED),
@@ -241,6 +283,11 @@ export class X402Facilitator {
    * balance ≥ amount + pending when the vault is deployed.
    */
   async verify(payment: Payment, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<VerifyResult> {
+    return (await this.authenticate(payment, requirement)) ?? (await this.checkFunds(payment));
+  }
+
+  /** verify() without the funds check: null when the voucher is well-formed, current, unused and signed by its payer. */
+  private async authenticate(payment: Payment, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<VerifyResult | null> {
     const v = payment.payload.voucher;
     const fail = (invalidReason: string): VerifyResult => ({ isValid: false, invalidReason, payer: v.payer, voucher: v });
     if (payment.scheme !== X402_SCHEME) return fail(`unsupported scheme "${payment.scheme}" (want ${X402_SCHEME})`);
@@ -248,6 +295,7 @@ export class X402Facilitator {
     const nowS = this.ctx.nowS();
     if (v.expiry <= nowS) return fail("voucher expired");
     if (v.expiry < nowS + X402_MIN_EXPIRY_S) return fail(`voucher expires too soon: expiry must be ≥ now + ${X402_MIN_EXPIRY_S} s (settlement is batched)`);
+    if (v.expiry > nowS + X402_MAX_EXPIRY_S) return fail(`voucher expires too late: expiry must be ≤ now + ${X402_MAX_EXPIRY_S} s`);
     if (BigInt(v.amount) <= 0n) return fail("amount must be > 0");
     if (requirement?.payTo && getAddress(requirement.payTo) !== v.payee) return fail(`payee must be ${getAddress(requirement.payTo)}`);
     if (requirement?.maxAmountRequired && BigInt(v.amount) < BigInt(requirement.maxAmountRequired)) return fail(`amount below required ${requirement.maxAmountRequired}`);
@@ -271,27 +319,67 @@ export class X402Facilitator {
           const [ok, reason] = (await this.vault.verify(tuple, payment.payload.signature)) as [boolean, string];
           if (!ok) return fail(reason || "vault.verify rejected the voucher");
         }
-        const balance = (await this.vault.balance(v.payer)) as bigint;
-        let pending = 0n;
-        for (const r of this.pendingSum.all(v.payer) as Array<{ amount: string }>) pending += BigInt(r.amount);
-        if (balance < pending + BigInt(v.amount)) return fail(`insufficient vault balance: ${balance} < ${pending + BigInt(v.amount)} (incl. ${pending} pending)`);
-        // withdraw-before-settle: a deposit that unlocks inside the settlement horizon could be pulled before the batch lands
-        const unlockAt = Number((await this.vault.unlockAt(v.payer)) as bigint);
-        if (unlockAt !== 0 && unlockAt <= nowS + X402_MIN_EXPIRY_S) return fail(`payer's vault deposit unlocks at ${unlockAt} — re-lock (deposit) or wait for withdrawal before paying`);
       } catch (err) {
-        if (err instanceof Error && /insufficient|rejected|expired|used/i.test(err.message)) return fail(err.message);
-        return fail(`vault check failed: ${(err as Error).message.slice(0, 120)}`);
+        return vaultFailure(fail, err);
       }
     } else if (!sigOk) {
       return fail("invalid signature (EIP-712 FerminuxX402 voucher by payer)");
     }
+    return null;
+  }
+
+  /** The payer's vault deposit covers this voucher on top of everything pending, and does not unlock before settlement. */
+  private async checkFunds(payment: Payment): Promise<VerifyResult> {
+    const v = payment.payload.voucher;
+    const fail = (invalidReason: string): VerifyResult => ({ isValid: false, invalidReason, payer: v.payer, voucher: v });
+    const nowS = this.ctx.nowS();
+    if (this.vault) {
+      try {
+        const balance = (await this.vault.balance(v.payer)) as bigint;
+        let pending = 0n;
+        for (const r of this.pendingSum.all(v.payer) as Array<{ amount: string }>) pending += BigInt(r.amount);
+        if (balance < pending + BigInt(v.amount)) return fail(`insufficient vault balance: ${balance} < ${pending + BigInt(v.amount)} (incl. ${pending} pending)`);
+        // withdraw-before-settle: a deposit that unlocks inside the settlement horizon could be pulled before the batch lands.
+        // The deployed vault re-locks only in withdraw() (unlockAt = 0); deposit() leaves unlockAt as it is.
+        const unlockAt = Number((await this.vault.unlockAt(v.payer)) as bigint);
+        if (unlockAt !== 0 && unlockAt <= nowS + X402_MIN_EXPIRY_S) return fail(`payer's vault deposit unlocks at ${unlockAt} — a deposit does not re-lock it: call withdraw() once that time has passed (it re-locks the vault), or requestUnlock() again to move the unlock 1 h out, before paying`);
+      } catch (err) {
+        return vaultFailure(fail, err);
+      }
+    }
     return { isValid: true, payer: v.payer, voucher: v };
   }
 
-  /** Verifies and queues the voucher for batched settlement. */
+  /**
+   * Verifies and queues the voucher for batched settlement. Serialised per payer: verify() checks
+   * balance ≥ pending + amount across several awaited vault reads, and the voucher only counts as pending
+   * once inserted, so two vouchers with different nonces settled in parallel each saw the other as absent —
+   * a payer with a 1 FMX deposit was served N resources for 1 FMX each and the vault skipped all but one.
+   * The signature is checked before the voucher joins the queue: until then its payer is only the caller's word,
+   * and vouchers forged in someone else's name each held that payer's queue for a vault.verify round trip.
+   */
   async settle(payment: Payment, resource: string, requirement?: Partial<Pick<PaymentRequirement, "payTo" | "maxAmountRequired">>): Promise<{ success: boolean; nonce: string; txHash: string | null; queued: boolean; errorReason?: string; payer: string }> {
-    const res = await this.verify(payment, requirement);
+    const rejected = await this.authenticate(payment, requirement);
+    if (rejected) return { success: false, nonce: payment.payload.voucher.nonce, txHash: null, queued: false, errorReason: rejected.invalidReason, payer: payment.payload.voucher.payer };
+    const key = payment.payload.voucher.payer.toLowerCase();
+    const prev = this.payerTail.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const mine = new Promise<void>((r) => (release = r));
+    const tail = prev.then(() => mine);
+    this.payerTail.set(key, tail);
+    await prev;
+    try {
+      return await this.settleLocked(payment, resource);
+    } finally {
+      release();
+      if (this.payerTail.get(key) === tail) this.payerTail.delete(key);
+    }
+  }
+
+  private async settleLocked(payment: Payment, resource: string): Promise<{ success: boolean; nonce: string; txHash: string | null; queued: boolean; errorReason?: string; payer: string }> {
     const v = payment.payload.voucher;
+    // the same voucher sent twice passes authenticate() twice: the copy that waited behind the other is refused here
+    const res = this.getVoucher.get(v.payer, v.nonce) ? { isValid: false, invalidReason: "nonce already used" } : await this.checkFunds(payment);
     if (!res.isValid) return { success: false, nonce: v.nonce, txHash: null, queued: false, errorReason: res.invalidReason, payer: v.payer };
     const status = this.vault ? "queued" : "unsettleable";
     try {
@@ -329,11 +417,20 @@ export class X402Facilitator {
     return fixed;
   }
 
-  /** Applies a settleBatch receipt: Skipped logs → skipped, a reverted tx → re-queued (max attempts) — never a silent `failed`. */
+  /**
+   * Applies a settleBatch receipt: Skipped logs → skipped, a reverted tx → re-queued — never a silent `failed`. The node
+   * ran the batch as a whole at its estimate, so a revert on chain (settleBatch skips a bad voucher, it never reverts
+   * for one) is state that changed before inclusion, and nothing says which voucher it was. Counting an attempt on every
+   * voucher let one of them fail 49 honest ones at the cap. They are re-queued uncounted instead, each in batches of at
+   * most half this one (batchCap), until a voucher reverts alone: only that one counts an attempt, and it goes alone.
+   */
   private finalize(rows: VoucherRow[], txHash: string, status: number | null, logs: ReadonlyArray<{ topics: readonly string[]; data: string }>): void {
     const db = this.ctx.db;
     const t = this.ctx.nowS();
     const mark = db.prepare("UPDATE x402_vouchers SET status = ?, txHash = ?, error = ?, settledAt = ?, attempts = attempts + 1 WHERE payer = ? AND nonce = ?");
+    const split = db.prepare("UPDATE x402_vouchers SET status = 'queued', txHash = ?, error = ?, settledAt = NULL, batchCap = ? WHERE payer = ? AND nonce = ?");
+    const alone = db.prepare("UPDATE x402_vouchers SET status = ?, txHash = ?, error = ?, settledAt = ?, attempts = attempts + 1, batchCap = 1 WHERE payer = ? AND nonce = ?");
+    const half = Math.ceil(rows.length / 2);
     const skipped = new Map<string, string>();
     for (const log of logs) {
       try {
@@ -345,14 +442,95 @@ export class X402Facilitator {
     }
     for (const r of rows) {
       const key = `${r.payer}:${r.nonce}`;
-      if (status !== 1) {
-        // the whole batch reverted (never for a bad voucher — settleBatch skips those): retry, then park as unsettleable for review
+      if (status !== 1 && rows.length > 1) split.run(txHash, `batch of ${rows.length} reverted — re-queued in batches of at most ${half} to find the voucher at fault`, half, r.payer, r.nonce);
+      else if (status !== 1) {
+        // reverted alone: this voucher's own attempt. Retried alone, then parked for operator review at the cap
         const exhausted = r.attempts + 1 >= X402_MAX_SETTLE_ATTEMPTS;
-        mark.run(exhausted ? "failed" : "queued", txHash, exhausted ? `batch reverted ${X402_MAX_SETTLE_ATTEMPTS}× — needs operator review` : "batch reverted — re-queued", exhausted ? t : null, r.payer, r.nonce);
+        alone.run(exhausted ? "failed" : "queued", txHash, exhausted ? `settleBatch reverted with this voucher alone ${X402_MAX_SETTLE_ATTEMPTS}× — needs operator review` : "settleBatch reverted with this voucher alone — re-queued", exhausted ? t : null, r.payer, r.nonce);
         if (exhausted) console.error(`[x402] voucher ${key} failed ${X402_MAX_SETTLE_ATTEMPTS} settle attempts (last tx ${txHash})`);
       } else if (skipped.has(key)) mark.run("skipped", txHash, skipped.get(key)!, t, r.payer, r.nonce);
       else mark.run("settled", txHash, null, t, r.payer, r.nonce);
     }
+  }
+
+  /**
+   * The vouchers of `queued` settleBatch can run with, in the order to send them. The deployed vault calls an
+   * ERC-1271 payer's isValidSignature with 63/64 of the gas left (Sig.isValid), so an answer that burns it leaves the
+   * vouchers after it 1/64: such a voucher passes its estimate alone, or with a few vouchers behind it, and fails the
+   * estimate of a full batch. Parts of a batch that each pass do not pass together, so a split cannot find it, and
+   * the batch sent must be one the node ran as a whole. A voucher signed by its payer never reaches that call: those
+   * go first (split as before should their batch fail), then each voucher that needs its payer's answer is added at
+   * the end, where the gas its answer can take is only what nothing after it needs. One the node cannot run even
+   * there counts a settle attempt (failed after X402_MAX_SETTLE_ATTEMPTS, like one that reverts alone on chain). One
+   * that runs there but not behind the answers already added waits for the next flush, uncounted, with the rest: an
+   * answer before it took the gas, and that voucher is settled or skipped in this batch. An estimate that fails for any
+   * other reason (the RPC unreachable or rate-limiting) is no voucher's fault: it throws, and nothing is counted.
+   */
+  private async settleable(signer: Contract, queued: VoucherRow[]): Promise<VoucherRow[]> {
+    // null when the node runs settleBatch with `rows`, its error when the batch fails (out of gas, reverted)
+    const fails = async (rows: VoucherRow[]): Promise<Error | null> => {
+      try {
+        await signer.settleBatch.estimateGas(...batchArgs(rows));
+        return null;
+      } catch (err) {
+        if (!batchFailed(err)) throw err;
+        return err as Error;
+      }
+    };
+    if (!(await fails(queued))) return queued;
+    const signed = queued.filter((r) => this.signedByPayer(r));
+    const ok: VoucherRow[] = [];
+    // a voucher signed by its payer costs the same gas wherever it is in the batch: parts of them that pass also pass together
+    const isolate = async (part: VoucherRow[]): Promise<void> => {
+      const err = part.length ? await fails(part) : null;
+      if (!err) {
+        ok.push(...part);
+        return;
+      }
+      if (part.length === 1) return this.failAlone(part[0]!, err);
+      const half = Math.ceil(part.length / 2);
+      await isolate(part.slice(0, half));
+      await isolate(part.slice(half));
+    };
+    await isolate(signed);
+    const plain = ok.length;
+    for (const r of queued) {
+      if (signed.includes(r)) continue;
+      const err = await fails([...ok, r]);
+      if (!err) {
+        ok.push(r);
+        continue;
+      }
+      const alone = ok.length === plain ? err : await fails([...ok.slice(0, plain), r]);
+      if (!alone) break;
+      this.failAlone(r, alone);
+    }
+    return ok;
+  }
+
+  /** The voucher's signature recovers to its payer (EIP-712): the vault settles it without calling the payer. */
+  private signedByPayer(r: VoucherRow): boolean {
+    try {
+      return verifyTypedData(this.domain, X402_VOUCHER_TYPES, { payer: r.payer, payee: r.payee, amount: BigInt(r.amount), nonce: BigInt(r.nonce), expiry: r.expiry, ref: r.ref }, r.sig) === r.payer;
+    } catch {
+      return false;
+    }
+  }
+
+  /** A voucher settleBatch cannot run with on its own: re-queued behind fresh ones, or parked for review at the cap. */
+  private failAlone(r: VoucherRow, err: Error): void {
+    const exhausted = r.attempts + 1 >= X402_MAX_SETTLE_ATTEMPTS;
+    const why = ((err as { info?: { error?: { message?: string } } }).info?.error?.message ?? err.message).slice(0, 120);
+    this.ctx.db
+      .prepare("UPDATE x402_vouchers SET status = ?, error = ?, settledAt = ?, attempts = attempts + 1 WHERE payer = ? AND nonce = ?")
+      .run(
+        exhausted ? "failed" : "queued",
+        exhausted ? `settleBatch cannot run with this voucher (${X402_MAX_SETTLE_ATTEMPTS}× alone) — needs operator review: ${why}` : `settleBatch cannot run with this voucher — re-queued: ${why}`,
+        exhausted ? this.ctx.nowS() : null,
+        r.payer,
+        r.nonce,
+      );
+    if (exhausted) console.error(`[x402] voucher ${r.payer}:${r.nonce} failed ${X402_MAX_SETTLE_ATTEMPTS} settleBatch estimates on its own: ${why}`);
   }
 
   /** Pushes up to 50 queued vouchers on-chain with settleBatch (FACILITATOR_KEY). */
@@ -365,15 +543,39 @@ export class X402Facilitator {
       const t0 = this.ctx.nowS();
       // vouchers the vault would skip anyway (expired while queued) — don't spend gas on them
       db.prepare("UPDATE x402_vouchers SET status = 'skipped', error = 'expired before settlement', settledAt = ? WHERE status = 'queued' AND expiry <= ?").run(t0, t0);
-      const rows = this.queued.all(X402_BATCH_SIZE) as VoucherRow[];
-      if (!rows.length) return { submitted: 0, txHash: null };
-      const vs = rows.map((r) => [r.payer, r.payee, BigInt(r.amount), BigInt(r.nonce), r.expiry, r.ref]);
-      const sigs = rows.map((r) => r.sig);
+      // the batch holds no more vouchers than the batchCap of any voucher in it (a reverted batch halves it, see finalize)
+      const queued: VoucherRow[] = [];
+      let cap = X402_BATCH_SIZE;
+      for (const r of this.queued.all(X402_BATCH_SIZE) as VoucherRow[]) {
+        cap = Math.min(cap, r.batchCap ?? X402_BATCH_SIZE);
+        if (queued.length >= cap) break;
+        queued.push(r);
+      }
+      if (!queued.length) return { submitted: 0, txHash: null };
       const signer = this.vault.connect(this.ctx.facilitator) as Contract;
       const mark = db.prepare("UPDATE x402_vouchers SET status = ?, txHash = ?, error = ?, settledAt = ? WHERE payer = ? AND nonce = ?");
+      let rows: VoucherRow[];
+      try {
+        rows = await this.settleable(signer, queued);
+      } catch (err) {
+        // not the vouchers' fault (the RPC is unreachable or rate-limiting): they wait for the next flush, uncounted
+        const msg = (err as Error).message.slice(0, 200);
+        const note = db.prepare("UPDATE x402_vouchers SET error = ? WHERE status = 'queued' AND payer = ? AND nonce = ?");
+        for (const r of queued) note.run(msg, r.payer, r.nonce);
+        console.error("[x402] settleBatch estimate failed:", msg);
+        return { submitted: 0, txHash: null };
+      }
+      if (!rows.length) return { submitted: 0, txHash: null };
+      const [vs, sigs] = batchArgs(rows);
       let tx;
       try {
-        tx = await signer.settleBatch(vs, sigs);
+        // padded per voucher for state that changes before inclusion (X402_SETTLE_GAS_MARGIN_PER_VOUCHER); the node
+        // refuses a transaction over the block gas limit
+        const estimate = (await signer.settleBatch.estimateGas(vs, sigs)) as bigint;
+        let gasLimit = estimate + X402_SETTLE_GAS_MARGIN_PER_VOUCHER * BigInt(rows.length);
+        const block = await this.ctx.provider.getBlock("latest");
+        if (block && gasLimit > block.gasLimit) gasLimit = block.gasLimit > estimate ? block.gasLimit : estimate;
+        tx = await signer.settleBatch(vs, sigs, { gasLimit });
       } catch (err) {
         const msg = (err as Error).message.slice(0, 200);
         for (const r of rows) mark.run("queued", null, msg, null, r.payer, r.nonce);

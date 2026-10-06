@@ -427,8 +427,19 @@ export function arenaCounts(db: Db, nowS: number): { openChallenges: number; cha
 
 export const ARENA_URI_RE = /^fmx:\/\/arena\/(\d+)/i;
 
+/** A challenge's award as it was before a job linked itself (the `prev` of that link's arena.award row). */
+interface ArenaLinkPrev {
+  agentId: number | null;
+  jobId: number | null;
+  awardedAt: number | null;
+  closedAt: number | null;
+}
+
 /** Indexer hook: a job whose inputURI cites a closed challenge, requested by its creator, links as the award. */
 export function applyJobToArena(db: Db, activity: ActivityBus, job: { id: number; agentId: number; client: string; inputURI: string }, ts: number): void {
+  // A link to this id from anything but the creator's hire of the awarded agent is stale, as for bounties: the
+  // creator's /award stored it before the job was indexed, or a reorg gave the id to another job. The award stays.
+  db.prepare("UPDATE arena_challenges SET jobId = NULL WHERE jobId = ? AND (lower(creator) <> lower(?) OR awardedAgentId IS NOT ?)").run(job.id, job.client, job.agentId);
   const m = ARENA_URI_RE.exec(job.inputURI || "");
   if (!m) return;
   const row = db.prepare("SELECT * FROM arena_challenges WHERE id = ?").get(Number(m[1])) as ChallengeRow | undefined;
@@ -437,11 +448,37 @@ export function applyJobToArena(db: Db, activity: ActivityBus, job: { id: number
   if (row.jobId === job.id && row.awardedAgentId === job.agentId) return;
   db.prepare("UPDATE arena_challenges SET awardedAgentId = ?, jobId = ?, awardedAt = COALESCE(awardedAt, ?), closedAt = COALESCE(closedAt, ?) WHERE id = ?").run(job.agentId, job.id, ts, Math.min(ts, row.endsAt), row.id);
   const name = (db.prepare("SELECT name FROM agents WHERE id = ?").get(job.agentId) as { name: string } | undefined)?.name ?? null;
+  // prev: the challenge before the link, for revertJobOnArena to restore
+  const prev: ArenaLinkPrev = { agentId: row.awardedAgentId, jobId: row.jobId, awardedAt: row.awardedAt, closedAt: row.closedAt };
   activity.emit("arena.award", {
     actor: job.client,
     ref: { kind: "challenge", id: row.id },
-    data: { challengeId: row.id, title: row.title, agentId: job.agentId, agentName: name, jobId: job.id, prizeWei: row.prizeWei, winnerSubmissionId: row.winnerSubmissionId, viaJob: true },
+    data: { challengeId: row.id, title: row.title, agentId: job.agentId, agentName: name, jobId: job.id, prizeWei: row.prizeWei, winnerSubmissionId: row.winnerSubmissionId, viaJob: true, prev },
     dedupKey: `arena.award:${row.id}:${job.id}`,
     ts,
   });
+}
+
+/**
+ * Reorg rollback of a JobRequested (the indexer's onRollback, newest first, before the job is re-read): the award
+ * link applyJobToArena made from that job goes, back to the challenge it found. Nothing else would take it back, and
+ * a re-included hire under another id could never link while it stood. A creator's own award that named the job
+ * stays while the winning branch may still have it: unlinkJobFromArena drops it if the re-read finds it gone.
+ */
+export function revertJobOnArena(db: Db, activity: ActivityBus, eventName: string, jobId: number): void {
+  if (eventName !== "JobRequested") return;
+  for (const { id } of db.prepare("SELECT id FROM arena_challenges WHERE jobId = ?").all(jobId) as Array<{ id: number }>) {
+    const key = `arena.award:${id}:${jobId}`;
+    const link = db.prepare("SELECT data FROM activity WHERE dedupKey = ?").get(key) as { data: string } | undefined;
+    if (!link) continue;
+    const prev = (JSON.parse(link.data) as { prev?: ArenaLinkPrev }).prev; // absent on rows from before it was recorded
+    if (prev) db.prepare("UPDATE arena_challenges SET awardedAgentId = ?, jobId = ?, awardedAt = ?, closedAt = ? WHERE id = ?").run(prev.agentId, prev.jobId, prev.awardedAt, prev.closedAt, id);
+    else db.prepare("UPDATE arena_challenges SET awardedAgentId = NULL, jobId = NULL, awardedAt = NULL WHERE id = ?").run(id);
+    activity.retract(key);
+  }
+}
+
+/** The indexer's onJobGone: a job the chain no longer has loses the challenges linked to it by id; the award stays. */
+export function unlinkJobFromArena(db: Db, jobId: number): void {
+  db.prepare("UPDATE arena_challenges SET jobId = NULL WHERE jobId = ?").run(jobId);
 }

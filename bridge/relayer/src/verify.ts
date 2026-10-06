@@ -192,6 +192,14 @@ export async function verifyForSigning(
   // ---- 4. the destination bridge must be the deployment we think it is -----
   const expectedDomain = domainSeparatorFor(t.dstChainId, dst.config.bridgeAddress);
   const domain = await dst.verifyDomainSeparator(expectedDomain);
+  if (!domain.ok && domain.onChain === null) {
+    // Unreadable is not different. onChain is null for every failure to READ —
+    // no healthy endpoint, a timeout, a 429 — and calling that an impostor made
+    // a passing RPC blip a final rejection of funds send() has already locked
+    // or burned, with a false critical page on top. It is still a refusal: we
+    // sign nothing we could not check, and step 5 treats its reads the same.
+    return refuse('rpc_error', `destination domain separator unreadable: ${domain.reason ?? 'no answer'}`);
+  }
   if (!domain.ok) {
     ctx.alerts.fire({
       kind: 'domain_mismatch',
@@ -233,7 +241,9 @@ export async function verifyForSigning(
     return refuse('dst_token_unregistered', `destination token ${t.dstToken} is not registered on the destination bridge`);
   }
   if (cfgOnChain.paused) return refuse('dst_token_paused', `destination token ${t.dstToken} is paused`);
-  if (Number(cfgOnChain.remoteChainId) !== t.srcChainId) {
+  // Compared as uint64, not through Number(): a rounded registry value must
+  // not be able to equal a chain id it is not.
+  if (BigInt(cfgOnChain.remoteChainId) !== BigInt(t.srcChainId)) {
     return refuse('route_mismatch', `destination registry says remoteChainId ${cfgOnChain.remoteChainId}, transfer says ${t.srcChainId}`);
   }
   if (getAddress(cfgOnChain.remoteToken) !== getAddress(t.srcToken)) {

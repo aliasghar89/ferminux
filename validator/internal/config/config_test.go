@@ -1,7 +1,11 @@
 package config
 
 import (
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -19,6 +23,12 @@ func TestResolveDefaults(t *testing.T) {
 	}
 	if r.Dashboard != "127.0.0.1:0" || r.Schedule.Interval != 200 || r.Gas.TipGwei != 1 {
 		t.Fatalf("defaults not applied: %+v", r)
+	}
+	// signers never include a tip below 1 gwei
+	c := base()
+	c.Gas.TipGwei = 0.5
+	if r, err := Resolve(c, t.TempDir()); err != nil || r.Gas.TipGwei != 1 {
+		t.Fatalf("sub-gwei tip kept: %v %v", r.Gas.TipGwei, err)
 	}
 }
 
@@ -91,7 +101,7 @@ func TestRPCMustBeLocal(t *testing.T) {
 }
 
 func TestNodeArgs(t *testing.T) {
-	for _, a := range []string{"--ferminux.allowdeepreorg", "--unlock=0xabc", "--mine", "--http", "-http", "--http.addr=0.0.0.0", "--miner.etherbase=0x1", "--datadir=/x", "--config", "-config=/etc/node.toml"} {
+	for _, a := range []string{"--ferminux.allowdeepreorg", "--unlock=0xabc", "--mine", "--http", "-http", "--http.addr=0.0.0.0", "--miner.etherbase=0x1", "--signer.enabled", "-signer.enabled=true", "--signer.rewardaddress=0x1", "--datadir=/x", "--config", "-config=/etc/node.toml"} {
 		if CheckNodeArgs([]string{"--syncmode=full", a}) == nil {
 			t.Fatalf("%s accepted", a)
 		}
@@ -138,5 +148,145 @@ func TestSaveLoad(t *testing.T) {
 	}
 	if _, err := Load(dd, "mainnet"); err == nil {
 		t.Fatal("missing config loaded")
+	}
+}
+
+// install calls Save as root in a directory the service user owns: a link the
+// service user planted there must never become a root write somewhere else.
+func TestSaveRefusesLinks(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	const victimText = "a file the service user may not write\n"
+	victim := filepath.Join(dd, "victim")
+	if err := os.WriteFile(victim, []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(dir, "config.json")); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	if err := Save(dir, base()); err == nil {
+		t.Fatal("Save wrote config.json through a symlink")
+	}
+	if b, _ := os.ReadFile(victim); string(b) != victimText {
+		t.Fatalf("the link target was overwritten: %q", b)
+	}
+
+	// the network directory itself swapped for a link
+	elsewhere := t.TempDir()
+	linked := filepath.Join(dd, "testnet")
+	if err := os.Symlink(elsewhere, linked); err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(linked, base()); err == nil {
+		t.Fatal("Save wrote through a linked network directory")
+	}
+	if _, err := os.Lstat(filepath.Join(elsewhere, "config.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("config.json appeared in the link's target directory: %v", err)
+	}
+}
+
+// init --force calls Remove as root in the same directory as Save: a link put
+// in place of the network directory must not have root delete the config.json
+// in the link's target.
+func TestRemoveRefusesALinkedDirectory(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := Remove(dir); err != nil {
+		t.Fatalf("no network directory yet: %v", err)
+	}
+	if err := Save(dir, base()); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(dir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "config.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("config.json was not removed: %v", err)
+	}
+	if err := Remove(dir); err != nil {
+		t.Fatalf("no config.json to remove: %v", err)
+	}
+
+	elsewhere := t.TempDir()
+	const victimText = "a file the service user may not remove\n"
+	victim := filepath.Join(elsewhere, "config.json")
+	if err := os.WriteFile(victim, []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(dd, "testnet")
+	if err := os.Symlink(elsewhere, linked); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	if err := Remove(linked); err == nil {
+		t.Fatal("Remove went through a linked network directory")
+	}
+	if b, err := os.ReadFile(victim); err != nil || string(b) != victimText {
+		t.Fatalf("config.json in the link's target was removed or changed: %q %v", b, err)
+	}
+}
+
+// A hard link is a regular file to Lstat, so it is not refused: the new
+// config.json replaces the directory entry and the other name keeps its data.
+func TestSaveDoesNotWriteThroughAHardLink(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	const victimText = "a file the service user may not write\n"
+	victim := filepath.Join(dd, "victim")
+	if err := os.WriteFile(victim, []byte(victimText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(victim, filepath.Join(dir, "config.json")); err != nil {
+		t.Skipf("hard links unavailable here: %v", err)
+	}
+	if err := Save(dir, base()); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(victim); string(b) != victimText {
+		t.Fatalf("the other name of the hard link was overwritten: %q", b)
+	}
+	if _, err := Load(dd, "devnet"); err != nil {
+		t.Fatalf("the saved config does not load: %v", err)
+	}
+}
+
+func TestSaveReplacesAndLeavesNoTempFile(t *testing.T) {
+	dd := t.TempDir()
+	dir := NetworkDir(dd, "devnet")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(path, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(dir, base()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(dd, "devnet"); err != nil {
+		t.Fatalf("the saved config does not load: %v", err)
+	}
+	fi, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
+		t.Fatalf("config.json mode %v, want 0600", fi.Mode().Perm())
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "config.json" {
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Fatalf("directory holds %v, want only config.json", names)
 	}
 }

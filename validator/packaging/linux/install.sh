@@ -80,9 +80,11 @@ for bin in ferminux fmx-validator; do
   fi
 done
 
+was_running=0
 if systemctl is-active --quiet "$UNIT"; then
   log "Stopping $UNIT before upgrading (the sidecar stops its node first)"
   systemctl stop "$UNIT"
+  was_running=1
 fi
 # The pre-release packaging ran the node as a separate fmx-node.service; the
 # sidecar runs it now, so that unit would only be a second node on the same port.
@@ -153,6 +155,18 @@ if ! "$sidecar" "${args[@]}"; then
   echo >&2
   echo "fmx-validator install failed; its message is above." >&2
   journalctl -u "$UNIT" -n 20 --no-pager >&2 2>/dev/null || true
+  # The service was stopped above for the upgrade. Left stopped it attests
+  # nothing until someone notices, and what install refuses (root-owned files
+  # an earlier release's `sudo fmx-validator run` left in its directories) did
+  # not keep it from running: start it again, on the new programs and the
+  # unit it had, while the operator deals with what install named.
+  if [ "$was_running" -eq 1 ] && [ "$start" -eq 1 ]; then
+    if systemctl start "$UNIT"; then
+      echo "$UNIT was running before this upgrade and has been started again; deal with what install named, then run this installer again." >&2
+    else
+      echo "$UNIT was running before this upgrade and did not start again (journalctl -u $UNIT shows why)." >&2
+    fi
+  fi
   exit 1
 fi
 

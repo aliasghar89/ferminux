@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"os/user"
@@ -239,11 +238,15 @@ func copyPasswordFile(src, netDir string) (string, error) {
 		return "", err
 	}
 	defer keys.Zero(pw)
-	dst := filepath.Join(netDir, "attester-password")
-	if err := os.WriteFile(dst, append(append([]byte(nil), pw...), '\n'), 0o600); err != nil {
+	// This runs as root in a directory the service user owns (a reinstall):
+	// never write through whatever is at <netDir>/attester-password, which
+	// could be a link the service user planted, nor through a link put where
+	// netDir was. createIn removes it and creates a fresh file, both relative
+	// to netDir opened once; O_EXCL refuses a link put back in between.
+	if err := createIn(netDir, "attester-password", append(append([]byte(nil), pw...), '\n')); err != nil {
 		return "", err
 	}
-	return dst, nil
+	return filepath.Join(netDir, "attester-password"), nil
 }
 
 // systemdVersion is systemd's major version, or 0 when unknown.
@@ -284,13 +287,8 @@ func chownForService(name, dataDir string, dataDirExisted bool, netDir string) e
 			return err
 		}
 	}
-	err = filepath.WalkDir(netDir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		return os.Lchown(p, uid, gid)
-	})
-	if err != nil {
+	// never by path: the service user can swap a directory for a link mid-walk
+	if err := chownTree(netDir, uid, gid); err != nil {
 		return fmt.Errorf("giving %s to %s: %w", netDir, name, err)
 	}
 	// the user must be able to enter the data directory to reach its network directory

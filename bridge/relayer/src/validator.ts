@@ -20,6 +20,7 @@
 
 import { getAddress } from 'ethers';
 import type { Alerter } from './alerts.ts';
+import type { ChainClient } from './chain.ts';
 import type { RelayerConfig } from './config.ts';
 import type { Store, StoredTransfer } from './db.ts';
 import { loadKey, type LoadedKey } from './keystore.ts';
@@ -37,8 +38,71 @@ import { FINALITY_CODES, releaseCapacity, verifyForSigning, type RefusalCode, ty
  * mismatch, a reorged source block) page a human from finality.ts and stay
  * pending rather than being marked rejected, so that nothing is silently
  * discarded on the word of a chain view that may itself be the anomaly.
+ * `over_contract_cap` is marked rejected (and alerts) but is not final: it
+ * clears only when the owner raises the cap, so it is revisited on a slow
+ * timer instead of re-verified every tick — revisitContractCapRejections().
  */
 const RETRYABLE: RefusalCode[] = ['rpc_error', 'bridge_paused', 'dst_token_paused', 'over_local_daily_cap', 'not_confirmed', ...FINALITY_CODES];
+
+/**
+ * How often transfers rejected as `over_contract_cap` are re-checked against
+ * the destination's maxPerTransfer. Raising that cap goes through a 48h
+ * timelock, so once a minute is prompt without a registry read every tick.
+ */
+export const CONTRACT_CAP_RECHECK_MS = 60_000;
+
+const OVER_CONTRACT_CAP_PREFIX = 'over_contract_cap:';
+
+/**
+ * Put back in line every transfer this node rejected only because the
+ * destination contract's maxPerTransfer was below its amount, once that cap
+ * has been raised to cover it.
+ *
+ * Without this the refusal is final: send() has already locked or burned the
+ * funds on the source chain, the owner raises the destination cap exactly so
+ * the transfer can complete, and the validator never looks at it again. The
+ * row goes back to `confirmed` and nothing more — the next consider() runs the
+ * FULL verification again (age, registry, digest, this node's own caps), so
+ * this decides nothing about signing. One registry read per destination token
+ * per pass, however many rows are waiting on it. Returns the ids moved.
+ */
+export async function revisitContractCapRejections(
+  store: Store,
+  chains: Map<number, ChainClient>,
+  log: Logger,
+): Promise<string[]> {
+  const rows = store.listTransfers({ status: ['rejected'], reasonPrefix: OVER_CONTRACT_CAP_PREFIX, limit: 1000 });
+  const caps = new Map<string, bigint | null>();
+  const moved: string[] = [];
+  for (const t of rows) {
+    const dst = chains.get(t.transfer.dstChainId);
+    if (!dst || dst.healthyEndpoints.length === 0) continue;
+    const key = `${t.transfer.dstChainId}:${t.transfer.dstToken.toLowerCase()}`;
+    if (!caps.has(key)) {
+      try {
+        caps.set(key, (await dst.readTokenConfig(t.transfer.dstToken)).maxPerTransfer);
+      } catch (err) {
+        // Transient: the row stays rejected and is looked at again next pass.
+        caps.set(key, null);
+        log.warn('could not re-read the destination cap for a rejected transfer', {
+          chainId: t.transfer.dstChainId,
+          token: t.transfer.dstToken,
+          err: (err as Error).message,
+        });
+      }
+    }
+    const cap = caps.get(key);
+    if (cap === null || cap === undefined || t.transfer.amount > cap) continue;
+    store.setTransferStatus(t.transferId, 'confirmed', null);
+    moved.push(t.transferId);
+    log.info('destination maxPerTransfer now covers a rejected transfer — back to confirmed for a fresh verification', {
+      transferId: t.transferId,
+      amount: t.transfer.amount.toString(),
+      maxPerTransfer: cap.toString(),
+    });
+  }
+  return moved;
+}
 
 export interface ValidatorHandle {
   service: RelayerService;
@@ -196,8 +260,14 @@ export async function startValidator(
     }
   }
 
+  let capRecheckedAt = 0;
+
   /** Process everything sitting in `confirmed`, plus reconcile what we signed. */
   async function tick(): Promise<void> {
+    if (Date.now() - capRecheckedAt >= CONTRACT_CAP_RECHECK_MS) {
+      capRecheckedAt = Date.now();
+      await revisitContractCapRejections(store, svc().chains, vlog);
+    }
     for (const t of store.listTransfers({ status: ['confirmed'], limit: 200 })) {
       await consider(t);
     }

@@ -557,7 +557,24 @@ interface ClaimRule {
    * rather than partly checked.
    */
   forbidden?: string[];
+  /**
+   * The `outcome` the cited event proves. `cvMoneyFromClaims` counts `payoutWei` for every verified EscrowJob
+   * whose outcome is Completed or Resolved, so an outcome the log does not prove is money the chain never paid:
+   * a JobRequested (or JobRefunded) log with `outcome: "Completed", payoutWei: <anything>` verified, because
+   * those rules check no payout field. `null` = the event proves no settlement, so a settled outcome is refused.
+   */
+  outcome?: string | null;
+  /**
+   * Claim fields the cited log does not carry, compared with ONE eth_call into a pinned contract whenever the
+   * claim states them. A JobCompleted / JobResolved log names neither the client nor the amount, yet
+   * `cvMoneyFromClaims` takes paidJobs from `amountWei` and the distinct payers from `client`: unchecked, a
+   * zero-value job requested from one address verified as a paid job from a new payer every time.
+   */
+  callFields?: { role: CvContractRole; fn: string; args: unknown[]; fields: Record<string, string> };
 }
+
+/** The escrow job's immutable request terms, which no settlement log carries. */
+const ESCROW_JOB_TERMS: ClaimRule["callFields"] = { role: "escrow", fn: "getJob(uint256)", args: ["claim.jobId"], fields: { client: "client", amountWei: "amount" } };
 
 /** `"<ClaimType>|<event sighash>"` → the rule. Unlisted pairs are never verified. */
 const CLAIM_RULES: Record<string, ClaimRule> = {
@@ -583,21 +600,28 @@ const CLAIM_RULES: Record<string, ClaimRule> = {
     subject: [{ call: { role: "escrow", fn: "getJob(uint256)", args: ["claim.jobId"], field: "agentId" }, equals: "subject.agentId" }],
     fields: { jobId: "jobId", payoutWei: "agentPayout", feeWei: "fee", rating: "rating" },
     nullMeansZero: ["rating"],
+    outcome: "Completed",
+    callFields: ESCROW_JOB_TERMS,
   },
   "EscrowJob|JobResolved(uint256,uint256,uint256,uint256)": {
     role: "escrow",
     subject: [{ call: { role: "escrow", fn: "getJob(uint256)", args: ["claim.jobId"], field: "agentId" }, equals: "subject.agentId" }],
     fields: { jobId: "jobId", payoutWei: "agentPayout", feeWei: "fee" },
+    outcome: "Resolved",
+    callFields: ESCROW_JOB_TERMS,
   },
   "EscrowJob|JobRefunded(uint256,uint256,bool)": {
     role: "escrow",
     subject: [{ call: { role: "escrow", fn: "getJob(uint256)", args: ["claim.jobId"], field: "agentId" }, equals: "subject.agentId" }],
     fields: { jobId: "jobId" },
+    outcome: null,
+    callFields: ESCROW_JOB_TERMS,
   },
   "EscrowJob|JobRequested(uint256,uint256,address,uint256,bytes32,string)": {
     role: "escrow",
     subject: [{ log: "agentId", equals: "subject.agentId" }],
     fields: { jobId: "jobId", client: "client", amountWei: "amount", inputHash: "inputHash" },
+    outcome: null,
   },
   "X402Receipt|Settled(address,address,uint256,uint256,uint256,bytes32)": {
     role: "x402Vault",
@@ -1343,6 +1367,7 @@ export async function verifyCv(doc: CvDocument, opts: CvVerifyOptions = {}): Pro
     // of its own choosing.
     const subjectAddress = owner ? getAddress(owner) : getAddress(String(message.subject));
     let anyClaimFailed = false;
+    const provedBy = new Map<string, string>();
     for (const claim of record) {
       const trust: CvTrust = (claim.evidence?.trust as CvTrust) ?? "selfAttested";
       if (tierIndex(trust) > tierIndex(floor)) {
@@ -1356,6 +1381,18 @@ export async function verifyCv(doc: CvDocument, opts: CvVerifyOptions = {}): Pro
         continue;
       }
       const verdict = await verifyChainClaim(provider, claim, { subjectAddress, subjectAgentId: Number(message.agentId), claim, pinned, chainId });
+      // One log proves one claim of a type. Every claim verified on its own, so a document could repeat its
+      // largest JobCompleted (or one x402 Settled, which no registry counter bounds) N times and have
+      // verifiedEarned — recomputed from the verified claims — count that payment N times.
+      const dupKey = verdict.ok && verdict.logKey ? `${String(claim.type)}|${verdict.logKey}` : null;
+      const firstOnLog = dupKey ? provedBy.get(dupKey) : undefined;
+      if (dupKey && firstOnLog !== undefined) {
+        claimResults.push({ id: claim.id, type: String(claim.type), trust, status: "rejected", reason: `cites the same log as ${firstOnLog}: one log proves one ${String(claim.type)} claim`, tx: claim.evidence.tx });
+        result.rejected++;
+        anyClaimFailed = true;
+        continue;
+      }
+      if (dupKey) provedBy.set(dupKey, claim.id);
       if (verdict.ok) {
         claimResults.push({ id: claim.id, type: String(claim.type), trust, status: "verified", tx: claim.evidence.tx });
         result.verified++;
@@ -1540,7 +1577,7 @@ async function readCvAnchor(provider: CvRpc, identityRegistry: string, agentId: 
  * looked up by (claim type, event) before any bind is read, and the document's
  * own `evidence.bind` is evaluated last, as an extra, never as the gate.
  */
-async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindContext): Promise<{ ok: boolean; reason?: string; unrecognised?: boolean }> {
+async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindContext): Promise<{ ok: boolean; reason?: string; unrecognised?: boolean; logKey?: string }> {
   const ev = claim.evidence;
   const pinned = bindCtx.pinned;
   const claimType = String(claim.type);
@@ -1650,6 +1687,13 @@ async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindCo
   if (rule.role !== emitterRole) {
     return { ok: false, reason: `a ${claimType} claim must cite ${rule.role} (${pinned.get(rule.role) ?? "not deployed"}); this log came from ${emitterRole}` };
   }
+  if (rule.outcome !== undefined) {
+    const stated = (claim as Record<string, unknown>).outcome;
+    const settled = stated === "Completed" || stated === "Resolved";
+    if (rule.outcome === null ? settled : stated !== undefined && stated !== rule.outcome) {
+      return { ok: false, reason: `the claim states outcome ${String(stated)}, but ${signature} proves ${rule.outcome === null ? "no completed or resolved settlement" : `outcome ${rule.outcome}`}` };
+    }
+  }
   for (const banned of rule.forbidden ?? []) {
     if ((claim as Record<string, unknown>)[banned] !== undefined) {
       return {
@@ -1699,6 +1743,24 @@ async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindCo
     }
   }
 
+  // Every field the claim states that the log does not carry but a pinned view does (one call for all of them).
+  const viaCall = rule.callFields;
+  const statedViaCall = Object.entries(viaCall?.fields ?? {}).filter(([claimField]) => (claim as Record<string, unknown>)[claimField] !== undefined);
+  if (viaCall && statedViaCall.length) {
+    const target = pinned.get(viaCall.role);
+    if (!target) return { ok: false, reason: `this verifier has no pinned ${viaCall.role} to check ${statedViaCall.map(([f]) => f).join(", ")} against`, unrecognised: true };
+    const result = await callPinnedResult(provider, target, viaCall.fn, viaCall.args, bindCtx);
+    if (result.error) return { ok: false, reason: result.error };
+    for (const [claimField, resultField] of statedViaCall) {
+      const stated = (claim as Record<string, unknown>)[claimField];
+      const actual = decodedField(result.value, resultField);
+      if (actual === undefined) return { ok: false, reason: `${viaCall.fn} returned no field "${resultField}" to check ${claimField} against` };
+      if (!sameValue(actual, stated)) {
+        return { ok: false, reason: `the claim states ${claimField} = ${String(stated)}, ${viaCall.role}.${viaCall.fn}.${resultField} is ${String(actual)}` };
+      }
+    }
+  }
+
   // --- The document's own bind rules, last, as an extra ----------------------
   for (const bind of ev.bind ?? []) {
     const expected = resolveRef(bind.equals, bindCtx);
@@ -1726,7 +1788,8 @@ async function verifyChainClaim(provider: CvRpc, claim: CvClaim, bindCtx: BindCo
     }
     return { ok: false, reason: "a bind rule must carry either `log` or `call`" };
   }
-  return { ok: true };
+  // which log this claim resolved to, whatever index it addressed it by (step 7 refuses a second claim on it)
+  return { ok: true, logKey: `${String(ev.tx).toLowerCase()}:${receipt.logs.indexOf(log)}` };
 }
 
 /** One `eth_call` into a PINNED contract, decoded with the verifier's own ABI. */
@@ -1738,6 +1801,21 @@ async function callPinned(
   field: string,
   bindCtx: BindContext,
 ): Promise<{ value?: unknown; error?: string }> {
+  const result = await callPinnedResult(provider, target, fn, rawArgs, bindCtx);
+  if (result.error) return result;
+  const value = decodedField(result.value, field);
+  if (value === undefined) return { error: `${fn} returned no field "${field}"` };
+  return { value };
+}
+
+/** The whole decoded result of one `eth_call` into a PINNED contract. */
+async function callPinnedResult(
+  provider: CvRpc,
+  target: string,
+  fn: string,
+  rawArgs: unknown[],
+  bindCtx: BindContext,
+): Promise<{ value?: unknown; error?: string }> {
   const fnArgs = rawArgs.map((a) => (typeof a === "string" && (a.startsWith("claim.") || a.startsWith("subject.")) ? resolveRef(a, bindCtx) : a));
   try {
     const iface = cvInterface();
@@ -1745,10 +1823,7 @@ async function callPinned(
     if (!frag) return { error: `unknown view function "${fn}"` };
     const data = iface.encodeFunctionData(frag, fnArgs as unknown[]);
     const raw = await provider.call({ to: getAddress(target), data });
-    const decoded = iface.decodeFunctionResult(frag, raw);
-    const value = decodedField(decoded, field);
-    if (value === undefined) return { error: `${fn} returned no field "${field}"` };
-    return { value };
+    return { value: iface.decodeFunctionResult(frag, raw) };
   } catch (err) {
     return { error: `${fn} on ${target} failed: ${(err as Error).message}` };
   }

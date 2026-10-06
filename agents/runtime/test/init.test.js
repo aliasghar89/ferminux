@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { initProject, projectFiles, slugify, titleCase } from "../dist/init.js";
 import { RUNTIME_TARBALL, render } from "../dist/templates/project.js";
 
@@ -67,6 +69,26 @@ test("init names the agent after the directory and refuses a non-empty one", (t)
   assert.match(result.summary, /Defaults used: name "Night Scribe", handler echo, price 1 FMX/);
   assert.equal(JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).name, "night-scribe");
   assert.ok(readdirSync(dir).includes("keep.txt")); // --force adds, it does not wipe
+});
+
+test("init: a name with quotes, backslashes, backticks or ${} yields valid package.json and handler.js", async (t) => {
+  const base = mkdtempSync(join(tmpdir(), "fmx-init3-"));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const dir = join(base, "odd");
+  const name = 'Q "quoted" \\back\\slash `tick` ${process.exit(1)} $HOME';
+  const result = initProject({ dir, name: `${name}\n// injected`, handler: "echo", yes: true });
+  const clean = `${name} // injected`; // a name is one line: a newline would escape the comments it lands in
+  assert.equal(result.name, clean);
+
+  const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+  assert.ok(pkg.description.startsWith(`${clean} — `), pkg.description);
+  // the register script hands the name to sh inside double quotes: sh must get it back verbatim
+  const quoted = /--name "((?:[^"\\]|\\.)*)"/.exec(pkg.scripts.register)?.[1];
+  assert.ok(quoted !== undefined, pkg.scripts.register);
+  assert.equal(execFileSync("sh", ["-c", `printf '%s' "${quoted}"`], { encoding: "utf8" }), clean);
+
+  const mod = await import(pathToFileURL(join(dir, "handler.js")).href);
+  assert.deepEqual(await mod.default("hi"), { ok: true, output: `${clean} received: hi` });
 });
 
 test("every generated file is non-empty and placeholder-free", () => {

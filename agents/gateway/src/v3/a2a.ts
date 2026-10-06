@@ -177,7 +177,9 @@ async function forwardInvoke(ctx: V3Context, row: AgentRow, body: Buffer, conten
     let buf: Buffer;
     try {
       buf = await readCapped(res, INVOKE_MAX_RESPONSE_BYTES);
-    } catch {
+    } catch (err) {
+      // the deadline covers the body too: a body cut off by it is a timeout, not an oversize answer
+      if (!/exceeded/.test(String((err as Error)?.message))) throw err;
       throw new HttpError(502, "agent response over 1 MiB");
     }
     return { status: res.status, contentType: safeContentType(res.headers.get("content-type")), body: buf };

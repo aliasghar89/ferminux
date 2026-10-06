@@ -286,6 +286,38 @@ test("memory: put/get/list/delete, limits, over-quota 402 paid with a voucher", 
   assert.equal((await inject("DELETE", "/api/memory/notes", undefined, await headers(alice, "memory.delete"))).statusCode, 404);
 });
 
+// The router already percent-decodes :key; decoding it a second time threw URIError (500) on a key with a bare
+// "%", and turned "/api/memory/%2541" into the key "A".
+test("memory: a key carrying % is a 400, never a 500 or a second decode", async (t) => {
+  const { app, db, clock, signed, headers, inject } = await setup();
+  t.after(() => app.close());
+  db.prepare("INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, 'A', '1', 1, 1, 1)").run(alice.address);
+  for (const path of ["/api/memory/a%25zz", "/api/memory/%25", "/api/memory/%2541"]) {
+    const got = await inject("GET", path, undefined, await headers(alice, "memory.get"));
+    assert.equal(got.statusCode, 400, `${path}: ${got.body}`);
+  }
+  const put = await inject("PUT", "/api/memory/a%25zz", await signed(alice, "memory.put", { value: 1 }));
+  assert.equal(put.statusCode, 400, put.body);
+  clock.advance(1100);
+  const del = await inject("DELETE", "/api/memory/%25E0", undefined, await headers(alice, "memory.delete"));
+  assert.equal(del.statusCode, 400, del.body);
+  assert.equal((await inject("GET", "/api/memory/A", undefined, await headers(alice, "memory.get"))).statusCode, 200);
+});
+
+test("memory: a paid over-quota write the flood limit refuses keeps neither the payment nor the credit", async (t) => {
+  const { app, db, clock, signed, inject, voucher } = await setup();
+  t.after(() => app.close());
+  assert.equal((await inject("PUT", "/api/memory/first", await signed(alice, "memory.put", { value: 1 }))).statusCode, 201);
+  db.prepare("INSERT INTO memory (address, key, value, size, createdAt, updatedAt) VALUES (?, 'blob', 'x', ?, 1, 1)").run(alice.address, 5 * 1024 * 1024);
+  const body = await signed(alice, "memory.put", { value: "y".repeat(1000) });
+  const acc = (await inject("PUT", "/api/memory/extra", body)).json().accepts[0];
+  const pay = await voucher(alice, { payee: acc.payTo, amount: acc.maxAmountRequired, nonce: acc.extra.nonceHint, expiry: clock.s() + 300 });
+  const res = await inject("PUT", "/api/memory/extra", body, { PAYMENT: b64(pay) }); // same second as the first write
+  assert.equal(res.statusCode, 429, res.body);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM memory_credits").get().c, 0);
+  assert.equal(db.prepare("SELECT status FROM x402_vouchers WHERE nonce = ?").get(String(acc.extra.nonceHint)).status, "voided");
+});
+
 test("compute listings via tools kind=compute", async (t) => {
   const { app, signed, inject } = await setup();
   t.after(() => app.close());
@@ -522,4 +554,403 @@ test("A2A/invoke routing: internal only for the canonical hosted agent; self-poi
   assert.equal(hop.statusCode, 508);
   const hopRpc = await inject("POST", "/a/12/a2a", { jsonrpc: "2.0", id: 1, method: "tasks/send", params: { message: { parts: [{ type: "text", text: "x" }] } } }, { "x-ferminux-hop": "1" });
   assert.equal(hopRpc.statusCode, 508);
+});
+
+// The deployed X402Vault re-locks only in withdraw() (unlockAt = 0); deposit() leaves unlockAt alone, so the old
+// advice "re-lock (deposit)" sent payers round in a loop.
+test("x402: a voucher from a vault that is about to unlock names the action that re-locks it", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const vault = { verify: async () => [true, ""], balance: async () => 10n ** 18n, unlockAt: async () => BigInt(nowS + 30) };
+  const ctx = { db, cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" }, address: (k) => (k === "x402Vault" ? vaultAddr : undefined), contract: (k) => (k === "x402Vault" ? vault : undefined), facilitator: null, now: () => nowS * 1000, nowS: () => nowS };
+  const fac = new X402Facilitator(ctx);
+  const v = { payer: bob.address, payee: alice.address, amount: "1000", nonce: "1", expiry: nowS + 300, ref: "0x" + "00".repeat(32) };
+  const signature = await bob.signTypedData({ name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr }, X402_VOUCHER_TYPES, { ...v, amount: BigInt(v.amount), nonce: BigInt(v.nonce) });
+  const res = await fac.settle({ scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: v, signature } }, "https://ferminux.net/x");
+  assert.equal(res.success, false);
+  assert.match(res.errorReason, new RegExp(`unlocks at ${nowS + 30}`));
+  assert.match(res.errorReason, /withdraw\(\)/);
+  assert.doesNotMatch(res.errorReason, /re-lock \(deposit\)/);
+});
+
+test("x402: parallel vouchers from one payer cannot together spend more than the vault deposit", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const tick = () => new Promise((r) => setTimeout(r, 5));
+  const vault = {
+    verify: async () => (await tick(), [true, ""]),
+    balance: async () => (await tick(), 10n ** 18n), // 1 FMX deposited
+    unlockAt: async () => (await tick(), 0n),
+  };
+  const ctx = { db, cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" }, address: (k) => (k === "x402Vault" ? vaultAddr : undefined), contract: (k) => (k === "x402Vault" ? vault : undefined), facilitator: null, now: () => nowS * 1000, nowS: () => nowS };
+  const fac = new X402Facilitator(ctx);
+  const pay = async (nonce) => {
+    const v = { payer: bob.address, payee: alice.address, amount: String(10n ** 18n), nonce: String(nonce), expiry: nowS + 300, ref: "0x" + "00".repeat(32) };
+    const signature = await bob.signTypedData({ name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr }, X402_VOUCHER_TYPES, { ...v, amount: BigInt(v.amount), nonce: BigInt(v.nonce) });
+    return { scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: v, signature } };
+  };
+  const payments = await Promise.all([1, 2, 3].map(pay));
+  const res = await Promise.all(payments.map((p) => fac.settle(p, "https://ferminux.net/x")));
+  assert.deepEqual(res.map((r) => r.success), [true, false, false]);
+  assert.match(res[1].errorReason, /insufficient vault balance/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM x402_vouchers").get().c, 1);
+});
+
+// The per-payer queue was keyed on the voucher's payer before its signature was checked: anyone could queue junk
+// vouchers in bob's name, each holding bob's lane for a vault.verify round trip while his real ones waited.
+test("x402: vouchers forged in a payer's name do not hold up that payer's settles", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const junk = "0x" + "ab".repeat(65);
+  let answerForged;
+  const forgedChecked = new Promise((r) => (answerForged = r)); // the vault's (ERC-1271) answer for the junk ones, held back
+  const tick = () => new Promise((r) => setTimeout(r, 5));
+  const vault = {
+    verify: async (_tuple, sig) => (sig === junk ? (await forgedChecked, [false, "invalid signature"]) : (await tick(), [true, ""])),
+    balance: async () => (await tick(), 10n ** 18n),
+    unlockAt: async () => (await tick(), 0n),
+  };
+  const ctx = { db, cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" }, address: (k) => (k === "x402Vault" ? vaultAddr : undefined), contract: (k) => (k === "x402Vault" ? vault : undefined), facilitator: null, now: () => nowS * 1000, nowS: () => nowS };
+  const fac = new X402Facilitator(ctx);
+  const voucher = (nonce) => ({ payer: bob.address, payee: alice.address, amount: "1000", nonce: String(nonce), expiry: nowS + 300, ref: "0x" + "00".repeat(32) });
+  const forged = Array.from({ length: 5 }, (_, i) => fac.settle({ scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: voucher(100 + i), signature: junk } }, "https://ferminux.net/x"));
+  const v = voucher(1);
+  const signature = await bob.signTypedData({ name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr }, X402_VOUCHER_TYPES, { ...v, amount: BigInt(v.amount), nonce: BigInt(v.nonce) });
+  let real;
+  try {
+    real = await Promise.race([fac.settle({ scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: v, signature } }, "https://ferminux.net/x"), new Promise((r) => setTimeout(() => r("stuck"), 2000))]);
+  } finally {
+    answerForged();
+  }
+  assert.notEqual(real, "stuck", "bob's real voucher waited behind the forged ones");
+  assert.equal(real.success, true);
+  assert.deepEqual((await Promise.all(forged)).map((r) => [r.success, r.errorReason]), Array(5).fill([false, "invalid signature"]));
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM x402_vouchers").get().c, 1);
+});
+
+// The deployed X402Vault gives an ERC-1271 payer's isValidSignature all the gas left, so a contract payer that burns it
+// fails the estimate of any settleBatch it is in, and as the oldest queued voucher it was in every one. flush()
+// re-queued the batch without counting an attempt: no payee was paid again.
+test("x402: a voucher settleBatch cannot be estimated with is isolated, the rest settle, and it fails after the attempt cap", async () => {
+  const { X402Facilitator, X402_MAX_SETTLE_ATTEMPTS } = await import("../dist/v3/x402.js");
+  const { v3Interface } = await import("../dist/abi-v3.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const burners = new Set(["1"]); // nonces whose payer burns the gas
+  let rpcDown = null;
+  const batches = [];
+  // as ethers reports them: a JSON-RPC error answer to eth_estimateGas is a CALL_EXCEPTION carrying the node's message
+  const rpcError = (message) => Object.assign(new Error("missing revert data (action=\"estimateGas\")"), { code: "CALL_EXCEPTION", info: { error: { code: -32000, message } } });
+  const estimate = async (vs) => {
+    if (rpcDown) throw rpcDown;
+    if (vs.some((v) => burners.has(String(v[3])))) throw rpcError("gas required exceeds allowance (30000000)");
+    return 100_000n;
+  };
+  const settleBatch = async (vs) => {
+    await estimate(vs); // ethers estimates before it sends
+    batches.push(vs.map((v) => String(v[3])));
+    return { hash: "0x" + String(batches.length).padStart(64, "0"), wait: async () => ({ status: 1, logs: [] }) };
+  };
+  settleBatch.estimateGas = estimate;
+  const vault = { interface: v3Interface("x402Vault"), connect: () => ({ settleBatch }) };
+  const ctx = {
+    db,
+    cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" },
+    address: (k) => (k === "x402Vault" ? vaultAddr : undefined),
+    contract: (k) => (k === "x402Vault" ? vault : undefined),
+    facilitator: { address: alice.address },
+    provider: { getBalance: async () => 10n ** 18n, getTransactionReceipt: async () => null, getBlock: async () => ({ gasLimit: 30_000_000n }) },
+    now: () => nowS * 1000,
+    nowS: () => nowS,
+  };
+  const fac = new X402Facilitator(ctx);
+  const queue = (nonce, createdAt) =>
+    db.prepare("INSERT INTO x402_vouchers (payer, nonce, payee, amount, ref, expiry, sig, resource, status, createdAt) VALUES (?, ?, ?, '1000', ?, ?, '0x', '', 'queued', ?)").run(bob.address, String(nonce), alice.address, "0x" + "00".repeat(32), nowS + 600, createdAt);
+  const voucher = (nonce) => ({ ...db.prepare("SELECT status, attempts FROM x402_vouchers WHERE nonce = ?").get(String(nonce)) });
+  for (const n of [1, 2, 3, 4, 5]) queue(n, nowS - 10 + n);
+
+  // the RPC times out, or a proxy answers with a rate limit: no voucher is at fault, nothing is counted
+  for (const down of [Object.assign(new Error("request timeout"), { code: "TIMEOUT" }), rpcError("limit exceeded")]) {
+    rpcDown = down;
+    assert.equal((await fac.flush()).submitted, 0);
+    assert.deepEqual([1, 2, 3, 4, 5].map(voucher), Array(5).fill({ status: "queued", attempts: 0 }));
+  }
+  rpcDown = null;
+
+  assert.equal((await fac.flush()).submitted, 4);
+  assert.deepEqual(batches, [["2", "3", "4", "5"]], "one tx for the vouchers that can settle");
+  assert.deepEqual([2, 3, 4, 5].map(voucher), Array(4).fill({ status: "settled", attempts: 1 }));
+  assert.deepEqual(voucher(1), { status: "queued", attempts: 1 });
+
+  // a voucher queued after it settles past it, every flush, until the cap parks it for review
+  for (let i = 2; i <= X402_MAX_SETTLE_ATTEMPTS; i++) {
+    queue(5 + i, nowS);
+    assert.equal((await fac.flush()).submitted, 1);
+    assert.deepEqual(batches.at(-1), [String(5 + i)]);
+    assert.deepEqual(voucher(1), { status: i < X402_MAX_SETTLE_ATTEMPTS ? "queued" : "failed", attempts: i });
+  }
+  assert.equal(fac.queuedCount(), 0);
+});
+
+// The deployed X402Vault gives an ERC-1271 payer's isValidSignature 63/64 of the gas left (Sig.isValid), so an answer
+// that burns it passes an estimate alone, or with a few vouchers after it, and leaves a full batch 1/64. Every part the
+// split tried passed, the batch of all of them did not, and flush() sent that batch anyway: ethers' own estimate failed
+// and every voucher was re-queued without counting an attempt, each flush, until the burning one expired.
+test("x402: a voucher whose ERC-1271 answer burns the gas it is given cannot stall a batch it passes alone", async () => {
+  const { X402Facilitator } = await import("../dist/v3/x402.js");
+  const { v3Interface } = await import("../dist/abi-v3.js");
+  const { getAddress } = await import("ethers");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const domain = { name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr };
+  const iface = v3Interface("x402Vault");
+  const nowS = 1_758_400_000;
+  const burner = getAddress("0x00000000000000000000000000000000000000b1"); // contract payer whose answer burns its gas
+  const honest = getAddress("0x00000000000000000000000000000000000000a1"); // contract payer that answers in 60k
+  // settleBatch at the 30M block gas limit, as the vault spends it: 60k a voucher; an answer that burns takes 63/64 of
+  // what is left after the 15k before its call, and the vault then needs 4k to skip that voucher
+  const runs = (vs) => {
+    let left = 30_000_000 - 25_000;
+    for (const v of vs) {
+      left = v[0] === burner ? Math.floor((left - 15_000) / 64) - 4_000 : left - 60_000;
+      if (left < 0) return false;
+    }
+    return true;
+  };
+  const rpcError = (message) => Object.assign(new Error("missing revert data (action=\"estimateGas\")"), { code: "CALL_EXCEPTION", info: { error: { code: -32000, message } } });
+  const estimate = async (vs) => {
+    if (!runs(vs)) throw rpcError("gas required exceeds allowance (30000000)");
+    return 100_000n;
+  };
+  const batches = [];
+  const settleBatch = async (vs) => {
+    await estimate(vs); // ethers estimates before it sends
+    batches.push(vs.map((v) => String(v[3])));
+    // the answer ran out of gas: "bad signature", and the vault skips that voucher
+    const logs = vs.filter((v) => v[0] === burner).map((v) => iface.encodeEventLog("Skipped", [v[0], v[3], "bad signature"]));
+    return { hash: "0x" + String(batches.length).padStart(64, "0"), wait: async () => ({ status: 1, logs }) };
+  };
+  settleBatch.estimateGas = estimate;
+  const vault = { interface: iface, connect: () => ({ settleBatch }) };
+  const ctx = {
+    db,
+    cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" },
+    address: (k) => (k === "x402Vault" ? vaultAddr : undefined),
+    contract: (k) => (k === "x402Vault" ? vault : undefined),
+    facilitator: { address: alice.address },
+    provider: { getBalance: async () => 10n ** 18n, getTransactionReceipt: async () => null, getBlock: async () => ({ gasLimit: 30_000_000n }) },
+    now: () => nowS * 1000,
+    nowS: () => nowS,
+  };
+  const fac = new X402Facilitator(ctx);
+  let createdAt = nowS - 1000;
+  // `wallet` signs the voucher as its payer; a contract payer's signature is whatever its isValidSignature reads
+  const queue = async (payer, nonce, wallet) => {
+    const v = { payer, payee: alice.address, amount: 1000n, nonce: BigInt(nonce), expiry: nowS + 600, ref: "0x" + "00".repeat(32) };
+    const sig = wallet ? await wallet.signTypedData(domain, X402_VOUCHER_TYPES, v) : "0x" + "11".repeat(65);
+    db.prepare("INSERT INTO x402_vouchers (payer, nonce, payee, amount, ref, expiry, sig, resource, status, createdAt) VALUES (?, ?, ?, '1000', ?, ?, ?, '', 'queued', ?)").run(payer, String(nonce), alice.address, v.ref, v.expiry, sig, createdAt++);
+  };
+  const states = (nonces) => nonces.map((n) => {
+    const r = db.prepare("SELECT status, attempts FROM x402_vouchers WHERE nonce = ?").get(String(n));
+    return `${r.status}/${r.attempts}`;
+  });
+  const range = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+
+  // the burning voucher is the oldest, 49 vouchers signed by their payers are queued behind it
+  await queue(burner, 1);
+  for (const n of range(101, 149)) await queue(bob.address, n, bob);
+  assert.equal(runs([[burner]]), true, "alone, the burning voucher passes its estimate");
+  assert.equal((await fac.flush()).submitted, 50);
+  assert.deepEqual(batches, [[...range(101, 149).map(String), "1"]], "one tx; the answer comes after every voucher that needs no answer");
+  assert.deepEqual(states(range(101, 149)), Array(49).fill("settled/1"));
+  assert.deepEqual(states([1]), ["skipped/1"]);
+
+  // three burning vouchers of the payer's own: any two pass, all three do not
+  for (const n of [2, 3, 4]) await queue(burner, n);
+  assert.equal((await fac.flush()).submitted, 2);
+  assert.deepEqual(batches.at(-1), ["2", "3"]);
+  assert.deepEqual(states([4]), ["queued/0"], "it ran on its own: an answer before it took the gas, nothing is counted");
+  assert.equal((await fac.flush()).submitted, 1);
+  assert.deepEqual(states([2, 3, 4]), Array(3).fill("skipped/1"));
+
+  // contract payers that answer honestly behind a burning answer: as many as its 1/64 leaves room for go with it, the
+  // rest in the next flush, and none of them is counted an attempt
+  await queue(burner, 5);
+  for (const n of range(201, 210)) await queue(honest, n);
+  assert.equal((await fac.flush()).submitted, 8);
+  assert.deepEqual(batches.at(-1), ["5", ...range(201, 207).map(String)]);
+  assert.deepEqual(states(range(208, 210)), Array(3).fill("queued/0"));
+  assert.equal((await fac.flush()).submitted, 3);
+  assert.deepEqual(states(range(201, 210)), Array(10).fill("settled/1"));
+  assert.deepEqual(states([5]), ["skipped/1"]);
+  assert.equal(fac.queuedCount(), 0);
+});
+
+// The node estimates settleBatch against the state of that moment, and ethers sent it at exactly that estimate. A payer
+// whose deposit was empty while the node estimated (the vault skips that voucher) and refilled before inclusion (the
+// vault settles it, for 51k more gas) ran the batch out of gas: it reverted whole, and every voucher counted an attempt.
+test("x402: settleBatch is sent with its estimate padded per voucher, capped by the block gas limit", async () => {
+  const { X402Facilitator, X402_SETTLE_GAS_MARGIN_PER_VOUCHER } = await import("../dist/v3/x402.js");
+  const { v3Interface } = await import("../dist/abi-v3.js");
+  const { getAddress } = await import("ethers");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const drained = getAddress("0x00000000000000000000000000000000000000d1"); // an EOA payer that drains and refills its deposit
+  // gas as the vault spends it: 62k for a voucher it settles, 11k for one it skips (an empty deposit)
+  const cost = (vs, refilled) => 21_000n + vs.reduce((g, v) => g + (v[0] === drained && !refilled ? 11_000n : 62_000n), 0n);
+  const estimate = async (vs) => cost(vs, false); // the node estimates while the deposit is empty
+  let blockGasLimit = 30_000_000n;
+  const limits = [];
+  const batches = [];
+  const settleBatch = async (vs, _sigs, overrides) => {
+    const gasLimit = overrides?.gasLimit ?? (await estimate(vs)); // given no limit, ethers sends at its own estimate
+    if (gasLimit > blockGasLimit) throw new Error("exceeds block gas limit");
+    limits.push(gasLimit);
+    batches.push(vs.map((v) => String(v[3])));
+    const receipt = { status: gasLimit >= cost(vs, true) ? 1 : 0, logs: [] }; // refilled by inclusion: settled, not skipped
+    const wait = async () => {
+      if (!receipt.status) throw Object.assign(new Error("transaction execution reverted"), { code: "CALL_EXCEPTION", receipt });
+      return receipt;
+    };
+    return { hash: "0x" + String(batches.length).padStart(64, "0"), wait };
+  };
+  settleBatch.estimateGas = estimate;
+  const vault = { interface: v3Interface("x402Vault"), connect: () => ({ settleBatch }) };
+  const ctx = {
+    db,
+    cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" },
+    address: (k) => (k === "x402Vault" ? vaultAddr : undefined),
+    contract: (k) => (k === "x402Vault" ? vault : undefined),
+    facilitator: { address: alice.address },
+    provider: { getBalance: async () => 10n ** 18n, getTransactionReceipt: async () => null, getBlock: async () => ({ gasLimit: blockGasLimit }) },
+    now: () => nowS * 1000,
+    nowS: () => nowS,
+  };
+  const fac = new X402Facilitator(ctx);
+  const queue = (payer, nonce) =>
+    db.prepare("INSERT INTO x402_vouchers (payer, nonce, payee, amount, ref, expiry, sig, resource, status, createdAt) VALUES (?, ?, ?, '1000', ?, ?, '0x', '', 'queued', ?)").run(payer, String(nonce), alice.address, "0x" + "00".repeat(32), nowS + 600, nowS - 1000 + nonce);
+  const states = (nonces) => nonces.map((n) => {
+    const r = db.prepare("SELECT status, attempts FROM x402_vouchers WHERE nonce = ?").get(String(n));
+    return `${r.status}/${r.attempts}`;
+  });
+  const range = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  const tuples = (payers) => payers.map((p) => [p]);
+
+  queue(drained, 1);
+  for (const n of range(2, 50)) queue(bob.address, n);
+  assert.equal((await fac.flush()).submitted, 50);
+  assert.deepEqual(states(range(1, 50)), Array(50).fill("settled/1"), "one tx, settled, no attempt counted against a voucher");
+  const first = tuples([drained, ...Array(49).fill(bob.address)]);
+  assert.deepEqual(limits, [cost(first, false) + 50n * X402_SETTLE_GAS_MARGIN_PER_VOUCHER]);
+
+  // a block gas limit under the padded one caps it
+  queue(drained, 51);
+  for (const n of range(52, 60)) queue(bob.address, n);
+  const second = tuples([drained, ...Array(9).fill(bob.address)]);
+  blockGasLimit = cost(second, true) + 10_000n;
+  assert.ok(blockGasLimit < cost(second, false) + 10n * X402_SETTLE_GAS_MARGIN_PER_VOUCHER);
+  assert.equal((await fac.flush()).submitted, 10);
+  assert.equal(limits.at(-1), blockGasLimit);
+  assert.deepEqual(states(range(51, 60)), Array(10).fill("settled/1"));
+});
+
+// A batch that reverted on chain counted a settle attempt on every voucher in it, though the node had run it as a whole:
+// one voucher that makes any batch it is in revert on chain (its ERC-1271 answer burns gas there that it did not at
+// the estimate) took the other 49 to X402_MAX_SETTLE_ATTEMPTS with it, and their payees were never paid.
+test("x402: a batch that reverts on chain is split until the voucher at fault reverts alone, and only it counts attempts", async () => {
+  const { X402Facilitator, X402_MAX_SETTLE_ATTEMPTS } = await import("../dist/v3/x402.js");
+  const { v3Interface } = await import("../dist/abi-v3.js");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const poison = "37";
+  const batches = [];
+  const settleBatch = async (vs) => {
+    batches.push(vs.map((v) => String(v[3])));
+    const receipt = { status: vs.some((v) => String(v[3]) === poison) ? 0 : 1, logs: [] };
+    const wait = async () => {
+      if (!receipt.status) throw Object.assign(new Error("transaction execution reverted"), { code: "CALL_EXCEPTION", receipt });
+      return receipt;
+    };
+    return { hash: "0x" + String(batches.length).padStart(64, "0"), wait };
+  };
+  settleBatch.estimateGas = async () => 100_000n; // the node runs every batch at its estimate
+  const vault = { interface: v3Interface("x402Vault"), connect: () => ({ settleBatch }) };
+  const ctx = {
+    db,
+    cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" },
+    address: (k) => (k === "x402Vault" ? vaultAddr : undefined),
+    contract: (k) => (k === "x402Vault" ? vault : undefined),
+    facilitator: { address: alice.address },
+    provider: { getBalance: async () => 10n ** 18n, getTransactionReceipt: async () => null, getBlock: async () => ({ gasLimit: 30_000_000n }) },
+    now: () => nowS * 1000,
+    nowS: () => nowS,
+  };
+  const fac = new X402Facilitator(ctx);
+  const nonces = Array.from({ length: 50 }, (_, i) => i);
+  for (const n of nonces) {
+    db.prepare("INSERT INTO x402_vouchers (payer, nonce, payee, amount, ref, expiry, sig, resource, status, createdAt) VALUES (?, ?, ?, '1000', ?, ?, '0x', '', 'queued', ?)").run(bob.address, String(n), alice.address, "0x" + "00".repeat(32), nowS + 600, nowS - 1000 + n);
+  }
+  const state = (n) => {
+    const r = db.prepare("SELECT status, attempts FROM x402_vouchers WHERE nonce = ?").get(String(n));
+    return `${r.status}/${r.attempts}`;
+  };
+
+  await fac.flush();
+  assert.deepEqual(batches, [nonces.map(String)]);
+  assert.deepEqual(nonces.map(state), Array(50).fill("queued/0"), "the reverted batch counts nothing against its vouchers");
+  let flushes = 1;
+  while (fac.queuedCount() > 0 && flushes < 40) {
+    await fac.flush();
+    flushes++;
+  }
+  assert.equal(fac.queuedCount(), 0);
+  assert.ok(flushes <= 20, `isolated in ${flushes} flushes`);
+  assert.ok(batches.every((b, i) => i === 0 || b.length <= 25), "a batch after the revert is at most half of it");
+  assert.deepEqual(nonces.filter((n) => String(n) !== poison).map(state), Array(49).fill("settled/1"), "every other voucher settles, uncounted until it does");
+  assert.equal(state(poison), `failed/${X402_MAX_SETTLE_ATTEMPTS}`);
+  assert.equal(batches.filter((b) => b.length === 1 && b[0] === poison).length, X402_MAX_SETTLE_ATTEMPTS, "its attempts are its own: it went alone for each");
+});
+
+// batchCap shipped after x402_vouchers: a database deployed before it gains the column, and migrating twice is a no-op.
+test("migrateV3 adds batchCap to an x402_vouchers table created before it existed", async () => {
+  const { default: Database } = await import("better-sqlite3");
+  const { migrateV3 } = await import("../dist/v3/schema.js");
+  const db = new Database(":memory:");
+  db.exec("CREATE TABLE x402_vouchers (payer TEXT NOT NULL, nonce TEXT NOT NULL, payee TEXT NOT NULL, amount TEXT NOT NULL, ref TEXT NOT NULL, expiry INTEGER NOT NULL, sig TEXT NOT NULL, resource TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'queued', txHash TEXT, error TEXT, createdAt INTEGER NOT NULL, settledAt INTEGER, attempts INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (payer, nonce))");
+  db.prepare("INSERT INTO x402_vouchers (payer, nonce, payee, amount, ref, expiry, sig, createdAt, attempts) VALUES ('0xa', '1', '0xb', '1', '0x', 1, '0x', 1, 2)").run();
+  migrateV3(db);
+  migrateV3(db);
+  assert.ok(db.prepare("PRAGMA table_info(x402_vouchers)").all().some((c) => c.name === "batchCap"));
+  assert.deepEqual({ ...db.prepare("SELECT attempts, batchCap FROM x402_vouchers WHERE nonce = '1'").get() }, { attempts: 2, batchCap: null });
+});
+
+test("x402: a voucher valid for longer than X402_MAX_EXPIRY_S is refused", async () => {
+  const { X402Facilitator, X402_MAX_EXPIRY_S } = await import("../dist/v3/x402.js");
+  assert.equal(typeof X402_MAX_EXPIRY_S, "number");
+  const db = openMemoryDb();
+  const vaultAddr = "0x8751Cf7e29Fe588c61FDc53323438247198eaa57";
+  const nowS = 1_758_400_000;
+  const vault = { verify: async () => [true, ""], balance: async () => 10n ** 18n, unlockAt: async () => 0n };
+  const ctx = { db, cfg: { x402BatchMs: 1e9, publicUrl: "https://ferminux.net" }, address: (k) => (k === "x402Vault" ? vaultAddr : undefined), contract: (k) => (k === "x402Vault" ? vault : undefined), facilitator: null, now: () => nowS * 1000, nowS: () => nowS };
+  const fac = new X402Facilitator(ctx);
+  const pay = async (nonce, expiry) => {
+    const v = { payer: bob.address, payee: alice.address, amount: "1000", nonce: String(nonce), expiry, ref: "0x" + "00".repeat(32) };
+    const signature = await bob.signTypedData({ name: X402_DOMAIN_NAME, version: X402_DOMAIN_VERSION, chainId: 3961, verifyingContract: vaultAddr }, X402_VOUCHER_TYPES, { ...v, amount: BigInt(v.amount), nonce: BigInt(v.nonce) });
+    return fac.settle({ scheme: "ferminux-voucher", network: "ferminux:3961", payload: { voucher: v, signature } }, "https://ferminux.net/x");
+  };
+  const late = await pay(1, nowS + X402_MAX_EXPIRY_S + 1);
+  assert.equal(late.success, false);
+  assert.match(late.errorReason, /expires too late/);
+  assert.equal((await pay(2, nowS + 3600)).success, true, "the SDK's and /x402/'s 1 h lifetime is accepted");
+  assert.equal((await pay(3, nowS + X402_MAX_EXPIRY_S)).success, true);
+  assert.equal((await fac.supported()).voucher.maxExpirySeconds, X402_MAX_EXPIRY_S);
 });

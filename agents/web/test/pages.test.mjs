@@ -64,6 +64,41 @@ test("public copy on the new pages keeps the naming rules", () => {
   }
 });
 
+test("the consensus and fork records state the signer facts positively: no denial, no signer count", () => {
+  for (const p of ["consensus.html", "fork.html"]) {
+    const html = web(p);
+    const text = html.replace(/<!--[\s\S]*?-->/g, "");
+    assert.doesNotMatch(html, /proof[- ]of[- ]stake|\bPoS\b/i, `${p} (comments included)`);
+    assert.doesNotMatch(text, /not decentrali[sz]ed|what (this|it|this consensus) is not|not claiming|do not claim|\bat the switch\)|\(\s*(\d+|two|three|four|five|six|seven)\b[^)]*signers?/i, p);
+    assert.match(text, /Clique proof-of-authority/, p);
+    assert.match(text, /clique_getSigners/, p);
+    assert.match(text, /foundation operates every signer|one operator runs every signer/i, `${p} still says who runs the signers`);
+  }
+  // the facts that §1 and §6 of the consensus record exist to state are still all there
+  const consensus = web("consensus.html").replace(/<!--[\s\S]*?-->/g, "");
+  for (const fact of [/no bond/i, /nothing to slash/i, /rewrite recent history/i, /production stops/i, /yield programme/i, /break-glass/i]) {
+    assert.match(consensus, fact, String(fact));
+  }
+  assert.doesNotMatch(web("src/mock.ts"), /proof[- ]of[- ]stake|\bPoS\b/i, "the mock knowledge base");
+});
+
 test("no public copy claims existing compilers work unchanged", () => {
   for (const f of ["public/llms.txt", "public/llms-full.txt", "docs/index.html"]) assert.doesNotMatch(web(f), /work against Ferminux unchanged/, f);
+});
+
+test("every Vite entry carries the shared head and a title; the sitemap lists only indexable pages", () => {
+  const entries = [...web("vite.config.ts").matchAll(/resolve\(root, "([^"]+\.html)"\)/g)].map((m) => m[1]);
+  assert.ok(entries.length >= 30, `entries: ${entries.length}`);
+  const noindex = new Map();
+  for (const e of entries) {
+    const html = web(e);
+    assert.ok(html.includes("<!-- @head -->"), `${e} has no @head (favicon, og:image)`);
+    assert.match(html, /<title>[^<]+<\/title>/, e);
+    const c = /<link rel="canonical" href="([^"]+)">/.exec(html)?.[1];
+    if (c) noindex.set(c, /<meta name="robots" content="[^"]*noindex/.test(html));
+    else assert.equal(e, "404.html", `${e} has no canonical URL`);
+  }
+  for (const [, loc] of web("public/sitemap.xml").matchAll(/<loc>([^<?]+)<\/loc>/g)) {
+    if (noindex.has(loc)) assert.equal(noindex.get(loc), false, `${loc} is in the sitemap but marked noindex`);
+  }
 });

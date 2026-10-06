@@ -143,5 +143,7 @@ export interface Split { total: bigint; signer: bigint; sink: bigint; treasury: 
 export function scheduleReward(height: number): Split | null {
   if (height < POSA_BLOCK) return null;
   const total = (10n ** 18n >> BigInt(Math.floor(height / 4_500_000))) / 4n;
-  return { total, signer: (total * 40n) / 100n, sink: (total * 50n) / 100n, treasury: (total * 10n) / 100n };
+  // the engine's SplitReward: sink and treasury rounded down, the signer takes the remainder (not a rounded 40 %)
+  const sink = (total * 50n) / 100n, treasury = (total * 10n) / 100n;
+  return { total, signer: total - sink - treasury, sink, treasury };
 }

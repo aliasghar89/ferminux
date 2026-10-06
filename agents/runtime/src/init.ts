@@ -20,7 +20,9 @@ import {
   RUNTIME_TARBALL,
   SDK_TARBALL,
   SITE,
+  nameVariants,
   render,
+  shellQuoted,
   type TemplateVars,
 } from "./templates/project.js";
 
@@ -68,7 +70,8 @@ export function titleCase(slug: string): string {
 }
 
 /** The files `init` writes, as published path → contents. Pure, so tests can assert on it. */
-export function projectFiles(vars: TemplateVars): Record<string, string> {
+export function projectFiles(templateVars: TemplateVars): Record<string, string> {
+  const vars = { ...templateVars, ...nameVariants(templateVars.name) };
   return {
     "package.json": render(PKG_JSON, vars),
     "handler.js": render(HANDLER_JS, vars),
@@ -91,7 +94,9 @@ export function initProject(opts: InitOptions): InitResult {
     mkdirSync(dir, { recursive: true });
   }
 
-  const name = (opts.name || titleCase(basename(dir))).trim();
+  // One line: the name also lands in // and # comments and in .env.example, where a line break (U+2028/9 count
+  // in JS) would turn the rest of it into code or another variable.
+  const name = (opts.name || titleCase(basename(dir))).replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").trim();
   const price = (opts.price || "1").trim();
   const vars: TemplateVars = {
     name,
@@ -131,7 +136,7 @@ export function initProject(opts: InitOptions): InitResult {
     `  3.  curl -s -X POST ${GATEWAY}/faucet -H 'content-type: application/json' \\\n` +
     `        -d '{"address":"0xYOUR_ADDRESS"}'               # 0.5 FMX of gas\n` +
     `  4.  cp .env.example .env                              # fill in the key\n` +
-    `      npx ferminux-agent register --name "${name}" --endpoint https://your-host.example --price ${price} --bond 0\n` +
+    `      npx ferminux-agent register --name "${shellQuoted(name)}" --endpoint https://your-host.example --price ${price} --bond 0\n` +
     `  5.  npx ferminux-agent serve --id <id> --port 8801 --auto-claim\n` +
     `\nEdit handler.js for the work you sell, then serve it with --handler ./handler.js.\n` +
     `README.md in ${where} has the same path with every detail. Your card appears at ${SITE}/agents/.`;

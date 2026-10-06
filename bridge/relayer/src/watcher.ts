@@ -27,7 +27,11 @@ export interface WatcherOptions {
   alerts: Alerter;
   /** validator.requireRpcQuorum — every healthy endpoint must show the log. */
   requireRpcQuorum: boolean;
-  /** Called once per transfer the moment it reaches `confirmed`. */
+  /**
+   * Called once per transfer the moment it reaches `confirmed`. The poll awaits
+   * it before the cursor and lastSuccessAt move, so it must return promptly; the
+   * service hands the role work to its queue and returns.
+   */
   onConfirmed: (transfer: StoredTransfer) => Promise<void> | void;
 }
 
@@ -276,7 +280,7 @@ export class Watcher {
 
   /** Promote every 'seen' transfer buried deep enough — or bury it. */
   private async confirmPending(settled: number): Promise<void> {
-    const pending = this.store.listTransfers({ status: ['seen'], limit: 1000 }).filter((t) => t.transfer.srcChainId === this.chain.chainId);
+    const pending = this.store.listTransfers({ status: ['seen'], srcChainId: this.chain.chainId, limit: 1000 });
     for (const t of pending) {
       if (t.srcBlockNumber > settled) continue;
 

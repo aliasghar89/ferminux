@@ -1,0 +1,1033 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Test} from "forge-std/Test.sol";
+import {X402VaultV2} from "../src/X402VaultV2.sol";
+import {X402Vault} from "../src/X402Vault.sol";
+import {AgentAccount} from "../src/AgentAccount.sol";
+import {AgentAccountFactory} from "../src/AgentAccountFactory.sol";
+import {Rejecter} from "./Base.t.sol";
+
+/// @dev The X402Vault suite, run against X402VaultV2 (same behaviour), followed by the V2 fixes, each
+///      reproduced against the live X402Vault first.
+contract X402VaultV2Test is Test {
+    X402VaultV2 internal vault;
+
+    address internal gov = makeAddr("governance");
+    address internal treasury = makeAddr("treasury");
+    address internal payer;
+    uint256 internal payerPk;
+    address internal payee = makeAddr("payee");
+    address internal relayer = makeAddr("relayer");
+    address internal mallory;
+    uint256 internal malloryPk;
+
+    function setUp() public {
+        (payer, payerPk) = makeAddrAndKey("payer");
+        (mallory, malloryPk) = makeAddrAndKey("mallory");
+        vault = new X402VaultV2(gov, treasury);
+        vm.deal(payer, 100 ether);
+        vm.deal(relayer, 1 ether);
+        vm.warp(1_700_000_000);
+        vm.prank(payer);
+        vault.deposit{value: 10 ether}();
+    }
+
+    function _voucher(uint256 amount, uint256 nonce) internal view returns (X402VaultV2.Voucher memory v) {
+        v = X402VaultV2.Voucher({
+            payer: payer,
+            payee: payee,
+            amount: amount,
+            nonce: nonce,
+            expiry: uint64(block.timestamp + 60),
+            ref: keccak256("resource")
+        });
+    }
+
+    function _sign(uint256 pk, X402VaultV2.Voucher memory v) internal view returns (bytes memory) {
+        (uint8 vv, bytes32 r, bytes32 s) = vm.sign(pk, vault.hashVoucher(v));
+        return abi.encodePacked(r, s, vv);
+    }
+
+    function _fee(uint256 amount) internal view returns (uint256) {
+        return (amount * vault.feeBps()) / 10000;
+    }
+
+    // ───────────────────────────── deploy / deposit ─────────────────────────────
+
+    function test_deployState() public view {
+        assertEq(vault.governance(), gov);
+        assertEq(vault.feeRecipient(), treasury);
+        assertEq(vault.feeBps(), 100);
+        assertEq(vault.UNLOCK_DELAY(), 1 hours);
+        assertEq(vault.balance(payer), 10 ether);
+    }
+
+    function test_constructor_revertsZero() public {
+        vm.expectRevert(X402VaultV2.ZeroAddress.selector);
+        new X402VaultV2(address(0), treasury);
+        vm.expectRevert(X402VaultV2.ZeroAddress.selector);
+        new X402VaultV2(gov, address(0));
+    }
+
+    function test_deposit_emitsAndAccumulates() public {
+        vm.prank(payer);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Deposited(payer, 1 ether);
+        vault.deposit{value: 1 ether}();
+        assertEq(vault.balance(payer), 11 ether);
+    }
+
+    function test_deposit_revertsZero() public {
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.ZeroValue.selector);
+        vault.deposit{value: 0}();
+    }
+
+    function test_depositFor() public {
+        vm.prank(payer);
+        vault.depositFor{value: 2 ether}(mallory);
+        assertEq(vault.balance(mallory), 2 ether);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.ZeroAddress.selector);
+        vault.depositFor{value: 1}(address(0));
+    }
+
+    // ───────────────────────────── settle ─────────────────────────────
+
+    function test_settle_happyPath() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        bytes memory sig = _sign(payerPk, v);
+        uint256 fee = _fee(1 ether);
+        vm.prank(relayer);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Settled(payer, payee, 1 ether, fee, 1, keccak256("resource"));
+        vault.settle(v, sig);
+        assertEq(vault.balance(payer), 9 ether);
+        assertEq(vault.credits(payee), 1 ether - fee);
+        assertEq(vault.credits(treasury), fee);
+        assertTrue(vault.used(payer, 1));
+    }
+
+    function test_settle_nonceReplayRejected() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 7);
+        bytes memory sig = _sign(payerPk, v);
+        vault.settle(v, sig);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "nonce used"));
+        vault.settle(v, sig);
+    }
+
+    function test_settle_expired() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        bytes memory sig = _sign(payerPk, v);
+        vm.warp(v.expiry + 1);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "expired"));
+        vault.settle(v, sig);
+    }
+
+    function test_settle_atExpiryBoundaryOk() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        bytes memory sig = _sign(payerPk, v);
+        vm.warp(v.expiry);
+        vault.settle(v, sig);
+        assertTrue(vault.used(payer, 1));
+    }
+
+    function test_settle_wrongSigner() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        bytes memory sig = _sign(malloryPk, v);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(v, sig);
+    }
+
+    function test_settle_tamperedAmount() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        bytes memory sig = _sign(payerPk, v);
+        v.amount = 2 ether;
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(v, sig);
+    }
+
+    function test_settle_insufficientBalance() public {
+        X402VaultV2.Voucher memory v = _voucher(11 ether, 1);
+        bytes memory sig = _sign(payerPk, v);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "insufficient balance"));
+        vault.settle(v, sig);
+    }
+
+    function test_settle_zeroAmountAndZeroPayee() public {
+        X402VaultV2.Voucher memory v = _voucher(0, 1);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "zero amount"));
+        vault.settle(v, "");
+        v = _voucher(1, 1);
+        v.payee = address(0);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "zero payee"));
+        vault.settle(v, "");
+    }
+
+    function test_settle_malformedSignatureLength() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(v, hex"1234");
+    }
+
+    function test_settle_highSRejected() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        (uint8 vv, bytes32 r, bytes32 s) = vm.sign(payerPk, vault.hashVoucher(v));
+        // flip to the high-s form (still a mathematically valid signature) — must be rejected
+        bytes32 hs = bytes32(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - uint256(s));
+        uint8 hv = vv == 27 ? 28 : 27;
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(v, abi.encodePacked(r, hs, hv));
+    }
+
+    function test_settle_domainBoundToContract() public {
+        X402VaultV2 other = new X402VaultV2(gov, treasury);
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        (uint8 vv, bytes32 r, bytes32 s) = vm.sign(payerPk, other.hashVoucher(v));
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(v, abi.encodePacked(r, s, vv));
+    }
+
+    function test_settle_duringUnlockStillWorks() public {
+        vm.prank(payer);
+        vault.requestUnlock();
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        vault.settle(v, _sign(payerPk, v));
+        assertEq(vault.balance(payer), 9 ether);
+    }
+
+    function test_settle_zeroFee() public {
+        vm.prank(gov);
+        vault.setFee(0);
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        vault.settle(v, _sign(payerPk, v));
+        assertEq(vault.credits(payee), 1 ether);
+        assertEq(vault.credits(treasury), 0);
+    }
+
+    // ───────────────────────────── ERC-1271 (AgentAccount pays) ─────────────────────────────
+
+    function test_settle_erc1271_agentAccountSessionKey() public {
+        AgentAccountFactory f = new AgentAccountFactory();
+        address owner = makeAddr("owner");
+        (address key, uint256 keyPk) = makeAddrAndKey("session");
+        address acct = f.create(owner, bytes32(0));
+        vm.prank(owner);
+        address[] memory none;
+        AgentAccount(payable(acct)).addSession(key, 1 ether, uint64(block.timestamp + 1 days), none);
+        vm.deal(acct, 5 ether);
+        vm.prank(acct);
+        vault.deposit{value: 3 ether}();
+
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        v.payer = acct;
+        (uint8 vv, bytes32 r, bytes32 s) = vm.sign(keyPk, vault.hashVoucher(v));
+        (bool ok, string memory reason) = vault.verify(v, abi.encodePacked(r, s, vv));
+        assertTrue(ok, reason);
+        vault.settle(v, abi.encodePacked(r, s, vv));
+        assertEq(vault.balance(acct), 2 ether);
+        assertEq(vault.credits(payee), 1 ether - _fee(1 ether));
+
+        // revoked key → 1271 says no
+        vm.prank(owner);
+        AgentAccount(payable(acct)).revokeSession(key);
+        v.nonce = 2;
+        (vv, r, s) = vm.sign(keyPk, vault.hashVoucher(v));
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(v, abi.encodePacked(r, s, vv));
+    }
+
+    function test_settle_contractPayerWithout1271Rejected() public {
+        Rejecter rj = new Rejecter();
+        vm.prank(payer);
+        vault.depositFor{value: 1 ether}(address(rj));
+        X402VaultV2.Voucher memory v = _voucher(1, 1);
+        v.payer = address(rj);
+        bytes memory sig = _sign(payerPk, v);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(v, sig);
+    }
+
+    // ───────────────────────────── settleBatch ─────────────────────────────
+
+    function test_settleBatch_skipsInvalidAndSettlesRest() public {
+        X402VaultV2.Voucher[] memory vs = new X402VaultV2.Voucher[](4);
+        bytes[] memory sigs = new bytes[](4);
+        vs[0] = _voucher(1 ether, 1);
+        sigs[0] = _sign(payerPk, vs[0]);
+        vs[1] = _voucher(1 ether, 1); // replay of nonce 1
+        sigs[1] = _sign(payerPk, vs[1]);
+        vs[2] = _voucher(1 ether, 2);
+        sigs[2] = _sign(malloryPk, vs[2]); // bad signer
+        vs[3] = _voucher(2 ether, 3);
+        sigs[3] = _sign(payerPk, vs[3]);
+
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Settled(payer, payee, 1 ether, _fee(1 ether), 1, keccak256("resource"));
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(payer, 1, "nonce used");
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(payer, 2, "bad signature");
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Settled(payer, payee, 2 ether, _fee(2 ether), 3, keccak256("resource"));
+        vault.settleBatch(vs, sigs);
+
+        assertEq(vault.balance(payer), 7 ether);
+        assertTrue(vault.used(payer, 1));
+        assertFalse(vault.used(payer, 2));
+        assertTrue(vault.used(payer, 3));
+        assertEq(vault.credits(payee), 3 ether - _fee(1 ether) - _fee(2 ether));
+    }
+
+    function test_settleBatch_payerRunsDryMidBatch() public {
+        X402VaultV2.Voucher[] memory vs = new X402VaultV2.Voucher[](2);
+        bytes[] memory sigs = new bytes[](2);
+        vs[0] = _voucher(8 ether, 1);
+        sigs[0] = _sign(payerPk, vs[0]);
+        vs[1] = _voucher(3 ether, 2);
+        sigs[1] = _sign(payerPk, vs[1]);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(payer, 2, "insufficient balance");
+        vault.settleBatch(vs, sigs);
+        assertEq(vault.balance(payer), 2 ether);
+        assertFalse(vault.used(payer, 2));
+    }
+
+    function test_settleBatch_lengthMismatch() public {
+        X402VaultV2.Voucher[] memory vs = new X402VaultV2.Voucher[](1);
+        bytes[] memory sigs = new bytes[](2);
+        vm.expectRevert(X402VaultV2.LengthMismatch.selector);
+        vault.settleBatch(vs, sigs);
+    }
+
+    function test_settleBatch_empty() public {
+        X402VaultV2.Voucher[] memory vs;
+        bytes[] memory sigs;
+        vault.settleBatch(vs, sigs);
+    }
+
+    // ───────────────────────────── verify ─────────────────────────────
+
+    function test_verify_reasons() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        bytes memory sig = _sign(payerPk, v);
+        (bool ok, string memory reason) = vault.verify(v, sig);
+        assertTrue(ok);
+        assertEq(reason, "");
+        vault.settle(v, sig);
+        (ok, reason) = vault.verify(v, sig);
+        assertFalse(ok);
+        assertEq(reason, "nonce used");
+        v.payer = address(0);
+        (ok, reason) = vault.verify(v, sig);
+        assertEq(reason, "zero payer");
+    }
+
+    // ───────────────────────────── unlock / withdraw ─────────────────────────────
+
+    function test_withdraw_requiresUnlock() public {
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.Locked.selector);
+        vault.withdraw(1 ether);
+    }
+
+    function test_withdraw_tooEarly() public {
+        vm.prank(payer);
+        vault.requestUnlock();
+        uint64 at = uint64(block.timestamp + 1 hours);
+        assertEq(vault.unlockAt(payer), at);
+        vm.warp(at - 1);
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.TooEarly.selector, at));
+        vault.withdraw(1 ether);
+    }
+
+    function test_withdraw_afterUnlock_relocks() public {
+        vm.prank(payer);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.UnlockRequested(payer, uint64(block.timestamp + 1 hours));
+        vault.requestUnlock();
+        vm.warp(block.timestamp + 1 hours);
+        uint256 before = payer.balance;
+        vm.prank(payer);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Withdrawn(payer, 4 ether);
+        vault.withdraw(4 ether);
+        assertEq(payer.balance, before + 4 ether);
+        assertEq(vault.balance(payer), 6 ether);
+        assertEq(vault.unlockAt(payer), 0);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.Locked.selector);
+        vault.withdraw(1 ether);
+    }
+
+    function test_withdraw_exceedsBalance() public {
+        vm.prank(payer);
+        vault.requestUnlock();
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.InsufficientBalance.selector, 11 ether, 10 ether));
+        vault.withdraw(11 ether);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.ZeroValue.selector);
+        vault.withdraw(0);
+    }
+
+    function test_withdraw_toRejecterRevertsAndRollsBack() public {
+        Rejecter rj = new Rejecter();
+        vm.prank(payer);
+        vault.depositFor{value: 1 ether}(address(rj));
+        vm.prank(address(rj));
+        vault.requestUnlock();
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(address(rj));
+        vm.expectRevert(X402VaultV2.TransferFailed.selector);
+        vault.withdraw(1 ether);
+        assertEq(vault.balance(address(rj)), 1 ether);
+    }
+
+    function test_withdrawCredits() public {
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        vault.settle(v, _sign(payerPk, v));
+        uint256 net = 1 ether - _fee(1 ether);
+        vm.prank(payee);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.CreditsWithdrawn(payee, net);
+        vault.withdrawCredits();
+        assertEq(payee.balance, net);
+        assertEq(vault.credits(payee), 0);
+        vm.prank(payee);
+        vm.expectRevert(X402VaultV2.NothingToWithdraw.selector);
+        vault.withdrawCredits();
+        vm.prank(treasury);
+        vault.withdrawCredits();
+        assertEq(treasury.balance, _fee(1 ether));
+        assertEq(address(vault).balance, 9 ether);
+    }
+
+    function test_withdrawCredits_reentrancyBlocked() public {
+        ReenterVaultV2 re = new ReenterVaultV2(vault);
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 1);
+        v.payee = address(re);
+        vault.settle(v, _sign(payerPk, v));
+        re.pull();
+        assertEq(re.attempts(), 1);
+        assertFalse(re.reentered());
+        assertEq(vault.credits(address(re)), 0);
+    }
+
+    // ───────────────────────────── governance ─────────────────────────────
+
+    function test_governance_setters() public {
+        vm.startPrank(gov);
+        vault.setFee(250);
+        assertEq(vault.feeBps(), 250);
+        vm.expectRevert(X402VaultV2.FeeTooHigh.selector);
+        vault.setFee(1001);
+        vault.setFeeRecipient(mallory);
+        assertEq(vault.feeRecipient(), mallory);
+        vm.expectRevert(X402VaultV2.ZeroAddress.selector);
+        vault.setFeeRecipient(address(0));
+        vm.expectRevert(X402VaultV2.ZeroAddress.selector);
+        vault.setGovernance(address(0));
+        vault.setGovernance(mallory);
+        vm.stopPrank();
+        assertEq(vault.governance(), mallory);
+        vm.prank(gov);
+        vm.expectRevert(X402VaultV2.NotGovernance.selector);
+        vault.setFee(1);
+    }
+
+    function test_governance_onlyGovernance() public {
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.NotGovernance.selector);
+        vault.setFee(1);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.NotGovernance.selector);
+        vault.setFeeRecipient(payer);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.NotGovernance.selector);
+        vault.setGovernance(payer);
+    }
+
+    // ───────────────────────────── fuzz: value conservation ─────────────────────────────
+
+    function testFuzz_settle_conservesValue(uint96 amount, uint16 fee) public {
+        amount = uint96(bound(amount, 1, 10 ether));
+        fee = uint16(bound(fee, 0, 1000));
+        vm.prank(gov);
+        vault.setFee(fee);
+        X402VaultV2.Voucher memory v = _voucher(amount, 42);
+        vault.settle(v, _sign(payerPk, v));
+        assertEq(vault.balance(payer) + vault.credits(payee) + vault.credits(treasury), 10 ether);
+    }
+
+    // ═════════════════════════════ V2 fix 6: deposits re-lock ═════════════════════════════
+
+    /// @notice The live vault: once the unlock time has passed, the account stays unlocked until it
+    ///         withdraws — a fresh deposit included. The payer tops up, pays with a voucher, and pulls
+    ///         everything out in the block the payee settles in, ahead of the settlement.
+    function test_attack_v1_depositAfterUnlockStaysWithdrawable() public {
+        X402Vault v1 = new X402Vault(gov, treasury);
+        vm.prank(payer);
+        v1.requestUnlock();
+        vm.warp(block.timestamp + 1 days); // unlock long due, never used
+        vm.prank(payer);
+        v1.deposit{value: 50 ether}(); // looks like a funded, locked payer
+        assertEq(v1.unlockAt(payer), 1_700_000_000 + 1 hours);
+
+        X402Vault.Voucher memory v = X402Vault.Voucher({
+            payer: payer,
+            payee: payee,
+            amount: 50 ether,
+            nonce: 1,
+            expiry: uint64(block.timestamp + 60),
+            ref: keccak256("resource")
+        });
+        (uint8 vv, bytes32 r, bytes32 s) = vm.sign(payerPk, v1.hashVoucher(v));
+        // the payer withdraws first, with no notice at all
+        vm.prank(payer);
+        v1.withdraw(50 ether);
+        vm.expectRevert(abi.encodeWithSelector(X402Vault.VoucherInvalid.selector, "insufficient balance"));
+        v1.settle(v, abi.encodePacked(r, s, vv));
+    }
+
+    /// @notice V2: the payer's own deposit re-locks; the payee settles first.
+    function test_v2_depositRelocksADueUnlock() public {
+        vm.prank(payer);
+        vault.requestUnlock();
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(payer);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Relocked(payer);
+        vault.deposit{value: 50 ether}();
+        assertEq(vault.unlockAt(payer), 0);
+
+        X402VaultV2.Voucher memory v = _voucher(50 ether, 1);
+        bytes memory sig = _sign(payerPk, v);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.Locked.selector);
+        vault.withdraw(50 ether);
+        vault.settle(v, sig);
+        assertEq(vault.balance(payer), 10 ether);
+
+        // a withdrawal now takes a fresh request and its full delay
+        vm.prank(payer);
+        vault.requestUnlock();
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.TooEarly.selector, uint64(block.timestamp + 1 hours)));
+        vault.withdraw(10 ether);
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(payer);
+        vault.withdraw(10 ether);
+    }
+
+    function test_v2_depositCancelsAPendingUnlock() public {
+        vm.prank(payer);
+        vault.requestUnlock();
+        vm.warp(block.timestamp + 30 minutes);
+        vm.prank(payer);
+        vault.depositFor{value: 1 ether}(payer); // depositFor yourself counts as your own deposit
+        assertEq(vault.unlockAt(payer), 0);
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.Locked.selector);
+        vault.withdraw(1 ether);
+    }
+
+    /// @notice A third party's dust deposit must not hold a payer's withdrawal off.
+    function test_v2_depositForByOthersDoesNotRelock() public {
+        vm.prank(payer);
+        vault.requestUnlock();
+        uint256 at = vault.unlockAt(payer);
+        vm.deal(mallory, 1 ether);
+        for (uint256 i = 0; i < 3; i++) {
+            vm.warp(block.timestamp + 20 minutes);
+            vm.prank(mallory);
+            vault.depositFor{value: 1}(payer);
+        }
+        assertEq(vault.unlockAt(payer), at);
+        vm.prank(payer);
+        vault.withdraw(10 ether + 3);
+        assertEq(vault.balance(payer), 0);
+    }
+
+    function test_v2_relock() public {
+        vm.prank(payer);
+        vault.relock(); // already locked: no-op
+        assertEq(vault.unlockAt(payer), 0);
+        vm.prank(payer);
+        vault.requestUnlock();
+        vm.warp(block.timestamp + 2 hours);
+        vm.prank(payer);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Relocked(payer);
+        vault.relock();
+        assertEq(vault.unlockAt(payer), 0);
+        vm.prank(payer);
+        vm.expectRevert(X402VaultV2.Locked.selector);
+        vault.withdraw(1 ether);
+        // only the caller's own lock
+        vm.prank(mallory);
+        vault.requestUnlock();
+        vm.prank(payer);
+        vault.relock();
+        assertTrue(vault.unlockAt(mallory) != 0);
+    }
+
+    // ═════════════════════════════ V2 fix 7: a contract payer's dirty ERC-1271 answer ═════════════════════════════
+
+    /// @dev A good EOA voucher (nonce 1) and a voucher from `odd` (a contract payer, nonce 7) in one batch.
+    function _mixedBatch(address v, address odd) internal returns (X402Vault.Voucher[] memory vs, bytes[] memory sigs) {
+        vm.prank(payer);
+        X402Vault(v).depositFor{value: 1 ether}(odd);
+        vs = new X402Vault.Voucher[](2);
+        sigs = new bytes[](2);
+        vs[0] = X402Vault.Voucher(payer, payee, 1 ether, 1, uint64(block.timestamp + 60), keccak256("resource"));
+        (uint8 vv, bytes32 r, bytes32 s) = vm.sign(payerPk, X402Vault(v).hashVoucher(vs[0]));
+        sigs[0] = abi.encodePacked(r, s, vv);
+        vs[1] = X402Vault.Voucher(odd, payee, 1 ether, 7, uint64(block.timestamp + 60), keccak256("resource"));
+        sigs[1] = hex"00";
+    }
+
+    /// @notice The live vault: one contract payer that answers the magic value with dirty padding makes
+    ///         the whole settleBatch revert — the honest voucher next to it does not settle either.
+    function test_attack_v1_dirtyMagicRevertsWholeBatch() public {
+        X402Vault v1 = new X402Vault(gov, treasury);
+        vm.prank(payer);
+        v1.deposit{value: 10 ether}();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _mixedBatch(address(v1), address(new DirtyMagicPayer()));
+        vm.expectRevert();
+        v1.settleBatch(vs, sigs);
+        assertFalse(v1.used(payer, 1));
+        assertEq(v1.credits(payee), 0);
+        // even the facilitator pre-check reverts instead of answering
+        vm.expectRevert();
+        v1.verify(vs[1], sigs[1]);
+    }
+
+    /// @notice V2 skips that voucher and settles the rest.
+    function test_v2_dirtyMagicSkippedRestSettles() public {
+        address odd = address(new DirtyMagicPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _mixedBatch(address(vault), odd);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Settled(payer, payee, 1 ether, _fee(1 ether), 1, keccak256("resource"));
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(odd, 7, "bad signature");
+        vault.settleBatch(vs2, sigs);
+        assertTrue(vault.used(payer, 1));
+        assertFalse(vault.used(odd, 7));
+        assertEq(vault.balance(odd), 1 ether);
+
+        (bool ok, string memory reason) = vault.verify(vs2[1], sigs[1]);
+        assertFalse(ok);
+        assertEq(reason, "bad signature");
+        vm.expectRevert(abi.encodeWithSelector(X402VaultV2.VoucherInvalid.selector, "bad signature"));
+        vault.settle(vs2[1], sigs[1]);
+    }
+
+    function test_v2_shortRevertingOrLongAnswers() public {
+        // too short, reverting: bad signature, skipped
+        address shortP = address(new ShortAnswerPayer());
+        address revP = address(new RevertingPayer());
+        for (uint256 i = 0; i < 2; i++) {
+            address odd = i == 0 ? shortP : revP;
+            (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _mixedBatch(address(vault), odd);
+            vs[0].nonce = 100 + i;
+            X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+            sigs[0] = _sign(payerPk, vs2[0]);
+            vm.expectEmit(true, true, true, true);
+            emit X402VaultV2.Skipped(odd, 7, "bad signature");
+            vault.settleBatch(vs2, sigs);
+            assertTrue(vault.used(payer, 100 + i));
+        }
+        // the clean magic value followed by a long tail is a valid answer (as in X402Vault); only its
+        // first word is read
+        address longP = address(new LongAnswerPayer());
+        vm.prank(payer);
+        vault.depositFor{value: 1 ether}(longP);
+        X402VaultV2.Voucher memory v = _voucher(1 ether, 7);
+        v.payer = longP;
+        vault.settle(v, hex"00");
+        assertEq(vault.balance(longP), 0);
+    }
+
+    // ═════════════════════════════ V2 fix 8: a contract payer's gas-burning ERC-1271 answer ═════════════════════════════
+
+    /// @dev The chain's block gas limit (genesis/genesis.json: 0x1C9C380).
+    uint256 internal constant BLOCK_GAS = 30_000_000;
+
+    /// @dev The facilitator's full batch of 50: `burner`'s voucher (nonce 7, valid for a year) first, then
+    ///      49 honest vouchers from distinct funded payers to distinct payees (nonce i).
+    function _burnerBatch(address v, address burner)
+        internal
+        returns (X402Vault.Voucher[] memory vs, bytes[] memory sigs)
+    {
+        vs = new X402Vault.Voucher[](50);
+        sigs = new bytes[](50);
+        vm.startPrank(payer);
+        X402Vault(v).depositFor{value: 1 ether}(burner);
+        vs[0] = X402Vault.Voucher(burner, payee, 1 ether, 7, uint64(block.timestamp + 365 days), keccak256("resource"));
+        sigs[0] = hex"00";
+        for (uint256 i = 1; i < 50; i++) {
+            uint256 pk = 0xA000 + i;
+            address from = vm.addr(pk);
+            X402Vault(v).depositFor{value: 1 ether}(from);
+            vs[i] = X402Vault.Voucher(
+                from, address(uint160(0xB000 + i)), 0.1 ether, i, uint64(block.timestamp + 60), keccak256("resource")
+            );
+            (uint8 vv, bytes32 r, bytes32 s) = vm.sign(pk, X402Vault(v).hashVoucher(vs[i]));
+            sigs[i] = abi.encodePacked(r, s, vv);
+        }
+        vm.stopPrank();
+    }
+
+    /// @notice The live vault: a payer whose answer passed the facilitator's pre-check and now burns gas
+    ///         takes 63/64 of the batch's gas. The 49 honest vouchers after it need more than the 1/64
+    ///         left, so the batch fails even at the block gas limit and none of them settles.
+    function test_attack_v1_gasBurningAnswerSinksBatch() public {
+        X402Vault v1 = new X402Vault(gov, treasury);
+        GasBurnerPayer burner = new GasBurnerPayer();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(v1), address(burner));
+        (bool valid,) = v1.verify(vs[0], sigs[0]);
+        assertTrue(valid); // what the gateway saw when it accepted the voucher
+        burner.arm();
+        (bool ok,) = address(v1).call{gas: BLOCK_GAS}(abi.encodeCall(X402Vault.settleBatch, (vs, sigs)));
+        assertFalse(ok);
+        assertFalse(v1.used(vs[1].payer, 1));
+    }
+
+    /// @notice V2 gives the answer a fixed allowance: that voucher is skipped, the 49 after it settle
+    ///         within the block gas limit, and the burner costs the batch its allowance and no more.
+    function test_v2_gasBurningAnswerSkippedRestSettles() public {
+        GasBurnerPayer burner = new GasBurnerPayer();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(burner));
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        (bool valid,) = vault.verify(vs2[0], sigs[0]);
+        assertTrue(valid);
+        burner.arm();
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(address(burner), 7, "bad signature");
+        vault.settleBatch{gas: BLOCK_GAS}(vs2, sigs);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+            assertEq(vault.credits(vs2[i].payee), 0.1 ether - _fee(0.1 ether));
+        }
+        assertFalse(vault.used(address(burner), 7));
+        assertEq(vault.balance(address(burner)), 1 ether);
+
+        X402VaultV2.Voucher[] memory one = new X402VaultV2.Voucher[](1);
+        bytes[] memory oneSig = new bytes[](1);
+        one[0] = vs2[0];
+        oneSig[0] = sigs[0];
+        uint256 before = gasleft();
+        vault.settleBatch{gas: BLOCK_GAS}(one, oneSig);
+        assertLt(before - gasleft(), 250_000); // the 200k allowance plus the batch's own work
+    }
+
+    /// @dev What eth_estimateGas answers for `settleBatch(vs, sigs)` now, which the facilitator sends as its
+    ///      gas limit unpadded: the least gas the call succeeds with (state rolled back after each try).
+    function _estimate(X402VaultV2.Voucher[] memory vs, bytes[] memory sigs) internal returns (uint256 hi) {
+        bytes memory data = abi.encodeCall(X402VaultV2.settleBatch, (vs, sigs));
+        uint256 lo = 0;
+        hi = BLOCK_GAS;
+        while (hi - lo > 1) {
+            uint256 mid = (lo + hi) / 2;
+            uint256 snap = vm.snapshotState();
+            (bool ok,) = address(vault).call{gas: mid}(data);
+            vm.revertToState(snap);
+            if (ok) hi = mid;
+            else lo = mid;
+        }
+    }
+
+    /// @notice The facilitator's real path: the gas limit is an estimate taken while the burner still
+    ///         answered cheaply. Armed before inclusion, its voucher alone is skipped; the 49 honest ones
+    ///         settle within that estimate.
+    function test_v2_burnerArmedAfterEstimate_restSettleAtEstimatedGas() public {
+        GasBurnerPayer burner = new GasBurnerPayer();
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(burner));
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        uint256 est = _estimate(vs2, sigs);
+        // the headroom (~325k for each voucher from the contract payer on) is in the estimate, within a block
+        assertGt(est, 16_000_000);
+        assertLt(est, BLOCK_GAS);
+        // below it the batch stops at the contract payer's call, before anything runs out of gas
+        vm.expectPartialRevert(X402VaultV2.InsufficientGas.selector);
+        vault.settleBatch{gas: est - 1}(vs2, sigs);
+
+        burner.arm();
+        (bool ok,) = address(vault).call{gas: est}(abi.encodeCall(X402VaultV2.settleBatch, (vs2, sigs)));
+        assertTrue(ok);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertFalse(vault.used(address(burner), 7));
+        assertEq(vault.balance(address(burner)), 1 ether);
+    }
+
+    /// @notice No arming needed: an answer that is cheap at gas price 0 — where eth_call and an estimate
+    ///         without fee fields run — and burns its allowance in the real transaction. It passes the
+    ///         facilitator's `verify` and its estimate, and still costs the batch only its own voucher.
+    function test_v2_gasPriceBurner_restSettleAtEstimatedGas() public {
+        address burner = address(new GasPriceBurnerPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), burner);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vm.txGasPrice(0);
+        (bool valid,) = vault.verify(vs2[0], sigs[0]);
+        assertTrue(valid);
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.txGasPrice(2 gwei);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(burner, 7, "bad signature");
+        vault.settleBatch{gas: est}(vs2, sigs);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertFalse(vault.used(burner, 7));
+    }
+
+    /// @notice A batch without a contract payer never reaches an ERC-1271 call: its estimate carries no
+    ///         headroom.
+    function test_v2_eoaOnlyBatch_estimateHasNoHeadroom() public {
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(1));
+        X402VaultV2.Voucher[] memory all = _asV2(vs);
+        X402VaultV2.Voucher[] memory honest = new X402VaultV2.Voucher[](49);
+        bytes[] memory honestSigs = new bytes[](49);
+        for (uint256 i = 0; i < 49; i++) {
+            honest[i] = all[i + 1];
+            honestSigs[i] = sigs[i + 1];
+        }
+        assertLt(_estimate(honest, honestSigs), 4_000_000); // ~60k a voucher
+    }
+
+    /// @notice The other way round: invalid and cheap while estimated, then valid after burning most of its
+    ///         allowance — so its voucher settles too, and the batch still fits the estimate.
+    function test_v2_answerValidOnlyOnChain_settlesAtEstimatedGas() public {
+        address odd = address(new GasPriceFlipPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), odd);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vm.txGasPrice(0);
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.txGasPrice(2 gwei);
+        vault.settleBatch{gas: est}(vs2, sigs);
+        assertTrue(vault.used(odd, 7));
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+    }
+
+    /// @notice Nor does the headroom hang on the payer's deposit. The contract payer's deposit is drained
+    ///         by a direct `settle` of another of its vouchers, so its voucher is skipped for its balance
+    ///         while estimated; anyone's `depositFor` tops it up before inclusion, and on chain the voucher
+    ///         reaches its call. The estimate holds the headroom all the same, and the batch settles at it.
+    function test_v2_contractPayerToppedUpAfterEstimate_settlesAtEstimatedGas() public {
+        address p = address(new MagicPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), p);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        vault.settle(X402VaultV2.Voucher(p, mallory, 1 ether, 8, vs2[0].expiry, vs2[0].ref), hex"00");
+        (bool valid, string memory reason) = vault.verify(vs2[0], sigs[0]);
+        assertFalse(valid);
+        assertEq(reason, "insufficient balance");
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.prank(relayer);
+        vault.depositFor{value: 1 ether}(p);
+        vault.settleBatch{gas: est}(vs2, sigs);
+        assertTrue(vault.used(p, 7));
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertGt(est, 16_000_000);
+    }
+
+    /// @notice Nor on the payer's code. A payer with none while estimated (self-destructed, say, to be
+    ///         deployed again at its address by CREATE2) has it back before inclusion, here with the worst
+    ///         answer: one that burns its whole allowance in a real transaction. Its voucher alone is
+    ///         skipped, and the 49 honest ones settle at the estimate.
+    function test_v2_payerCodeBackAfterEstimate_restSettleAtEstimatedGas() public {
+        address p = makeAddr("counterfactual");
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), p);
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        (bool valid, string memory reason) = vault.verify(vs2[0], sigs[0]);
+        assertFalse(valid);
+        assertEq(reason, "bad signature");
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.etch(p, address(new GasPriceBurnerPayer()).code);
+        vm.txGasPrice(2 gwei);
+        vm.expectEmit(true, true, true, true);
+        emit X402VaultV2.Skipped(p, 7, "bad signature");
+        vault.settleBatch{gas: est}(vs2, sigs);
+        for (uint256 i = 1; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+        assertFalse(vault.used(p, 7));
+        assertEq(vault.balance(p), 1 ether);
+        assertGt(est, 16_000_000);
+    }
+
+    /// @notice What the headroom leaves to the facilitator's margin: ahead of the first contract payer, the
+    ///         estimate holds each voucher at the cost it had then. An EOA payer's voucher skipped while
+    ///         estimated (its deposit drained) that settles on chain (refilled) takes its settlement beyond
+    ///         the estimate — under 75k at its worst, into fresh slots: its nonce, its payee's credits and
+    ///         the treasury's, emptied by a withdrawal — and no more, though the contract payer after it
+    ///         flips the same way.
+    function test_v2_toppedUpAheadOfContractPayer_costsOnlyItsSettlement() public {
+        address p = address(new MagicPayer());
+        (X402Vault.Voucher[] memory vs, bytes[] memory sigs) = _burnerBatch(address(vault), address(1));
+        X402VaultV2.Voucher[] memory vs2 = _asV2(vs);
+        uint64 expiry = uint64(block.timestamp + 60);
+        vm.deal(mallory, 2 ether);
+        vm.startPrank(mallory);
+        vault.deposit{value: 1 ether}();
+        vault.depositFor{value: 1 ether}(p);
+        vm.stopPrank();
+        vs2[0] = X402VaultV2.Voucher(mallory, payee, 1 ether, 7, expiry, keccak256("resource"));
+        sigs[0] = _sign(malloryPk, vs2[0]);
+        vs2[1] = X402VaultV2.Voucher(p, payee, 1 ether, 7, expiry, keccak256("resource"));
+        sigs[1] = hex"00";
+        // both deposits drained to mallory by direct settles
+        X402VaultV2.Voucher memory drain = X402VaultV2.Voucher(mallory, mallory, 1 ether, 8, expiry, vs2[0].ref);
+        vault.settle(drain, _sign(malloryPk, drain));
+        vault.settle(X402VaultV2.Voucher(p, mallory, 1 ether, 8, expiry, vs2[0].ref), hex"00");
+        // the treasury collects its fees, so the flipped voucher's fee lands in an empty slot
+        vm.prank(treasury);
+        vault.withdrawCredits();
+        // forge runs a test as one transaction, which would leave the slots touched above warm; the estimate
+        // and the settleBatch are each a transaction of their own on chain
+        vm.cool(address(vault));
+        uint256 est = _estimate(vs2, sigs);
+
+        vm.deal(relayer, 2 ether);
+        vm.startPrank(relayer);
+        vault.depositFor{value: 1 ether}(mallory);
+        vault.depositFor{value: 1 ether}(p);
+        vm.stopPrank();
+        vm.cool(address(vault));
+        // at the bare estimate the batch stops at the contract payer's check, before anything runs out of gas
+        vm.expectPartialRevert(X402VaultV2.InsufficientGas.selector);
+        vault.settleBatch{gas: est}(vs2, sigs);
+        // and still 50k above it: settling into fresh slots costs more than that
+        vm.cool(address(vault));
+        vm.expectPartialRevert(X402VaultV2.InsufficientGas.selector);
+        vault.settleBatch{gas: est + 50_000}(vs2, sigs);
+        vm.cool(address(vault));
+        vault.settleBatch{gas: est + 75_000}(vs2, sigs);
+        assertTrue(vault.used(mallory, 7));
+        assertTrue(vault.used(p, 7));
+        for (uint256 i = 2; i < 50; i++) {
+            assertTrue(vault.used(vs2[i].payer, i));
+        }
+    }
+
+    function _asV2(X402Vault.Voucher[] memory vs) internal pure returns (X402VaultV2.Voucher[] memory out) {
+        out = new X402VaultV2.Voucher[](vs.length);
+        for (uint256 i = 0; i < vs.length; i++) {
+            out[i] = X402VaultV2.Voucher(vs[i].payer, vs[i].payee, vs[i].amount, vs[i].nonce, vs[i].expiry, vs[i].ref);
+        }
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value to everything.
+contract MagicPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        return 0x1626ba7e;
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value with a dirty low-order byte.
+contract DirtyMagicPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        assembly {
+            mstore(0, 0x1626ba7e00000000000000000000000000000000000000000000000000000001)
+            return(0, 32)
+        }
+    }
+}
+
+/// @dev ERC-1271 payer answering just the four magic bytes, unpadded.
+contract ShortAnswerPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        assembly {
+            mstore(0, 0x1626ba7e00000000000000000000000000000000000000000000000000000000)
+            return(0, 4)
+        }
+    }
+}
+
+contract RevertingPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        revert("no");
+    }
+}
+
+/// @dev ERC-1271 payer answering the clean magic value followed by 4 KiB.
+contract LongAnswerPayer {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        assembly {
+            mstore(0, 0x1626ba7e00000000000000000000000000000000000000000000000000000000)
+            return(0, 4128)
+        }
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value until armed, then burning all the gas it is given.
+contract GasBurnerPayer {
+    bool public armed;
+
+    function arm() external {
+        armed = true;
+    }
+
+    function isValidSignature(bytes32, bytes calldata) external view returns (bytes4 magic) {
+        if (!armed) return 0x1626ba7e;
+        while (true) {}
+    }
+}
+
+/// @dev ERC-1271 payer answering the magic value at gas price 0 (eth_call, gas estimates without fee
+///      fields) and burning all the gas it is given in a real transaction.
+contract GasPriceBurnerPayer {
+    function isValidSignature(bytes32, bytes calldata) external view returns (bytes4 magic) {
+        if (tx.gasprice == 0) return 0x1626ba7e;
+        while (true) {}
+    }
+}
+
+/// @dev ERC-1271 payer answering "no" cheaply at gas price 0, and the magic value in a real transaction
+///      after burning all but a little of the gas it is given.
+contract GasPriceFlipPayer {
+    function isValidSignature(bytes32, bytes calldata) external view returns (bytes4 magic) {
+        if (tx.gasprice == 0) return 0xffffffff;
+        while (gasleft() > 5_000) {}
+        return 0x1626ba7e;
+    }
+}
+
+contract ReenterVaultV2 {
+    X402VaultV2 public vault;
+    uint256 public attempts;
+    bool public reentered;
+
+    constructor(X402VaultV2 v) {
+        vault = v;
+    }
+
+    function pull() external {
+        vault.withdrawCredits();
+    }
+
+    receive() external payable {
+        attempts++;
+        if (attempts == 1) {
+            try vault.withdrawCredits() {
+                reentered = true;
+            } catch {}
+        }
+    }
+}

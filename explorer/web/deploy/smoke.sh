@@ -18,5 +18,7 @@ for p in / /blocks '/blocks?tab=reorgs' /block/361974 /block/0xb45df400740474286
   /tokens/0x8a9Ae4D652cEba09Db8Ebf48D28C943b41B377Ae /charts /robots.txt /sitemap.xml /favicon.svg /fonts/inter-latin-var.woff2 "$A" /assets/nope.js; do t "$p"; done
 echo "etherscan-style: $(curl -s "$B/api?module=block&action=eth_block_number")"
 echo "eth-rpc proxy:   $(curl -s -X POST -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' "$B/api/eth-rpc")"
+# a legacy redirect must not echo CR/LF from the path into its Location (header injection): expect 0
+echo "CRLF in Location: $(curl -s -o /dev/null -D - "$B/tx/x%0d%0aSet-Cookie:%20fxsmoke=1/logs" | grep -ci '^set-cookie: fxsmoke')"
 echo "no Blockscout:   $(curl -s "$B/" | grep -ci blockscout) mentions in /"
 rm -f "$H"

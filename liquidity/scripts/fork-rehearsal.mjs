@@ -40,7 +40,7 @@ const log = (s) => { console.log(s); appendFileSync(logFile, s + "\n"); };
 
 const gasTable = [];
 function harvestGas(label, text) {
-  for (const m of text.matchAll(/^\s*(.+?) \.\.\. mined in block \d+, gasUsed=(\d+)/gm)) gasTable.push({ phase: label, step: m[1], gas: Number(m[2]) });
+  for (const m of text.matchAll(/^\s*(.+?) \.\.\. confirmed in block \d+, gasUsed=(\d+)/gm)) gasTable.push({ phase: label, step: m[1], gas: Number(m[2]) });
   for (const m of text.matchAll(/LiquidityLocker deployed at \S+ \(gasUsed=(\d+)/g)) gasTable.push({ phase: label, step: "deploy LiquidityLocker", gas: Number(m[1]) });
 }
 
