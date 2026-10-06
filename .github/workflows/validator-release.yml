@@ -229,7 +229,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist-out | Out-Null
           7z a dist-out\ferminux-validator-windows-amd64.zip .\stage\windows\*
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ferminux-validator-windows-amd64
           path: dist-out\ferminux-validator-windows-amd64.zip
@@ -303,7 +303,7 @@ jobs:
           mkdir -p dist-out
           tar czf dist-out/ferminux-validator-linux-amd64.tar.gz -C stage ferminux-validator-linux-amd64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ferminux-validator-linux-amd64
           path: dist-out/ferminux-validator-linux-amd64.tar.gz
